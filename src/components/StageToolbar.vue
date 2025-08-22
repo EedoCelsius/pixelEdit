@@ -44,4 +44,30 @@ watch(() => selection.size, (size) => {
     toolStore.setStatic(size === 1 ? 'draw' : 'select');
   }
 }, { immediate: true });
+
+// Keyboard handlers
+let ctrlKeyDownTimestamp = 0;
+const KEY_TAP_MS = 200;
+function ctrlKeyDown() {
+  if (!toolStore.ctrlHeld) {
+    ctrlKeyDownTimestamp = performance.now();
+    toolStore.setCtrlHeld(true);
+  }
+}
+function ctrlKeyUp() {
+  if (performance.now() - ctrlKeyDownTimestamp < KEY_TAP_MS) {
+    const t = toolStore.static;
+    if (t === 'draw' || t === 'erase') {
+      toolStore.setStatic(t === 'draw' ? 'erase' : 'draw');
+    } else if (t === 'select' || t === 'globalErase') {
+      toolStore.setStatic(t === 'select' ? 'globalErase' : 'select');
+    }
+  }
+  toolStore.setCtrlHeld(false);
+  ctrlKeyDownTimestamp = 0;
+}
+function shiftKeyDown() { toolStore.setShiftHeld(true); }
+function shiftKeyUp() { toolStore.setShiftHeld(false); }
+
+defineExpose({ ctrlKeyDown, ctrlKeyUp, shiftKeyDown, shiftKeyUp });
 </script>
