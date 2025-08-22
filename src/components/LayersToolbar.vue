@@ -24,7 +24,7 @@ const selection = useSelectionStore();
 
 const onAdd = () => {
     output.setRollbackPoint();
-    const above = selection.size ? layerSvc.uppermostIdOf(new Set(selection.asArray)) : null;
+    const above = selection.size ? layers.uppermostIdOf(selection.asArray) : null;
     const id = layers.create({});
     if (above !== null) {
         layers.reorder([id], above, false);

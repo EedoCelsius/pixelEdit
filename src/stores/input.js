@@ -9,14 +9,20 @@ export const useInputStore = defineStore('input', {
         _buffer: null /* Uint8ClampedArray */
     }),
     getters: {
-        hasImage: (state) => !!state._buffer && state._width > 0 && state._height > 0,
+        isLoaded: (state) => !!state._buffer && state._width > 0 && state._height > 0,
         width: (state) => state._width,
         height: (state) => state._height,
         src: (state) => state._src,
         buffer: (state) => state._buffer,
     },
     actions: {
-        async init(src) {
+        createImage({ src = '', width = 0, height = 0, buffer = null } = {}) {
+            this._src = src;
+            this._width = width;
+            this._height = height;
+            this._buffer = buffer;
+        },
+        async load(src) {
             if (!src) return;
             const img = new Image();
             if (/^(https?:)?\/\//.test(src) && !/^blob:|^data:/.test(src)) img.crossOrigin = 'anonymous';
@@ -36,29 +42,26 @@ export const useInputStore = defineStore('input', {
             context.imageSmoothingEnabled = false;
             context.drawImage(img, 0, 0);
             const data = context.getImageData(0, 0, w, h).data;
-            this._src = src;
-            this._width = w;
-            this._height = h;
-            this._buffer = data;
+            this.createImage({ src, width: w, height: h, buffer: data });
         },
-        async initFromQuery() {
-            await this.init(new URL(location.href).searchParams.get('pixel'));
+        async loadFromQuery() {
+            await this.load(new URL(location.href).searchParams.get('pixel'));
         },
-        within(x, y) {
+        isWithin(x, y) {
             return x >= 0 && y >= 0 && x < this._width && y < this._height;
         },
-        _index(x, y) {
+        _offset(x, y) {
             return ((y * this._width) + x) * 4;
         },
-        getPixel(x, y) {
-            if (!this.hasImage || !this.within(x, y)) return {
+        readPixel(x, y) {
+            if (!this.isLoaded || !this.isWithin(x, y)) return {
                 r: 0,
                 g: 0,
                 b: 0,
                 a: 0
             };
             const data = this._buffer;
-            const i = this._index(x, y);
+            const i = this._offset(x, y);
             return {
                 r: data[i],
                 g: data[i + 1],
@@ -66,8 +69,19 @@ export const useInputStore = defineStore('input', {
                 a: data[i + 3]
             };
         },
+        writePixel(x, y, { r = 0, g = 0, b = 0, a = 255 } = {}) {
+            if (!this.isLoaded || !this.isWithin(x, y)) return;
+            const i = this._offset(x, y);
+            this._buffer[i] = r;
+            this._buffer[i + 1] = g;
+            this._buffer[i + 2] = b;
+            this._buffer[i + 3] = a;
+        },
+        clear() {
+            this.createImage();
+        },
         segment(tolerance = 32) {
-            if (!this.hasImage) return [];
+            if (!this.isLoaded) return [];
             const width = this._width,
                 height = this._height,
                 data = this._buffer;

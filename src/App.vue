@@ -67,11 +67,11 @@ function onKeydown(event) {
       if (!layers.exists) return;
       if (shift && !ctrl) {
         if (!selection.exists) return;
-        const newTail = layerSvc.aboveId(selection.tailId) ?? layerSvc.uppermostId();
+        const newTail = layers.aboveId(selection.tailId) ?? layers.uppermostId;
         selectSvc.selectRange(selection.anchorId, newTail);
         selection.setScrollRule({ type: 'follow-up', target: newTail });
       } else if (!ctrl) {
-        const nextId = layerSvc.aboveId(selection.anchorId) ?? selection.anchorId;
+        const nextId = layers.aboveId(selection.anchorId) ?? selection.anchorId;
         selection.selectOnly(nextId);
         selection.setScrollRule({ type: 'follow-up', target: nextId });
       }
@@ -81,11 +81,11 @@ function onKeydown(event) {
       if (!layers.exists) return;
       if (shift && !ctrl) {
         if (!selection.exists) return;
-        const newTail = layerSvc.belowId(selection.tailId) ?? layerSvc.lowermostId();
+        const newTail = layers.belowId(selection.tailId) ?? layers.lowermostId;
         selectSvc.selectRange(selection.anchorId, newTail);
         selection.setScrollRule({ type: 'follow-down', target: newTail });
       } else if (!ctrl) {
-        const nextId = layerSvc.belowId(selection.anchorId) ?? selection.anchorId;
+        const nextId = layers.belowId(selection.anchorId) ?? selection.anchorId;
         selection.selectOnly(nextId);
         selection.setScrollRule({ type: 'follow-down', target: nextId });
       }
@@ -95,9 +95,9 @@ function onKeydown(event) {
       event.preventDefault();
       if (!selection.exists) return;
       output.setRollbackPoint();
-      const belowId = layerSvc.belowId(layerSvc.lowermostIdOf(selection.asArray));
+      const belowId = layers.belowId(layers.lowermostIdOf(selection.asArray));
       layerSvc.deleteSelected();
-      const newSelect = layers.layersById[belowId] ? belowId : layerSvc.lowermostId();
+      const newSelect = layers.layersById[belowId] ? belowId : layers.lowermostId;
       selection.selectOnly(newSelect);
       selection.setScrollRule({ type: "follow", target: newSelect });
       output.commit();
@@ -125,7 +125,7 @@ function onKeydown(event) {
   if (ctrl) {
     if (key === 'a') {
       event.preventDefault();
-      const anchor = layerSvc.uppermostId(), tail = layerSvc.lowermostId();
+      const anchor = layers.uppermostId, tail = layers.lowermostId;
       selection.set(layers.order, anchor, tail);
     } else if (key === 'z' && !shift) {
       event.preventDefault();
@@ -149,16 +149,16 @@ function onKeyup(event) {
 
 onMounted(async () => {
   try {
-    await input.initFromQuery();
+    await input.loadFromQuery();
   } catch {}
-  if (!input.hasImage) {
+  if (!input.isLoaded) {
     stageStore.setSize(21, 18);
   } else {
     stageStore.setSize(input.width, input.height);
     stageStore.setImage(input.src || '');
   }
 
-  const autoSegments = input.hasImage ? input.segment(40) : [];
+  const autoSegments = input.isLoaded ? input.segment(40) : [];
   if (autoSegments.length) {
     for (let i = 0; i < autoSegments.length; i++) {
       const segment = autoSegments[i];
@@ -173,7 +173,7 @@ onMounted(async () => {
     layers.create({});
     layers.create({});
   }
-  selection.selectOnly(layers.listTopToBottomIds[0]);
+  selection.selectOnly(layers.idsTopToBottom[0]);
 
   nextTick(() => stageService.recalcScale(document.getElementById('stage')?.parentElement?.parentElement || document.body));
 

@@ -5,7 +5,7 @@
       <svg v-show="stageStore.display!=='result'" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-44 h-44 rounded-md border border-white/15">
         <rect x="0" y="0" :width="stageStore.canvas.width" :height="stageStore.canvas.height" :fill="patternUrl"/>
         <g>
-          <path v-for="id in layerSvc.idsBottomToTop" :key="'pix-'+id" :d="layerSvc.pathOf(id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(layerSvc.colorOf(id))" :visibility="layerSvc.visibleOf(id)?'visible':'hidden'"></path>
+          <path v-for="id in layers.idsBottomToTop" :key="'pix-'+id" :d="layers.pathOf(id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(layers.colorOf(id))" :visibility="layers.visibleOf(id)?'visible':'hidden'"></path>
         </g>
       </svg>
       <!-- 원본 -->
@@ -26,13 +26,13 @@
 import { ref, computed, onMounted, nextTick } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useStageService } from '../services/stage';
-import { useLayerService } from '../services/layers';
+import { useLayerStore } from '../stores/layers';
 import { useOutputStore } from '../stores/output';
 import { rgbaCssU32 } from '../utils';
 
 const stageStore = useStageStore();
 const stageService = useStageService();
-const layerSvc = useLayerService();
+const layers = useLayerStore();
 const output = useOutputStore();
 const text = ref('');
 const textareaElement = ref(null);

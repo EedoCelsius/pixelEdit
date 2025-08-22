@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useSelectionStore } from '../stores/selection';
-import { useLayerService } from './layers';
+import { useLayerStore } from '../stores/layers';
 import { useInputStore } from '../stores/input';
 import { coordsToKey, keyToCoords, pixelsToUnionPath, clamp, rgbaCssObj, rgbaCssU32 } from '../utils';
 import { CURSOR_CONFIG } from '../constants';
@@ -13,7 +13,7 @@ export const useStageService = defineStore('stageService', () => {
     const stageStore = useStageStore();
     const toolStore = useToolStore();
     const selection = useSelectionStore();
-    const layerSvc = useLayerService();
+    const layers = useLayerStore();
     const input = useInputStore();
 
     // --- Overlay Paths ---
@@ -21,7 +21,7 @@ export const useStageService = defineStore('stageService', () => {
         if (!toolStore.selectOverlayLayerIds.size) return '';
         const pixelUnionSet = new Set();
         for (const id of toolStore.selectOverlayLayerIds) {
-            layerSvc.layerById(id)?.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y)));
+            layers.get(id)?.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y)));
         }
         return pixelsToUnionPath(pixelUnionSet);
     });
@@ -116,15 +116,15 @@ export const useStageService = defineStore('stageService', () => {
             toolStore.hoverLayerId = null;
             return;
         }
-        if (stageStore.display === 'original' && input.hasImage) {
-            const colorObject = input.getPixel(pixel.x, pixel.y);
+        if (stageStore.display === 'original' && input.isLoaded) {
+            const colorObject = input.readPixel(pixel.x, pixel.y);
             stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssObj(colorObject)}`);
         } else {
-            const colorU32 = layerSvc.compositeColorAt(pixel.x, pixel.y);
+            const colorU32 = layers.compositeColorAt(pixel.x, pixel.y);
             stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssU32(colorU32)}`);
         }
         if (toolStore.isSelect) {
-            toolStore.hoverLayerId = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
+            toolStore.hoverLayerId = layers.topVisibleIdAt(pixel.x, pixel.y);
         } else {
             toolStore.hoverLayerId = null;
         }

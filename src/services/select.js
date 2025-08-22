@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { useStageService } from './stage';
 import { useToolStore } from '../stores/tool';
 import { useSelectionStore } from '../stores/selection';
-import { useLayerService } from './layers';
+import { useLayerStore } from '../stores/layers';
 import { useOutputStore } from '../stores/output';
 import { coordsToKey } from '../utils';
 
@@ -10,7 +10,7 @@ export const useSelectService = defineStore('selectService', () => {
     const stage = useStageService();
     const toolStore = useToolStore();
     const selection = useSelectionStore();
-    const layerSvc = useLayerService();
+    const layers = useLayerStore();
     const output = useOutputStore();
 
     function toolStart(event) {
@@ -18,7 +18,7 @@ export const useSelectService = defineStore('selectService', () => {
         const pixel = stage.clientToPixel(event);
         if (!pixel) return;
 
-        const startId = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
+        const startId = layers.topVisibleIdAt(pixel.x, pixel.y);
         toolStore.selectionBeforeDrag = new Set(selection.asArray);
         const mode = !event.shiftKey
             ? 'select'
@@ -43,7 +43,7 @@ export const useSelectService = defineStore('selectService', () => {
             toolStore.visited.clear();
             toolStore.visited.add(coordsToKey(pixel.x, pixel.y));
 
-            const id = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
+            const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'remove') {
                     if (toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
@@ -67,7 +67,7 @@ export const useSelectService = defineStore('selectService', () => {
             const intersectedIds = new Set();
             for (let yy = y; yy < y + h; yy++) {
                 for (let xx = x; xx < x + w; xx++) {
-                    const id = layerSvc.topVisibleLayerIdAt(xx, yy);
+                    const id = layers.topVisibleIdAt(xx, yy);
                     if (id !== null) intersectedIds.add(id);
                 }
             }
@@ -97,7 +97,7 @@ export const useSelectService = defineStore('selectService', () => {
                 return;
             }
             toolStore.visited.add(k);
-            const id = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
+            const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'remove') {
                     if (toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
@@ -122,7 +122,7 @@ export const useSelectService = defineStore('selectService', () => {
         const dy = start ? Math.abs(event.clientY - start.y) : 0;
         const isClick = dx <= 4 && dy <= 4;
         if (isClick && pixel) {
-            const id = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
+            const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'select' || !mode) {
                     selection.selectOnly(id);
@@ -136,7 +136,7 @@ export const useSelectService = defineStore('selectService', () => {
             if (pixels.length > 0) {
                 const intersectedIds = new Set();
                 for (const [x, y] of pixels) {
-                    const id = layerSvc.topVisibleLayerIdAt(x, y);
+                    const id = layers.topVisibleIdAt(x, y);
                     if (id !== null) intersectedIds.add(id);
                 }
                 const currentSelection = new Set(
@@ -185,9 +185,9 @@ export const useSelectService = defineStore('selectService', () => {
     }
 
     function selectRange(anchorId, tailId) {
-        const anchorIndex = layerSvc.idsTopToBottom.indexOf(anchorId);
-        const tailIndex = layerSvc.idsTopToBottom.indexOf(tailId);
-        const slice = layerSvc.idsTopToBottom.slice(
+        const anchorIndex = layers.idsTopToBottom.indexOf(anchorId);
+        const tailIndex = layers.idsTopToBottom.indexOf(tailId);
+        const slice = layers.idsTopToBottom.slice(
             Math.min(anchorIndex, tailIndex),
             Math.max(anchorIndex, tailIndex) + 1
         );

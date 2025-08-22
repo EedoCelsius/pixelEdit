@@ -1,23 +1,23 @@
 <template>
   <div v-memo="[output.commitVersion, selection.asArray]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
-    <div v-for="id in layerSvc.idsTopToBottom" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="id" :data-id="id" :class="{ selected: selection.has(id), anchor: selection.anchorId===id, dragging: dragId===id }" draggable="true" @click="onLayerClick(id,$event)" @dragstart="onDragStart(id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(id,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(id,$event)">
+    <div v-for="id in layers.idsTopToBottom" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="id" :data-id="id" :class="{ selected: selection.has(id), anchor: selection.anchorId===id, dragging: dragId===id }" draggable="true" @click="onLayerClick(id,$event)" @dragstart="onDragStart(id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(id,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(id,$event)">
       <!-- 썸네일 -->
       <div @click.stop="onThumbnailClick(id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 크기의 모든 레이어 선택">
         <svg :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
           <rect x="0" y="0" :width="stageStore.canvas.width" :height="stageStore.canvas.height" :fill="patternUrl"/>
-          <path :d="layerSvc.pathOf(id)" :fill="rgbaCssU32(layerSvc.colorOf(id))" :opacity="layerSvc.visibleOf(id)?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+          <path :d="layers.pathOf(id)" :fill="rgbaCssU32(layers.colorOf(id))" :opacity="layers.visibleOf(id)?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
         </svg>
       </div>
       <!-- 색상 -->
       <div class="h-6 w-6 rounded border border-white/25 p-0 relative overflow-hidden">
-        <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :value="rgbaToHexU32(layerSvc.colorOf(id))" @pointerdown.stop @mousedown.stop @click.stop="onColorDown()" @input.stop="onColorInput(id, $event)" @change.stop="onColorChange()" title="색상 변경" />
+        <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :value="rgbaToHexU32(layers.colorOf(id))" @pointerdown.stop @mousedown.stop @click.stop="onColorDown()" @input.stop="onColorInput(id, $event)" @change.stop="onColorChange()" title="색상 변경" />
       </div>
       <!-- 이름/픽셀 -->
       <div class="min-w-0 flex-1">
         <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
           <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(id)" @keydown="onNameKey(id,$event)" @blur="finishRename(id,$event)">{{ layers.get(id)?.name }}</span>
         </div>
-        <div class="text-xs text-slate-400">{{ layerSvc.pixelCountOf(id) }} px</div>
+        <div class="text-xs text-slate-400">{{ layers.pixelCountOf(id) }} px</div>
       </div>
       <!-- 액션 -->
       <div class="flex gap-1 justify-end">
@@ -29,7 +29,7 @@
         </div>
       </div>
     </div>
-    <div v-show="layerSvc.idsTopToBottom.length===0" class="text-xs text-slate-400/80 py-6 text-center">(레이어가 없습니다)</div>
+    <div v-show="layers.idsTopToBottom.length===0" class="text-xs text-slate-400/80 py-6 text-center">(레이어가 없습니다)</div>
   </div>
 </template>
 
@@ -148,9 +148,9 @@ function toggleVisibility(id) {
 function deleteLayer(id) {
     output.setRollbackPoint();
     const targets = selection.has(id) ? selection.asArray : [id];
-    const belowId = layerSvc.belowId(layerSvc.lowermostIdOf(targets));
+    const belowId = layers.belowId(layers.lowermostIdOf(targets));
     layers.remove(targets);
-    const newSelectId = layers.get(belowId) ? belowId : layerSvc.lowermostId();
+    const newSelectId = layers.get(belowId) ? belowId : layers.lowermostId;
     selection.selectOnly(newSelectId);
     if (newSelectId) {
         selection.setScrollRule({

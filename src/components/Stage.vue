@@ -11,7 +11,7 @@
       <!-- 결과 레이어 -->
       <svg v-show="stageStore.display==='result'" class="absolute top-0 left-0 pointer-events-none block rounded-lg" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" style="image-rendering:pixelated">
         <g>
-          <path v-for="id in layerSvc.idsBottomToTop" :key="'pix-'+id" :d="layerSvc.pathOf(id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(layerSvc.colorOf(id))" :visibility="layerSvc.visibleOf(id)?'visible':'hidden'"></path>
+          <path v-for="id in layers.idsBottomToTop" :key="'pix-'+id" :d="layers.pathOf(id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(layers.colorOf(id))" :visibility="layers.visibleOf(id)?'visible':'hidden'"></path>
         </g>
       </svg>
       <!-- 그리드 -->
@@ -60,6 +60,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useStageService } from '../services/stage';
+import { useLayerStore } from '../stores/layers';
 import { useLayerService } from '../services/layers';
 import { useSelectionStore } from '../stores/selection';
 import { useSelectService } from '../services/select';
@@ -70,6 +71,7 @@ import { OVERLAY_CONFIG } from '../constants';
 const stageStore = useStageStore();
 const toolStore = useToolStore();
 const stageService = useStageService();
+const layers = useLayerStore();
 const layerSvc = useLayerService();
 const selection = useSelectionStore();
 const selectSvc = useSelectService();
@@ -119,7 +121,7 @@ const selectOverlayStyle = computed(() => (
 const overlayPath = computed(() => (
     toolStore.pointer.status !== 'idle'
         ? stageService.selectOverlayPath.value
-        : layerSvc.pathOf(toolStore.hoverLayerId)
+        : layers.pathOf(toolStore.hoverLayerId)
 ));
 
 const overlayStyle = computed(() => (

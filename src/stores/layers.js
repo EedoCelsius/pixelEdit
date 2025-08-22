@@ -14,8 +14,53 @@ export const useLayerStore = defineStore('layers', {
         layersById: (state) => shallowReadonly(state._layersById),
         count: (state) => state._order.length,
         indexOf: (state) => (id) => state._order.indexOf(id),
-        listBottomToTopIds: (state) => state._order.slice(),
-        listTopToBottomIds: (state) => state._order.slice().reverse(),
+        idsBottomToTop: (state) => state._order.slice(),
+        idsTopToBottom: (state) => state._order.slice().reverse(),
+        uppermostId: (state) => state._order[state._order.length - 1] ?? null,
+        lowermostId: (state) => state._order[0] ?? null,
+        uppermostIdOf: (state) => (ids) => {
+            const idSet = new Set(ids);
+            if (!idSet.size) return null;
+            const index = Math.max(...state._order.map((id, idx) => idSet.has(id) ? idx : -1));
+            return index >= 0 ? state._order[index] : null;
+        },
+        lowermostIdOf: (state) => (ids) => {
+            const idSet = new Set(ids);
+            if (!idSet.size) return null;
+            const index = Math.min(...state._order.map((id, idx) => idSet.has(id) ? idx : Infinity));
+            return isFinite(index) ? state._order[index] : null;
+        },
+        aboveId: (state) => (id) => {
+            if (id == null) return null;
+            const idx = state._order.indexOf(id);
+            return state._order[idx + 1] ?? null;
+        },
+        belowId: (state) => (id) => {
+            if (id == null) return null;
+            const idx = state._order.indexOf(id);
+            return state._order[idx - 1] ?? null;
+        },
+        pathOf: (state) => (id) => state._layersById[id]?.d,
+        colorOf: (state) => (id) => state._layersById[id]?.getColorU32() ?? 0,
+        visibleOf: (state) => (id) => !!state._layersById[id]?.visible,
+        pixelCountOf: (state) => (id) => state._layersById[id]?.pixelCount ?? 0,
+        compositeColorAt: (state) => (x, y) => {
+            for (let i = state._order.length - 1; i >= 0; i--) {
+                const layer = state._layersById[state._order[i]];
+                if (!layer || !layer.visible) continue;
+                if (layer.has(x, y)) return layer.getColorU32() >>> 0;
+            }
+            return 0x00000000 >>> 0;
+        },
+        topVisibleIdAt: (state) => (x, y) => {
+            for (let i = state._order.length - 1; i >= 0; i--) {
+                const id = state._order[i];
+                const layer = state._layersById[id];
+                if (!layer || !layer.visible) continue;
+                if (layer.has(x, y)) return id;
+            }
+            return null;
+        },
     },
     actions: {
         _allocId() {
@@ -57,6 +102,14 @@ export const useLayerStore = defineStore('layers', {
             const selectionInStack = this._order.filter(id => selectionSet.has(id));
             keptIds.splice(targetIndex, 0, ...selectionInStack);
             this._order = keptIds;
+        },
+        removeEmpty() {
+            const emptyIds = this._order.filter(id => {
+                const layer = this._layersById[id];
+                return layer && layer.pixelCount === 0;
+            });
+            if (emptyIds.length) this.remove(emptyIds);
+            return emptyIds;
         },
         /** Serialization */
         serialize() {
