@@ -3,6 +3,7 @@ import { useStageService } from './stage';
 import { useToolStore } from '../stores/tool';
 import { useSelectionStore } from '../stores/selection';
 import { useLayerStore } from '../stores/layers';
+import { useLayerService } from './layers';
 import { useOutputStore } from '../stores/output';
 import { coordsToKey, clamp } from '../utils';
 import { useStageStore } from '../stores/stage';
@@ -12,6 +13,7 @@ export const usePixelService = defineStore('pixelService', () => {
     const toolStore = useToolStore();
     const selection = useSelectionStore();
     const layers = useLayerStore();
+    const layerSvc = useLayerService();
     const output = useOutputStore();
     const stageStore = useStageStore();
 
@@ -151,13 +153,6 @@ export const usePixelService = defineStore('pixelService', () => {
         toolStore.initialSelectionOnDrag.clear();
     }
 
-    function forEachSelected(fn) {
-        for (const id of selection.asArray) {
-            const layer = layers.layersById[id];
-            if (layer) fn(layer, id);
-        }
-    }
-
     function addPixelsToSelection(pixels) {
         if (selection.size !== 1) return;
         const id = selection.asArray[0];
@@ -181,7 +176,7 @@ export const usePixelService = defineStore('pixelService', () => {
 
     function removePixelsFromSelected(pixels) {
         if (!pixels || !pixels.length) return;
-        forEachSelected(layer => {
+        layerSvc.forEachSelected(layer => {
             const pixelsToRemove = [];
             for (const [x, y] of pixels) {
                 if (layer.has(x, y)) pixelsToRemove.push([x, y]);
