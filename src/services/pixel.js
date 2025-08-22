@@ -113,7 +113,6 @@ export const usePixelService = defineStore('pixelService', () => {
         toolStore.pointer.current = null;
         toolStore.visited.clear();
         toolStore.selectOverlayLayerIds.clear();
-        toolStore.selectionBeforeDrag.clear();
     }
 
     function addPixelsToSelection(pixels) {
