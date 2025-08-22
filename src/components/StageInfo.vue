@@ -20,9 +20,8 @@ const layers = useLayerStore();
 const selection = useSelectionStore();
 const selectedAreaPixelCount = computed(() => {
     const pixelSet = new Set();
-    for (const id of selection.asArray) {
-        if (!layers.has(id)) continue;
-        layers.getLayer(id).forEachPixel((x, y) => pixelSet.add(coordsToKey(x, y)));
+    for (const [, layer] of layers.getLayers(selection.asArray)) {
+        layer.forEachPixel((x, y) => pixelSet.add(coordsToKey(x, y)));
     }
     return pixelSet.size;
 });

@@ -71,6 +71,14 @@ export const useLayerStore = defineStore('layers', {
         getLayer(id) {
             return this._layersById[id] || null;
         },
+        getLayers(ids) {
+            const result = [];
+            for (const id of ids) {
+                const layer = this._layersById[id];
+                if (layer) result.push([id, layer]);
+            }
+            return result;
+        },
         /** Create a layer and insert relative to a reference id (above = on top of it). If refId null -> push on top */
         createLayer(layerProperties, above = null) {
             const layer = new Layer(layerProperties);
