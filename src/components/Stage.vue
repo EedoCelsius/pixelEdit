@@ -25,7 +25,7 @@
       <svg class="absolute top-0 left-0 pointer-events-none block rounded-lg" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" style="image-rendering:pixelated">
           <!-- 1. 기본 선택 윤곽 (하늘색) -->
           <path id="selectionOutline"
-                v-if="selection.exists"
+                v-if="selection.hasSelection"
                 :d="selectionPath"
                 :fill="OVERLAY_CONFIG.SELECTED.FILL_COLOR"
                 :stroke="OVERLAY_CONFIG.SELECTED.STROKE_COLOR"

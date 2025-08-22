@@ -38,12 +38,12 @@ const toolStore = useToolStore();
 const selection = useSelectionStore();
 
 const selectables = ref([]);
-watch(() => selection.size, (size) => {
-  selectables.value = size === 1 ? 
+watch(() => selection.count, (count) => {
+  selectables.value = count === 1 ?
     [{ type: 'draw', name: 'Draw' }, { type: 'erase', name: 'Erase' }] :
     [{ type: 'select', name: 'Select' }, { type: 'globalErase', name: 'Global Erase' }];
   if (!selectables.value.includes(toolStore.static)) {
-    toolStore.setStatic(size === 1 ? 'draw' : 'select');
+    toolStore.setStatic(count === 1 ? 'draw' : 'select');
   }
 }, { immediate: true });
 

@@ -8,7 +8,7 @@ export const useLayerService = defineStore('layerService', () => {
     const selection = useSelectionStore();
 
     function forEachSelected(fn) {
-        for (const id of selection.asArray) {
+        for (const id of selection.ids) {
             const layer = layers.getLayer(id);
             if (layer) fn(layer, id);
         }
@@ -27,17 +27,19 @@ export const useLayerService = defineStore('layerService', () => {
     }
 
     function deleteSelected() {
-        layers.deleteLayers(selection.asArray);
+        const ids = selection.ids;
+        layers.deleteLayers(ids);
+        selection.remove(ids);
     }
 
     function reorderGroup(selIds, targetId, placeBelow = true) {
         layers.reorderLayers(selIds, targetId, placeBelow);
         const newAnchorId = selection.anchorId;
-        selection.set(selIds, newAnchorId, newAnchorId);
+        selection.replace(selIds, newAnchorId, newAnchorId);
     }
 
     function mergeSelected() {
-        if (selection.size < 2) return;
+        if (selection.count < 2) return;
         const pixelUnionSet = new Set();
         forEachSelected(L => L.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y))));
 
@@ -60,9 +62,9 @@ export const useLayerService = defineStore('layerService', () => {
                 g += (colorU32 >>> 16) & 255;
                 b += (colorU32 >>> 8) & 255;
             });
-            r = Math.round(r / selection.size);
-            g = Math.round(g / selection.size);
-            b = Math.round(b / selection.size);
+            r = Math.round(r / selection.count);
+            g = Math.round(g / selection.count);
+            b = Math.round(b / selection.count);
         }
         const colorU32 = (((r & 255) << 24) | ((g & 255) << 16) | ((b & 255) << 8) | 255) >>> 0;
 
@@ -70,13 +72,13 @@ export const useLayerService = defineStore('layerService', () => {
         const newLayerId = layers.createLayer({ name: `Merged ${anchorName}`, colorU32 });
         const layer = layers.getLayer(newLayerId);
         for (const k of pixelUnionSet) layer.addPixels([keyToCoords(k)]);
-        layers.reorderLayers([newLayerId], layers.lowermostIdOf(selection.asArray), true);
+        layers.reorderLayers([newLayerId], layers.lowermostIdOf(selection.ids), true);
         deleteSelected();
         return newLayerId;
     }
 
     function copySelected() {
-        if (!selection.size) return [];
+        if (!selection.count) return [];
         const newLayerIds = [];
         forEachSelected((layer, id) => {
             const newLayerId = layers.createLayer({
@@ -91,7 +93,7 @@ export const useLayerService = defineStore('layerService', () => {
     }
 
     function selectionPath() {
-        if (!selection.size) return '';
+        if (!selection.count) return '';
         const pixelUnionSet = new Set();
         forEachSelected(L => L.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y))));
         const groups = buildOutline(pixelUnionSet);
@@ -108,8 +110,8 @@ export const useLayerService = defineStore('layerService', () => {
     }
 
     function splitSelectedLayer() {
-        if (selection.size !== 1) return;
-        const layerId = selection.asArray[0];
+        if (selection.count !== 1) return;
+        const layerId = selection.ids[0];
         const layer = layers.getLayer(layerId);
         if (!layer || layer.pixelCount < 2) return;
 
@@ -138,7 +140,7 @@ export const useLayerService = defineStore('layerService', () => {
         orderWithoutNew.splice(originalIndex, 0, ...newIds.reverse());
         layers._order = orderWithoutNew;
 
-        selection.set(newIds, newIds[0], newIds[0]);
+        selection.replace(newIds, newIds[0], newIds[0]);
     }
 
     function selectByPixelCount(id) {
@@ -146,11 +148,11 @@ export const useLayerService = defineStore('layerService', () => {
         if (!targetLayer) return;
         const targetCount = targetLayer.pixelCount;
         if (targetCount === 0) {
-            selection.selectOnly(id);
+            selection.selectOne(id);
             return;
         }
         const idsToSelect = layers.order.filter(layerId => layers.pixelCountOf(layerId) === targetCount);
-        if (idsToSelect.length) selection.set(idsToSelect, id, id);
+        if (idsToSelect.length) selection.replace(idsToSelect, id, id);
     }
 
     return {
