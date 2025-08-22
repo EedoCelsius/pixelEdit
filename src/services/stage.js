@@ -91,17 +91,6 @@ export const useStageService = defineStore('stageService', () => {
         return id;
     }
 
-    function ensureStagePointerStyles() {
-        if (document.getElementById('stage-style-fix')) return;
-        const style = document.createElement('style');
-        style.id = 'stage-style-fix';
-        style.textContent = `#stage{touch-action:none;-webkit-user-select:none;user-select:none;}
-      #stage .svg-layer{pointer-events:none;}
-      #stage .display-img{image-rendering:pixelated;}
-    `;
-        document.head.appendChild(style);
-    }
-
     function clientToPixel(event) {
         const x = Math.floor((event.clientX - stageStore.canvas.x) / stageStore.canvas.scale);
         const y = Math.floor((event.clientY - stageStore.canvas.y) / stageStore.canvas.scale);
@@ -194,6 +183,5 @@ export const useStageService = defineStore('stageService', () => {
         getPixelsFromInteraction,
         // utils for components
         ensureCheckerboardPattern,
-        ensureStagePointerStyles,
     };
 });

@@ -1,6 +1,6 @@
 <template>
   <div ref="containerEl" class="relative flex-1 min-h-0 p-2 flex items-center justify-center">
-    <div id="stage" ref="stageEl" class="relative rounded-lg shadow-inner ring-1 ring-white/10" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px', cursor: stageService.cursor }"
+    <div id="stage" ref="stageEl" class="relative rounded-lg shadow-inner ring-1 ring-white/10 select-none touch-none" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px', cursor: stageService.cursor }"
          @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp" @pointercancel="onPointerCancel" @contextmenu.prevent>
       <!-- 체커보드 -->
       <svg class="absolute top-0 left-0 pointer-events-none block rounded-lg" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" style="image-rendering:pixelated">
@@ -137,7 +137,6 @@ const resizeObserver = new ResizeObserver(() => {
     updateCanvasPosition();
 });
 onMounted(() => {
-    stageService.ensureStagePointerStyles();
     stageService.recalcScale(containerEl.value);
     updateCanvasPosition();
     resizeObserver.observe(containerEl.value);
