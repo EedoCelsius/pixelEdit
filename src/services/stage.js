@@ -4,8 +4,7 @@ import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useSelectionStore } from '../stores/selection';
 import { useLayerStore } from '../stores/layers';
-import { useInputStore } from '../stores/input';
-import { coordsToKey, keyToCoords, pixelsToUnionPath, clamp, rgbaCssObj, rgbaCssU32 } from '../utils';
+import { coordsToKey, keyToCoords, pixelsToUnionPath, clamp } from '../utils';
 import { CURSOR_CONFIG } from '../constants';
 
 export const useStageService = defineStore('stageService', () => {
@@ -14,7 +13,6 @@ export const useStageService = defineStore('stageService', () => {
     const toolStore = useToolStore();
     const selection = useSelectionStore();
     const layers = useLayerStore();
-    const input = useInputStore();
 
     // --- Overlay Paths ---
     const selectOverlayPath = computed(() => {
@@ -98,26 +96,6 @@ export const useStageService = defineStore('stageService', () => {
         return { x, y };
     }
 
-    function updateHover(event) {
-        const pixel = clientToPixel(event);
-        if (!pixel) {
-            stageStore.updatePixelInfo('-');
-            toolStore.hoverLayerId = null;
-            return;
-        }
-        if (stageStore.display === 'original' && input.isLoaded) {
-            const colorObject = input.readPixel(pixel.x, pixel.y);
-            stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssObj(colorObject)}`);
-        } else {
-            const colorU32 = layers.compositeColorAt(pixel.x, pixel.y);
-            stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssU32(colorU32)}`);
-        }
-        if (toolStore.isSelect) {
-            toolStore.hoverLayerId = layers.topVisibleIdAt(pixel.x, pixel.y);
-        } else {
-            toolStore.hoverLayerId = null;
-        }
-    }
 
     function getPixelsFromInteraction(event) {
         const toolState = toolStore.pointer;
@@ -178,7 +156,6 @@ export const useStageService = defineStore('stageService', () => {
         cursor,
         // methods
         recalcScale,
-        updateHover,
         clientToPixel,
         getPixelsFromInteraction,
         // utils for components
