@@ -13,16 +13,13 @@ import { computed } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useLayerStore } from '../stores/layers';
 import { useSelectionStore } from '../stores/selection';
-import { coordsToKey } from '../utils';
+import { getPixelUnionSet } from '../utils';
 
 const stageStore = useStageStore();
 const layers = useLayerStore();
 const selection = useSelectionStore();
 const selectedAreaPixelCount = computed(() => {
-    const pixelSet = new Set();
-    for (const [, layer] of layers.getLayers(selection.asArray)) {
-        layer.forEachPixel((x, y) => pixelSet.add(coordsToKey(x, y)));
-    }
+    const pixelSet = getPixelUnionSet(layers.getLayers(selection.asArray));
     return pixelSet.size;
-});
+  });
 </script>

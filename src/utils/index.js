@@ -2,6 +2,15 @@ export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export const coordsToKey = (x, y) => x + "," + y;
 export const keyToCoords = (key) => key.split(",").map(n => +n);
 
+export function getPixelUnionSet(layerEntries) {
+    const pixelUnionSet = new Set();
+    if (!layerEntries) return pixelUnionSet;
+    for (const [, layer] of layerEntries) {
+        layer.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y)));
+    }
+    return pixelUnionSet;
+}
+
 // --- color helpers (32-bit unsigned RGBA packed as 0xRRGGBBAA) ---
 export const packRGBA = (color) => {
     const r = clamp((+color.r || 0), 0, 255),

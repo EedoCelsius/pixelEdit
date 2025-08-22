@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { useLayerStore } from '../stores/layers';
 import { useSelectionStore } from '../stores/selection';
-import { coordsToKey, keyToCoords, buildOutline, findPixelComponents } from '../utils';
+import { keyToCoords, buildOutline, findPixelComponents, getPixelUnionSet } from '../utils';
 
 export const useLayerService = defineStore('layerService', () => {
     const layers = useLayerStore();
@@ -37,8 +37,7 @@ export const useLayerService = defineStore('layerService', () => {
 
     function mergeSelected() {
         if (selection.size < 2) return;
-        const pixelUnionSet = new Set();
-        forEachSelected(L => L.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y))));
+        const pixelUnionSet = getPixelUnionSet(layers.getLayers(selection.asArray));
 
         let r = 0, g = 0, b = 0;
         if (pixelUnionSet.size) {
@@ -91,8 +90,7 @@ export const useLayerService = defineStore('layerService', () => {
 
     function selectionPath() {
         if (!selection.size) return '';
-        const pixelUnionSet = new Set();
-        forEachSelected(L => L.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y))));
+        const pixelUnionSet = getPixelUnionSet(layers.getLayers(selection.asArray));
         const groups = buildOutline(pixelUnionSet);
         const pathData = [];
         for (const group of groups)
