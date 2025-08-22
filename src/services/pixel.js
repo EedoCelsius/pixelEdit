@@ -17,13 +17,11 @@ export const usePixelService = defineStore('pixelService', () => {
 
     function toolStart(event) {
         if (event.button !== 0) return;
-        const pixel = stage.clientToPixel(event);
-        if (!pixel) return;
-
+        toolStore.pointer.start = { x: event.clientX, y: event.clientY };
+        
         output.setRollbackPoint();
 
         toolStore.pointer.status = toolStore.expected;
-        toolStore.pointer.start = { x: event.clientX, y: event.clientY };
 
         try {
             event.target.setPointerCapture?.(event.pointerId);
@@ -33,7 +31,8 @@ export const usePixelService = defineStore('pixelService', () => {
         if (toolStore.shape === 'rect') {
             toolStore.pointer.current = { x: event.clientX, y: event.clientY };
         } else {
-            toolStore.pointer.current = pixel;
+            const pixel = stage.clientToPixel(event);
+            
             toolStore.visited.clear();
             toolStore.visited.add(coordsToKey(pixel.x, pixel.y));
 
