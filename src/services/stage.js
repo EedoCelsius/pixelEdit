@@ -3,8 +3,7 @@ import { ref, computed } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useSelectionStore } from '../stores/selection';
-import { useLayerStore } from '../stores/layers';
-import { keyToCoords, pixelsToUnionPath, clamp, getPixelUnionSet } from '../utils';
+import { keyToCoords, clamp } from '../utils';
 import { CURSOR_CONFIG } from '../constants';
 
 export const useStageService = defineStore('stageService', () => {
@@ -12,14 +11,6 @@ export const useStageService = defineStore('stageService', () => {
     const stageStore = useStageStore();
     const toolStore = useToolStore();
     const selection = useSelectionStore();
-    const layers = useLayerStore();
-
-    // --- Overlay Paths ---
-    const selectOverlayPath = computed(() => {
-        if (!toolStore.selectOverlayLayerIds.size) return '';
-        const pixelUnionSet = getPixelUnionSet(layers.getLayers(toolStore.selectOverlayLayerIds));
-        return pixelsToUnionPath(pixelUnionSet);
-    });
 
     // --- Canvas Utilities ---
     function recalcScale(wrapperElement) {
@@ -130,7 +121,12 @@ export const useStageService = defineStore('stageService', () => {
         const shape = toolStore.shape;
 
         if (tool === 'select') {
-            const isRemoving = toolStore.shiftHeld && selection.has(toolStore.hoverLayerId);
+            let hoveredId = null;
+            if (toolStore.pointer.status === 'idle') {
+                const iter = toolStore.hintLayerIds.values().next();
+                hoveredId = iter.done ? null : iter.value;
+            }
+            const isRemoving = toolStore.shiftHeld && hoveredId !== null && selection.has(hoveredId);
             if (shape === 'stroke') {
                 return isRemoving ? CURSOR_CONFIG.REMOVE_STROKE : CURSOR_CONFIG.ADD_STROKE;
             }
@@ -149,7 +145,6 @@ export const useStageService = defineStore('stageService', () => {
 
     return {
         // interaction state
-        selectOverlayPath,
         cursor,
         // methods
         recalcScale,

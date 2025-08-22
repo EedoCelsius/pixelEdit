@@ -44,10 +44,10 @@
 
         <!-- 3. 선택/호버 오버레이 -->
         <path v-if="toolStore.isSelect"
-              :d="overlayPath"
-              :fill="overlayStyle.FILL_COLOR"
-              :stroke="overlayStyle.STROKE_COLOR"
-              :stroke-width="overlayStyle.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
+              :d="hintPath"
+              :fill="hintStyle.FILL_COLOR"
+              :stroke="hintStyle.STROKE_COLOR"
+              :stroke-width="hintStyle.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
               fill-rule="evenodd"
               shape-rendering="crispEdges" />
       </svg>
@@ -66,7 +66,7 @@ import { useSelectionStore } from '../stores/selection';
 import { useInputStore } from '../stores/input';
 import { useSelectService } from '../services/select';
 import { usePixelService } from '../services/pixel';
-import { rgbaCssU32, rgbaCssObj } from '../utils';
+import { rgbaCssU32, rgbaCssObj, getPixelUnionSet, pixelsToUnionPath } from '../utils';
 import { OVERLAY_CONFIG } from '../constants';
 
 const stageStore = useStageStore();
@@ -90,7 +90,7 @@ const updateHover = (event) => {
     const pixel = stageService.clientToPixel(event);
     if (!pixel) {
         stageStore.updatePixelInfo('-');
-        toolStore.hoverLayerId = null;
+        if (toolStore.pointer.status === 'idle') toolStore.hintLayerIds.clear();
         return;
     }
     if (stageStore.display === 'original' && input.isLoaded) {
@@ -100,10 +100,13 @@ const updateHover = (event) => {
         const colorU32 = layers.compositeColorAt(pixel.x, pixel.y);
         stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssU32(colorU32)}`);
     }
+    if (toolStore.pointer.status !== 'idle') return;
     if (toolStore.isSelect) {
-        toolStore.hoverLayerId = layers.topVisibleIdAt(pixel.x, pixel.y);
+        const id = layers.topVisibleIdAt(pixel.x, pixel.y);
+        toolStore.hintLayerIds.clear();
+        if (id !== null) toolStore.hintLayerIds.add(id);
     } else {
-        toolStore.hoverLayerId = null;
+        toolStore.hintLayerIds.clear();
     }
 };
 
@@ -129,29 +132,25 @@ const onPointerCancel = (e) => {
 };
 
 const selectionPath = computed(() => layerSvc.selectionPath());
-const hoverStyle = computed(() => {
-    if (!toolStore.hoverLayerId) return {};
-    const isRemoving = toolStore.shiftHeld && selection.has(toolStore.hoverLayerId);
-    return isRemoving ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
+
+const hintPath = computed(() => {
+    if (!toolStore.hintLayerIds.size) return '';
+    const pixelUnionSet = getPixelUnionSet(layers.getLayers(toolStore.hintLayerIds));
+    return pixelsToUnionPath(pixelUnionSet);
 });
 
-const selectOverlayStyle = computed(() => (
-    toolStore.pointer.status === 'select:remove'
-        ? OVERLAY_CONFIG.REMOVE
-        : OVERLAY_CONFIG.ADD
-));
-
-const overlayPath = computed(() => (
-    toolStore.pointer.status !== 'idle'
-        ? stageService.selectOverlayPath
-        : layers.pathOf(toolStore.hoverLayerId)
-));
-
-const overlayStyle = computed(() => (
-    toolStore.pointer.status !== 'idle'
-        ? selectOverlayStyle.value
-        : hoverStyle.value
-));
+const hintStyle = computed(() => {
+    if (toolStore.pointer.status !== 'idle') {
+        return toolStore.pointer.status === 'select:remove'
+            ? OVERLAY_CONFIG.REMOVE
+            : OVERLAY_CONFIG.ADD;
+    }
+    const iter = toolStore.hintLayerIds.values().next();
+    const hoveredId = iter.done ? null : iter.value;
+    if (hoveredId === null) return {};
+    const isRemoving = toolStore.shiftHeld && selection.has(hoveredId);
+    return isRemoving ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
+});
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
 

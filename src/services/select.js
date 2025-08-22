@@ -35,6 +35,7 @@ export const useSelectService = defineStore('selectService', () => {
             toolStore.pointer.id = event.pointerId;
         } catch {}
 
+        toolStore.hintLayerIds.clear();
         if (toolStore.shape === 'rect') {
             toolStore.pointer.current = { x: event.clientX, y: event.clientY };
         } else {
@@ -45,11 +46,11 @@ export const useSelectService = defineStore('selectService', () => {
             const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'remove') {
-                    if (selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (selection.has(id)) toolStore.hintLayerIds.add(id);
                 } else if (mode === 'add') {
-                    if (!selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (!selection.has(id)) toolStore.hintLayerIds.add(id);
                 } else {
-                    toolStore.selectOverlayLayerIds.add(id);
+                    toolStore.hintLayerIds.add(id);
                 }
             }
         }
@@ -70,18 +71,18 @@ export const useSelectService = defineStore('selectService', () => {
                     if (id !== null) intersectedIds.add(id);
                 }
             }
-            toolStore.selectOverlayLayerIds.clear();
+            toolStore.hintLayerIds.clear();
             if (mode === 'add') {
                 for (const id of intersectedIds) {
-                    if (!selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (!selection.has(id)) toolStore.hintLayerIds.add(id);
                 }
             } else if (mode === 'remove') {
                 for (const id of intersectedIds) {
-                    if (selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (selection.has(id)) toolStore.hintLayerIds.add(id);
                 }
             } else {
                 for (const id of intersectedIds) {
-                    toolStore.selectOverlayLayerIds.add(id);
+                    toolStore.hintLayerIds.add(id);
                 }
             }
         } else {
@@ -99,11 +100,11 @@ export const useSelectService = defineStore('selectService', () => {
             const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'remove') {
-                    if (selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (selection.has(id)) toolStore.hintLayerIds.add(id);
                 } else if (mode === 'add') {
-                    if (!selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (!selection.has(id)) toolStore.hintLayerIds.add(id);
                 } else {
-                    toolStore.selectOverlayLayerIds.add(id);
+                    toolStore.hintLayerIds.add(id);
                 }
             }
             toolStore.pointer.current = pixel;
@@ -178,8 +179,7 @@ export const useSelectService = defineStore('selectService', () => {
         toolStore.pointer.start = null;
         toolStore.pointer.current = null;
         toolStore.visited.clear();
-        toolStore.hoverLayerId = null;
-        toolStore.selectOverlayLayerIds.clear();
+        toolStore.hintLayerIds.clear();
     }
 
     function selectRange(anchorId, tailId) {
