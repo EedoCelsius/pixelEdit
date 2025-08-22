@@ -119,44 +119,41 @@ export const usePixelService = defineStore('pixelService', () => {
     function addPixelsToSelection(pixels) {
         if (selection.size !== 1) return;
         const id = selection.asArray[0];
-        const layer = layers.layersById[id];
-        if (layer) layer.addPixels(pixels);
+        layers.addPixels(id, pixels);
     }
 
     function removePixelsFromSelection(pixels) {
         if (selection.size !== 1) return;
         const id = selection.asArray[0];
-        const layer = layers.layersById[id];
-        if (layer) layer.removePixels(pixels);
+        layers.removePixels(id, pixels);
     }
 
     function togglePointInSelection(x, y) {
         if (selection.size !== 1) return;
         const id = selection.asArray[0];
-        const layer = layers.layersById[id];
-        if (layer) layer.togglePixel(x, y);
+        layers.togglePixel(id, x, y);
     }
 
     function removePixelsFromSelected(pixels) {
         if (!pixels || !pixels.length) return;
-        layerSvc.forEachSelected(layer => {
+        layerSvc.forEachSelected((layer, id) => {
             const pixelsToRemove = [];
             for (const [x, y] of pixels) {
                 if (layer.has(x, y)) pixelsToRemove.push([x, y]);
             }
-            if (pixelsToRemove.length) layer.removePixels(pixelsToRemove);
+            if (pixelsToRemove.length) layers.removePixels(id, pixelsToRemove);
         });
     }
 
     function removePixelsFromAll(pixels) {
         if (!pixels || !pixels.length) return;
         for (const id of layers.order) {
-            const layer = layers.layersById[id];
+            const layer = layers.getLayer(id);
             const pixelsToRemove = [];
             for (const [x, y] of pixels) {
                 if (layer.has(x, y)) pixelsToRemove.push([x, y]);
             }
-            if (pixelsToRemove.length) layer.removePixels(pixelsToRemove);
+            if (pixelsToRemove.length) layers.removePixels(id, pixelsToRemove);
         }
     }
 
