@@ -97,7 +97,7 @@ export const useStageService = defineStore('stageService', () => {
         const padding = 20;
         const maxW = (wrapperElement.clientWidth || 0) - padding;
         const maxH = (wrapperElement.clientHeight || 0) - padding - 60;
-        const newScale = Math.floor(Math.min(maxW / Math.max(1, stageStore.stage.width), maxH / Math.max(1, stageStore.stage.height))) || 16;
+        const newScale = Math.floor(Math.min(maxW / Math.max(1, stageStore.canvas.width), maxH / Math.max(1, stageStore.canvas.height))) || 16;
         stageStore.setScale(Math.max(1, newScale));
     }
     
@@ -191,9 +191,9 @@ export const useStageService = defineStore('stageService', () => {
     }
 
     function clientToPixel(event) {
-        const x = Math.floor((event.clientX - stageStore.stage.x) / stageStore.stage.scale);
-        const y = Math.floor((event.clientY - stageStore.stage.y) / stageStore.stage.scale);
-        if (x < 0 || y < 0 || x >= stageStore.stage.width || y >= stageStore.stage.height) return null;
+        const x = Math.floor((event.clientX - stageStore.canvas.x) / stageStore.canvas.scale);
+        const y = Math.floor((event.clientY - stageStore.canvas.y) / stageStore.canvas.scale);
+        if (x < 0 || y < 0 || x >= stageStore.canvas.width || y >= stageStore.canvas.height) return null;
         return { x, y };
     }
 
@@ -261,7 +261,7 @@ export const useStageService = defineStore('stageService', () => {
             stageStore.updatePixelInfo('-');
             hoverLayerId.value = null;
         } else {
-            if (stageStore.displayMode === 'original' && input.hasImage) {
+            if (stageStore.display === 'original' && input.hasImage) {
                 const colorObject = input.getPixel(pixel.x, pixel.y);
                 stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssObj(colorObject)}`);
             } else {
@@ -285,18 +285,18 @@ export const useStageService = defineStore('stageService', () => {
 
         if (state.isDragging) {
             if (state.status === 'rect') {
-                const left = Math.min(state.startPoint.x, event.clientX) - stageStore.stage.x;
-                const top = Math.min(state.startPoint.y, event.clientY) - stageStore.stage.y;
-                const right = Math.max(state.startPoint.x, event.clientX) - stageStore.stage.x;
-                const bottom = Math.max(state.startPoint.y, event.clientY) - stageStore.stage.y;
-                const minX = Math.floor(left / stageStore.stage.scale),
-                    maxX = Math.floor((right - 1) / stageStore.stage.scale);
-                const minY = Math.floor(top / stageStore.stage.scale),
-                    maxY = Math.floor((bottom - 1) / stageStore.stage.scale);
-                const minx = clamp(minX, 0, stageStore.stage.width - 1),
-                    maxx = clamp(maxX, 0, stageStore.stage.width - 1);
-                const miny = clamp(minY, 0, stageStore.stage.height - 1),
-                    maxy = clamp(maxY, 0, stageStore.stage.height - 1);
+                const left = Math.min(state.startPoint.x, event.clientX) - stageStore.canvas.x;
+                const top = Math.min(state.startPoint.y, event.clientY) - stageStore.canvas.y;
+                const right = Math.max(state.startPoint.x, event.clientX) - stageStore.canvas.x;
+                const bottom = Math.max(state.startPoint.y, event.clientY) - stageStore.canvas.y;
+                const minX = Math.floor(left / stageStore.canvas.scale),
+                    maxX = Math.floor((right - 1) / stageStore.canvas.scale);
+                const minY = Math.floor(top / stageStore.canvas.scale),
+                    maxY = Math.floor((bottom - 1) / stageStore.canvas.scale);
+                const minx = clamp(minX, 0, stageStore.canvas.width - 1),
+                    maxx = clamp(maxX, 0, stageStore.canvas.width - 1);
+                const miny = clamp(minY, 0, stageStore.canvas.height - 1),
+                    maxy = clamp(maxY, 0, stageStore.canvas.height - 1);
                 marquee.x = minx;
                 marquee.y = miny;
                 marquee.w = (maxx >= minx) ? (maxx - minx + 1) : 0;
@@ -375,23 +375,23 @@ export const useStageService = defineStore('stageService', () => {
     function getPixelsFromInteraction(event) {
         let pixels = [];
         if (state.status === 'rect') {
-            const left = Math.min(state.startPoint.x, event.clientX) - stageStore.stage.x;
-            const top = Math.min(state.startPoint.y, event.clientY) - stageStore.stage.y;
-            const right = Math.max(state.startPoint.x, event.clientX) - stageStore.stage.x;
-            const bottom = Math.max(state.startPoint.y, event.clientY) - stageStore.stage.y;
-            const minX = Math.floor(left / stageStore.stage.scale),
-                maxX = Math.floor((right - 1) / stageStore.stage.scale);
-            const minY = Math.floor(top / stageStore.stage.scale),
-                maxY = Math.floor((bottom - 1) / stageStore.stage.scale);
+            const left = Math.min(state.startPoint.x, event.clientX) - stageStore.canvas.x;
+            const top = Math.min(state.startPoint.y, event.clientY) - stageStore.canvas.y;
+            const right = Math.max(state.startPoint.x, event.clientX) - stageStore.canvas.x;
+            const bottom = Math.max(state.startPoint.y, event.clientY) - stageStore.canvas.y;
+            const minX = Math.floor(left / stageStore.canvas.scale),
+                maxX = Math.floor((right - 1) / stageStore.canvas.scale);
+            const minY = Math.floor(top / stageStore.canvas.scale),
+                maxY = Math.floor((bottom - 1) / stageStore.canvas.scale);
 
             if (minX > maxX || minY > maxY) {
                 const p = clientToPixel(event);
                 if (p) pixels.push([p.x, p.y]);
             } else {
-                const minx = clamp(minX, 0, stageStore.stage.width - 1),
-                    maxx = clamp(maxX, 0, stageStore.stage.width - 1);
-                const miny = clamp(minY, 0, stageStore.stage.height - 1),
-                    maxy = clamp(maxY, 0, stageStore.stage.height - 1);
+                const minx = clamp(minX, 0, stageStore.canvas.width - 1),
+                    maxx = clamp(maxX, 0, stageStore.canvas.width - 1);
+                const miny = clamp(minY, 0, stageStore.canvas.height - 1),
+                    maxy = clamp(maxY, 0, stageStore.canvas.height - 1);
                 for (let yy = miny; yy <= maxy; yy++)
                     for (let xx = minx; xx <= maxx; xx++) pixels.push([xx, yy]);
             }
