@@ -63,9 +63,10 @@ import { useStageService } from '../services/stage';
 import { useLayerStore } from '../stores/layers';
 import { useLayerService } from '../services/layers';
 import { useSelectionStore } from '../stores/selection';
+import { useInputStore } from '../stores/input';
 import { useSelectService } from '../services/select';
 import { usePixelService } from '../services/pixel';
-import { rgbaCssU32 } from '../utils';
+import { rgbaCssU32, rgbaCssObj } from '../utils';
 import { OVERLAY_CONFIG } from '../constants';
 
 const stageStore = useStageStore();
@@ -74,6 +75,7 @@ const stageService = useStageService();
 const layers = useLayerStore();
 const layerSvc = useLayerService();
 const selection = useSelectionStore();
+const input = useInputStore();
 const selectSvc = useSelectService();
 const pixelSvc = usePixelService();
 const containerEl = ref(null);
@@ -84,6 +86,27 @@ const updateCanvasPosition = () => {
     if (rect) stageStore.setCanvasPosition(rect.left, rect.top);
 };
 
+const updateHover = (event) => {
+    const pixel = stageService.clientToPixel(event);
+    if (!pixel) {
+        stageStore.updatePixelInfo('-');
+        toolStore.hoverLayerId = null;
+        return;
+    }
+    if (stageStore.display === 'original' && input.isLoaded) {
+        const colorObject = input.readPixel(pixel.x, pixel.y);
+        stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssObj(colorObject)}`);
+    } else {
+        const colorU32 = layers.compositeColorAt(pixel.x, pixel.y);
+        stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssU32(colorU32)}`);
+    }
+    if (toolStore.isSelect) {
+        toolStore.hoverLayerId = layers.topVisibleIdAt(pixel.x, pixel.y);
+    } else {
+        toolStore.hoverLayerId = null;
+    }
+};
+
 const onPointerDown = (e) => {
     updateCanvasPosition();
     if (toolStore.isSelect) selectSvc.toolStart(e);
@@ -91,7 +114,7 @@ const onPointerDown = (e) => {
 };
 const onPointerMove = (e) => {
     updateCanvasPosition();
-    stageService.updateHover(e);
+    updateHover(e);
     if (toolStore.isSelect) selectSvc.toolMove(e);
     else pixelSvc.toolMove(e);
 };
