@@ -43,7 +43,7 @@
                 shape-rendering="crispEdges" />
 
           <!-- 3. 선택 오버레이 (초록/빨강) - 드래그 시 -->
-          <path v-if="toolStore.state.status !== 'idle'"
+          <path v-if="toolStore.pointer.status !== 'idle'"
                 :d="stageService.selectOverlayPath"
                 :fill="selectOverlayStyle.FILL_COLOR"
                 :stroke="selectOverlayStyle.STROKE_COLOR"
@@ -52,7 +52,7 @@
                 shape-rendering="crispEdges" />
 
           <!-- 4. 호버 오버레이 (초록/빨강) - 클릭/호버 시 -->
-          <path v-if="toolStore.state.status === 'idle' && toolStore.isSelect"
+          <path v-if="toolStore.pointer.status === 'idle' && toolStore.isSelect"
                 :d="layerSvc.pathOf(toolStore.hoverLayerId)"
                 :fill="hoverStyle.FILL_COLOR"
                 :stroke="hoverStyle.STROKE_COLOR"
@@ -123,14 +123,11 @@ function ctrlKeyDown() {
 }
 function ctrlKeyUp() {
     if (performance.now() - ctrlKeyDownTimestamp < KEY_TAP_MS) {
-        if (toolStore.currentMode === 'single') {
-            if (toolStore.tool === 'draw' || toolStore.tool === 'erase') {
-                toolStore.setTool(toolStore.tool === 'draw' ? 'erase' : 'draw');
-            }
-        } else {
-            if (toolStore.tool === 'select' || toolStore.tool === 'globalErase') {
-                toolStore.setTool(toolStore.tool === 'select' ? 'globalErase' : 'select');
-            }
+        const t = toolStore.static;
+        if (t === 'draw' || t === 'erase') {
+            toolStore.setStatic(t === 'draw' ? 'erase' : 'draw');
+        } else if (t === 'select' || t === 'globalErase') {
+            toolStore.setStatic(t === 'select' ? 'globalErase' : 'select');
         }
     }
     toolStore.setCtrlHeld(false);
@@ -147,7 +144,9 @@ const hoverStyle = computed(() => {
 });
 
 const selectOverlayStyle = computed(() => (
-    toolStore.state.selectionMode === 'remove' ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD
+    toolStore.pointer.status === 'select:remove'
+        ? OVERLAY_CONFIG.REMOVE
+        : OVERLAY_CONFIG.ADD
 ));
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);

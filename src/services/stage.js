@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useSelectionStore } from '../stores/selection';
@@ -15,19 +15,6 @@ export const useStageService = defineStore('stageService', () => {
     const selection = useSelectionStore();
     const layerSvc = useLayerService();
     const input = useInputStore();
-
-    // --- Auto-tool switching on mode change ---
-    watch(() => toolStore.currentMode, (newMode) => {
-        if (newMode === 'single') {
-            if (toolStore.tool === 'select' || toolStore.tool === 'globalErase') {
-                toolStore.setTool('draw');
-            }
-        } else { // multi
-            if (toolStore.tool === 'draw' || toolStore.tool === 'erase') {
-                toolStore.setTool('select');
-            }
-        }
-    }, { immediate: true });
 
     // --- Overlay Paths ---
     const selectOverlayPath = computed(() => {
@@ -144,13 +131,13 @@ export const useStageService = defineStore('stageService', () => {
     }
 
     function getPixelsFromInteraction(event) {
-        const toolState = toolStore.state;
+        const toolState = toolStore.pointer;
         let pixels = [];
-        if (toolState.status === 'rect') {
-            const left = Math.min(toolState.startPoint.x, event.clientX) - stageStore.canvas.x;
-            const top = Math.min(toolState.startPoint.y, event.clientY) - stageStore.canvas.y;
-            const right = Math.max(toolState.startPoint.x, event.clientX) - stageStore.canvas.x;
-            const bottom = Math.max(toolState.startPoint.y, event.clientY) - stageStore.canvas.y;
+        if (toolStore.shape === 'rect') {
+            const left = Math.min(toolState.start.x, event.clientX) - stageStore.canvas.x;
+            const top = Math.min(toolState.start.y, event.clientY) - stageStore.canvas.y;
+            const right = Math.max(toolState.start.x, event.clientX) - stageStore.canvas.x;
+            const bottom = Math.max(toolState.start.y, event.clientY) - stageStore.canvas.y;
             const minX = Math.floor(left / stageStore.canvas.scale),
                 maxX = Math.floor((right - 1) / stageStore.canvas.scale);
             const minY = Math.floor(top / stageStore.canvas.scale),
@@ -167,7 +154,7 @@ export const useStageService = defineStore('stageService', () => {
                 for (let yy = miny; yy <= maxy; yy++)
                     for (let xx = minx; xx <= maxx; xx++) pixels.push([xx, yy]);
             }
-        } else if (toolState.status === 'stroke') {
+        } else {
             toolStore.visited.forEach(key => pixels.push(keyToCoords(key)));
         }
         return pixels;
@@ -175,8 +162,8 @@ export const useStageService = defineStore('stageService', () => {
 
 
     const cursor = computed(() => {
-        const tool = toolStore.effectiveTool;
-        const shape = toolStore.toolShape;
+        const tool = toolStore.expected;
+        const shape = toolStore.shape;
 
         if (tool === 'select') {
             const isRemoving = toolStore.shiftHeld && selection.has(toolStore.hoverLayerId);
@@ -187,7 +174,6 @@ export const useStageService = defineStore('stageService', () => {
                 return isRemoving ? CURSOR_CONFIG.REMOVE_RECT : CURSOR_CONFIG.ADD_RECT;
             }
         }
-
         if (tool === 'draw' && shape === 'stroke') return CURSOR_CONFIG.DRAW_STROKE;
         if (tool === 'draw' && shape === 'rect') return CURSOR_CONFIG.DRAW_RECT;
         if (tool === 'erase' && shape === 'stroke') return CURSOR_CONFIG.ERASE_STROKE;

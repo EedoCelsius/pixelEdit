@@ -6,29 +6,42 @@
 
     <!-- Shape toggle -->
     <div class="inline-flex rounded-md overflow-hidden border border-white/15">
-      <button @click="toolStore.setToolShape('stroke')" :class="buttonClass(toolStore.isStroke, false)">Stroke</button>
-      <button @click="toolStore.setToolShape('rect')"   :class="buttonClass(toolStore.isRect, false)">Rect</button>
+      <button @click="toolStore.setShape('stroke')"
+              :class="`px-2 py-1 text-xs ${toolStore.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+        Stroke
+      </button>
+      <button @click="toolStore.setShape('rect')"
+              :class="`px-2 py-1 text-xs ${toolStore.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+        Rect
+      </button>
     </div>
 
     <!-- Tool Toggles -->
-    <!-- Single Layer Mode Tools -->
-    <div v-if="toolStore.effectiveMode === 'single'" class="inline-flex rounded-md overflow-hidden border border-white/15">
-      <button @click="toolStore.setTool('draw')"  :class="buttonClass(toolStore.isDraw, false)">Draw</button>
-      <button @click="toolStore.setTool('erase')" :class="buttonClass(toolStore.isErase, false)">Erase</button>
-    </div>
-    <!-- Multi Layer Mode Tools -->
-    <div v-else class="inline-flex rounded-md overflow-hidden border border-white/15">
-      <button @click="toolStore.setTool('select')" :class="buttonClass(toolStore.isSelect, false)">Select</button>
-      <button @click="toolStore.setTool('globalErase')" :class="buttonClass(toolStore.isGlobalErase, false)">Global Erase</button>
+    <div class="inline-flex rounded-md overflow-hidden border border-white/15">
+      <button v-for="tool in selectables" :key="t"
+              @click="toolStore.setStatic(tool)"
+              :class="`px-2 py-1 text-xs ${toolStore.expected === tool ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+        {{ t.charAt(0).toUpperCase() + t.slice(1) }}
+      </button>
     </div>
   </div>
 </template>
 
 <script setup>
+import { ref, watch } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
+import { useSelectionStore } from '../stores/selection';
 
 const stageStore = useStageStore();
 const toolStore = useToolStore();
-const buttonClass = (active, disabled) => `px-2 py-1 text-xs ${disabled?'opacity-40 pointer-events-none cursor-not-allowed':''}${active&&!disabled?'bg-white/15':'bg-white/5 hover:bg-white/10'}`;
+const selection = useSelectionStore();
+
+const selectables = ref([]);
+watch(() => selection.size, (size) => {
+  selectables.value = size === 1 ? ['draw', 'erase'] : ['select', 'globalErase'];
+  if (!tools.value.includes(toolStore.static)) {
+    toolStore.setStatic(size === 1 ? 'draw' : 'select');
+  }
+}, { immediate: true });
 </script>
