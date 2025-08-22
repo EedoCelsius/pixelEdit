@@ -34,9 +34,9 @@
 
           <!-- 2. 마퀴 사각형 (노란색) -->
           <rect id="marqueeRect"
-                :x="toolStore.marquee.x" :y="toolStore.marquee.y"
-                :width="toolStore.marquee.w" :height="toolStore.marquee.h"
-                :visibility="toolStore.marquee.visible ? 'visible' : 'hidden'"
+                :x="stageService.marquee.x" :y="stageService.marquee.y"
+                :width="stageService.marquee.w" :height="stageService.marquee.h"
+                :visibility="stageService.marquee.visible ? 'visible' : 'hidden'"
                 :fill="OVERLAY_CONFIG.MARQUEE.FILL_COLOR"
                 :stroke="OVERLAY_CONFIG.MARQUEE.STROKE_COLOR"
                 :stroke-width="OVERLAY_CONFIG.MARQUEE.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"

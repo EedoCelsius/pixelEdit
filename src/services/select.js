@@ -19,7 +19,7 @@ export const useSelectService = defineStore('selectService', () => {
         if (!pixel) return;
 
         const startId = layers.topVisibleIdAt(pixel.x, pixel.y);
-        toolStore.selectionBeforeDrag = new Set(selection.ids);
+        toolStore.setSelectionBeforeDrag(selection.ids);
         const mode = !event.shiftKey
             ? 'select'
             : selection.has(startId)
@@ -28,29 +28,28 @@ export const useSelectService = defineStore('selectService', () => {
 
         output.setRollbackPoint();
 
-        toolStore.pointer.status = `select:${mode}`;
-        toolStore.pointer.start = { x: event.clientX, y: event.clientY };
+        toolStore.beginPointer(`select:${mode}`, { x: event.clientX, y: event.clientY });
 
         try {
             event.target.setPointerCapture?.(event.pointerId);
-            toolStore.pointer.id = event.pointerId;
+            toolStore.setPointerId(event.pointerId);
         } catch {}
 
         if (toolStore.shape === 'rect') {
-            toolStore.pointer.current = { x: event.clientX, y: event.clientY };
+            toolStore.setPointerCurrent({ x: event.clientX, y: event.clientY });
         } else {
-            toolStore.pointer.current = pixel;
-            toolStore.visited.clear();
-            toolStore.visited.add(coordsToKey(pixel.x, pixel.y));
+            toolStore.setPointerCurrent(pixel);
+            toolStore.clearVisited();
+            toolStore.addVisited(coordsToKey(pixel.x, pixel.y));
 
             const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'remove') {
-                    if (toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (toolStore.hasSelectionBeforeDrag(id)) toolStore.addSelectOverlay(id);
                 } else if (mode === 'add') {
-                    if (!toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (!toolStore.hasSelectionBeforeDrag(id)) toolStore.addSelectOverlay(id);
                 } else {
-                    toolStore.selectOverlayLayerIds.add(id);
+                    toolStore.addSelectOverlay(id);
                 }
             }
         }
@@ -62,8 +61,8 @@ export const useSelectService = defineStore('selectService', () => {
         const [, mode] = toolStore.pointer.status.split(':');
 
         if (toolStore.shape === 'rect') {
-            toolStore.pointer.current = { x: event.clientX, y: event.clientY };
-            const { x, y, w, h } = toolStore.marquee;
+            toolStore.setPointerCurrent({ x: event.clientX, y: event.clientY });
+            const { x, y, w, h } = stage.marquee;
             const intersectedIds = new Set();
             for (let yy = y; yy < y + h; yy++) {
                 for (let xx = x; xx < x + w; xx++) {
@@ -71,43 +70,43 @@ export const useSelectService = defineStore('selectService', () => {
                     if (id !== null) intersectedIds.add(id);
                 }
             }
-            toolStore.selectOverlayLayerIds.clear();
+            toolStore.clearSelectOverlay();
             if (mode === 'add') {
                 for (const id of intersectedIds) {
-                    if (!toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (!toolStore.hasSelectionBeforeDrag(id)) toolStore.addSelectOverlay(id);
                 }
             } else if (mode === 'remove') {
                 for (const id of intersectedIds) {
-                    if (toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (toolStore.hasSelectionBeforeDrag(id)) toolStore.addSelectOverlay(id);
                 }
             } else {
                 for (const id of intersectedIds) {
-                    toolStore.selectOverlayLayerIds.add(id);
+                    toolStore.addSelectOverlay(id);
                 }
             }
         } else {
             const pixel = stage.clientToPixel(event);
             if (!pixel) {
-                toolStore.pointer.current = pixel;
+                toolStore.setPointerCurrent(pixel);
                 return;
             }
             const k = coordsToKey(pixel.x, pixel.y);
-            if (toolStore.visited.has(k)) {
-                toolStore.pointer.current = pixel;
+            if (toolStore.hasVisited(k)) {
+                toolStore.setPointerCurrent(pixel);
                 return;
             }
-            toolStore.visited.add(k);
+            toolStore.addVisited(k);
             const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'remove') {
-                    if (toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (toolStore.hasSelectionBeforeDrag(id)) toolStore.addSelectOverlay(id);
                 } else if (mode === 'add') {
-                    if (!toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (!toolStore.hasSelectionBeforeDrag(id)) toolStore.addSelectOverlay(id);
                 } else {
-                    toolStore.selectOverlayLayerIds.add(id);
+                    toolStore.addSelectOverlay(id);
                 }
             }
-            toolStore.pointer.current = pixel;
+            toolStore.setPointerCurrent(pixel);
         }
     }
 
@@ -174,14 +173,11 @@ export const useSelectService = defineStore('selectService', () => {
     }
 
     function reset() {
-        toolStore.pointer.status = 'idle';
-        toolStore.pointer.id = null;
-        toolStore.pointer.start = null;
-        toolStore.pointer.current = null;
-        toolStore.visited.clear();
-        toolStore.hoverLayerId = null;
-        toolStore.selectOverlayLayerIds.clear();
-        toolStore.selectionBeforeDrag.clear();
+        toolStore.resetPointer();
+        toolStore.clearVisited();
+        toolStore.setHoverLayer(null);
+        toolStore.clearSelectOverlay();
+        toolStore.clearSelectionBeforeDrag();
     }
 
     function selectRange(anchorId, tailId) {

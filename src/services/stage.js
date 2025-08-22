@@ -18,11 +18,11 @@ export const useStageService = defineStore('stageService', () => {
 
     // --- Overlay Paths ---
     const selectOverlayPath = computed(() => {
-        if (!toolStore.selectOverlayLayerIds.size) return '';
+        if (!toolStore.selectOverlaySize) return '';
         const pixelUnionSet = new Set();
-        for (const id of toolStore.selectOverlayLayerIds) {
+        toolStore.forEachSelectOverlay(id => {
             layers.getLayer(id)?.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y)));
-        }
+        });
         return pixelsToUnionPath(pixelUnionSet);
     });
 
@@ -113,7 +113,7 @@ export const useStageService = defineStore('stageService', () => {
         const pixel = clientToPixel(event);
         if (!pixel) {
             stageStore.updatePixelInfo('-');
-            toolStore.hoverLayerId = null;
+            toolStore.setHoverLayer(null);
             return;
         }
         if (stageStore.display === 'original' && input.isLoaded) {
@@ -124,9 +124,9 @@ export const useStageService = defineStore('stageService', () => {
             stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssU32(colorU32)}`);
         }
         if (toolStore.isSelect) {
-            toolStore.hoverLayerId = layers.topVisibleIdAt(pixel.x, pixel.y);
+            toolStore.setHoverLayer(layers.topVisibleIdAt(pixel.x, pixel.y));
         } else {
-            toolStore.hoverLayerId = null;
+            toolStore.setHoverLayer(null);
         }
     }
 
@@ -155,11 +155,36 @@ export const useStageService = defineStore('stageService', () => {
                     for (let xx = minx; xx <= maxx; xx++) pixels.push([xx, yy]);
             }
         } else {
-            toolStore.visited.forEach(key => pixels.push(keyToCoords(key)));
+            toolStore.forEachVisited(key => pixels.push(keyToCoords(key)));
         }
         return pixels;
     }
 
+    const marquee = computed(() => {
+        const s = toolStore.pointer;
+        if (toolStore.shape !== 'rect' || !s.start || !s.current) {
+            return { visible: false, x: 0, y: 0, w: 0, h: 0 };
+        }
+        const left = Math.min(s.start.x, s.current.x) - stageStore.canvas.x;
+        const top = Math.min(s.start.y, s.current.y) - stageStore.canvas.y;
+        const right = Math.max(s.start.x, s.current.x) - stageStore.canvas.x;
+        const bottom = Math.max(s.start.y, s.current.y) - stageStore.canvas.y;
+        const minX = Math.floor(left / stageStore.canvas.scale),
+            maxX = Math.floor((right - 1) / stageStore.canvas.scale);
+        const minY = Math.floor(top / stageStore.canvas.scale),
+            maxY = Math.floor((bottom - 1) / stageStore.canvas.scale);
+        const minx = clamp(minX, 0, stageStore.canvas.width - 1),
+            maxx = clamp(maxX, 0, stageStore.canvas.width - 1);
+        const miny = clamp(minY, 0, stageStore.canvas.height - 1),
+            maxy = clamp(maxY, 0, stageStore.canvas.height - 1);
+        return {
+            visible: true,
+            x: minx,
+            y: miny,
+            w: maxx >= minx ? maxx - minx + 1 : 0,
+            h: maxy >= miny ? maxy - miny + 1 : 0,
+        };
+    });
 
     const cursor = computed(() => {
         const tool = toolStore.expected;
@@ -187,6 +212,7 @@ export const useStageService = defineStore('stageService', () => {
         // interaction state
         selectOverlayPath,
         cursor,
+        marquee,
         // methods
         recalcScale,
         updateHover,

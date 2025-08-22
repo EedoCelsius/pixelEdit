@@ -22,20 +22,19 @@ export const usePixelService = defineStore('pixelService', () => {
 
         output.setRollbackPoint();
 
-        toolStore.pointer.status = toolStore.expected;
-        toolStore.pointer.start = { x: event.clientX, y: event.clientY };
+        toolStore.beginPointer(toolStore.expected, { x: event.clientX, y: event.clientY });
 
         try {
             event.target.setPointerCapture?.(event.pointerId);
-            toolStore.pointer.id = event.pointerId;
+            toolStore.setPointerId(event.pointerId);
         } catch {}
 
         if (toolStore.shape === 'rect') {
-            toolStore.pointer.current = { x: event.clientX, y: event.clientY };
+            toolStore.setPointerCurrent({ x: event.clientX, y: event.clientY });
         } else {
-            toolStore.pointer.current = pixel;
-            toolStore.visited.clear();
-            toolStore.visited.add(coordsToKey(pixel.x, pixel.y));
+            toolStore.setPointerCurrent(pixel);
+            toolStore.clearVisited();
+            toolStore.addVisited(coordsToKey(pixel.x, pixel.y));
 
             if (toolStore.isGlobalErase) {
                 if (selection.hasSelection) removePixelsFromSelected([[pixel.x, pixel.y]]);
@@ -51,19 +50,19 @@ export const usePixelService = defineStore('pixelService', () => {
         if (toolStore.pointer.status === 'idle') return;
 
         if (toolStore.shape === 'rect') {
-            toolStore.pointer.current = { x: event.clientX, y: event.clientY };
+            toolStore.setPointerCurrent({ x: event.clientX, y: event.clientY });
         } else {
             const pixel = stage.clientToPixel(event);
             if (!pixel) {
-                toolStore.pointer.current = pixel;
+                toolStore.setPointerCurrent(pixel);
                 return;
             }
             const k = coordsToKey(pixel.x, pixel.y);
-            if (toolStore.visited.has(k)) {
-                toolStore.pointer.current = pixel;
+            if (toolStore.hasVisited(k)) {
+                toolStore.setPointerCurrent(pixel);
                 return;
             }
-            toolStore.visited.add(k);
+            toolStore.addVisited(k);
             const delta = [[pixel.x, pixel.y]];
             if (toolStore.isGlobalErase) {
                 if (selection.hasSelection) removePixelsFromSelected(delta);
@@ -72,7 +71,7 @@ export const usePixelService = defineStore('pixelService', () => {
                 if (toolStore.isErase) removePixelsFromSelection(delta);
                 else addPixelsToSelection(delta);
             }
-            toolStore.pointer.current = pixel;
+            toolStore.setPointerCurrent(pixel);
         }
     }
 
@@ -107,13 +106,10 @@ export const usePixelService = defineStore('pixelService', () => {
     }
 
     function reset() {
-        toolStore.pointer.status = 'idle';
-        toolStore.pointer.id = null;
-        toolStore.pointer.start = null;
-        toolStore.pointer.current = null;
-        toolStore.visited.clear();
-        toolStore.selectOverlayLayerIds.clear();
-        toolStore.selectionBeforeDrag.clear();
+        toolStore.resetPointer();
+        toolStore.clearVisited();
+        toolStore.clearSelectOverlay();
+        toolStore.clearSelectionBeforeDrag();
     }
 
     function addPixelsToSelection(pixels) {
