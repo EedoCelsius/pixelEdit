@@ -147,8 +147,7 @@ export const usePixelService = defineStore('pixelService', () => {
 
     function removePixelsFromAll(pixels) {
         if (!pixels || !pixels.length) return;
-        for (const id of layers.order) {
-            const layer = layers.getLayer(id);
+        for (const [id, layer] of layers.getLayers(layers.order)) {
             const pixelsToRemove = [];
             for (const [x, y] of pixels) {
                 if (layer.has(x, y)) pixelsToRemove.push([x, y]);
