@@ -19,7 +19,6 @@ export const useSelectService = defineStore('selectService', () => {
         if (!pixel) return;
 
         const startId = layers.topVisibleIdAt(pixel.x, pixel.y);
-        toolStore.selectionBeforeDrag = new Set(selection.asArray);
         const mode = !event.shiftKey
             ? 'select'
             : selection.has(startId)
@@ -46,9 +45,9 @@ export const useSelectService = defineStore('selectService', () => {
             const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'remove') {
-                    if (toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
                 } else if (mode === 'add') {
-                    if (!toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (!selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
                 } else {
                     toolStore.selectOverlayLayerIds.add(id);
                 }
@@ -74,11 +73,11 @@ export const useSelectService = defineStore('selectService', () => {
             toolStore.selectOverlayLayerIds.clear();
             if (mode === 'add') {
                 for (const id of intersectedIds) {
-                    if (!toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (!selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
                 }
             } else if (mode === 'remove') {
                 for (const id of intersectedIds) {
-                    if (toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
                 }
             } else {
                 for (const id of intersectedIds) {
@@ -100,9 +99,9 @@ export const useSelectService = defineStore('selectService', () => {
             const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'remove') {
-                    if (toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
                 } else if (mode === 'add') {
-                    if (!toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (!selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
                 } else {
                     toolStore.selectOverlayLayerIds.add(id);
                 }
@@ -181,7 +180,6 @@ export const useSelectService = defineStore('selectService', () => {
         toolStore.visited.clear();
         toolStore.hoverLayerId = null;
         toolStore.selectOverlayLayerIds.clear();
-        toolStore.selectionBeforeDrag.clear();
     }
 
     function selectRange(anchorId, tailId) {
