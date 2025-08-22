@@ -82,19 +82,6 @@ const containerEl = ref(null);
 const stageEl = ref(null);
 const marquee = ref({ visible: false, x: 0, y: 0, w: 0, h: 0 });
 
-const updateCanvasPosition = () => {
-    const rect = stageEl.value?.getBoundingClientRect();
-    if (rect) stageStore.setCanvasPosition(rect.left, rect.top);
-};
-
-const updateMarquee = (e) => {
-    if (toolStore.shape !== 'rect' || toolStore.pointer.status === 'idle' || !toolStore.pointer.start || !e) {
-        marquee.value = { visible: false, x: 0, y: 0, w: 0, h: 0 };
-        return;
-    }
-    marquee.value = calcMarquee(toolStore.pointer.start, { x: e.clientX, y: e.clientY }, stageStore.canvas);
-};
-
 const updateHover = (event) => {
     const pixel = stageService.clientToPixel(event);
     if (!pixel) {
@@ -116,29 +103,34 @@ const updateHover = (event) => {
     }
 };
 
+const updateMarquee = (e) => {
+    if (toolStore.shape !== 'rect' || toolStore.pointer.status === 'idle' || !toolStore.pointer.start || !e) {
+        marquee.value = { visible: false, x: 0, y: 0, w: 0, h: 0 };
+        return;
+    }
+    marquee.value = calcMarquee(toolStore.pointer.start, { x: e.clientX, y: e.clientY }, stageStore.canvas);
+};
+  
 const onPointerDown = (e) => {
-    updateCanvasPosition();
+    updateMarquee(e);
     if (toolStore.isSelect) selectSvc.toolStart(e);
     else pixelSvc.toolStart(e);
-    updateMarquee(e);
 };
 const onPointerMove = (e) => {
-    updateCanvasPosition();
     updateHover(e);
+    updateMarquee(e);
     if (toolStore.isSelect) selectSvc.toolMove(e);
     else pixelSvc.toolMove(e);
-    updateMarquee(e);
 };
 const onPointerUp = (e) => {
-    updateCanvasPosition();
+    updateMarquee(e);
     if (toolStore.isSelect) selectSvc.toolFinish(e);
     else pixelSvc.toolFinish(e);
-    updateMarquee(e);
 };
 const onPointerCancel = (e) => {
+    updateMarquee(e);
     if (toolStore.isSelect) selectSvc.cancel(e);
     else pixelSvc.cancel(e);
-    updateMarquee(e);
 };
 
 const selectionPath = computed(() => layerSvc.selectionPath());
@@ -167,6 +159,11 @@ const overlayStyle = computed(() => (
 ));
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
+
+const updateCanvasPosition = () => {
+    const rect = stageEl.value?.getBoundingClientRect();
+    if (rect) stageStore.setCanvasPosition(rect.left, rect.top);
+};
 
 const resizeObserver = new ResizeObserver(() => {
     stageService.recalcScale(containerEl.value);
