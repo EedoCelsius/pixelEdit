@@ -13,7 +13,7 @@ export const useLayerStore = defineStore('layers', {
         order: (state) => readonly(state._order),
         layersById: (state) => shallowReadonly(state._layersById),
         count: (state) => state._order.length,
-        indexOf: (state) => (id) => state._order.indexOf(id),
+        indexOfLayer: (state) => (id) => state._order.indexOf(id),
         idsBottomToTop: (state) => state._order.slice(),
         idsTopToBottom: (state) => state._order.slice().reverse(),
         uppermostId: (state) => state._order[state._order.length - 1] ?? null,
@@ -42,7 +42,8 @@ export const useLayerStore = defineStore('layers', {
         },
         pathOf: (state) => (id) => state._layersById[id]?.d,
         colorOf: (state) => (id) => state._layersById[id]?.getColorU32() ?? 0,
-        visibleOf: (state) => (id) => !!state._layersById[id]?.visible,
+        nameOf: (state) => (id) => state._layersById[id]?.name,
+        visibilityOf: (state) => (id) => !!state._layersById[id]?.visible,
         pixelCountOf: (state) => (id) => state._layersById[id]?.pixelCount ?? 0,
         compositeColorAt: (state) => (x, y) => {
             for (let i = state._order.length - 1; i >= 0; i--) {
@@ -66,24 +67,48 @@ export const useLayerStore = defineStore('layers', {
         _allocId() {
             return this._nextId++;
         },
-        get(id) {
+        getLayer(id) {
             return this._layersById[id] || null;
         },
         /** Create a layer and insert relative to a reference id (above = on top of it). If refId null -> push on top */
-        create(layerProperties, above = null) {
+        createLayer(layerProperties, above = null) {
             const layer = new Layer(layerProperties);
             const id = this._allocId();
             this._layersById[id] = layer;
             if (above === null) {
                 this._order.push(id);
             } else {
-                const idx = this.indexOf(above);
+                const idx = this.indexOfLayer(above);
                 (idx < 0) ? this._order.push(id): this._order.splice(idx + 1, 0, id);
             }
             return id;
         },
+        /** Update properties of a layer */
+        updateLayer(id, props) {
+            const layer = this._layersById[id];
+            if (!layer) return;
+            if (props.name !== undefined) layer.name = props.name;
+            if (props.colorU32 !== undefined) layer.setColorU32(props.colorU32);
+            if (props.visible !== undefined) layer.visible = !!props.visible;
+        },
+        toggleVisibility(id) {
+            const layer = this._layersById[id];
+            if (layer) layer.visible = !layer.visible;
+        },
+        addPixels(id, pixels) {
+            const layer = this._layersById[id];
+            if (layer) layer.addPixels(pixels);
+        },
+        removePixels(id, pixels) {
+            const layer = this._layersById[id];
+            if (layer) layer.removePixels(pixels);
+        },
+        togglePixel(id, x, y) {
+            const layer = this._layersById[id];
+            if (layer) layer.togglePixel(x, y);
+        },
         /** Remove layers by ids */
-        remove(ids) {
+        deleteLayers(ids) {
             const idSet = new Set(ids);
             this._order = this._order.filter(id => !idSet.has(id));
             for (const id of idSet) {
@@ -92,7 +117,7 @@ export const useLayerStore = defineStore('layers', {
             }
         },
         /** Reorder selected ids as a block relative to targetId. */
-        reorder(ids, targetId, placeBelow = true) {
+        reorderLayers(ids, targetId, placeBelow = true) {
             const selectionSet = new Set(ids);
             if (!selectionSet.size) return;
             const keptIds = this._order.filter(id => !selectionSet.has(id));
@@ -103,12 +128,12 @@ export const useLayerStore = defineStore('layers', {
             keptIds.splice(targetIndex, 0, ...selectionInStack);
             this._order = keptIds;
         },
-        removeEmpty() {
+        deleteEmptyLayers() {
             const emptyIds = this._order.filter(id => {
                 const layer = this._layersById[id];
                 return layer && layer.pixelCount === 0;
             });
-            if (emptyIds.length) this.remove(emptyIds);
+            if (emptyIds.length) this.deleteLayers(emptyIds);
             return emptyIds;
         },
         /** Serialization */

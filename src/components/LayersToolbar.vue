@@ -25,9 +25,9 @@ const selection = useSelectionStore();
 const onAdd = () => {
     output.setRollbackPoint();
     const above = selection.size ? layers.uppermostIdOf(selection.asArray) : null;
-    const id = layers.create({});
+    const id = layers.createLayer({});
     if (above !== null) {
-        layers.reorder([id], above, false);
+        layers.reorderLayers([id], above, false);
     }
     selection.selectOnly(id);
     output.commit();
