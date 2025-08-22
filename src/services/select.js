@@ -38,7 +38,6 @@ export const useSelectService = defineStore('selectService', () => {
         if (toolStore.shape === 'rect') {
             toolStore.pointer.current = { x: event.clientX, y: event.clientY };
         } else {
-            toolStore.pointer.current = pixel;
             toolStore.visited.clear();
             toolStore.visited.add(coordsToKey(pixel.x, pixel.y));
 
@@ -57,11 +56,11 @@ export const useSelectService = defineStore('selectService', () => {
 
     function toolMove(event) {
         if (toolStore.pointer.status === 'idle') return;
+        toolStore.pointer.current = { x: event.clientX, y: event.clientY };
 
         const [, mode] = toolStore.pointer.status.split(':');
 
         if (toolStore.shape === 'rect') {
-            toolStore.pointer.current = { x: event.clientX, y: event.clientY };
             const { x, y, w, h } = toolStore.marquee;
             const intersectedIds = new Set();
             for (let yy = y; yy < y + h; yy++) {
@@ -86,13 +85,8 @@ export const useSelectService = defineStore('selectService', () => {
             }
         } else {
             const pixel = stage.clientToPixel(event);
-            if (!pixel) {
-                toolStore.pointer.current = pixel;
-                return;
-            }
             const k = coordsToKey(pixel.x, pixel.y);
             if (toolStore.visited.has(k)) {
-                toolStore.pointer.current = pixel;
                 return;
             }
             toolStore.visited.add(k);
@@ -106,7 +100,6 @@ export const useSelectService = defineStore('selectService', () => {
                     toolStore.selectOverlayLayerIds.add(id);
                 }
             }
-            toolStore.pointer.current = pixel;
         }
     }
 
