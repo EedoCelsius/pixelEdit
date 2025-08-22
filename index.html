@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Pixel Builder — Refactored (Commit/Rollback + Stroke Selection)</title>
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { inter: ['Inter', 'system-ui', 'Segoe UI', 'Roboto', 'Arial'] } } }
+    }
+  </script>
+</head>
+
+<body class="h-screen overflow-hidden bg-slate-900 text-slate-100 font-inter">
+  <main id="app" class="h-full max-w-7xl mx-auto px-3 sm:px-4 py-3 flex flex-col block" v-cloak></main>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

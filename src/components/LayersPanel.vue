@@ -1,0 +1,305 @@
+<template>
+  <div v-memo="[output.commitVersion, selection.asArray]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
+    <div v-for="id in layerSvc.idsTopToBottom" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="id" :data-id="id" :class="{ selected: selection.has(id), anchor: selection.anchorId===id, dragging: dragId===id }" draggable="true" @click="onLayerClick(id,$event)" @dragstart="onDragStart(id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(id,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(id,$event)">
+      <!-- 썸네일 -->
+      <div @click.stop="onThumbnailClick(id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 크기의 모든 레이어 선택">
+        <svg :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
+          <rect x="0" y="0" :width="stageStore.width" :height="stageStore.height" :fill="patternUrl"/>
+          <path :d="layerSvc.pathOf(id)" :fill="rgbaCssU32(layerSvc.colorOf(id))" :opacity="layerSvc.visibleOf(id)?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+        </svg>
+      </div>
+      <!-- 색상 -->
+      <div class="h-6 w-6 rounded border border-white/25 p-0 relative overflow-hidden">
+        <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :value="rgbaToHexU32(layerSvc.colorOf(id))" @pointerdown.stop @mousedown.stop @click.stop="onColorDown()" @input.stop="onColorInput(id, $event)" @change.stop="onColorChange()" title="색상 변경" />
+      </div>
+      <!-- 이름/픽셀 -->
+      <div class="min-w-0 flex-1">
+        <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
+          <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(id)" @keydown="onNameKey(id,$event)" @blur="finishRename(id,$event)">{{ layers.get(id)?.name }}</span>
+        </div>
+        <div class="text-xs text-slate-400">{{ layerSvc.pixelCountOf(id) }} px</div>
+      </div>
+      <!-- 액션 -->
+      <div class="flex gap-1 justify-end">
+        <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
+          <img :src="(layers.get(id)?.visible?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(id)" />
+        </div>
+        <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
+          <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(id)" />
+        </div>
+      </div>
+    </div>
+    <div v-show="layerSvc.idsTopToBottom.length===0" class="text-xs text-slate-400/80 py-6 text-center">(레이어가 없습니다)</div>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { useStageStore } from '../stores/stage';
+import { useStageService } from '../services/stage';
+import { useLayerStore } from '../stores/layers';
+import { useSelectionStore } from '../stores/selection';
+import { useLayerService } from '../services/layers';
+import { useOutputStore } from '../stores/output';
+import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, coordsToKey, clamp } from '../utils';
+
+const stageStore = useStageStore();
+const stageService = useStageService();
+const layers = useLayerStore();
+const selection = useSelectionStore();
+const layerSvc = useLayerService();
+const output = useOutputStore();
+
+const dragging = ref(false);
+const dragId = ref(null);
+const editingId = ref(null);
+const listElement = ref(null);
+const icons = reactive({
+    show: './image/show.svg',
+    hide: './image/hide.svg',
+    del: './image/delete.svg'
+});
+
+const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
+
+function onLayerClick(id, event) {
+    if (event.shiftKey) {
+        layerSvc.selectRange(selection.anchorId ?? id, id);
+    } else if (event.ctrlKey || event.metaKey) {
+        selection.toggle(id);
+    } else {
+        selection.selectOnly(id);
+    }
+    selection.setScrollRule({
+        type: "follow",
+        target: id
+    });
+}
+
+function onThumbnailClick(id) {
+    layerSvc.selectByPixelCount(id);
+    selection.setScrollRule({
+        type: "follow",
+        target: id
+    });
+}
+
+function onDragStart(id, event) {
+    dragging.value = true;
+    dragId.value = id;
+    output.setRollbackPoint();
+    event.dataTransfer.setData('text/plain', String(id));
+}
+
+function onDragEnd() {
+    dragging.value = false;
+    dragId.value = null;
+}
+
+function onDragOver(id, event) {
+    const row = event.currentTarget;
+    if (selection.has(id)) {
+        row.classList.remove('insert-before', 'insert-after');
+        event.dataTransfer.dropEffect = 'none';
+        return;
+    }
+    const rect = row.getBoundingClientRect();
+    const before = (event.clientY - rect.top) < rect.height * 0.5;
+    row.classList.toggle('insert-before', before);
+    row.classList.toggle('insert-after', !before);
+}
+
+function onDragLeave(event) {
+    event.currentTarget.classList.remove('insert-before', 'insert-after');
+}
+
+function onDrop(id, event) {
+    const row = event.currentTarget;
+    row.classList.remove('insert-before', 'insert-after');
+    const targetId = id;
+    const rect = row.getBoundingClientRect();
+    const placeBelow = (event.clientY - rect.top) > rect.height * 0.5;
+    layers.reorder(selection.asArray, targetId, placeBelow);
+    output.commit();
+}
+
+function onColorDown() {
+    output.setRollbackPoint();
+}
+
+function onColorInput(id, event) {
+    const colorU32 = hexToRgbaU32(event.target.value);
+    selection.has(id) ? layerSvc.setColorForSelectedU32(colorU32) : layers.get(id)?.setColorU32(colorU32);
+}
+
+function onColorChange() {
+    output.commit();
+}
+
+function toggleVisibility(id) {
+    output.setRollbackPoint();
+    if (selection.has(id)) layerSvc.setVisibilityForSelected(!(layers.get(id)?.visible));
+    else if (layers.get(id)) layers.get(id).visible = !layers.get(id).visible;
+    output.commit();
+}
+
+function deleteLayer(id) {
+    output.setRollbackPoint();
+    const targets = selection.has(id) ? selection.asArray : [id];
+    const belowId = layerSvc.belowId(layerSvc.lowermostIdOf(targets));
+    layers.remove(targets);
+    const newSelectId = layers.get(belowId) ? belowId : layerSvc.lowermostId();
+    selection.selectOnly(newSelectId);
+    if (newSelectId) {
+        selection.setScrollRule({
+            type: "follow",
+            target: newSelectId
+        });
+    }
+    output.commit();
+}
+
+function ensureBlockVisibility({
+    type,
+    target
+}) {
+    const container = listElement.value;
+    const row = container?.querySelector(`.layer[data-id="${target}"]`);
+    if (!row) return;
+
+    const containerRect = container.getBoundingClientRect(),
+        rowRect = row.getBoundingClientRect();
+    const viewTop = container.scrollTop,
+        viewBottom = viewTop + container.clientHeight;
+    const elTop = rowRect.top - containerRect.top + container.scrollTop,
+        elBottom = elTop + rowRect.height;
+
+    let scrollToPosition
+    if (viewTop < elBottom && elTop < viewBottom) {
+        // 이동 전 약간이라도 보임
+        const half = container.scrollTop + container.clientHeight * 0.5;
+        if (type === "follow-up") {
+            // 위로 이동
+            if (half < elTop)
+                scrollToPosition = container.scrollTop;
+            else {
+                // 상단에 위치함
+                scrollToPosition = elTop - container.clientHeight * 0.5;
+            }
+        } else if (type === "follow-down") {
+            // 아래로 이동
+            if (elBottom < half)
+                scrollToPosition = container.scrollTop;
+            else {
+                // 하단에 위치함
+                scrollToPosition = elBottom - container.clientHeight * 0.5;
+            }
+        } else {
+            if (elTop < viewTop) {
+                // 위로 약간 가림
+                scrollToPosition = elTop
+            } else if (elBottom > viewBottom) {
+                // 아래로 약간 가림
+                scrollToPosition = elBottom - container.clientHeight;
+            } else {
+                scrollToPosition = container.scrollTop;
+            }
+        }
+    } else {
+        // 이동 전 전혀 안보임
+        if (type === "follow-up")
+            // 위로 이동
+            scrollToPosition = elTop - container.clientHeight * 0.5;
+        else if (type === "follow-down")
+            // 아래로 이동
+            scrollToPosition = elBottom - container.clientHeight * 0.5;
+        else {
+            if (elBottom <= viewTop)
+                // 위에 있음
+                scrollToPosition = elBottom - container.clientHeight * 0.5;
+            else if (elTop >= viewBottom)
+                // 아래에 있음
+                scrollToPosition = elTop - container.clientHeight * 0.5;
+        }
+    }
+
+    const max = Math.max(0, container.scrollHeight - container.clientHeight);
+    container.scrollTo({
+        top: clamp(scrollToPosition, 0, max),
+        behavior: 'smooth'
+    });
+}
+
+watch(() => selection.scrollRule, rule => nextTick(() => ensureBlockVisibility(rule)));
+
+function startRename(id) {
+    output.setRollbackPoint();
+    const element = document.querySelector(`.layer[data-id="${id}"] .nameText`);
+    element.contentEditable = true;
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    element.focus();
+    selection.setScrollRule({
+        type: "follow",
+        target: id
+    });
+}
+
+function finishRename(id, event) {
+    const element = document.querySelector(`.layer[data-id="${id}"] .nameText`);
+    element.contentEditable = false;
+    const layer = layers.get(id);
+    if (!layer) return;
+    const text = event.target.innerText.trim();
+    editingId.value = null;
+    if (text && text !== layer.name) {
+        layer.name = text;
+        output.commit();
+    } else {
+        event.target.innerText = layer.name;
+        output.clearRollbackPoint();
+    }
+    selection.setScrollRule({
+        type: "follow",
+        target: id
+    });
+}
+
+function onNameKey(id, event) {
+    const layer = layers.get(id);
+    if (!layer) return;
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        event.target.blur();
+    }
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        event.target.innerText = layer.name;
+        event.target.blur();
+    }
+}
+
+function handleGlobalPointerDown(event) {
+    const target = event.target;
+    const stageEl = document.getElementById('stage');
+    const isStage = stageEl && stageEl.contains(target);
+    const isLayers = listElement.value && listElement.value.contains(target);
+    const isButton = !!target.closest('button');
+    if (isStage || isLayers || isButton) return;
+    selection.clear();
+}
+
+onMounted(() => {
+    window.addEventListener('pointerdown', handleGlobalPointerDown, {
+        capture: true
+    });
+});
+onUnmounted(() => {
+    window.removeEventListener('pointerdown', handleGlobalPointerDown, {
+        capture: true
+    });
+});
+</script>
