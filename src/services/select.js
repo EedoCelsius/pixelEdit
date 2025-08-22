@@ -27,7 +27,7 @@ export const useSelectService = defineStore('selectService', () => {
 
         output.setRollbackPoint();
 
-        toolStore.pointer.status = `select:${mode}`;
+        toolStore.pointer.status = mode;
         toolStore.pointer.start = { x: event.clientX, y: event.clientY };
 
         try {
@@ -58,7 +58,7 @@ export const useSelectService = defineStore('selectService', () => {
     function toolMove(event) {
         if (toolStore.pointer.status === 'idle') return;
 
-        const [, mode] = toolStore.pointer.status.split(':');
+        const mode = toolStore.pointer.status;
 
         if (toolStore.shape === 'rect') {
             toolStore.pointer.current = { x: event.clientX, y: event.clientY };
@@ -113,7 +113,7 @@ export const useSelectService = defineStore('selectService', () => {
     function toolFinish(event) {
         if (toolStore.pointer.status === 'idle') return;
 
-        const [, mode] = toolStore.pointer.status.split(':');
+        const mode = toolStore.pointer.status;
 
         const pixel = stage.clientToPixel(event);
         const start = toolStore.pointer.start;

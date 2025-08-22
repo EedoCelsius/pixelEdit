@@ -136,7 +136,7 @@ const hoverStyle = computed(() => {
 });
 
 const selectOverlayStyle = computed(() => (
-    toolStore.pointer.status === 'select:remove'
+    toolStore.pointer.status === 'remove'
         ? OVERLAY_CONFIG.REMOVE
         : OVERLAY_CONFIG.ADD
 ));
