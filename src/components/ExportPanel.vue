@@ -2,14 +2,14 @@
   <div class="flex gap-2 items-stretch p-2">
     <div class="flex flex-col gap-1">
       <!-- 결과 -->
-      <svg v-show="stageStore.displayMode!=='result'" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-44 h-44 rounded-md border border-white/15">
-        <rect x="0" y="0" :width="stageStore.width" :height="stageStore.height" :fill="patternUrl"/>
+      <svg v-show="stageStore.display!=='result'" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-44 h-44 rounded-md border border-white/15">
+        <rect x="0" y="0" :width="stageStore.canvas.width" :height="stageStore.canvas.height" :fill="patternUrl"/>
         <g>
           <path v-for="id in layerSvc.idsBottomToTop" :key="'pix-'+id" :d="layerSvc.pathOf(id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(layerSvc.colorOf(id))" :visibility="layerSvc.visibleOf(id)?'visible':'hidden'"></path>
         </g>
       </svg>
       <!-- 원본 -->
-      <img v-show="stageStore.displayMode!=='original'" class="w-44 h-44 object-contain rounded-md border border-white/15" :src="stageStore.imageSrc" alt="source image" style="image-rendering:pixelated"/>
+      <img v-show="stageStore.display!=='original'" class="w-44 h-44 object-contain rounded-md border border-white/15" :src="stageStore.imageSrc" alt="source image" style="image-rendering:pixelated"/>
     </div>
     <div class="flex-1 min-w-0 flex flex-col gap-2">
       <div class="flex gap-2 items-center">

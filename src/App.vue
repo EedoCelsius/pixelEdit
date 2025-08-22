@@ -3,9 +3,9 @@
       <!-- ===== 좌: 디스플레이 ===== -->
       <section class="rounded-xl border border-white/10 bg-sky-950/30 flex flex-col min-h-0 overflow-hidden">
         <h2 class="m-0 px-3 py-2 text-xs uppercase tracking-wide text-slate-300/90 border-b border-white/10">Display</h2>
-        <display-toolbar class="border-b border-white/10"></display-toolbar>
-        <display-canvas class="flex-1 min-h-0"></display-canvas>
-        <display-info class="border-t border-white/10"></display-info>
+        <stage-toolbar class="border-b border-white/10"></stage-toolbar>
+        <Stage class="flex-1 min-h-0"></Stage>
+        <stage-info class="border-t border-white/10"></stage-info>
       </section>
 
       <!-- ===== 우: 레이어 ===== -->
@@ -28,9 +28,9 @@ import { useSelectionStore } from './stores/selection';
 import { useLayerService } from './services/layers';
 import { useOutputStore } from './stores/output';
 
-import DisplayToolbar from './components/DisplayToolbar.vue';
-import DisplayCanvas from './components/DisplayCanvas.vue';
-import DisplayInfo from './components/DisplayInfo.vue';
+import StageToolbar from './components/StageToolbar.vue';
+import Stage from './components/Stage.vue';
+import StageInfo from './components/StageInfo.vue';
 import LayersToolbar from './components/LayersToolbar.vue';
 import LayersPanel from './components/LayersPanel.vue';
 import ExportPanel from './components/ExportPanel.vue';

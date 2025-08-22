@@ -4,21 +4,21 @@
          @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp" @pointercancel="onPointerCancel" @contextmenu.prevent>
       <!-- 체커보드 -->
       <svg class="absolute top-0 left-0 pointer-events-none block rounded-lg" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" style="image-rendering:pixelated">
-        <rect x="0" y="0" :width="stageStore.width" :height="stageStore.height" :fill="patternUrl"/>
+        <rect x="0" y="0" :width="stageStore.canvas.width" :height="stageStore.canvas.height" :fill="patternUrl"/>
       </svg>
       <!-- 원본 -->
-      <img v-show="stageStore.displayMode==='original'" class="absolute top-0 left-0 pointer-events-none block rounded-lg" :src="stageStore.imageSrc" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" alt="source image" style="image-rendering:pixelated" />
+      <img v-show="stageStore.display==='original'" class="absolute top-0 left-0 pointer-events-none block rounded-lg" :src="stageStore.imageSrc" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" alt="source image" style="image-rendering:pixelated" />
       <!-- 결과 레이어 -->
-      <svg v-show="stageStore.displayMode==='result'" class="absolute top-0 left-0 pointer-events-none block rounded-lg" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" style="image-rendering:pixelated">
+      <svg v-show="stageStore.display==='result'" class="absolute top-0 left-0 pointer-events-none block rounded-lg" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" style="image-rendering:pixelated">
         <g>
           <path v-for="id in layerSvc.idsBottomToTop" :key="'pix-'+id" :d="layerSvc.pathOf(id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(layerSvc.colorOf(id))" :visibility="layerSvc.visibleOf(id)?'visible':'hidden'"></path>
         </g>
       </svg>
       <!-- 그리드 -->
       <svg class="absolute top-0 left-0 pointer-events-none block rounded-lg" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" style="image-rendering:pixelated">
-        <g :stroke="'rgba(0,0,0,.18)'" :stroke-width="1/Math.max(1,stageStore.scale)">
-          <path v-for="x in (stageStore.width+1)" :key="'gx'+x" :d="'M '+(x-1)+' 0 V '+stageStore.height"></path>
-          <path v-for="y in (stageStore.height+1)" :key="'gy'+y" :d="'M 0 '+(y-1)+' H '+stageStore.width"></path>
+        <g :stroke="'rgba(0,0,0,.18)'" :stroke-width="1/Math.max(1,stageStore.canvas.scale)">
+          <path v-for="x in (stageStore.canvas.width+1)" :key="'gx'+x" :d="'M '+(x-1)+' 0 V '+stageStore.canvas.height"></path>
+          <path v-for="y in (stageStore.canvas.height+1)" :key="'gy'+y" :d="'M 0 '+(y-1)+' H '+stageStore.canvas.width"></path>
         </g>
       </svg>
       <!-- 오버레이 (선택, 추가, 제거, 마퀴) -->
@@ -29,7 +29,7 @@
                 :d="selectionPath"
                 :fill="OVERLAY_CONFIG.SELECTED.FILL_COLOR"
                 :stroke="OVERLAY_CONFIG.SELECTED.STROKE_COLOR"
-                :stroke-width="OVERLAY_CONFIG.SELECTED.STROKE_WIDTH_SCALE / Math.max(1, stageStore.scale)"
+                :stroke-width="OVERLAY_CONFIG.SELECTED.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
                 shape-rendering="crispEdges" />
 
           <!-- 2. 마퀴 사각형 (노란색) -->
@@ -39,7 +39,7 @@
                 :visibility="stageService.marquee.visible ? 'visible' : 'hidden'"
                 :fill="OVERLAY_CONFIG.MARQUEE.FILL_COLOR"
                 :stroke="OVERLAY_CONFIG.MARQUEE.STROKE_COLOR"
-                :stroke-width="OVERLAY_CONFIG.MARQUEE.STROKE_WIDTH_SCALE / Math.max(1, stageStore.scale)"
+                :stroke-width="OVERLAY_CONFIG.MARQUEE.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
                 shape-rendering="crispEdges" />
 
           <!-- 3. 추가 오버레이 (초록색) - 드래그 시 -->
@@ -47,7 +47,7 @@
                 :d="stageService.addOverlayPath"
                 :fill="OVERLAY_CONFIG.ADD.FILL_COLOR"
                 :stroke="OVERLAY_CONFIG.ADD.STROKE_COLOR"
-                :stroke-width="OVERLAY_CONFIG.ADD.STROKE_WIDTH_SCALE / Math.max(1, stageStore.scale)"
+                :stroke-width="OVERLAY_CONFIG.ADD.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
                 fill-rule="evenodd"
                 shape-rendering="crispEdges" />
 
@@ -56,7 +56,7 @@
                 :d="stageService.removeOverlayPath"
                 :fill="OVERLAY_CONFIG.REMOVE.FILL_COLOR"
                 :stroke="OVERLAY_CONFIG.REMOVE.STROKE_COLOR"
-                :stroke-width="OVERLAY_CONFIG.REMOVE.STROKE_WIDTH_SCALE / Math.max(1, stageStore.scale)"
+                :stroke-width="OVERLAY_CONFIG.REMOVE.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
                 fill-rule="evenodd"
                 shape-rendering="crispEdges" />
 
@@ -65,7 +65,7 @@
                 :d="layerSvc.pathOf(stageService.hoverLayerId)"
                 :fill="hoverStyle.FILL_COLOR"
                 :stroke="hoverStyle.STROKE_COLOR"
-                :stroke-width="hoverStyle.STROKE_WIDTH_SCALE / Math.max(1, stageStore.scale)"
+                :stroke-width="hoverStyle.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
                 fill-rule="evenodd"
                 shape-rendering="crispEdges" />
       </svg>
@@ -89,9 +89,23 @@ const selection = useSelectionStore();
 const containerEl = ref(null);
 const stageEl = ref(null);
 
-const onPointerDown = (e) => stageService.pointerDown(e, stageEl.value);
-const onPointerMove = (e) => stageService.pointerMove(e, stageEl.value);
-const onPointerUp = (e) => stageService.pointerUp(e, stageEl.value);
+const updateCanvasPosition = () => {
+    const rect = stageEl.value?.getBoundingClientRect();
+    if (rect) stageStore.setCanvasPosition(rect.left, rect.top);
+};
+
+const onPointerDown = (e) => {
+    updateCanvasPosition();
+    stageService.pointerDown(e);
+};
+const onPointerMove = (e) => {
+    updateCanvasPosition();
+    stageService.pointerMove(e);
+};
+const onPointerUp = (e) => {
+    updateCanvasPosition();
+    stageService.pointerUp(e);
+};
 const onPointerCancel = (e) => stageService.pointerCancel(e);
 
 const selectionPath = computed(() => layerSvc.selectionPath());
@@ -103,10 +117,14 @@ const hoverStyle = computed(() => {
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
 
-const resizeObserver = new ResizeObserver(() => stageService.recalcScale(containerEl.value));
+const resizeObserver = new ResizeObserver(() => {
+    stageService.recalcScale(containerEl.value);
+    updateCanvasPosition();
+});
 onMounted(() => {
     stageService.ensureStagePointerStyles();
     stageService.recalcScale(containerEl.value);
+    updateCanvasPosition();
     resizeObserver.observe(containerEl.value);
 });
 onUnmounted(() => resizeObserver.disconnect());

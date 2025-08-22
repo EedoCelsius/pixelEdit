@@ -3,10 +3,14 @@ import { useSelectionStore } from './selection';
 
 export const useStageStore = defineStore('stage', {
     state: () => ({
-        width: 16,
-        height: 16,
-        scale: 16,
-        displayMode: 'result', // 'result' | 'original'
+        canvas: {
+            x: 0,
+            y: 0,
+            width: 16,
+            height: 16,
+            scale: 16,
+        },
+        display: 'result', // 'result' | 'original'
         imageSrc: '',
         pixelInfo: '-',
         tool: 'draw', // 'draw'|'erase'|'select'|'globalErase'
@@ -16,11 +20,11 @@ export const useStageStore = defineStore('stage', {
     }),
     getters: {
         // Canvas dimensions
-        pixelWidth: (state) => state.width * state.scale,
-        pixelHeight: (state) => state.height * state.scale,
-        viewBox: (state) => `0 0 ${state.width} ${state.height}`,
+        pixelWidth: (state) => state.canvas.width * state.canvas.scale,
+        pixelHeight: (state) => state.canvas.height * state.canvas.scale,
+        viewBox: (state) => `0 0 ${state.canvas.width} ${state.canvas.height}`,
         // UI labels
-        toggleLabel: (state) => state.displayMode === 'original' ? '결과' : '원본',
+        toggleLabel: (state) => state.display === 'original' ? '결과' : '원본',
         // Tool state
         isStroke: (state) => state.toolShape === 'stroke',
         isRect: (state) => state.toolShape === 'rect',
@@ -54,18 +58,22 @@ export const useStageStore = defineStore('stage', {
         isGlobalErase() { return this.effectiveTool === 'globalErase'; },
     },
     actions: {
+        setCanvasPosition(x, y) {
+            this.canvas.x = x;
+            this.canvas.y = y;
+        },
         setSize(newWidth, newHeight) {
-            this.width = Math.max(1, newWidth | 0);
-            this.height = Math.max(1, newHeight | 0);
+            this.canvas.width = Math.max(1, newWidth | 0);
+            this.canvas.height = Math.max(1, newHeight | 0);
         },
         setImage(src) {
             this.imageSrc = src || '';
         },
         setScale(newScale) {
-            this.scale = Math.max(1, newScale | 0);
+            this.canvas.scale = Math.max(1, newScale | 0);
         },
         toggleView() {
-            this.displayMode = (this.displayMode === 'original') ? 'result' : 'original';
+            this.display = (this.display === 'original') ? 'result' : 'original';
         },
         updatePixelInfo(text) {
             this.pixelInfo = text;
