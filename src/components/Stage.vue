@@ -131,7 +131,7 @@ const onPointerCancel = (e) => {
 const selectionPath = computed(() => layerSvc.selectionPath());
 const hoverStyle = computed(() => {
     if (!toolStore.hoverLayerId) return {};
-    const isRemoving = toolStore.shiftHeld && selection.has(toolStore.hoverLayerId);
+    const isRemoving = toolStore.shiftHeld && selection.isSelected(toolStore.hoverLayerId);
     return isRemoving ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
 });
 

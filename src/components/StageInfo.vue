@@ -19,7 +19,7 @@ const stageStore = useStageStore();
 const layers = useLayerStore();
 const selection = useSelectionStore();
 const selectedAreaPixelCount = computed(() => {
-    const pixelSet = getPixelUnionSet(layers.getLayers(selection.asArray));
+    const pixelSet = getPixelUnionSet(layers.getLayers(selection.ids));
     return pixelSet.size;
   });
 </script>

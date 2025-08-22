@@ -72,7 +72,7 @@ function onKeydown(event) {
         selection.setScrollRule({ type: 'follow-up', target: newTail });
       } else if (!ctrl) {
         const nextId = layers.aboveId(selection.anchorId) ?? selection.anchorId;
-        selection.selectOnly(nextId);
+        selection.selectOne(nextId);
         selection.setScrollRule({ type: 'follow-up', target: nextId });
       }
       return;
@@ -86,7 +86,7 @@ function onKeydown(event) {
         selection.setScrollRule({ type: 'follow-down', target: newTail });
       } else if (!ctrl) {
         const nextId = layers.belowId(selection.anchorId) ?? selection.anchorId;
-        selection.selectOnly(nextId);
+        selection.selectOne(nextId);
         selection.setScrollRule({ type: 'follow-down', target: nextId });
       }
       return;
@@ -95,10 +95,10 @@ function onKeydown(event) {
       event.preventDefault();
       if (!selection.exists) return;
       output.setRollbackPoint();
-      const belowId = layers.belowId(layers.lowermostIdOf(selection.asArray));
+      const belowId = layers.belowId(layers.lowermostIdOf(selection.ids));
       layerSvc.deleteSelected();
       const newSelect = layers.has(belowId) ? belowId : layers.lowermostId;
-      selection.selectOnly(newSelect);
+      selection.selectOne(newSelect);
       selection.setScrollRule({ type: "follow", target: newSelect });
       output.commit();
       return;
@@ -126,7 +126,7 @@ function onKeydown(event) {
     if (key === 'a') {
       event.preventDefault();
       const anchor = layers.uppermostId, tail = layers.lowermostId;
-      selection.set(layers.order, anchor, tail);
+      selection.replace(layers.order, anchor, tail);
     } else if (key === 'z' && !shift) {
       event.preventDefault();
       output.undo();
@@ -173,7 +173,7 @@ onMounted(async () => {
     layers.createLayer({});
     layers.createLayer({});
   }
-  selection.selectOnly(layers.idsTopToBottom[0]);
+  selection.selectOne(layers.idsTopToBottom[0]);
 
   nextTick(() => stageService.recalcScale(document.getElementById('stage')?.parentElement?.parentElement || document.body));
 

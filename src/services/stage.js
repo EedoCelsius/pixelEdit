@@ -130,7 +130,7 @@ export const useStageService = defineStore('stageService', () => {
         const shape = toolStore.shape;
 
         if (tool === 'select') {
-            const isRemoving = toolStore.shiftHeld && selection.has(toolStore.hoverLayerId);
+            const isRemoving = toolStore.shiftHeld && selection.isSelected(toolStore.hoverLayerId);
             if (shape === 'stroke') {
                 return isRemoving ? CURSOR_CONFIG.REMOVE_STROKE : CURSOR_CONFIG.ADD_STROKE;
             }

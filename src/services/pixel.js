@@ -116,20 +116,20 @@ export const usePixelService = defineStore('pixelService', () => {
     }
 
     function addPixelsToSelection(pixels) {
-        if (selection.size !== 1) return;
-        const id = selection.asArray[0];
+        if (selection.count !== 1) return;
+        const id = selection.ids[0];
         layers.addPixels(id, pixels);
     }
 
     function removePixelsFromSelection(pixels) {
-        if (selection.size !== 1) return;
-        const id = selection.asArray[0];
+        if (selection.count !== 1) return;
+        const id = selection.ids[0];
         layers.removePixels(id, pixels);
     }
 
     function togglePointInSelection(x, y) {
-        if (selection.size !== 1) return;
-        const id = selection.asArray[0];
+        if (selection.count !== 1) return;
+        const id = selection.ids[0];
         layers.togglePixel(id, x, y);
     }
 
