@@ -150,7 +150,7 @@ function deleteLayer(id) {
     const targets = selection.has(id) ? selection.asArray : [id];
     const belowId = layers.belowId(layers.lowermostIdOf(targets));
     layers.deleteLayers(targets);
-    const newSelectId = layers.nameOf(belowId) != null ? belowId : layers.lowermostId;
+    const newSelectId = layers.get(belowId) ? belowId : layers.lowermostId;
     selection.selectOnly(newSelectId);
     if (newSelectId) {
         selection.setScrollRule({
@@ -254,7 +254,6 @@ function finishRename(id, event) {
     const element = document.querySelector(`.layer[data-id="${id}"] .nameText`);
     element.contentEditable = false;
     const oldName = layers.nameOf(id);
-    if (!oldName) return;
     const text = event.target.innerText.trim();
     editingId.value = null;
     if (text && text !== oldName) {
@@ -272,7 +271,6 @@ function finishRename(id, event) {
 
 function onNameKey(id, event) {
     const name = layers.nameOf(id);
-    if (name == null) return;
     if (event.key === 'Enter') {
         event.preventDefault();
         event.target.blur();
