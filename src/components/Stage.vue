@@ -42,27 +42,18 @@
                 :stroke-width="OVERLAY_CONFIG.MARQUEE.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
                 shape-rendering="crispEdges" />
 
-          <!-- 3. 추가 오버레이 (초록색) - 드래그 시 -->
-          <path v-if="stageService.isDragging"
-                :d="stageService.addOverlayPath"
-                :fill="OVERLAY_CONFIG.ADD.FILL_COLOR"
-                :stroke="OVERLAY_CONFIG.ADD.STROKE_COLOR"
-                :stroke-width="OVERLAY_CONFIG.ADD.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
+          <!-- 3. 선택 오버레이 (초록/빨강) - 드래그 시 -->
+          <path v-if="toolStore.state.status !== 'idle'"
+                :d="stageService.selectOverlayPath"
+                :fill="selectOverlayStyle.FILL_COLOR"
+                :stroke="selectOverlayStyle.STROKE_COLOR"
+                :stroke-width="selectOverlayStyle.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
                 fill-rule="evenodd"
                 shape-rendering="crispEdges" />
 
-          <!-- 4. 제거 오버레이 (빨간색) - 드래그 시 -->
-          <path v-if="stageService.isDragging"
-                :d="stageService.removeOverlayPath"
-                :fill="OVERLAY_CONFIG.REMOVE.FILL_COLOR"
-                :stroke="OVERLAY_CONFIG.REMOVE.STROKE_COLOR"
-                :stroke-width="OVERLAY_CONFIG.REMOVE.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
-                fill-rule="evenodd"
-                shape-rendering="crispEdges" />
-
-          <!-- 5. 호버 오버레이 (초록/빨강) - 클릭/호버 시 -->
-          <path v-if="!stageService.isDragging && toolStore.isSelect"
-                :d="layerSvc.pathOf(stageService.hoverLayerId)"
+          <!-- 4. 호버 오버레이 (초록/빨강) - 클릭/호버 시 -->
+          <path v-if="toolStore.state.status === 'idle' && toolStore.isSelect"
+                :d="layerSvc.pathOf(toolStore.hoverLayerId)"
                 :fill="hoverStyle.FILL_COLOR"
                 :stroke="hoverStyle.STROKE_COLOR"
                 :stroke-width="hoverStyle.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
@@ -121,12 +112,43 @@ const onPointerCancel = (e) => {
     else pixelSvc.cancel(e);
 };
 
+// Keyboard handlers moved from stage service
+let ctrlKeyDownTimestamp = 0;
+const KEY_TAP_MS = 200;
+function ctrlKeyDown() {
+    if (!toolStore.ctrlHeld) {
+        ctrlKeyDownTimestamp = performance.now();
+        toolStore.setCtrlHeld(true);
+    }
+}
+function ctrlKeyUp() {
+    if (performance.now() - ctrlKeyDownTimestamp < KEY_TAP_MS) {
+        if (toolStore.currentMode === 'single') {
+            if (toolStore.tool === 'draw' || toolStore.tool === 'erase') {
+                toolStore.setTool(toolStore.tool === 'draw' ? 'erase' : 'draw');
+            }
+        } else {
+            if (toolStore.tool === 'select' || toolStore.tool === 'globalErase') {
+                toolStore.setTool(toolStore.tool === 'select' ? 'globalErase' : 'select');
+            }
+        }
+    }
+    toolStore.setCtrlHeld(false);
+    ctrlKeyDownTimestamp = 0;
+}
+function shiftKeyDown() { toolStore.setShiftHeld(true); }
+function shiftKeyUp() { toolStore.setShiftHeld(false); }
+
 const selectionPath = computed(() => layerSvc.selectionPath());
 const hoverStyle = computed(() => {
-    if (!stageService.hoverLayerId) return {};
-    const isRemoving = toolStore.shiftHeld && selection.has(stageService.hoverLayerId);
+    if (!toolStore.hoverLayerId) return {};
+    const isRemoving = toolStore.shiftHeld && selection.has(toolStore.hoverLayerId);
     return isRemoving ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
 });
+
+const selectOverlayStyle = computed(() => (
+    toolStore.state.selectionMode === 'remove' ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD
+));
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
 
@@ -141,5 +163,7 @@ onMounted(() => {
     resizeObserver.observe(containerEl.value);
 });
 onUnmounted(() => resizeObserver.disconnect());
+
+defineExpose({ ctrlKeyDown, ctrlKeyUp, shiftKeyDown, shiftKeyUp });
 
 </script>

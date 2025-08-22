@@ -4,8 +4,7 @@ import { useToolStore } from '../stores/tool';
 import { useSelectionStore } from '../stores/selection';
 import { useLayerStore } from '../stores/layers';
 import { useOutputStore } from '../stores/output';
-import { coordsToKey, clamp } from '../utils';
-import { useStageStore } from '../stores/stage';
+import { coordsToKey } from '../utils';
 
 export const usePixelService = defineStore('pixelService', () => {
     const stage = useStageService();
@@ -13,7 +12,6 @@ export const usePixelService = defineStore('pixelService', () => {
     const selection = useSelectionStore();
     const layers = useLayerStore();
     const output = useOutputStore();
-    const stageStore = useStageStore();
 
     function toolStart(event) {
         if (event.button !== 0) return;
@@ -24,7 +22,6 @@ export const usePixelService = defineStore('pixelService', () => {
 
         toolStore.state.status = toolStore.toolShape;
         toolStore.state.startPoint = { x: event.clientX, y: event.clientY };
-        toolStore.state.isDragging = false;
 
         try {
             event.target.setPointerCapture?.(event.pointerId);
@@ -32,13 +29,9 @@ export const usePixelService = defineStore('pixelService', () => {
         } catch {}
 
         if (toolStore.state.status === 'rect') {
-            toolStore.marquee.x = pixel.x;
-            toolStore.marquee.y = pixel.y;
-            toolStore.marquee.w = 0;
-            toolStore.marquee.h = 0;
-            toolStore.marquee.visible = true;
+            toolStore.state.lastPoint = { x: event.clientX, y: event.clientY };
         } else if (toolStore.state.status === 'stroke') {
-            toolStore.lastPoint = pixel;
+            toolStore.state.lastPoint = pixel;
             toolStore.visited.clear();
             toolStore.visited.add(coordsToKey(pixel.x, pixel.y));
 
@@ -55,55 +48,29 @@ export const usePixelService = defineStore('pixelService', () => {
     function toolMove(event) {
         if (toolStore.state.status === 'idle') return;
 
-        if (!toolStore.state.isDragging && toolStore.state.startPoint) {
-            const dx = Math.abs(event.clientX - toolStore.state.startPoint.x);
-            const dy = Math.abs(event.clientY - toolStore.state.startPoint.y);
-            if (dx > 4 || dy > 4) toolStore.state.isDragging = true;
-        }
-        if (!toolStore.state.isDragging) return;
-
         if (toolStore.state.status === 'rect') {
-            const left = Math.min(toolStore.state.startPoint.x, event.clientX) - stageStore.canvas.x;
-            const top = Math.min(toolStore.state.startPoint.y, event.clientY) - stageStore.canvas.y;
-            const right = Math.max(toolStore.state.startPoint.x, event.clientX) - stageStore.canvas.x;
-            const bottom = Math.max(toolStore.state.startPoint.y, event.clientY) - stageStore.canvas.y;
-            const minX = Math.floor(left / stageStore.canvas.scale),
-                  maxX = Math.floor((right - 1) / stageStore.canvas.scale);
-            const minY = Math.floor(top / stageStore.canvas.scale),
-                  maxY = Math.floor((bottom - 1) / stageStore.canvas.scale);
-            const minx = clamp(minX, 0, stageStore.canvas.width - 1),
-                  maxx = clamp(maxX, 0, stageStore.canvas.width - 1);
-            const miny = clamp(minY, 0, stageStore.canvas.height - 1),
-                  maxy = clamp(maxY, 0, stageStore.canvas.height - 1);
-            toolStore.marquee.x = minx;
-            toolStore.marquee.y = miny;
-            toolStore.marquee.w = (maxx >= minx) ? (maxx - minx + 1) : 0;
-            toolStore.marquee.h = (maxy >= miny) ? (maxy - miny + 1) : 0;
+            toolStore.state.lastPoint = { x: event.clientX, y: event.clientY };
         } else if (toolStore.state.status === 'stroke') {
             const pixel = stage.clientToPixel(event);
-            if (!pixel || !toolStore.lastPoint) {
-                toolStore.lastPoint = pixel;
+            if (!pixel) {
+                toolStore.state.lastPoint = pixel;
                 return;
             }
-            const line = stage.bresenhamLine(toolStore.lastPoint.x, toolStore.lastPoint.y, pixel.x, pixel.y);
-            const delta = [];
-            for (const [x, y] of line) {
-                const k = coordsToKey(x, y);
-                if (!toolStore.visited.has(k)) {
-                    toolStore.visited.add(k);
-                    delta.push([x, y]);
-                }
+            const k = coordsToKey(pixel.x, pixel.y);
+            if (toolStore.visited.has(k)) {
+                toolStore.state.lastPoint = pixel;
+                return;
             }
-            if (delta.length) {
-                if (toolStore.isGlobalErase) {
-                    if (selection.exists) removePixelsFromSelected(delta);
-                    else removePixelsFromAll(delta);
-                } else if (toolStore.isDraw || toolStore.isErase) {
-                    if (toolStore.isErase) removePixelsFromSelection(delta);
-                    else addPixelsToSelection(delta);
-                }
+            toolStore.visited.add(k);
+            const delta = [[pixel.x, pixel.y]];
+            if (toolStore.isGlobalErase) {
+                if (selection.exists) removePixelsFromSelected(delta);
+                else removePixelsFromAll(delta);
+            } else if (toolStore.isDraw || toolStore.isErase) {
+                if (toolStore.isErase) removePixelsFromSelection(delta);
+                else addPixelsToSelection(delta);
             }
-            toolStore.lastPoint = pixel;
+            toolStore.state.lastPoint = pixel;
         }
     }
 
@@ -141,14 +108,11 @@ export const usePixelService = defineStore('pixelService', () => {
         toolStore.state.status = 'idle';
         toolStore.state.pointerId = null;
         toolStore.state.startPoint = null;
-        toolStore.state.isDragging = false;
+        toolStore.state.lastPoint = null;
         toolStore.state.selectionMode = null;
-        toolStore.marquee.visible = false;
-        toolStore.lastPoint = null;
         toolStore.visited.clear();
-        toolStore.addOverlayLayerIds.clear();
-        toolStore.removeOverlayLayerIds.clear();
-        toolStore.initialSelectionOnDrag.clear();
+        toolStore.selectOverlayLayerIds.clear();
+        toolStore.selectionBeforeDrag.clear();
     }
 
     function forEachSelected(fn) {

@@ -4,7 +4,7 @@
       <section class="rounded-xl border border-white/10 bg-sky-950/30 flex flex-col min-h-0 overflow-hidden">
         <h2 class="m-0 px-3 py-2 text-xs uppercase tracking-wide text-slate-300/90 border-b border-white/10">Display</h2>
         <stage-toolbar class="border-b border-white/10"></stage-toolbar>
-        <Stage class="flex-1 min-h-0"></Stage>
+        <Stage ref="stageComponent" class="flex-1 min-h-0"></Stage>
         <stage-info class="border-t border-white/10"></stage-info>
       </section>
 
@@ -19,7 +19,7 @@
 </template>
 
 <script setup>
-import { onMounted, nextTick } from 'vue';
+import { onMounted, nextTick, ref } from 'vue';
 import { useInputStore } from './stores/input';
 import { useStageStore } from './stores/stage';
 import { useStageService } from './services/stage';
@@ -44,6 +44,7 @@ const selection = useSelectionStore();
 const layerSvc = useLayerService();
 const selectSvc = useSelectService();
 const output = useOutputStore();
+const stageComponent = ref(null);
 
 // General key handler
 function onKeydown(event) {
@@ -58,9 +59,9 @@ function onKeydown(event) {
   switch (event.key) {
     case 'Control':
     case 'Meta':
-      return stageService.ctrlKeyDown();
+      return stageComponent.value?.ctrlKeyDown();
     case 'Shift':
-      return stageService.shiftKeyDown();
+      return stageComponent.value?.shiftKeyDown();
     case 'ArrowUp':
       event.preventDefault();
       if (!layers.exists) return;
@@ -140,9 +141,9 @@ function onKeyup(event) {
   switch (event.key) {
     case 'Control':
     case 'Meta':
-      return stageService.ctrlKeyUp();
+      return stageComponent.value?.ctrlKeyUp();
     case 'Shift':
-      return stageService.shiftKeyUp();
+      return stageComponent.value?.shiftKeyUp();
   }
 }
 
@@ -179,8 +180,8 @@ onMounted(async () => {
   window.addEventListener('keydown', onKeydown);
   window.addEventListener('keyup', onKeyup);
   window.addEventListener('blur', () => {
-    stageService.ctrlKeyUp();
-    stageService.shiftKeyUp();
+    stageComponent.value?.ctrlKeyUp();
+    stageComponent.value?.shiftKeyUp();
   });
 });
 </script>
