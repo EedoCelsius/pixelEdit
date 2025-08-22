@@ -37,7 +37,7 @@ export const usePixelService = defineStore('pixelService', () => {
             toolStore.addVisited(coordsToKey(pixel.x, pixel.y));
 
             if (toolStore.isGlobalErase) {
-                if (selection.exists) removePixelsFromSelected([[pixel.x, pixel.y]]);
+                if (selection.hasSelection) removePixelsFromSelected([[pixel.x, pixel.y]]);
                 else removePixelsFromAll([[pixel.x, pixel.y]]);
             } else if (toolStore.isDraw || toolStore.isErase) {
                 if (toolStore.isErase) removePixelsFromSelection([[pixel.x, pixel.y]]);
@@ -65,7 +65,7 @@ export const usePixelService = defineStore('pixelService', () => {
             toolStore.addVisited(k);
             const delta = [[pixel.x, pixel.y]];
             if (toolStore.isGlobalErase) {
-                if (selection.exists) removePixelsFromSelected(delta);
+                if (selection.hasSelection) removePixelsFromSelected(delta);
                 else removePixelsFromAll(delta);
             } else if (toolStore.isDraw || toolStore.isErase) {
                 if (toolStore.isErase) removePixelsFromSelection(delta);
@@ -82,7 +82,7 @@ export const usePixelService = defineStore('pixelService', () => {
             const pixels = stage.getPixelsFromInteraction(event);
             if (pixels.length > 0) {
                 if (toolStore.isGlobalErase) {
-                    if (selection.exists) removePixelsFromSelected(pixels);
+                    if (selection.hasSelection) removePixelsFromSelected(pixels);
                     else removePixelsFromAll(pixels);
                 } else if (toolStore.isDraw || toolStore.isErase) {
                     if (toolStore.isErase) removePixelsFromSelection(pixels);
@@ -113,46 +113,43 @@ export const usePixelService = defineStore('pixelService', () => {
     }
 
     function addPixelsToSelection(pixels) {
-        if (selection.size !== 1) return;
-        const id = selection.asArray[0];
-        const layer = layers.layersById[id];
-        if (layer) layer.addPixels(pixels);
+        if (selection.count !== 1) return;
+        const id = selection.ids[0];
+        layers.addPixels(id, pixels);
     }
 
     function removePixelsFromSelection(pixels) {
-        if (selection.size !== 1) return;
-        const id = selection.asArray[0];
-        const layer = layers.layersById[id];
-        if (layer) layer.removePixels(pixels);
+        if (selection.count !== 1) return;
+        const id = selection.ids[0];
+        layers.removePixels(id, pixels);
     }
 
     function togglePointInSelection(x, y) {
-        if (selection.size !== 1) return;
-        const id = selection.asArray[0];
-        const layer = layers.layersById[id];
-        if (layer) layer.togglePixel(x, y);
+        if (selection.count !== 1) return;
+        const id = selection.ids[0];
+        layers.togglePixel(id, x, y);
     }
 
     function removePixelsFromSelected(pixels) {
         if (!pixels || !pixels.length) return;
-        layerSvc.forEachSelected(layer => {
+        layerSvc.forEachSelected((layer, id) => {
             const pixelsToRemove = [];
             for (const [x, y] of pixels) {
                 if (layer.has(x, y)) pixelsToRemove.push([x, y]);
             }
-            if (pixelsToRemove.length) layer.removePixels(pixelsToRemove);
+            if (pixelsToRemove.length) layers.removePixels(id, pixelsToRemove);
         });
     }
 
     function removePixelsFromAll(pixels) {
         if (!pixels || !pixels.length) return;
         for (const id of layers.order) {
-            const layer = layers.layersById[id];
+            const layer = layers.getLayer(id);
             const pixelsToRemove = [];
             for (const [x, y] of pixels) {
                 if (layer.has(x, y)) pixelsToRemove.push([x, y]);
             }
-            if (pixelsToRemove.length) layer.removePixels(pixelsToRemove);
+            if (pixelsToRemove.length) layers.removePixels(id, pixelsToRemove);
         }
     }
 

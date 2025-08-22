@@ -2,46 +2,56 @@ import { defineStore } from 'pinia';
 
 export const useSelectionStore = defineStore('selection', {
     state: () => ({
-        _selectedIds: new Set(),
+        _ids: new Set(),
         _anchorId: null,
         _tailId: null,
         _scrollRule: null
     }),
     getters: {
-        exists: (state) => state._selectedIds.size > 0,
-        has: (state) => (id) => state._selectedIds.has(id),
-        size: (state) => state._selectedIds.size,
-        asArray: (state) => [...state._selectedIds],
+        hasSelection: (state) => state._ids.size > 0,
+        has: (state) => (id) => state._ids.has(id),
+        count: (state) => state._ids.size,
+        ids: (state) => [...state._ids],
         anchorId: (state) => state._anchorId,
         tailId: (state) => state._tailId,
         scrollRule: (state) => state._scrollRule,
     },
     actions: {
-        set(ids, anchorId, tailId) {
-            this._selectedIds = new Set(ids);
+        replace(ids = [], anchorId = null, tailId = null) {
+            this._ids = new Set(ids);
             this._anchorId = anchorId;
             this._tailId = tailId;
             // scrollRule는 호출부에서 명시적으로 설정
         },
-        add(id) {
-            this.set([id, ...this._selectedIds], this._anchorId ?? id, this._anchorId ?? id);
+        add(ids) {
+            const arr = Array.isArray(ids) ? ids : [ids];
+            const merged = new Set(this._ids);
+            arr.forEach(id => merged.add(id));
+            const anchor = this._anchorId ?? arr[0] ?? null;
+            const tail = this._tailId ?? anchor;
+            this.replace([...merged], anchor, tail);
         },
-        selectOnly(id = null) {
+        remove(ids) {
+            const arr = Array.isArray(ids) ? ids : [ids];
+            const remaining = new Set(this._ids);
+            arr.forEach(id => remaining.delete(id));
+            let anchor = remaining.has(this._anchorId) ? this._anchorId : null;
+            let tail = remaining.has(this._tailId) ? this._tailId : anchor;
+            this.replace([...remaining], anchor, tail);
+        },
+        selectOne(id = null) {
             if (id === null) {
                 this.clear();
                 return;
             }
-            this.set([id], id, id);
+            this.replace([id], id, id);
         },
         clear() {
-            this.set([], null, null);
+            this.replace([], null, null);
         },
         toggle(id = null) {
             if (id === null) return;
-            const idSet = new Set(this._selectedIds);
-            idSet.has(id) ? idSet.delete(id) : idSet.add(id);
-            const newAnchorId = this._anchorId === id ? null : this._anchorId;
-            this.set(idSet, newAnchorId, newAnchorId);
+            this.has(id) ? this.remove(id) : this.add(id);
         },
 
         setScrollRule(rule) {
@@ -50,14 +60,14 @@ export const useSelectionStore = defineStore('selection', {
 
         serialize() {
             return {
-                selection: [...this._selectedIds],
+                selection: [...this._ids],
                 anchor: this._anchorId,
                 tailId: this._tailId,
                 scrollRule: this._scrollRule
             };
         },
         applySerialized(payload) {
-            this.set(payload?.selection || [], payload?.anchor ?? null, payload?.tailId ?? null);
+            this.replace(payload?.selection || [], payload?.anchor ?? null, payload?.tailId ?? null);
             this._scrollRule = payload?.scrollRule;
         }
     }

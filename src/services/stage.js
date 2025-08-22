@@ -21,7 +21,7 @@ export const useStageService = defineStore('stageService', () => {
         if (!toolStore.selectOverlaySize) return '';
         const pixelUnionSet = new Set();
         toolStore.forEachSelectOverlay(id => {
-            layers.get(id)?.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y)));
+            layers.getLayer(id)?.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y)));
         });
         return pixelsToUnionPath(pixelUnionSet);
     });

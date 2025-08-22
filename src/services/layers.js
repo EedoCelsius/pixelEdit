@@ -8,32 +8,38 @@ export const useLayerService = defineStore('layerService', () => {
     const selection = useSelectionStore();
 
     function forEachSelected(fn) {
-        for (const id of selection.asArray) {
-            const layer = layers.get(id);
+        for (const id of selection.ids) {
+            const layer = layers.getLayer(id);
             if (layer) fn(layer, id);
         }
     }
 
     function setColorForSelectedU32(colorU32) {
-        forEachSelected(L => L.setColorU32(colorU32));
+        for (const id of selection.asArray) {
+            layers.updateLayer(id, { colorU32 });
+        }
     }
 
     function setVisibilityForSelected(isVisible) {
-        forEachSelected(L => L.visible = isVisible);
+        for (const id of selection.asArray) {
+            layers.updateLayer(id, { visible: isVisible });
+        }
     }
 
     function deleteSelected() {
-        layers.remove(selection.asArray);
+        const ids = selection.ids;
+        layers.deleteLayers(ids);
+        selection.remove(ids);
     }
 
     function reorderGroup(selIds, targetId, placeBelow = true) {
-        layers.reorder(selIds, targetId, placeBelow);
+        layers.reorderLayers(selIds, targetId, placeBelow);
         const newAnchorId = selection.anchorId;
-        selection.set(selIds, newAnchorId, newAnchorId);
+        selection.replace(selIds, newAnchorId, newAnchorId);
     }
 
     function mergeSelected() {
-        if (selection.size < 2) return;
+        if (selection.count < 2) return;
         const pixelUnionSet = new Set();
         forEachSelected(L => L.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y))));
 
@@ -56,26 +62,26 @@ export const useLayerService = defineStore('layerService', () => {
                 g += (colorU32 >>> 16) & 255;
                 b += (colorU32 >>> 8) & 255;
             });
-            r = Math.round(r / selection.size);
-            g = Math.round(g / selection.size);
-            b = Math.round(b / selection.size);
+            r = Math.round(r / selection.count);
+            g = Math.round(g / selection.count);
+            b = Math.round(b / selection.count);
         }
         const colorU32 = (((r & 255) << 24) | ((g & 255) << 16) | ((b & 255) << 8) | 255) >>> 0;
 
-        const anchorName = layers.get(selection.anchorId)?.name || 'Merged';
-        const newLayerId = layers.create({ name: `Merged ${anchorName}`, colorU32 });
-        const layer = layers.get(newLayerId);
+        const anchorName = layers.nameOf(selection.anchorId) || 'Merged';
+        const newLayerId = layers.createLayer({ name: `Merged ${anchorName}`, colorU32 });
+        const layer = layers.getLayer(newLayerId);
         for (const k of pixelUnionSet) layer.addPixels([keyToCoords(k)]);
-        layers.reorder([newLayerId], layers.lowermostIdOf(selection.asArray), true);
+        layers.reorderLayers([newLayerId], layers.lowermostIdOf(selection.ids), true);
         deleteSelected();
         return newLayerId;
     }
 
     function copySelected() {
-        if (!selection.size) return [];
+        if (!selection.count) return [];
         const newLayerIds = [];
         forEachSelected((layer, id) => {
-            const newLayerId = layers.create({
+            const newLayerId = layers.createLayer({
                 name: `Copy of ${layer.name}`,
                 colorU32: layer.getColorU32(),
                 visible: layer.visible,
@@ -87,7 +93,7 @@ export const useLayerService = defineStore('layerService', () => {
     }
 
     function selectionPath() {
-        if (!selection.size) return '';
+        if (!selection.count) return '';
         const pixelUnionSet = new Set();
         forEachSelected(L => L.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y))));
         const groups = buildOutline(pixelUnionSet);
@@ -99,27 +105,27 @@ export const useLayerService = defineStore('layerService', () => {
     }
 
     function removeEmptyLayers() {
-        const removed = layers.removeEmpty();
+        const removed = layers.deleteEmptyLayers();
         if (removed.length) selection.clear();
     }
 
     function splitSelectedLayer() {
-        if (selection.size !== 1) return;
-        const layerId = selection.asArray[0];
-        const layer = layers.get(layerId);
+        if (selection.count !== 1) return;
+        const layerId = selection.ids[0];
+        const layer = layers.getLayer(layerId);
         if (!layer || layer.pixelCount < 2) return;
 
         const pixels = layer.snapshotPixels();
         const components = findPixelComponents(pixels);
         if (components.length <= 1) return;
 
-        const originalName = layer.name;
+        const originalName = layers.nameOf(layerId);
         const originalColor = layer.getColorU32();
         const originalVisibility = layer.visible;
-        const originalIndex = layers.indexOf(layerId);
+        const originalIndex = layers.indexOfLayer(layerId);
 
         const newIds = components.reverse().map((componentPixels, index) => (
-            layers.create({
+            layers.createLayer({
                 name: `${originalName} #${components.length - index}`,
                 colorU32: originalColor,
                 visible: originalVisibility,
@@ -127,26 +133,26 @@ export const useLayerService = defineStore('layerService', () => {
             })
         ));
 
-        layers.remove([layerId]);
+        layers.deleteLayers([layerId]);
 
         const currentOrder = layers.idsBottomToTop.slice();
         const orderWithoutNew = currentOrder.filter(i => !newIds.includes(i));
         orderWithoutNew.splice(originalIndex, 0, ...newIds.reverse());
         layers._order = orderWithoutNew;
 
-        selection.set(newIds, newIds[0], newIds[0]);
+        selection.replace(newIds, newIds[0], newIds[0]);
     }
 
     function selectByPixelCount(id) {
-        const targetLayer = layers.get(id);
+        const targetLayer = layers.getLayer(id);
         if (!targetLayer) return;
         const targetCount = targetLayer.pixelCount;
         if (targetCount === 0) {
-            selection.selectOnly(id);
+            selection.selectOne(id);
             return;
         }
         const idsToSelect = layers.order.filter(layerId => layers.pixelCountOf(layerId) === targetCount);
-        if (idsToSelect.length) selection.set(idsToSelect, id, id);
+        if (idsToSelect.length) selection.replace(idsToSelect, id, id);
     }
 
     return {

@@ -66,13 +66,13 @@ function onKeydown(event) {
       event.preventDefault();
       if (!layers.exists) return;
       if (shift && !ctrl) {
-        if (!selection.exists) return;
+        if (!selection.hasSelection) return;
         const newTail = layers.aboveId(selection.tailId) ?? layers.uppermostId;
         selectSvc.selectRange(selection.anchorId, newTail);
         selection.setScrollRule({ type: 'follow-up', target: newTail });
       } else if (!ctrl) {
         const nextId = layers.aboveId(selection.anchorId) ?? selection.anchorId;
-        selection.selectOnly(nextId);
+        selection.selectOne(nextId);
         selection.setScrollRule({ type: 'follow-up', target: nextId });
       }
       return;
@@ -80,25 +80,25 @@ function onKeydown(event) {
       event.preventDefault();
       if (!layers.exists) return;
       if (shift && !ctrl) {
-        if (!selection.exists) return;
+        if (!selection.hasSelection) return;
         const newTail = layers.belowId(selection.tailId) ?? layers.lowermostId;
         selectSvc.selectRange(selection.anchorId, newTail);
         selection.setScrollRule({ type: 'follow-down', target: newTail });
       } else if (!ctrl) {
         const nextId = layers.belowId(selection.anchorId) ?? selection.anchorId;
-        selection.selectOnly(nextId);
+        selection.selectOne(nextId);
         selection.setScrollRule({ type: 'follow-down', target: nextId });
       }
       return;
     case 'Delete':
     case 'Backspace':
       event.preventDefault();
-      if (!selection.exists) return;
+      if (!selection.hasSelection) return;
       output.setRollbackPoint();
-      const belowId = layers.belowId(layers.lowermostIdOf(selection.asArray));
+      const belowId = layers.belowId(layers.lowermostIdOf(selection.ids));
       layerSvc.deleteSelected();
       const newSelect = layers.layersById[belowId] ? belowId : layers.lowermostId;
-      selection.selectOnly(newSelect);
+      selection.selectOne(newSelect);
       selection.setScrollRule({ type: "follow", target: newSelect });
       output.commit();
       return;
@@ -126,7 +126,7 @@ function onKeydown(event) {
     if (key === 'a') {
       event.preventDefault();
       const anchor = layers.uppermostId, tail = layers.lowermostId;
-      selection.set(layers.order, anchor, tail);
+      selection.replace(layers.order, anchor, tail);
     } else if (key === 'z' && !shift) {
       event.preventDefault();
       output.undo();
@@ -162,7 +162,7 @@ onMounted(async () => {
   if (autoSegments.length) {
     for (let i = 0; i < autoSegments.length; i++) {
       const segment = autoSegments[i];
-      layers.create({
+      layers.createLayer({
         name: `Auto ${i+1}`,
         colorU32: segment.colorU32,
         visible: true,
@@ -170,10 +170,10 @@ onMounted(async () => {
       });
     }
   } else {
-    layers.create({});
-    layers.create({});
+    layers.createLayer({});
+    layers.createLayer({});
   }
-  selection.selectOnly(layers.idsTopToBottom[0]);
+  selection.selectOne(layers.idsTopToBottom[0]);
 
   nextTick(() => stageService.recalcScale(document.getElementById('stage')?.parentElement?.parentElement || document.body));
 

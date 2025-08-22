@@ -1,11 +1,11 @@
 <template>
-  <div v-memo="[output.commitVersion, selection.asArray]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
+  <div v-memo="[output.commitVersion, selection.ids]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
     <div v-for="id in layers.idsTopToBottom" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="id" :data-id="id" :class="{ selected: selection.has(id), anchor: selection.anchorId===id, dragging: dragId===id }" draggable="true" @click="onLayerClick(id,$event)" @dragstart="onDragStart(id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(id,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(id,$event)">
       <!-- 썸네일 -->
       <div @click.stop="onThumbnailClick(id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 크기의 모든 레이어 선택">
         <svg :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
           <rect x="0" y="0" :width="stageStore.canvas.width" :height="stageStore.canvas.height" :fill="patternUrl"/>
-          <path :d="layers.pathOf(id)" :fill="rgbaCssU32(layers.colorOf(id))" :opacity="layers.visibleOf(id)?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+          <path :d="layers.pathOf(id)" :fill="rgbaCssU32(layers.colorOf(id))" :opacity="layers.visibilityOf(id)?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
         </svg>
       </div>
       <!-- 색상 -->
@@ -15,14 +15,14 @@
       <!-- 이름/픽셀 -->
       <div class="min-w-0 flex-1">
         <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
-          <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(id)" @keydown="onNameKey(id,$event)" @blur="finishRename(id,$event)">{{ layers.get(id)?.name }}</span>
+          <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(id)" @keydown="onNameKey(id,$event)" @blur="finishRename(id,$event)">{{ layers.nameOf(id) }}</span>
         </div>
         <div class="text-xs text-slate-400">{{ layers.pixelCountOf(id) }} px</div>
       </div>
       <!-- 액션 -->
       <div class="flex gap-1 justify-end">
         <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
-          <img :src="(layers.get(id)?.visible?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(id)" />
+          <img :src="(layers.visibilityOf(id)?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(id)" />
         </div>
         <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
           <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(id)" />
@@ -70,7 +70,7 @@ function onLayerClick(id, event) {
     } else if (event.ctrlKey || event.metaKey) {
         selection.toggle(id);
     } else {
-        selection.selectOnly(id);
+        selection.selectOne(id);
     }
     selection.setScrollRule({
         type: "follow",
@@ -121,7 +121,7 @@ function onDrop(id, event) {
     const targetId = id;
     const rect = row.getBoundingClientRect();
     const placeBelow = (event.clientY - rect.top) > rect.height * 0.5;
-    layers.reorder(selection.asArray, targetId, placeBelow);
+    layers.reorderLayers(selection.ids, targetId, placeBelow);
     output.commit();
 }
 
@@ -131,7 +131,7 @@ function onColorDown() {
 
 function onColorInput(id, event) {
     const colorU32 = hexToRgbaU32(event.target.value);
-    selection.has(id) ? layerSvc.setColorForSelectedU32(colorU32) : layers.get(id)?.setColorU32(colorU32);
+    selection.has(id) ? layerSvc.setColorForSelectedU32(colorU32) : layers.updateLayer(id, { colorU32 });
 }
 
 function onColorChange() {
@@ -140,18 +140,19 @@ function onColorChange() {
 
 function toggleVisibility(id) {
     output.setRollbackPoint();
-    if (selection.has(id)) layerSvc.setVisibilityForSelected(!(layers.get(id)?.visible));
-    else if (layers.get(id)) layers.get(id).visible = !layers.get(id).visible;
+    if (selection.has(id)) layerSvc.setVisibilityForSelected(!layers.visibilityOf(id));
+    else layers.toggleVisibility(id);
     output.commit();
 }
 
 function deleteLayer(id) {
     output.setRollbackPoint();
-    const targets = selection.has(id) ? selection.asArray : [id];
+    const targets = selection.has(id) ? selection.ids : [id];
     const belowId = layers.belowId(layers.lowermostIdOf(targets));
-    layers.remove(targets);
+    layers.deleteLayers(targets);
+    selection.remove(targets);
     const newSelectId = layers.get(belowId) ? belowId : layers.lowermostId;
-    selection.selectOnly(newSelectId);
+    selection.selectOne(newSelectId);
     if (newSelectId) {
         selection.setScrollRule({
             type: "follow",
@@ -253,15 +254,14 @@ function startRename(id) {
 function finishRename(id, event) {
     const element = document.querySelector(`.layer[data-id="${id}"] .nameText`);
     element.contentEditable = false;
-    const layer = layers.get(id);
-    if (!layer) return;
+    const oldName = layers.nameOf(id);
     const text = event.target.innerText.trim();
     editingId.value = null;
-    if (text && text !== layer.name) {
-        layer.name = text;
+    if (text && text !== oldName) {
+        layers.updateLayer(id, { name: text });
         output.commit();
     } else {
-        event.target.innerText = layer.name;
+        event.target.innerText = oldName;
         output.clearRollbackPoint();
     }
     selection.setScrollRule({
@@ -271,15 +271,14 @@ function finishRename(id, event) {
 }
 
 function onNameKey(id, event) {
-    const layer = layers.get(id);
-    if (!layer) return;
+    const name = layers.nameOf(id);
     if (event.key === 'Enter') {
         event.preventDefault();
         event.target.blur();
     }
     if (event.key === 'Escape') {
         event.preventDefault();
-        event.target.innerText = layer.name;
+        event.target.innerText = name;
         event.target.blur();
     }
 }
