@@ -205,7 +205,7 @@ export const useSelectService = defineStore('selectService', () => {
         toolStore.marquee.visible = false;
         toolStore.lastPoint = null;
         toolStore.visited.clear();
-        stage.hoverLayerId.value = null;
+        stage.hoverLayerId = null;
         toolStore.addOverlayLayerIds.clear();
         toolStore.removeOverlayLayerIds.clear();
         toolStore.initialSelectionOnDrag.clear();
