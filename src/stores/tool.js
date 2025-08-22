@@ -22,7 +22,10 @@ export const useToolStore = defineStore('tool', {
     getters: {
         expected() {
             if (this.pointer.status !== 'idle') {
-                return this.pointer.status.split(':')[0];
+                const status = this.pointer.status;
+                return (status === 'select' || status === 'add' || status === 'remove')
+                    ? 'select'
+                    : status;
             }
             let tool = this.static;
             if (this.shiftHeld) {
