@@ -21,7 +21,7 @@ const selection = useSelectionStore();
 const selectedAreaPixelCount = computed(() => {
     const pixelSet = new Set();
     for (const id of selection.ids) {
-        const layer = layers.get(id);
+        const layer = layers.getLayer(id);
         if (!layer) continue;
         layer.forEachPixel((x, y) => pixelSet.add(coordsToKey(x, y)));
     }

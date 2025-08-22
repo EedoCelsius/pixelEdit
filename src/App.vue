@@ -162,7 +162,7 @@ onMounted(async () => {
   if (autoSegments.length) {
     for (let i = 0; i < autoSegments.length; i++) {
       const segment = autoSegments[i];
-      layers.create({
+      layers.createLayer({
         name: `Auto ${i+1}`,
         colorU32: segment.colorU32,
         visible: true,
@@ -170,8 +170,8 @@ onMounted(async () => {
       });
     }
   } else {
-    layers.create({});
-    layers.create({});
+    layers.createLayer({});
+    layers.createLayer({});
   }
   selection.selectOne(layers.idsTopToBottom[0]);
 
