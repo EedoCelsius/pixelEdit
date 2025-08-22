@@ -12,6 +12,7 @@ export const useLayerStore = defineStore('layers', {
         exists: (state) => state._order.length > 0,
         order: (state) => readonly(state._order),
         layersById: (state) => shallowReadonly(state._layersById),
+        has: (state) => (id) => state._layersById[id] != null,
         count: (state) => state._order.length,
         indexOfLayer: (state) => (id) => state._order.indexOf(id),
         idsBottomToTop: (state) => state._order.slice(),
