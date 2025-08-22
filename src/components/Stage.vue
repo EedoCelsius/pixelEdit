@@ -42,23 +42,14 @@
                 :stroke-width="OVERLAY_CONFIG.MARQUEE.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
                 shape-rendering="crispEdges" />
 
-          <!-- 3. 선택 오버레이 (초록/빨강) - 드래그 시 -->
-          <path v-if="toolStore.pointer.status !== 'idle'"
-                :d="stageService.selectOverlayPath"
-                :fill="selectOverlayStyle.FILL_COLOR"
-                :stroke="selectOverlayStyle.STROKE_COLOR"
-                :stroke-width="selectOverlayStyle.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
-                fill-rule="evenodd"
-                shape-rendering="crispEdges" />
-
-          <!-- 4. 호버 오버레이 (초록/빨강) - 클릭/호버 시 -->
-          <path v-if="toolStore.pointer.status === 'idle' && toolStore.isSelect"
-                :d="layerSvc.pathOf(toolStore.hoverLayerId)"
-                :fill="hoverStyle.FILL_COLOR"
-                :stroke="hoverStyle.STROKE_COLOR"
-                :stroke-width="hoverStyle.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
-                fill-rule="evenodd"
-                shape-rendering="crispEdges" />
+        <!-- 3. 선택/호버 오버레이 -->
+        <path v-if="toolStore.isSelect"
+              :d="overlayPath"
+              :fill="overlayStyle.FILL_COLOR"
+              :stroke="overlayStyle.STROKE_COLOR"
+              :stroke-width="overlayStyle.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
+              fill-rule="evenodd"
+              shape-rendering="crispEdges" />
       </svg>
     </div>
   </div>
@@ -112,30 +103,6 @@ const onPointerCancel = (e) => {
     else pixelSvc.cancel(e);
 };
 
-// Keyboard handlers moved from stage service
-let ctrlKeyDownTimestamp = 0;
-const KEY_TAP_MS = 200;
-function ctrlKeyDown() {
-    if (!toolStore.ctrlHeld) {
-        ctrlKeyDownTimestamp = performance.now();
-        toolStore.setCtrlHeld(true);
-    }
-}
-function ctrlKeyUp() {
-    if (performance.now() - ctrlKeyDownTimestamp < KEY_TAP_MS) {
-        const t = toolStore.static;
-        if (t === 'draw' || t === 'erase') {
-            toolStore.setStatic(t === 'draw' ? 'erase' : 'draw');
-        } else if (t === 'select' || t === 'globalErase') {
-            toolStore.setStatic(t === 'select' ? 'globalErase' : 'select');
-        }
-    }
-    toolStore.setCtrlHeld(false);
-    ctrlKeyDownTimestamp = 0;
-}
-function shiftKeyDown() { toolStore.setShiftHeld(true); }
-function shiftKeyUp() { toolStore.setShiftHeld(false); }
-
 const selectionPath = computed(() => layerSvc.selectionPath());
 const hoverStyle = computed(() => {
     if (!toolStore.hoverLayerId) return {};
@@ -147,6 +114,18 @@ const selectOverlayStyle = computed(() => (
     toolStore.pointer.status === 'select:remove'
         ? OVERLAY_CONFIG.REMOVE
         : OVERLAY_CONFIG.ADD
+));
+
+const overlayPath = computed(() => (
+    toolStore.pointer.status !== 'idle'
+        ? stageService.selectOverlayPath.value
+        : layerSvc.pathOf(toolStore.hoverLayerId)
+));
+
+const overlayStyle = computed(() => (
+    toolStore.pointer.status !== 'idle'
+        ? selectOverlayStyle.value
+        : hoverStyle.value
 ));
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
@@ -162,7 +141,4 @@ onMounted(() => {
     resizeObserver.observe(containerEl.value);
 });
 onUnmounted(() => resizeObserver.disconnect());
-
-defineExpose({ ctrlKeyDown, ctrlKeyUp, shiftKeyDown, shiftKeyUp });
-
 </script>
