@@ -120,7 +120,7 @@ const selectOverlayStyle = computed(() => (
 
 const overlayPath = computed(() => (
     toolStore.pointer.status !== 'idle'
-        ? stageService.selectOverlayPath.value
+        ? stageService.selectOverlayPath
         : layers.pathOf(toolStore.hoverLayerId)
 ));
 
