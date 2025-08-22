@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia';
-import { useSelectionStore } from './selection';
 
 export const useStageStore = defineStore('stage', {
     state: () => ({
@@ -13,10 +12,6 @@ export const useStageStore = defineStore('stage', {
         display: 'result', // 'result' | 'original'
         imageSrc: '',
         pixelInfo: '-',
-        tool: 'draw', // 'draw'|'erase'|'select'|'globalErase'
-        toolShape: 'stroke', // 'stroke' | 'rect'
-        ctrlHeld: false,
-        shiftHeld: false,
     }),
     getters: {
         // Canvas dimensions
@@ -25,37 +20,6 @@ export const useStageStore = defineStore('stage', {
         viewBox: (state) => `0 0 ${state.canvas.width} ${state.canvas.height}`,
         // UI labels
         toggleLabel: (state) => state.display === 'original' ? '결과' : '원본',
-        // Tool state
-        isStroke: (state) => state.toolShape === 'stroke',
-        isRect: (state) => state.toolShape === 'rect',
-        // Mode state
-        currentMode() {
-            const selection = useSelectionStore();
-            return selection.size === 1 ? 'single' : 'multi';
-        },
-        effectiveMode() {
-            if (this.currentMode === 'single' && this.shiftHeld) {
-                return 'multi';
-            }
-            return this.currentMode;
-        },
-        // Effective tool state (considering modifiers)
-        effectiveTool() {
-            if (this.shiftHeld) return 'select';
-            if (this.ctrlHeld) {
-                if (this.currentMode === 'single' && (this.tool === 'draw' || this.tool === 'erase')) {
-                    return this.tool === 'draw' ? 'erase' : 'draw';
-                }
-                if (this.currentMode === 'multi' && (this.tool === 'select' || this.tool === 'globalErase')) {
-                    return this.tool === 'select' ? 'globalErase' : 'select';
-                }
-            }
-            return this.tool;
-        },
-        isDraw() { return this.effectiveTool === 'draw'; },
-        isErase() { return this.effectiveTool === 'erase'; },
-        isSelect() { return this.effectiveTool === 'select'; },
-        isGlobalErase() { return this.effectiveTool === 'globalErase'; },
     },
     actions: {
         setCanvasPosition(x, y) {
@@ -77,18 +41,6 @@ export const useStageStore = defineStore('stage', {
         },
         updatePixelInfo(text) {
             this.pixelInfo = text;
-        },
-        setTool(newTool) {
-            this.tool = newTool;
-        },
-        setToolShape(shape) {
-            this.toolShape = (shape === 'rect') ? 'rect' : 'stroke';
-        },
-        setCtrlHeld(isHeld) {
-            this.ctrlHeld = !!isHeld;
-        },
-        setShiftHeld(isHeld) {
-            this.shiftHeld = !!isHeld;
         },
     }
 });

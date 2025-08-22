@@ -79,12 +79,6 @@ export const useLayerService = defineStore('layerService', () => {
         layers.remove(selection.asArray);
     }
 
-    function selectRange(anchorId, tailId) {
-        const anchorIndex = layers.indexOf(anchorId);
-        const tailIndex = layers.indexOf(tailId);
-        const slice = layers.order.slice(Math.min(anchorIndex, tailIndex), Math.max(anchorIndex, tailIndex) + 1);
-        selection.set(slice, anchorId, tailId);
-    }
 
     function reorderGroup(selIds, targetId, placeBelow = true) {
         layers.reorder(selIds, targetId, placeBelow);
@@ -93,51 +87,6 @@ export const useLayerService = defineStore('layerService', () => {
         selection.set(selIds, newAnchorId, newAnchorId);
     }
 
-    // Pixel operations
-    function addPixelsToSelection(pixels) {
-        if (selection.size !== 1) return;
-        const id = selection.asArray[0];
-        const layer = layers.get(id);
-        if (layer) layer.addPixels(pixels);
-    }
-
-    function removePixelsFromSelection(pixels) {
-        if (selection.size !== 1) return;
-        const id = selection.asArray[0];
-        const layer = layers.get(id);
-        if (layer) layer.removePixels(pixels);
-    }
-
-    function togglePointInSelection(x, y) {
-        if (selection.size !== 1) return;
-        const id = selection.asArray[0];
-        const layer = layers.get(id);
-        if (layer) layer.togglePixel(x, y);
-    }
-
-    function removePixelsFromSelected(pixels) {
-        if (!pixels || !pixels.length) return;
-        forEachSelected(layer => {
-            const pixelsToRemove = [];
-            for (const [x, y] of pixels) {
-                if (layer.has(x, y)) pixelsToRemove.push([x, y]);
-            }
-            if (pixelsToRemove.length) layer.removePixels(pixelsToRemove);
-        });
-    }
-
-    function removePixelsFromAll(pixels) {
-        if (!pixels || !pixels.length) return;
-        // Remove only if layer actually has the pixel to keep reactivity minimal
-        for (const id of layers.order) {
-            const layer = layers.layersById[id];
-            const pixelsToRemove = [];
-            for (const [x, y] of pixels) {
-                if (layer.has(x, y)) pixelsToRemove.push([x, y]);
-            }
-            if (pixelsToRemove.length) layer.removePixels(pixelsToRemove);
-        }
-    }
 
     // Complex ops
     function mergeSelected() {
@@ -316,12 +265,7 @@ export const useLayerService = defineStore('layerService', () => {
         setColorForSelectedU32,
         setVisibilityForSelected,
         deleteSelected,
-        selectRange,
         reorderGroup,
-        addPixelsToSelection,
-        removePixelsFromSelection,
-        togglePointInSelection,
-        removePixelsFromSelected,
         mergeSelected,
         copySelected,
         selectionPath,
@@ -330,7 +274,6 @@ export const useLayerService = defineStore('layerService', () => {
         visibleOf,
         pixelCountOf,
         topVisibleLayerIdAt,
-        removePixelsFromAll,
         removeEmptyLayers,
         splitSelectedLayer,
         selectByPixelCount

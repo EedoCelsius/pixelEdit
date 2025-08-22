@@ -34,9 +34,9 @@
 
           <!-- 2. 마퀴 사각형 (노란색) -->
           <rect id="marqueeRect"
-                :x="stageService.marquee.x" :y="stageService.marquee.y"
-                :width="stageService.marquee.w" :height="stageService.marquee.h"
-                :visibility="stageService.marquee.visible ? 'visible' : 'hidden'"
+                :x="toolStore.marquee.x" :y="toolStore.marquee.y"
+                :width="toolStore.marquee.w" :height="toolStore.marquee.h"
+                :visibility="toolStore.marquee.visible ? 'visible' : 'hidden'"
                 :fill="OVERLAY_CONFIG.MARQUEE.FILL_COLOR"
                 :stroke="OVERLAY_CONFIG.MARQUEE.STROKE_COLOR"
                 :stroke-width="OVERLAY_CONFIG.MARQUEE.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
@@ -61,7 +61,7 @@
                 shape-rendering="crispEdges" />
 
           <!-- 5. 호버 오버레이 (초록/빨강) - 클릭/호버 시 -->
-          <path v-if="!stageService.isDragging && stageStore.isSelect"
+          <path v-if="!stageService.isDragging && toolStore.isSelect"
                 :d="layerSvc.pathOf(stageService.hoverLayerId)"
                 :fill="hoverStyle.FILL_COLOR"
                 :stroke="hoverStyle.STROKE_COLOR"
@@ -76,16 +76,22 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useStageStore } from '../stores/stage';
+import { useToolStore } from '../stores/tool';
 import { useStageService } from '../services/stage';
 import { useLayerService } from '../services/layers';
 import { useSelectionStore } from '../stores/selection';
+import { useSelectService } from '../services/select';
+import { usePixelService } from '../services/pixel';
 import { rgbaCssU32 } from '../utils';
 import { OVERLAY_CONFIG } from '../constants';
 
 const stageStore = useStageStore();
+const toolStore = useToolStore();
 const stageService = useStageService();
 const layerSvc = useLayerService();
 const selection = useSelectionStore();
+const selectSvc = useSelectService();
+const pixelSvc = usePixelService();
 const containerEl = ref(null);
 const stageEl = ref(null);
 
@@ -96,22 +102,29 @@ const updateCanvasPosition = () => {
 
 const onPointerDown = (e) => {
     updateCanvasPosition();
-    stageService.pointerDown(e);
+    if (toolStore.isSelect) selectSvc.toolStart(e);
+    else pixelSvc.toolStart(e);
 };
 const onPointerMove = (e) => {
     updateCanvasPosition();
-    stageService.pointerMove(e);
+    stageService.updateHover(e);
+    if (toolStore.isSelect) selectSvc.toolMove(e);
+    else pixelSvc.toolMove(e);
 };
 const onPointerUp = (e) => {
     updateCanvasPosition();
-    stageService.pointerUp(e);
+    if (toolStore.isSelect) selectSvc.toolFinish(e);
+    else pixelSvc.toolFinish(e);
 };
-const onPointerCancel = (e) => stageService.pointerCancel(e);
+const onPointerCancel = (e) => {
+    if (toolStore.isSelect) selectSvc.cancel(e);
+    else pixelSvc.cancel(e);
+};
 
 const selectionPath = computed(() => layerSvc.selectionPath());
 const hoverStyle = computed(() => {
     if (!stageService.hoverLayerId) return {};
-    const isRemoving = stageStore.shiftHeld && selection.has(stageService.hoverLayerId);
+    const isRemoving = toolStore.shiftHeld && selection.has(stageService.hoverLayerId);
     return isRemoving ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
 });
 

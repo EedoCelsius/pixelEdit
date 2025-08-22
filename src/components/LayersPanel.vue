@@ -40,6 +40,7 @@ import { useStageService } from '../services/stage';
 import { useLayerStore } from '../stores/layers';
 import { useSelectionStore } from '../stores/selection';
 import { useLayerService } from '../services/layers';
+import { useSelectService } from '../services/select';
 import { useOutputStore } from '../stores/output';
 import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, coordsToKey, clamp } from '../utils';
 
@@ -48,6 +49,7 @@ const stageService = useStageService();
 const layers = useLayerStore();
 const selection = useSelectionStore();
 const layerSvc = useLayerService();
+const selectSvc = useSelectService();
 const output = useOutputStore();
 
 const dragging = ref(false);
@@ -64,7 +66,7 @@ const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern
 
 function onLayerClick(id, event) {
     if (event.shiftKey) {
-        layerSvc.selectRange(selection.anchorId ?? id, id);
+        selectSvc.selectRange(selection.anchorId ?? id, id);
     } else if (event.ctrlKey || event.metaKey) {
         selection.toggle(id);
     } else {
