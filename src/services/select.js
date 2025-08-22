@@ -1,13 +1,15 @@
 import { defineStore } from 'pinia';
 import { useStageService } from './stage';
+import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useSelectionStore } from '../stores/selection';
 import { useLayerStore } from '../stores/layers';
 import { useOutputStore } from '../stores/output';
-import { coordsToKey } from '../utils';
+import { coordsToKey, calcMarquee } from '../utils';
 
 export const useSelectService = defineStore('selectService', () => {
     const stage = useStageService();
+    const stageStore = useStageStore();
     const toolStore = useToolStore();
     const selection = useSelectionStore();
     const layers = useLayerStore();
@@ -36,9 +38,8 @@ export const useSelectService = defineStore('selectService', () => {
         } catch {}
 
         if (toolStore.shape === 'rect') {
-            toolStore.pointer.current = { x: event.clientX, y: event.clientY };
+            // rectangle interactions tracked directly in components
         } else {
-            toolStore.pointer.current = pixel;
             toolStore.visited.clear();
             toolStore.visited.add(coordsToKey(pixel.x, pixel.y));
 
@@ -61,8 +62,11 @@ export const useSelectService = defineStore('selectService', () => {
         const mode = toolStore.pointer.status;
 
         if (toolStore.shape === 'rect') {
-            toolStore.pointer.current = { x: event.clientX, y: event.clientY };
-            const { x, y, w, h } = toolStore.marquee;
+            const { x, y, w, h } = calcMarquee(
+                toolStore.pointer.start,
+                { x: event.clientX, y: event.clientY },
+                stageStore.canvas
+            );
             const intersectedIds = new Set();
             for (let yy = y; yy < y + h; yy++) {
                 for (let xx = x; xx < x + w; xx++) {
@@ -87,12 +91,10 @@ export const useSelectService = defineStore('selectService', () => {
         } else {
             const pixel = stage.clientToPixel(event);
             if (!pixel) {
-                toolStore.pointer.current = pixel;
                 return;
             }
             const k = coordsToKey(pixel.x, pixel.y);
             if (toolStore.visited.has(k)) {
-                toolStore.pointer.current = pixel;
                 return;
             }
             toolStore.visited.add(k);
@@ -106,7 +108,6 @@ export const useSelectService = defineStore('selectService', () => {
                     toolStore.selectOverlayLayerIds.add(id);
                 }
             }
-            toolStore.pointer.current = pixel;
         }
     }
 
@@ -176,7 +177,6 @@ export const useSelectService = defineStore('selectService', () => {
         toolStore.pointer.status = 'idle';
         toolStore.pointer.id = null;
         toolStore.pointer.start = null;
-        toolStore.pointer.current = null;
         toolStore.visited.clear();
         toolStore.hoverLayerId = null;
         toolStore.selectOverlayLayerIds.clear();

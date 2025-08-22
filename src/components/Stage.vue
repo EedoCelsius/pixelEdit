@@ -34,9 +34,9 @@
 
           <!-- 2. 마퀴 사각형 (노란색) -->
           <rect id="marqueeRect"
-                :x="toolStore.marquee.x" :y="toolStore.marquee.y"
-                :width="toolStore.marquee.w" :height="toolStore.marquee.h"
-                :visibility="toolStore.marquee.visible ? 'visible' : 'hidden'"
+                :x="marquee.x" :y="marquee.y"
+                :width="marquee.w" :height="marquee.h"
+                :visibility="marquee.visible ? 'visible' : 'hidden'"
                 :fill="OVERLAY_CONFIG.MARQUEE.FILL_COLOR"
                 :stroke="OVERLAY_CONFIG.MARQUEE.STROKE_COLOR"
                 :stroke-width="OVERLAY_CONFIG.MARQUEE.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
@@ -66,7 +66,7 @@ import { useSelectionStore } from '../stores/selection';
 import { useInputStore } from '../stores/input';
 import { useSelectService } from '../services/select';
 import { usePixelService } from '../services/pixel';
-import { rgbaCssU32, rgbaCssObj } from '../utils';
+import { rgbaCssU32, rgbaCssObj, calcMarquee } from '../utils';
 import { OVERLAY_CONFIG } from '../constants';
 
 const stageStore = useStageStore();
@@ -80,10 +80,19 @@ const selectSvc = useSelectService();
 const pixelSvc = usePixelService();
 const containerEl = ref(null);
 const stageEl = ref(null);
+const marquee = ref({ visible: false, x: 0, y: 0, w: 0, h: 0 });
 
 const updateCanvasPosition = () => {
     const rect = stageEl.value?.getBoundingClientRect();
     if (rect) stageStore.setCanvasPosition(rect.left, rect.top);
+};
+
+const updateMarquee = (e) => {
+    if (toolStore.shape !== 'rect' || toolStore.pointer.status === 'idle' || !toolStore.pointer.start || !e) {
+        marquee.value = { visible: false, x: 0, y: 0, w: 0, h: 0 };
+        return;
+    }
+    marquee.value = calcMarquee(toolStore.pointer.start, { x: e.clientX, y: e.clientY }, stageStore.canvas);
 };
 
 const updateHover = (event) => {
@@ -111,21 +120,25 @@ const onPointerDown = (e) => {
     updateCanvasPosition();
     if (toolStore.isSelect) selectSvc.toolStart(e);
     else pixelSvc.toolStart(e);
+    updateMarquee(e);
 };
 const onPointerMove = (e) => {
     updateCanvasPosition();
     updateHover(e);
     if (toolStore.isSelect) selectSvc.toolMove(e);
     else pixelSvc.toolMove(e);
+    updateMarquee(e);
 };
 const onPointerUp = (e) => {
     updateCanvasPosition();
     if (toolStore.isSelect) selectSvc.toolFinish(e);
     else pixelSvc.toolFinish(e);
+    updateMarquee(e);
 };
 const onPointerCancel = (e) => {
     if (toolStore.isSelect) selectSvc.cancel(e);
     else pixelSvc.cancel(e);
+    updateMarquee(e);
 };
 
 const selectionPath = computed(() => layerSvc.selectionPath());

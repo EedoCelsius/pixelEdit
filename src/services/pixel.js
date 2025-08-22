@@ -31,9 +31,8 @@ export const usePixelService = defineStore('pixelService', () => {
         } catch {}
 
         if (toolStore.shape === 'rect') {
-            toolStore.pointer.current = { x: event.clientX, y: event.clientY };
+            // no additional pointer state needed for rectangle interactions
         } else {
-            toolStore.pointer.current = pixel;
             toolStore.visited.clear();
             toolStore.visited.add(coordsToKey(pixel.x, pixel.y));
 
@@ -51,16 +50,14 @@ export const usePixelService = defineStore('pixelService', () => {
         if (toolStore.pointer.status === 'idle') return;
 
         if (toolStore.shape === 'rect') {
-            toolStore.pointer.current = { x: event.clientX, y: event.clientY };
+            // rectangle interactions handled in stage component
         } else {
             const pixel = stage.clientToPixel(event);
             if (!pixel) {
-                toolStore.pointer.current = pixel;
                 return;
             }
             const k = coordsToKey(pixel.x, pixel.y);
             if (toolStore.visited.has(k)) {
-                toolStore.pointer.current = pixel;
                 return;
             }
             toolStore.visited.add(k);
@@ -72,7 +69,6 @@ export const usePixelService = defineStore('pixelService', () => {
                 if (toolStore.isErase) removePixelsFromSelection(delta);
                 else addPixelsToSelection(delta);
             }
-            toolStore.pointer.current = pixel;
         }
     }
 
@@ -110,7 +106,6 @@ export const usePixelService = defineStore('pixelService', () => {
         toolStore.pointer.status = 'idle';
         toolStore.pointer.id = null;
         toolStore.pointer.start = null;
-        toolStore.pointer.current = null;
         toolStore.visited.clear();
         toolStore.selectOverlayLayerIds.clear();
     }

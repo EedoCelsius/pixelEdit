@@ -11,6 +11,29 @@ export function getPixelUnionSet(layers) {
     return pixelUnionSet;
 }
 
+export function calcMarquee(start, current, canvas) {
+    if (!start || !current) return { visible: false, x: 0, y: 0, w: 0, h: 0 };
+    const left = Math.min(start.x, current.x) - canvas.x;
+    const top = Math.min(start.y, current.y) - canvas.y;
+    const right = Math.max(start.x, current.x) - canvas.x;
+    const bottom = Math.max(start.y, current.y) - canvas.y;
+    const minX = Math.floor(left / canvas.scale),
+        maxX = Math.floor((right - 1) / canvas.scale);
+    const minY = Math.floor(top / canvas.scale),
+        maxY = Math.floor((bottom - 1) / canvas.scale);
+    const minx = clamp(minX, 0, canvas.width - 1),
+        maxx = clamp(maxX, 0, canvas.width - 1);
+    const miny = clamp(minY, 0, canvas.height - 1),
+        maxy = clamp(maxY, 0, canvas.height - 1);
+    return {
+        visible: true,
+        x: minx,
+        y: miny,
+        w: (maxx >= minx) ? (maxx - minx + 1) : 0,
+        h: (maxy >= miny) ? (maxy - miny + 1) : 0,
+    };
+}
+
 // --- color helpers (32-bit unsigned RGBA packed as 0xRRGGBBAA) ---
 export const packRGBA = (color) => {
     const r = clamp((+color.r || 0), 0, 255),
