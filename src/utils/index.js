@@ -55,6 +55,19 @@ export function hexToRgbaU32(hexString) {
             a: 255
         });
     }
+    if (/^[0-9a-f]{4}$/i.test(hex)) {
+        const fullHex = hex.split('').map(c => c + c).join('');
+        const r = parseInt(fullHex.slice(0, 2), 16),
+            g = parseInt(fullHex.slice(2, 4), 16),
+            b = parseInt(fullHex.slice(4, 6), 16),
+            a = parseInt(fullHex.slice(6, 8), 16);
+        return packRGBA({
+            r,
+            g,
+            b,
+            a
+        });
+    }
     if (/^[0-9a-f]{6}$/i.test(hex)) {
         const r = parseInt(hex.slice(0, 2), 16),
             g = parseInt(hex.slice(2, 4), 16),
@@ -64,6 +77,18 @@ export function hexToRgbaU32(hexString) {
             g,
             b,
             a: 255
+        });
+    }
+    if (/^[0-9a-f]{8}$/i.test(hex)) {
+        const r = parseInt(hex.slice(0, 2), 16),
+            g = parseInt(hex.slice(2, 4), 16),
+            b = parseInt(hex.slice(4, 6), 16),
+            a = parseInt(hex.slice(6, 8), 16);
+        return packRGBA({
+            r,
+            g,
+            b,
+            a
         });
     }
     return packRGBA({
