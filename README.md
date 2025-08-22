@@ -27,3 +27,7 @@ npm run dev
 ```sh
 npm run build
 ```
+
+### Deploy to GitHub Pages
+
+Merging to `main` automatically builds the site and publishes the contents of `dist` to GitHub Pages.
