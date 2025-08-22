@@ -38,7 +38,7 @@ const toolStore = useToolStore();
 const selection = useSelectionStore();
 
 const selectables = ref([]);
-watch(() => selection.size, (size) => {
+watch(() => selection.count, (size) => {
   selectables.value = size === 1 ? 
     [{ type: 'draw', name: 'Draw' }, { type: 'erase', name: 'Erase' }] :
     [{ type: 'select', name: 'Select' }, { type: 'globalErase', name: 'Global Erase' }];

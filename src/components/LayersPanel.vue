@@ -1,6 +1,6 @@
 <template>
-  <div v-memo="[output.commitVersion, selection.asArray]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
-    <div v-for="id in layers.idsTopToBottom" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="id" :data-id="id" :class="{ selected: selection.has(id), anchor: selection.anchorId===id, dragging: dragId===id }" draggable="true" @click="onLayerClick(id,$event)" @dragstart="onDragStart(id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(id,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(id,$event)">
+  <div v-memo="[output.commitVersion, selection.ids]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
+    <div v-for="id in layers.idsTopToBottom" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="id" :data-id="id" :class="{ selected: selection.isSelected(id), anchor: selection.anchorId===id, dragging: dragId===id }" draggable="true" @click="onLayerClick(id,$event)" @dragstart="onDragStart(id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(id,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(id,$event)">
       <!-- 썸네일 -->
       <div @click.stop="onThumbnailClick(id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 크기의 모든 레이어 선택">
         <svg :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
@@ -70,7 +70,7 @@ function onLayerClick(id, event) {
     } else if (event.ctrlKey || event.metaKey) {
         selection.toggle(id);
     } else {
-        selection.selectOnly(id);
+        selection.selectOne(id);
     }
     selection.setScrollRule({
         type: "follow",
@@ -100,7 +100,7 @@ function onDragEnd() {
 
 function onDragOver(id, event) {
     const row = event.currentTarget;
-    if (selection.has(id)) {
+    if (selection.isSelected(id)) {
         row.classList.remove('insert-before', 'insert-after');
         event.dataTransfer.dropEffect = 'none';
         return;
@@ -121,7 +121,7 @@ function onDrop(id, event) {
     const targetId = id;
     const rect = row.getBoundingClientRect();
     const placeBelow = (event.clientY - rect.top) > rect.height * 0.5;
-    layers.reorderLayers(selection.asArray, targetId, placeBelow);
+    layers.reorderLayers(selection.ids, targetId, placeBelow);
     output.commit();
 }
 
@@ -131,7 +131,7 @@ function onColorDown() {
 
 function onColorInput(id, event) {
     const colorU32 = hexToRgbaU32(event.target.value);
-    selection.has(id) ? layerSvc.setColorForSelectedU32(colorU32) : layers.updateLayer(id, { colorU32 });
+    selection.isSelected(id) ? layerSvc.setColorForSelectedU32(colorU32) : layers.updateLayer(id, { colorU32 });
 }
 
 function onColorChange() {
@@ -140,18 +140,18 @@ function onColorChange() {
 
 function toggleVisibility(id) {
     output.setRollbackPoint();
-    if (selection.has(id)) layerSvc.setVisibilityForSelected(!layers.visibilityOf(id));
+    if (selection.isSelected(id)) layerSvc.setVisibilityForSelected(!layers.visibilityOf(id));
     else layers.toggleVisibility(id);
     output.commit();
 }
 
 function deleteLayer(id) {
     output.setRollbackPoint();
-    const targets = selection.has(id) ? selection.asArray : [id];
+    const targets = selection.isSelected(id) ? selection.ids : [id];
     const belowId = layers.belowId(layers.lowermostIdOf(targets));
     layers.deleteLayers(targets);
     const newSelectId = layers.has(belowId) ? belowId : layers.lowermostId;
-    selection.selectOnly(newSelectId);
+    selection.selectOne(newSelectId);
     if (newSelectId) {
         selection.setScrollRule({
             type: "follow",

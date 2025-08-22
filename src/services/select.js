@@ -21,7 +21,7 @@ export const useSelectService = defineStore('selectService', () => {
         const startId = layers.topVisibleIdAt(pixel.x, pixel.y);
         const mode = !event.shiftKey
             ? 'select'
-            : selection.has(startId)
+            : selection.isSelected(startId)
                 ? 'remove'
                 : 'add';
 
@@ -45,9 +45,9 @@ export const useSelectService = defineStore('selectService', () => {
             const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'remove') {
-                    if (selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (selection.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
                 } else if (mode === 'add') {
-                    if (!selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (!selection.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
                 } else {
                     toolStore.selectOverlayLayerIds.add(id);
                 }
@@ -73,11 +73,11 @@ export const useSelectService = defineStore('selectService', () => {
             toolStore.selectOverlayLayerIds.clear();
             if (mode === 'add') {
                 for (const id of intersectedIds) {
-                    if (!selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (!selection.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
                 }
             } else if (mode === 'remove') {
                 for (const id of intersectedIds) {
-                    if (selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (selection.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
                 }
             } else {
                 for (const id of intersectedIds) {
@@ -99,9 +99,9 @@ export const useSelectService = defineStore('selectService', () => {
             const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'remove') {
-                    if (selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (selection.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
                 } else if (mode === 'add') {
-                    if (!selection.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (!selection.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
                 } else {
                     toolStore.selectOverlayLayerIds.add(id);
                 }
@@ -124,7 +124,7 @@ export const useSelectService = defineStore('selectService', () => {
             const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'select' || !mode) {
-                    selection.selectOnly(id);
+                    selection.selectOne(id);
                 } else {
                     selection.toggle(id);
                 }
@@ -139,7 +139,7 @@ export const useSelectService = defineStore('selectService', () => {
                     if (id !== null) intersectedIds.add(id);
                 }
                 const currentSelection = new Set(
-                    (mode === 'select' || !mode) ? [] : selection.asArray
+                    (mode === 'select' || !mode) ? [] : selection.ids
                 );
                 if (mode === 'add') {
                     intersectedIds.forEach(id => currentSelection.add(id));
@@ -149,9 +149,9 @@ export const useSelectService = defineStore('selectService', () => {
                     intersectedIds.forEach(id => currentSelection.add(id));
                 }
                 if (mode === 'select' || !mode) {
-                    selection.set([...currentSelection], null, null);
+                    selection.replace([...currentSelection], null, null);
                 } else {
-                    selection.set([...currentSelection], selection.anchorId, selection.tailId);
+                    selection.replace([...currentSelection], selection.anchorId, selection.tailId);
                 }
             } else if (mode === 'select' || !mode) {
                 selection.clear();
@@ -189,7 +189,7 @@ export const useSelectService = defineStore('selectService', () => {
             Math.min(anchorIndex, tailIndex),
             Math.max(anchorIndex, tailIndex) + 1
         );
-        selection.set(slice, anchorId, tailId);
+        selection.replace(slice, anchorId, tailId);
     }
 
     return { toolStart, toolMove, toolFinish, cancel, selectRange };
