@@ -26,6 +26,7 @@ import { useStageService } from './services/stage';
 import { useLayerStore } from './stores/layers';
 import { useSelectionStore } from './stores/selection';
 import { useLayerService } from './services/layers';
+import { useSelectService } from './services/select';
 import { useOutputStore } from './stores/output';
 
 import StageToolbar from './components/StageToolbar.vue';
@@ -41,6 +42,7 @@ const stageService = useStageService();
 const layers = useLayerStore();
 const selection = useSelectionStore();
 const layerSvc = useLayerService();
+const selectSvc = useSelectService();
 const output = useOutputStore();
 
 // General key handler
@@ -65,7 +67,7 @@ function onKeydown(event) {
       if (shift && !ctrl) {
         if (!selection.exists) return;
         const newTail = layerSvc.aboveId(selection.tailId) ?? layerSvc.uppermostId();
-        layerSvc.selectRange(selection.anchorId, newTail);
+        selectSvc.selectRange(selection.anchorId, newTail);
         selection.setScrollRule({ type: 'follow-up', target: newTail });
       } else if (!ctrl) {
         const nextId = layerSvc.aboveId(selection.anchorId) ?? selection.anchorId;
@@ -79,7 +81,7 @@ function onKeydown(event) {
       if (shift && !ctrl) {
         if (!selection.exists) return;
         const newTail = layerSvc.belowId(selection.tailId) ?? layerSvc.lowermostId();
-        layerSvc.selectRange(selection.anchorId, newTail);
+        selectSvc.selectRange(selection.anchorId, newTail);
         selection.setScrollRule({ type: 'follow-down', target: newTail });
       } else if (!ctrl) {
         const nextId = layerSvc.belowId(selection.anchorId) ?? selection.anchorId;

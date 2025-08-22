@@ -1,91 +1,78 @@
 import { defineStore } from 'pinia';
-import { reactive, ref, computed, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useStageStore } from '../stores/stage';
+import { useToolStore } from '../stores/tool';
 import { useSelectionStore } from '../stores/selection';
 import { useLayerService } from './layers';
-import { useOutputStore } from '../stores/output';
 import { useInputStore } from '../stores/input';
 import { coordsToKey, keyToCoords, pixelsToUnionPath, clamp, rgbaCssObj, rgbaCssU32 } from '../utils';
-import { OVERLAY_CONFIG, CURSOR_CONFIG } from '../constants';
+import { CURSOR_CONFIG } from '../constants';
 
 export const useStageService = defineStore('stageService', () => {
     // stores
     const stageStore = useStageStore();
+    const toolStore = useToolStore();
     const selection = useSelectionStore();
     const layerSvc = useLayerService();
-    const output = useOutputStore();
     const input = useInputStore();
 
     // --- Interaction State ---
-    const state = reactive({
-        status: 'idle', // 'idle' | 'stroke' | 'rect'
-        startPoint: null, // {x, y} client coords
-        pointerId: null,
-        isDragging: false,
-        selectionMode: null, // 'add' | 'remove'
-    });
-    const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
     const hoverLayerId = ref(null);
-    const initialSelectionOnDrag = ref(new Set());
-    const addOverlayLayerIds = ref(new Set());
-    const removeOverlayLayerIds = ref(new Set());
-    const lastPoint = ref(null);
-    const visited = ref(new Set());
 
     // --- Keyboard State & Handlers ---
     let ctrlKeyDownTimestamp = 0;
     const KEY_TAP_MS = 200;
 
     function ctrlKeyDown() {
-        if (!stageStore.ctrlHeld) {
+        if (!toolStore.ctrlHeld) {
             ctrlKeyDownTimestamp = performance.now();
-            stageStore.setCtrlHeld(true);
+            toolStore.setCtrlHeld(true);
         }
     }
     function ctrlKeyUp() {
         if (performance.now() - ctrlKeyDownTimestamp < KEY_TAP_MS) {
-            if (stageStore.currentMode === 'single') {
-                if (stageStore.tool === 'draw' || stageStore.tool === 'erase') {
-                    stageStore.setTool(stageStore.tool === 'draw' ? 'erase' : 'draw');
+            if (toolStore.currentMode === 'single') {
+                if (toolStore.tool === 'draw' || toolStore.tool === 'erase') {
+                    toolStore.setTool(toolStore.tool === 'draw' ? 'erase' : 'draw');
                 }
             } else { // multi mode
-                if (stageStore.tool === 'select' || stageStore.tool === 'globalErase') {
-                    stageStore.setTool(stageStore.tool === 'select' ? 'globalErase' : 'select');
+                if (toolStore.tool === 'select' || toolStore.tool === 'globalErase') {
+                    toolStore.setTool(toolStore.tool === 'select' ? 'globalErase' : 'select');
                 }
             }
         }
-        stageStore.setCtrlHeld(false);
+        toolStore.setCtrlHeld(false);
         ctrlKeyDownTimestamp = 0;
     }
-    function shiftKeyDown() { stageStore.setShiftHeld(true); }
-    function shiftKeyUp() { stageStore.setShiftHeld(false); }
+    function shiftKeyDown() { toolStore.setShiftHeld(true); }
+    function shiftKeyUp() { toolStore.setShiftHeld(false); }
 
     // --- Auto-tool switching on mode change ---
-    watch(() => stageStore.currentMode, (newMode) => {
+    watch(() => toolStore.currentMode, (newMode) => {
         if (newMode === 'single') {
-            if (stageStore.tool === 'select' || stageStore.tool === 'globalErase') {
-                stageStore.setTool('draw');
+            if (toolStore.tool === 'select' || toolStore.tool === 'globalErase') {
+                toolStore.setTool('draw');
             }
         } else { // multi
-            if (stageStore.tool === 'draw' || stageStore.tool === 'erase') {
-                stageStore.setTool('select');
+            if (toolStore.tool === 'draw' || toolStore.tool === 'erase') {
+                toolStore.setTool('select');
             }
         }
     }, { immediate: true });
 
     // --- Overlay Paths ---
     const addOverlayPath = computed(() => {
-        if (!addOverlayLayerIds.value.size) return '';
+        if (!toolStore.addOverlayLayerIds.size) return '';
         const pixelUnionSet = new Set();
-        for (const id of addOverlayLayerIds.value) {
+        for (const id of toolStore.addOverlayLayerIds) {
             layerSvc.layerById(id)?.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y)));
         }
         return pixelsToUnionPath(pixelUnionSet);
     });
     const removeOverlayPath = computed(() => {
-        if (!removeOverlayLayerIds.value.size) return '';
+        if (!toolStore.removeOverlayLayerIds.size) return '';
         const pixelUnionSet = new Set();
-        for (const id of removeOverlayLayerIds.value) {
+        for (const id of toolStore.removeOverlayLayerIds) {
             layerSvc.layerById(id)?.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y)));
         }
         return pixelsToUnionPath(pixelUnionSet);
@@ -197,188 +184,35 @@ export const useStageService = defineStore('stageService', () => {
         return { x, y };
     }
 
-    // --- Pointer Handlers ---
-    function pointerDown(event) {
-        if (event.button !== 0) return;
+    function updateHover(event) {
         const pixel = clientToPixel(event);
-        if (!pixel) return;
-
-        if (stageStore.isSelect) {
-            const startId = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
-            initialSelectionOnDrag.value = new Set(selection.asArray);
-            state.selectionMode = (event.shiftKey && selection.has(startId)) ? 'remove' : 'add';
-        }
-
-        if (stageStore.isDraw || stageStore.isErase || stageStore.isSelect || stageStore.isGlobalErase) {
-            output.setRollbackPoint();
-        }
-
-        state.status = stageStore.toolShape;
-        state.startPoint = { x: event.clientX, y: event.clientY };
-        state.isDragging = false;
-
-        try {
-            event.target.setPointerCapture?.(event.pointerId);
-            state.pointerId = event.pointerId;
-        } catch {}
-
-        if (state.status === 'rect') {
-            marquee.x = pixel.x;
-            marquee.y = pixel.y;
-            marquee.w = 0;
-            marquee.h = 0;
-            marquee.visible = true;
-        } else if (state.status === 'stroke') {
-            lastPoint.value = pixel;
-            visited.value.clear();
-            visited.value.add(coordsToKey(pixel.x, pixel.y));
-
-            // Handle first pixel
-            if (stageStore.isSelect) {
-                const id = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
-                if (id !== null) {
-                    if (state.selectionMode === 'add') {
-                        if (!initialSelectionOnDrag.value.has(id)) addOverlayLayerIds.value.add(id);
-                    } else { // 'remove'
-                        if (initialSelectionOnDrag.value.has(id)) removeOverlayLayerIds.value.add(id);
-                    }
-                }
-            } else if (stageStore.isGlobalErase) {
-                if (selection.exists) layerSvc.removePixelsFromSelected([[pixel.x, pixel.y]]);
-                else layerSvc.removePixelsFromAll([[pixel.x, pixel.y]]);
-            } else if (stageStore.isDraw || stageStore.isErase) {
-                if (stageStore.isErase) layerSvc.removePixelsFromSelection([[pixel.x, pixel.y]]);
-                else layerSvc.addPixelsToSelection([[pixel.x, pixel.y]]);
-            }
-        }
-    }
-    
-    function pointerMove(event) {
-        const pixel = clientToPixel(event);
-
-        // Update hover info regardless of interaction state
         if (!pixel) {
             stageStore.updatePixelInfo('-');
             hoverLayerId.value = null;
+            return;
+        }
+        if (stageStore.display === 'original' && input.hasImage) {
+            const colorObject = input.getPixel(pixel.x, pixel.y);
+            stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssObj(colorObject)}`);
         } else {
-            if (stageStore.display === 'original' && input.hasImage) {
-                const colorObject = input.getPixel(pixel.x, pixel.y);
-                stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssObj(colorObject)}`);
-            } else {
-                const colorU32 = layerSvc.compositeColorAt(pixel.x, pixel.y);
-                stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssU32(colorU32)}`);
-            }
-            if (stageStore.isSelect) {
-                hoverLayerId.value = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
-            } else {
-                hoverLayerId.value = null;
-            }
+            const colorU32 = layerSvc.compositeColorAt(pixel.x, pixel.y);
+            stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssU32(colorU32)}`);
         }
-
-        if (state.status === 'idle') return;
-
-        if (!state.isDragging && state.startPoint) {
-            const dx = Math.abs(event.clientX - state.startPoint.x);
-            const dy = Math.abs(event.clientY - state.startPoint.y);
-            if (dx > 4 || dy > 4) state.isDragging = true;
-        }
-
-        if (state.isDragging) {
-            if (state.status === 'rect') {
-                const left = Math.min(state.startPoint.x, event.clientX) - stageStore.canvas.x;
-                const top = Math.min(state.startPoint.y, event.clientY) - stageStore.canvas.y;
-                const right = Math.max(state.startPoint.x, event.clientX) - stageStore.canvas.x;
-                const bottom = Math.max(state.startPoint.y, event.clientY) - stageStore.canvas.y;
-                const minX = Math.floor(left / stageStore.canvas.scale),
-                    maxX = Math.floor((right - 1) / stageStore.canvas.scale);
-                const minY = Math.floor(top / stageStore.canvas.scale),
-                    maxY = Math.floor((bottom - 1) / stageStore.canvas.scale);
-                const minx = clamp(minX, 0, stageStore.canvas.width - 1),
-                    maxx = clamp(maxX, 0, stageStore.canvas.width - 1);
-                const miny = clamp(minY, 0, stageStore.canvas.height - 1),
-                    maxy = clamp(maxY, 0, stageStore.canvas.height - 1);
-                marquee.x = minx;
-                marquee.y = miny;
-                marquee.w = (maxx >= minx) ? (maxx - minx + 1) : 0;
-                marquee.h = (maxy >= miny) ? (maxy - miny + 1) : 0;
-
-                if (stageStore.isSelect) {
-                    const pixels = [];
-                    for (let yy = marquee.y; yy < marquee.y + marquee.h; yy++) {
-                        for (let xx = marquee.x; xx < marquee.x + marquee.w; xx++) {
-                            pixels.push([xx, yy]);
-                        }
-                    }
-                    const intersectedIds = new Set();
-                    if (pixels.length > 0) {
-                        for (const [x, y] of pixels) {
-                            const id = layerSvc.topVisibleLayerIdAt(x, y);
-                            if (id !== null) intersectedIds.add(id);
-                        }
-                    }
-                    addOverlayLayerIds.value.clear();
-                    removeOverlayLayerIds.value.clear();
-                    if (state.selectionMode === 'add') {
-                        for (const id of intersectedIds) {
-                            if (!initialSelectionOnDrag.value.has(id)) addOverlayLayerIds.value.add(id);
-                        }
-                    } else { // 'remove'
-                        for (const id of intersectedIds) {
-                            if (initialSelectionOnDrag.value.has(id)) removeOverlayLayerIds.value.add(id);
-                        }
-                    }
-                }
-
-            } else if (state.status === 'stroke') {
-                if (!pixel || !lastPoint.value) {
-                    lastPoint.value = pixel;
-                    return;
-                }
-                const line = bresenhamLine(lastPoint.value.x, lastPoint.value.y, pixel.x, pixel.y);
-                const delta = [];
-                for (const [x, y] of line) {
-                    const k = coordsToKey(x, y);
-                    if (!visited.value.has(k)) {
-                        visited.value.add(k);
-                        delta.push([x, y]);
-                    }
-                }
-                if (delta.length) {
-                    if (stageStore.isSelect) {
-                        const intersectedIds = new Set();
-                        for (const [x, y] of delta) {
-                            const id = layerSvc.topVisibleLayerIdAt(x, y);
-                            if (id !== null) intersectedIds.add(id);
-                        }
-                        if (state.selectionMode === 'add') {
-                            for (const id of intersectedIds) {
-                                if (!initialSelectionOnDrag.value.has(id)) addOverlayLayerIds.value.add(id);
-                            }
-                        } else { // 'remove'
-                            for (const id of intersectedIds) {
-                                if (initialSelectionOnDrag.value.has(id)) removeOverlayLayerIds.value.add(id);
-                            }
-                        }
-                    } else if (stageStore.isGlobalErase) {
-                        if (selection.exists) layerSvc.removePixelsFromSelected(delta);
-                        else layerSvc.removePixelsFromAll(delta);
-                    } else if (stageStore.isDraw || stageStore.isErase) {
-                        if (stageStore.isErase) layerSvc.removePixelsFromSelection(delta);
-                        else layerSvc.addPixelsToSelection(delta);
-                    }
-                }
-                lastPoint.value = pixel;
-            }
+        if (toolStore.isSelect) {
+            hoverLayerId.value = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
+        } else {
+            hoverLayerId.value = null;
         }
     }
 
     function getPixelsFromInteraction(event) {
+        const toolState = toolStore.state;
         let pixels = [];
-        if (state.status === 'rect') {
-            const left = Math.min(state.startPoint.x, event.clientX) - stageStore.canvas.x;
-            const top = Math.min(state.startPoint.y, event.clientY) - stageStore.canvas.y;
-            const right = Math.max(state.startPoint.x, event.clientX) - stageStore.canvas.x;
-            const bottom = Math.max(state.startPoint.y, event.clientY) - stageStore.canvas.y;
+        if (toolState.status === 'rect') {
+            const left = Math.min(toolState.startPoint.x, event.clientX) - stageStore.canvas.x;
+            const top = Math.min(toolState.startPoint.y, event.clientY) - stageStore.canvas.y;
+            const right = Math.max(toolState.startPoint.x, event.clientX) - stageStore.canvas.x;
+            const bottom = Math.max(toolState.startPoint.y, event.clientY) - stageStore.canvas.y;
             const minX = Math.floor(left / stageStore.canvas.scale),
                 maxX = Math.floor((right - 1) / stageStore.canvas.scale);
             const minY = Math.floor(top / stageStore.canvas.scale),
@@ -395,122 +229,19 @@ export const useStageService = defineStore('stageService', () => {
                 for (let yy = miny; yy <= maxy; yy++)
                     for (let xx = minx; xx <= maxx; xx++) pixels.push([xx, yy]);
             }
-        } else if (state.status === 'stroke') {
-            visited.value.forEach(key => pixels.push(keyToCoords(key)));
+        } else if (toolState.status === 'stroke') {
+            toolStore.visited.forEach(key => pixels.push(keyToCoords(key)));
         }
         return pixels;
     }
 
-    function pointerUp(event) {
-        if (state.status === 'idle') return;
-
-        const wasEditing = stageStore.isDraw || stageStore.isErase || stageStore.isGlobalErase;
-        const wasSelecting = stageStore.isSelect;
-
-        if (wasSelecting) {
-            const pixel = clientToPixel(event);
-            if (!state.isDragging && pixel) { // It was a click, not a drag
-                const id = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
-                if (event.shiftKey) { // Toggle State click
-                    selection.toggle(id);
-                } else { // Select State click
-                    selection.selectOnly(id);
-                }
-                if (id !== null) {
-                    selection.setScrollRule({
-                        type: 'follow',
-                        target: id
-                    });
-                }
-            } else { // It was a drag
-                const pixels = getPixelsFromInteraction(event);
-                if (pixels.length > 0) {
-                    const intersectedIds = new Set();
-                    for (const [x, y] of pixels) {
-                        const id = layerSvc.topVisibleLayerIdAt(x, y);
-                        if (id !== null) intersectedIds.add(id);
-                    }
-
-                    const currentSelection = new Set(selection.asArray);
-                    if (state.selectionMode === 'add') {
-                        intersectedIds.forEach(id => currentSelection.add(id));
-                    } else { // 'remove'
-                        intersectedIds.forEach(id => currentSelection.delete(id));
-                    }
-                    
-                    if (event.shiftKey) {
-                        selection.set([...currentSelection], selection.anchorId, selection.tailId);
-                    } else {
-                         selection.set([...currentSelection], null, null);
-                    }
-
-                } else if (!event.shiftKey) {
-                    selection.clear();
-                }
-            }
-        } else { // Draw/Erase tools
-            if (state.status === 'rect') {
-                const pixels = getPixelsFromInteraction(event);
-                if (pixels.length > 0) {
-                    if (stageStore.isGlobalErase) {
-                        if (selection.exists) layerSvc.removePixelsFromSelected(pixels);
-                        else layerSvc.removePixelsFromAll(pixels);
-                    } else if (stageStore.isDraw || stageStore.isErase) {
-                        if (stageStore.isErase) layerSvc.removePixelsFromSelection(pixels);
-                        else layerSvc.addPixelsToSelection(pixels);
-                    }
-                }
-            }
-        }
-
-        try {
-            event.target?.releasePointerCapture?.(state.pointerId);
-        } catch {}
-
-        // Commit changes and reset state
-        if (wasEditing || wasSelecting) {
-            output.commit();
-        } else {
-            output.clearRollbackPoint();
-        }
-        state.status = 'idle';
-        state.pointerId = null;
-        state.startPoint = null;
-        state.isDragging = false;
-        state.selectionMode = null;
-        marquee.visible = false;
-        lastPoint.value = null;
-        visited.value.clear();
-        addOverlayLayerIds.value.clear();
-        removeOverlayLayerIds.value.clear();
-        initialSelectionOnDrag.value.clear();
-    }
-
-    function pointerCancel() {
-        if (state.status === 'idle') return;
-
-        output.rollbackPending();
-
-        state.status = 'idle';
-        state.pointerId = null;
-        state.startPoint = null;
-        state.isDragging = false;
-        state.selectionMode = null;
-        marquee.visible = false;
-        lastPoint.value = null;
-        visited.value.clear();
-        hoverLayerId.value = null;
-        addOverlayLayerIds.value.clear();
-        removeOverlayLayerIds.value.clear();
-        initialSelectionOnDrag.value.clear();
-    }
 
     const cursor = computed(() => {
-        const tool = stageStore.effectiveTool;
-        const shape = stageStore.toolShape;
+        const tool = toolStore.effectiveTool;
+        const shape = toolStore.toolShape;
 
         if (tool === 'select') {
-            const isRemoving = stageStore.shiftHeld && selection.has(hoverLayerId.value);
+            const isRemoving = toolStore.shiftHeld && selection.has(hoverLayerId.value);
             if (shape === 'stroke') {
                 return isRemoving ? CURSOR_CONFIG.REMOVE_STROKE : CURSOR_CONFIG.ADD_STROKE;
             }
@@ -530,18 +261,17 @@ export const useStageService = defineStore('stageService', () => {
 
     return {
         // interaction state
-        marquee,
         hoverLayerId,
         addOverlayPath,
         removeOverlayPath,
-        isDragging: computed(() => state.isDragging),
+        isDragging: computed(() => toolStore.state.isDragging),
         cursor,
         // methods
         recalcScale,
-        pointerDown,
-        pointerMove,
-        pointerUp,
-        pointerCancel,
+        updateHover,
+        clientToPixel,
+        getPixelsFromInteraction,
+        bresenhamLine,
         // keyboard handlers
         ctrlKeyDown,
         ctrlKeyUp,

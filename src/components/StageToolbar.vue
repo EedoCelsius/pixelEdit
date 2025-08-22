@@ -6,27 +6,29 @@
 
     <!-- Shape toggle -->
     <div class="inline-flex rounded-md overflow-hidden border border-white/15">
-      <button @click="stageStore.setToolShape('stroke')" :class="buttonClass(stageStore.isStroke, false)">Stroke</button>
-      <button @click="stageStore.setToolShape('rect')"   :class="buttonClass(stageStore.isRect, false)">Rect</button>
+      <button @click="toolStore.setToolShape('stroke')" :class="buttonClass(toolStore.isStroke, false)">Stroke</button>
+      <button @click="toolStore.setToolShape('rect')"   :class="buttonClass(toolStore.isRect, false)">Rect</button>
     </div>
 
     <!-- Tool Toggles -->
     <!-- Single Layer Mode Tools -->
-    <div v-if="stageStore.effectiveMode === 'single'" class="inline-flex rounded-md overflow-hidden border border-white/15">
-      <button @click="stageStore.setTool('draw')"  :class="buttonClass(stageStore.isDraw, false)">Draw</button>
-      <button @click="stageStore.setTool('erase')" :class="buttonClass(stageStore.isErase, false)">Erase</button>
+    <div v-if="toolStore.effectiveMode === 'single'" class="inline-flex rounded-md overflow-hidden border border-white/15">
+      <button @click="toolStore.setTool('draw')"  :class="buttonClass(toolStore.isDraw, false)">Draw</button>
+      <button @click="toolStore.setTool('erase')" :class="buttonClass(toolStore.isErase, false)">Erase</button>
     </div>
     <!-- Multi Layer Mode Tools -->
     <div v-else class="inline-flex rounded-md overflow-hidden border border-white/15">
-      <button @click="stageStore.setTool('select')" :class="buttonClass(stageStore.isSelect, false)">Select</button>
-      <button @click="stageStore.setTool('globalErase')" :class="buttonClass(stageStore.isGlobalErase, false)">Global Erase</button>
+      <button @click="toolStore.setTool('select')" :class="buttonClass(toolStore.isSelect, false)">Select</button>
+      <button @click="toolStore.setTool('globalErase')" :class="buttonClass(toolStore.isGlobalErase, false)">Global Erase</button>
     </div>
   </div>
 </template>
 
 <script setup>
 import { useStageStore } from '../stores/stage';
+import { useToolStore } from '../stores/tool';
 
 const stageStore = useStageStore();
-const buttonClass = (active, disabled) => `px-2 py-1 text-xs ${disabled?'opacity-40 pointer-events-none cursor-not-allowed':''} ${active&&!disabled?'bg-white/15':'bg-white/5 hover:bg-white/10'}`;
+const toolStore = useToolStore();
+const buttonClass = (active, disabled) => `px-2 py-1 text-xs ${disabled?'opacity-40 pointer-events-none cursor-not-allowed':''}${active&&!disabled?'bg-white/15':'bg-white/5 hover:bg-white/10'}`;
 </script>
