@@ -20,41 +20,49 @@ export const useSelectService = defineStore('selectService', () => {
 
         const startId = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
         toolStore.selectionBeforeDrag = new Set(selection.asArray);
-        toolStore.state.selectionMode = (event.shiftKey && selection.has(startId)) ? 'remove' : 'add';
+        const mode = !event.shiftKey
+            ? 'select'
+            : selection.has(startId)
+                ? 'remove'
+                : 'add';
 
         output.setRollbackPoint();
 
-        toolStore.state.status = toolStore.toolShape;
-        toolStore.state.startPoint = { x: event.clientX, y: event.clientY };
+        toolStore.pointer.status = `select:${mode}`;
+        toolStore.pointer.start = { x: event.clientX, y: event.clientY };
 
         try {
             event.target.setPointerCapture?.(event.pointerId);
-            toolStore.state.pointerId = event.pointerId;
+            toolStore.pointer.id = event.pointerId;
         } catch {}
 
-        if (toolStore.state.status === 'rect') {
-            toolStore.state.lastPoint = { x: event.clientX, y: event.clientY };
-        } else if (toolStore.state.status === 'stroke') {
-            toolStore.state.lastPoint = pixel;
+        if (toolStore.shape === 'rect') {
+            toolStore.pointer.current = { x: event.clientX, y: event.clientY };
+        } else {
+            toolStore.pointer.current = pixel;
             toolStore.visited.clear();
             toolStore.visited.add(coordsToKey(pixel.x, pixel.y));
 
             const id = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
             if (id !== null) {
-                if (toolStore.state.selectionMode === 'add') {
+                if (mode === 'remove') {
+                    if (toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                } else if (mode === 'add') {
                     if (!toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
                 } else {
-                    if (toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    toolStore.selectOverlayLayerIds.add(id);
                 }
             }
         }
     }
 
     function toolMove(event) {
-        if (toolStore.state.status === 'idle') return;
+        if (toolStore.pointer.status === 'idle') return;
 
-        if (toolStore.state.status === 'rect') {
-            toolStore.state.lastPoint = { x: event.clientX, y: event.clientY };
+        const [, mode] = toolStore.pointer.status.split(':');
+
+        if (toolStore.shape === 'rect') {
+            toolStore.pointer.current = { x: event.clientX, y: event.clientY };
             const { x, y, w, h } = toolStore.marquee;
             const intersectedIds = new Set();
             for (let yy = y; yy < y + h; yy++) {
@@ -64,55 +72,63 @@ export const useSelectService = defineStore('selectService', () => {
                 }
             }
             toolStore.selectOverlayLayerIds.clear();
-            if (toolStore.state.selectionMode === 'add') {
+            if (mode === 'add') {
                 for (const id of intersectedIds) {
                     if (!toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
                 }
-            } else {
+            } else if (mode === 'remove') {
                 for (const id of intersectedIds) {
                     if (toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
                 }
+            } else {
+                for (const id of intersectedIds) {
+                    toolStore.selectOverlayLayerIds.add(id);
+                }
             }
-        } else if (toolStore.state.status === 'stroke') {
+        } else {
             const pixel = stage.clientToPixel(event);
             if (!pixel) {
-                toolStore.state.lastPoint = pixel;
+                toolStore.pointer.current = pixel;
                 return;
             }
             const k = coordsToKey(pixel.x, pixel.y);
             if (toolStore.visited.has(k)) {
-                toolStore.state.lastPoint = pixel;
+                toolStore.pointer.current = pixel;
                 return;
             }
             toolStore.visited.add(k);
             const id = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
             if (id !== null) {
-                if (toolStore.state.selectionMode === 'add') {
+                if (mode === 'remove') {
+                    if (toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                } else if (mode === 'add') {
                     if (!toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
                 } else {
-                    if (toolStore.selectionBeforeDrag.has(id)) toolStore.selectOverlayLayerIds.add(id);
+                    toolStore.selectOverlayLayerIds.add(id);
                 }
             }
-            toolStore.state.lastPoint = pixel;
+            toolStore.pointer.current = pixel;
         }
     }
 
     function toolFinish(event) {
-        if (toolStore.state.status === 'idle') return;
+        if (toolStore.pointer.status === 'idle') return;
+
+        const [, mode] = toolStore.pointer.status.split(':');
 
         const pixel = stage.clientToPixel(event);
-        const start = toolStore.state.startPoint;
+        const start = toolStore.pointer.start;
         const dx = start ? Math.abs(event.clientX - start.x) : 0;
         const dy = start ? Math.abs(event.clientY - start.y) : 0;
         const isClick = dx <= 4 && dy <= 4;
         if (isClick && pixel) {
             const id = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
-            if (event.shiftKey) {
-                selection.toggle(id);
-            } else {
-                selection.selectOnly(id);
-            }
             if (id !== null) {
+                if (mode === 'select' || !mode) {
+                    selection.selectOnly(id);
+                } else {
+                    selection.toggle(id);
+                }
                 selection.setScrollRule({ type: 'follow', target: id });
             }
         } else {
@@ -123,24 +139,28 @@ export const useSelectService = defineStore('selectService', () => {
                     const id = layerSvc.topVisibleLayerIdAt(x, y);
                     if (id !== null) intersectedIds.add(id);
                 }
-                const currentSelection = new Set(selection.asArray);
-                if (toolStore.state.selectionMode === 'add') {
+                const currentSelection = new Set(
+                    (mode === 'select' || !mode) ? [] : selection.asArray
+                );
+                if (mode === 'add') {
                     intersectedIds.forEach(id => currentSelection.add(id));
-                } else {
+                } else if (mode === 'remove') {
                     intersectedIds.forEach(id => currentSelection.delete(id));
-                }
-                if (event.shiftKey) {
-                    selection.set([...currentSelection], selection.anchorId, selection.tailId);
                 } else {
-                    selection.set([...currentSelection], null, null);
+                    intersectedIds.forEach(id => currentSelection.add(id));
                 }
-            } else if (!event.shiftKey) {
+                if (mode === 'select' || !mode) {
+                    selection.set([...currentSelection], null, null);
+                } else {
+                    selection.set([...currentSelection], selection.anchorId, selection.tailId);
+                }
+            } else if (mode === 'select' || !mode) {
                 selection.clear();
             }
         }
 
         try {
-            event.target?.releasePointerCapture?.(toolStore.state.pointerId);
+            event.target?.releasePointerCapture?.(toolStore.pointer.id);
         } catch {}
 
         output.commit();
@@ -148,17 +168,16 @@ export const useSelectService = defineStore('selectService', () => {
     }
 
     function cancel() {
-        if (toolStore.state.status === 'idle') return;
+        if (toolStore.pointer.status === 'idle') return;
         output.rollbackPending();
         reset();
     }
 
     function reset() {
-        toolStore.state.status = 'idle';
-        toolStore.state.pointerId = null;
-        toolStore.state.startPoint = null;
-        toolStore.state.lastPoint = null;
-        toolStore.state.selectionMode = null;
+        toolStore.pointer.status = 'idle';
+        toolStore.pointer.id = null;
+        toolStore.pointer.start = null;
+        toolStore.pointer.current = null;
         toolStore.visited.clear();
         toolStore.hoverLayerId = null;
         toolStore.selectOverlayLayerIds.clear();

@@ -22,18 +22,18 @@ export const usePixelService = defineStore('pixelService', () => {
 
         output.setRollbackPoint();
 
-        toolStore.state.status = toolStore.toolShape;
-        toolStore.state.startPoint = { x: event.clientX, y: event.clientY };
+        toolStore.pointer.status = toolStore.expected;
+        toolStore.pointer.start = { x: event.clientX, y: event.clientY };
 
         try {
             event.target.setPointerCapture?.(event.pointerId);
-            toolStore.state.pointerId = event.pointerId;
+            toolStore.pointer.id = event.pointerId;
         } catch {}
 
-        if (toolStore.state.status === 'rect') {
-            toolStore.state.lastPoint = { x: event.clientX, y: event.clientY };
-        } else if (toolStore.state.status === 'stroke') {
-            toolStore.state.lastPoint = pixel;
+        if (toolStore.shape === 'rect') {
+            toolStore.pointer.current = { x: event.clientX, y: event.clientY };
+        } else {
+            toolStore.pointer.current = pixel;
             toolStore.visited.clear();
             toolStore.visited.add(coordsToKey(pixel.x, pixel.y));
 
@@ -48,19 +48,19 @@ export const usePixelService = defineStore('pixelService', () => {
     }
 
     function toolMove(event) {
-        if (toolStore.state.status === 'idle') return;
+        if (toolStore.pointer.status === 'idle') return;
 
-        if (toolStore.state.status === 'rect') {
-            toolStore.state.lastPoint = { x: event.clientX, y: event.clientY };
-        } else if (toolStore.state.status === 'stroke') {
+        if (toolStore.shape === 'rect') {
+            toolStore.pointer.current = { x: event.clientX, y: event.clientY };
+        } else {
             const pixel = stage.clientToPixel(event);
             if (!pixel) {
-                toolStore.state.lastPoint = pixel;
+                toolStore.pointer.current = pixel;
                 return;
             }
             const k = coordsToKey(pixel.x, pixel.y);
             if (toolStore.visited.has(k)) {
-                toolStore.state.lastPoint = pixel;
+                toolStore.pointer.current = pixel;
                 return;
             }
             toolStore.visited.add(k);
@@ -72,14 +72,14 @@ export const usePixelService = defineStore('pixelService', () => {
                 if (toolStore.isErase) removePixelsFromSelection(delta);
                 else addPixelsToSelection(delta);
             }
-            toolStore.state.lastPoint = pixel;
+            toolStore.pointer.current = pixel;
         }
     }
 
     function toolFinish(event) {
-        if (toolStore.state.status === 'idle') return;
+        if (toolStore.pointer.status === 'idle') return;
 
-        if (toolStore.state.status === 'rect') {
+        if (toolStore.shape === 'rect') {
             const pixels = stage.getPixelsFromInteraction(event);
             if (pixels.length > 0) {
                 if (toolStore.isGlobalErase) {
@@ -93,7 +93,7 @@ export const usePixelService = defineStore('pixelService', () => {
         }
 
         try {
-            event.target?.releasePointerCapture?.(toolStore.state.pointerId);
+            event.target?.releasePointerCapture?.(toolStore.pointer.id);
         } catch {}
 
         output.commit();
@@ -101,17 +101,16 @@ export const usePixelService = defineStore('pixelService', () => {
     }
 
     function cancel() {
-        if (toolStore.state.status === 'idle') return;
+        if (toolStore.pointer.status === 'idle') return;
         output.rollbackPending();
         reset();
     }
 
     function reset() {
-        toolStore.state.status = 'idle';
-        toolStore.state.pointerId = null;
-        toolStore.state.startPoint = null;
-        toolStore.state.lastPoint = null;
-        toolStore.state.selectionMode = null;
+        toolStore.pointer.status = 'idle';
+        toolStore.pointer.id = null;
+        toolStore.pointer.start = null;
+        toolStore.pointer.current = null;
         toolStore.visited.clear();
         toolStore.selectOverlayLayerIds.clear();
         toolStore.selectionBeforeDrag.clear();

@@ -1,21 +1,19 @@
 import { defineStore } from 'pinia';
-import { useSelectionStore } from './selection';
 import { useStageStore } from './stage';
 import { clamp } from '../utils';
 
 export const useToolStore = defineStore('tool', {
     state: () => ({
-        tool: 'draw', // 'draw' | 'erase' | 'select' | 'globalErase'
-        toolShape: 'stroke', // 'stroke' | 'rect'
+        static: 'draw',
+        shape: 'stroke',
         ctrlHeld: false,
         shiftHeld: false,
         // pointer interaction state
-        state: {
-            status: 'idle', // 'idle' | 'stroke' | 'rect'
-            startPoint: null,
-            pointerId: null,
-            selectionMode: null, // 'add' | 'remove'
-            lastPoint: null,
+        pointer: {
+            status: 'idle',
+            start: null,
+            id: null,
+            current: null,
         },
         hoverLayerId: null,
         selectionBeforeDrag: new Set(),
@@ -23,44 +21,37 @@ export const useToolStore = defineStore('tool', {
         visited: new Set(),
     }),
     getters: {
-        currentMode() {
-            const selection = useSelectionStore();
-            return selection.size === 1 ? 'single' : 'multi';
-        },
-        effectiveMode() {
-            if (this.currentMode === 'single' && this.shiftHeld) {
-                return 'multi';
+        expected() {
+            if (this.pointer.status !== 'idle') {
+                return this.pointer.status.split(':')[0];
             }
-            return this.currentMode;
-        },
-        effectiveTool() {
-            if (this.shiftHeld) return 'select';
-            if (this.ctrlHeld) {
-                if (this.currentMode === 'single' && (this.tool === 'draw' || this.tool === 'erase')) {
-                    return this.tool === 'draw' ? 'erase' : 'draw';
-                }
-                if (this.currentMode === 'multi' && (this.tool === 'select' || this.tool === 'globalErase')) {
-                    return this.tool === 'select' ? 'globalErase' : 'select';
-                }
+            let tool = this.static;
+            if (this.shiftHeld) {
+                tool = 'select';
+            } else if (this.ctrlHeld) {
+                if (tool === 'draw') tool = 'erase';
+                else if (tool === 'erase') tool = 'draw';
+                else if (tool === 'select') tool = 'globalErase';
+                else if (tool === 'globalErase') tool = 'select';
             }
-            return this.tool;
+            return tool;
         },
-        isDraw() { return this.effectiveTool === 'draw'; },
-        isErase() { return this.effectiveTool === 'erase'; },
-        isSelect() { return this.effectiveTool === 'select'; },
-        isGlobalErase() { return this.effectiveTool === 'globalErase'; },
-        isStroke: (state) => state.toolShape === 'stroke',
-        isRect: (state) => state.toolShape === 'rect',
+        isDraw() { return this.expected === 'draw'; },
+        isErase() { return this.expected === 'erase'; },
+        isSelect() { return this.expected === 'select'; },
+        isGlobalErase() { return this.expected === 'globalErase'; },
+        isStroke: (state) => state.shape === 'stroke',
+        isRect: (state) => state.shape === 'rect',
         marquee() {
             const stage = useStageStore();
-            const s = this.state;
-            if (s.status !== 'rect' || !s.startPoint || !s.lastPoint) {
+            const s = this.pointer;
+            if (this.shape !== 'rect' || !s.start || !s.current) {
                 return { visible: false, x: 0, y: 0, w: 0, h: 0 };
             }
-            const left = Math.min(s.startPoint.x, s.lastPoint.x) - stage.canvas.x;
-            const top = Math.min(s.startPoint.y, s.lastPoint.y) - stage.canvas.y;
-            const right = Math.max(s.startPoint.x, s.lastPoint.x) - stage.canvas.x;
-            const bottom = Math.max(s.startPoint.y, s.lastPoint.y) - stage.canvas.y;
+            const left = Math.min(s.start.x, s.current.x) - stage.canvas.x;
+            const top = Math.min(s.start.y, s.current.y) - stage.canvas.y;
+            const right = Math.max(s.start.x, s.current.x) - stage.canvas.x;
+            const bottom = Math.max(s.start.y, s.current.y) - stage.canvas.y;
             const minX = Math.floor(left / stage.canvas.scale),
                   maxX = Math.floor((right - 1) / stage.canvas.scale);
             const minY = Math.floor(top / stage.canvas.scale),
@@ -79,11 +70,11 @@ export const useToolStore = defineStore('tool', {
         },
     },
     actions: {
-        setTool(newTool) {
-            this.tool = newTool;
+        setStatic(newTool) {
+            this.static = newTool;
         },
-        setToolShape(shape) {
-            this.toolShape = (shape === 'rect') ? 'rect' : 'stroke';
+        setShape(shape) {
+            this.shape = shape === 'rect' ? 'rect' : 'stroke';
         },
         setCtrlHeld(isHeld) {
             this.ctrlHeld = !!isHeld;
