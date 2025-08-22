@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia';
 import { useSelectionStore } from './selection';
+import { useStageStore } from './stage';
+import { clamp } from '../utils';
 
 export const useToolStore = defineStore('tool', {
     state: () => ({
@@ -12,14 +14,12 @@ export const useToolStore = defineStore('tool', {
             status: 'idle', // 'idle' | 'stroke' | 'rect'
             startPoint: null,
             pointerId: null,
-            isDragging: false,
             selectionMode: null, // 'add' | 'remove'
+            lastPoint: null,
         },
-        marquee: { visible: false, x: 0, y: 0, w: 0, h: 0 },
-        initialSelectionOnDrag: new Set(),
-        addOverlayLayerIds: new Set(),
-        removeOverlayLayerIds: new Set(),
-        lastPoint: null,
+        hoverLayerId: null,
+        selectionBeforeDrag: new Set(),
+        selectOverlayLayerIds: new Set(),
         visited: new Set(),
     }),
     getters: {
@@ -51,6 +51,32 @@ export const useToolStore = defineStore('tool', {
         isGlobalErase() { return this.effectiveTool === 'globalErase'; },
         isStroke: (state) => state.toolShape === 'stroke',
         isRect: (state) => state.toolShape === 'rect',
+        marquee() {
+            const stage = useStageStore();
+            const s = this.state;
+            if (s.status !== 'rect' || !s.startPoint || !s.lastPoint) {
+                return { visible: false, x: 0, y: 0, w: 0, h: 0 };
+            }
+            const left = Math.min(s.startPoint.x, s.lastPoint.x) - stage.canvas.x;
+            const top = Math.min(s.startPoint.y, s.lastPoint.y) - stage.canvas.y;
+            const right = Math.max(s.startPoint.x, s.lastPoint.x) - stage.canvas.x;
+            const bottom = Math.max(s.startPoint.y, s.lastPoint.y) - stage.canvas.y;
+            const minX = Math.floor(left / stage.canvas.scale),
+                  maxX = Math.floor((right - 1) / stage.canvas.scale);
+            const minY = Math.floor(top / stage.canvas.scale),
+                  maxY = Math.floor((bottom - 1) / stage.canvas.scale);
+            const minx = clamp(minX, 0, stage.canvas.width - 1),
+                  maxx = clamp(maxX, 0, stage.canvas.width - 1);
+            const miny = clamp(minY, 0, stage.canvas.height - 1),
+                  maxy = clamp(maxY, 0, stage.canvas.height - 1);
+            return {
+                visible: true,
+                x: minx,
+                y: miny,
+                w: (maxx >= minx) ? (maxx - minx + 1) : 0,
+                h: (maxy >= miny) ? (maxy - miny + 1) : 0,
+            };
+        },
     },
     actions: {
         setTool(newTool) {
