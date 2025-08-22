@@ -1,6 +1,4 @@
 import { defineStore } from 'pinia';
-import { useStageStore } from './stage';
-import { clamp } from '../utils';
 
 export const useToolStore = defineStore('tool', {
     state: () => ({
@@ -42,32 +40,7 @@ export const useToolStore = defineStore('tool', {
         isGlobalErase() { return this.expected === 'globalErase'; },
         isStroke: (state) => state.shape === 'stroke',
         isRect: (state) => state.shape === 'rect',
-        marquee() {
-            const stage = useStageStore();
-            const s = this.pointer;
-            if (this.shape !== 'rect' || !s.start || !s.current) {
-                return { visible: false, x: 0, y: 0, w: 0, h: 0 };
-            }
-            const left = Math.min(s.start.x, s.current.x) - stage.canvas.x;
-            const top = Math.min(s.start.y, s.current.y) - stage.canvas.y;
-            const right = Math.max(s.start.x, s.current.x) - stage.canvas.x;
-            const bottom = Math.max(s.start.y, s.current.y) - stage.canvas.y;
-            const minX = Math.floor(left / stage.canvas.scale),
-                  maxX = Math.floor((right - 1) / stage.canvas.scale);
-            const minY = Math.floor(top / stage.canvas.scale),
-                  maxY = Math.floor((bottom - 1) / stage.canvas.scale);
-            const minx = clamp(minX, 0, stage.canvas.width - 1),
-                  maxx = clamp(maxX, 0, stage.canvas.width - 1);
-            const miny = clamp(minY, 0, stage.canvas.height - 1),
-                  maxy = clamp(maxY, 0, stage.canvas.height - 1);
-            return {
-                visible: true,
-                x: minx,
-                y: miny,
-                w: (maxx >= minx) ? (maxx - minx + 1) : 0,
-                h: (maxy >= miny) ? (maxy - miny + 1) : 0,
-            };
-        },
+        selectOverlaySize: (state) => state.selectOverlayLayerIds.size,
     },
     actions: {
         setStatic(newTool) {
@@ -81,6 +54,60 @@ export const useToolStore = defineStore('tool', {
         },
         setShiftHeld(isHeld) {
             this.shiftHeld = !!isHeld;
+        },
+        setHoverLayer(id) {
+            this.hoverLayerId = id;
+        },
+        beginPointer(status, start) {
+            this.pointer.status = status;
+            this.pointer.start = start;
+            this.pointer.current = null;
+            this.pointer.id = null;
+        },
+        setPointerId(id) {
+            this.pointer.id = id;
+        },
+        setPointerCurrent(pos) {
+            this.pointer.current = pos;
+        },
+        resetPointer() {
+            this.pointer.status = 'idle';
+            this.pointer.start = null;
+            this.pointer.id = null;
+            this.pointer.current = null;
+        },
+        addVisited(key) {
+            this.visited.add(key);
+        },
+        hasVisited(key) {
+            return this.visited.has(key);
+        },
+        clearVisited() {
+            this.visited.clear();
+        },
+        forEachVisited(cb) {
+            this.visited.forEach(cb);
+        },
+        setSelectionBeforeDrag(ids) {
+            this.selectionBeforeDrag = new Set(ids);
+        },
+        hasSelectionBeforeDrag(id) {
+            return this.selectionBeforeDrag.has(id);
+        },
+        clearSelectionBeforeDrag() {
+            this.selectionBeforeDrag.clear();
+        },
+        addSelectOverlay(id) {
+            this.selectOverlayLayerIds.add(id);
+        },
+        removeSelectOverlay(id) {
+            this.selectOverlayLayerIds.delete(id);
+        },
+        clearSelectOverlay() {
+            this.selectOverlayLayerIds.clear();
+        },
+        forEachSelectOverlay(cb) {
+            this.selectOverlayLayerIds.forEach(cb);
         },
     }
 });
