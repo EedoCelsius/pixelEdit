@@ -112,17 +112,20 @@ const updateMarquee = (e) => {
 };
   
 const onPointerDown = (e) => {
+  updateCanvasPosition();
     updateMarquee(e);
     if (toolStore.isSelect) selectSvc.toolStart(e);
     else pixelSvc.toolStart(e);
 };
 const onPointerMove = (e) => {
+  updateCanvasPosition();
     updateHover(e);
     updateMarquee(e);
     if (toolStore.isSelect) selectSvc.toolMove(e);
     else pixelSvc.toolMove(e);
 };
 const onPointerUp = (e) => {
+  updateCanvasPosition();
     updateMarquee(e);
     if (toolStore.isSelect) selectSvc.toolFinish(e);
     else pixelSvc.toolFinish(e);
