@@ -150,7 +150,7 @@ function deleteLayer(id) {
     const targets = selection.has(id) ? selection.asArray : [id];
     const belowId = layers.belowId(layers.lowermostIdOf(targets));
     layers.deleteLayers(targets);
-    const newSelectId = layers.get(belowId) ? belowId : layers.lowermostId;
+    const newSelectId = layers.has(belowId) ? belowId : layers.lowermostId;
     selection.selectOnly(newSelectId);
     if (newSelectId) {
         selection.setScrollRule({

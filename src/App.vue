@@ -97,7 +97,7 @@ function onKeydown(event) {
       output.setRollbackPoint();
       const belowId = layers.belowId(layers.lowermostIdOf(selection.asArray));
       layerSvc.deleteSelected();
-      const newSelect = layers.nameOf(belowId) != null ? belowId : layers.lowermostId;
+      const newSelect = layers.has(belowId) ? belowId : layers.lowermostId;
       selection.selectOnly(newSelect);
       selection.setScrollRule({ type: "follow", target: newSelect });
       output.commit();
