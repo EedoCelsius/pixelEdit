@@ -4,7 +4,7 @@
       <!-- 썸네일 -->
       <div @click.stop="onThumbnailClick(id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 크기의 모든 레이어 선택">
         <svg :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
-          <rect x="0" y="0" :width="stageStore.width" :height="stageStore.height" :fill="patternUrl"/>
+          <rect x="0" y="0" :width="stageStore.stage.width" :height="stageStore.stage.height" :fill="patternUrl"/>
           <path :d="layerSvc.pathOf(id)" :fill="rgbaCssU32(layerSvc.colorOf(id))" :opacity="layerSvc.visibleOf(id)?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
         </svg>
       </div>

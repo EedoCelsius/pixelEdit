@@ -3,7 +3,7 @@
     <div class="flex flex-col gap-1">
       <!-- 결과 -->
       <svg v-show="stageStore.displayMode!=='result'" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-44 h-44 rounded-md border border-white/15">
-        <rect x="0" y="0" :width="stageStore.width" :height="stageStore.height" :fill="patternUrl"/>
+        <rect x="0" y="0" :width="stageStore.stage.width" :height="stageStore.stage.height" :fill="patternUrl"/>
         <g>
           <path v-for="id in layerSvc.idsBottomToTop" :key="'pix-'+id" :d="layerSvc.pathOf(id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(layerSvc.colorOf(id))" :visibility="layerSvc.visibleOf(id)?'visible':'hidden'"></path>
         </g>

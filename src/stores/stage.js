@@ -3,9 +3,13 @@ import { useSelectionStore } from './selection';
 
 export const useStageStore = defineStore('stage', {
     state: () => ({
-        width: 16,
-        height: 16,
-        scale: 16,
+        stage: {
+            x: 0,
+            y: 0,
+            width: 16,
+            height: 16,
+            scale: 16,
+        },
         displayMode: 'result', // 'result' | 'original'
         imageSrc: '',
         pixelInfo: '-',
@@ -16,9 +20,9 @@ export const useStageStore = defineStore('stage', {
     }),
     getters: {
         // Canvas dimensions
-        pixelWidth: (state) => state.width * state.scale,
-        pixelHeight: (state) => state.height * state.scale,
-        viewBox: (state) => `0 0 ${state.width} ${state.height}`,
+        pixelWidth: (state) => state.stage.width * state.stage.scale,
+        pixelHeight: (state) => state.stage.height * state.stage.scale,
+        viewBox: (state) => `0 0 ${state.stage.width} ${state.stage.height}`,
         // UI labels
         toggleLabel: (state) => state.displayMode === 'original' ? '결과' : '원본',
         // Tool state
@@ -54,15 +58,19 @@ export const useStageStore = defineStore('stage', {
         isGlobalErase() { return this.effectiveTool === 'globalErase'; },
     },
     actions: {
+        setStagePosition(x, y) {
+            this.stage.x = x;
+            this.stage.y = y;
+        },
         setSize(newWidth, newHeight) {
-            this.width = Math.max(1, newWidth | 0);
-            this.height = Math.max(1, newHeight | 0);
+            this.stage.width = Math.max(1, newWidth | 0);
+            this.stage.height = Math.max(1, newHeight | 0);
         },
         setImage(src) {
             this.imageSrc = src || '';
         },
         setScale(newScale) {
-            this.scale = Math.max(1, newScale | 0);
+            this.stage.scale = Math.max(1, newScale | 0);
         },
         toggleView() {
             this.displayMode = (this.displayMode === 'original') ? 'result' : 'original';

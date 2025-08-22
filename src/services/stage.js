@@ -97,7 +97,7 @@ export const useStageService = defineStore('stageService', () => {
         const padding = 20;
         const maxW = (wrapperElement.clientWidth || 0) - padding;
         const maxH = (wrapperElement.clientHeight || 0) - padding - 60;
-        const newScale = Math.floor(Math.min(maxW / Math.max(1, stageStore.width), maxH / Math.max(1, stageStore.height))) || 16;
+        const newScale = Math.floor(Math.min(maxW / Math.max(1, stageStore.stage.width), maxH / Math.max(1, stageStore.stage.height))) || 16;
         stageStore.setScale(Math.max(1, newScale));
     }
     
@@ -190,19 +190,17 @@ export const useStageService = defineStore('stageService', () => {
         document.head.appendChild(style);
     }
 
-    function clientToPixel(event, stageEl) {
-        if (!stageEl) return null;
-        const rect = stageEl.getBoundingClientRect();
-        const x = Math.floor((event.clientX - rect.left) / stageStore.scale);
-        const y = Math.floor((event.clientY - rect.top) / stageStore.scale);
-        if (x < 0 || y < 0 || x >= stageStore.width || y >= stageStore.height) return null;
+    function clientToPixel(event) {
+        const x = Math.floor((event.clientX - stageStore.stage.x) / stageStore.stage.scale);
+        const y = Math.floor((event.clientY - stageStore.stage.y) / stageStore.stage.scale);
+        if (x < 0 || y < 0 || x >= stageStore.stage.width || y >= stageStore.stage.height) return null;
         return { x, y };
     }
 
     // --- Pointer Handlers ---
-    function pointerDown(event, stageEl) {
+    function pointerDown(event) {
         if (event.button !== 0) return;
-        const pixel = clientToPixel(event, stageEl);
+        const pixel = clientToPixel(event);
         if (!pixel) return;
 
         if (stageStore.isSelect) {
@@ -220,7 +218,7 @@ export const useStageService = defineStore('stageService', () => {
         state.isDragging = false;
 
         try {
-            stageEl.setPointerCapture?.(event.pointerId);
+            event.target.setPointerCapture?.(event.pointerId);
             state.pointerId = event.pointerId;
         } catch {}
 
@@ -255,8 +253,8 @@ export const useStageService = defineStore('stageService', () => {
         }
     }
     
-    function pointerMove(event, stageEl) {
-        const pixel = clientToPixel(event, stageEl);
+    function pointerMove(event) {
+        const pixel = clientToPixel(event);
 
         // Update hover info regardless of interaction state
         if (!pixel) {
@@ -287,19 +285,18 @@ export const useStageService = defineStore('stageService', () => {
 
         if (state.isDragging) {
             if (state.status === 'rect') {
-                const rect = stageEl.getBoundingClientRect();
-                const left = Math.min(state.startPoint.x, event.clientX) - rect.left;
-                const top = Math.min(state.startPoint.y, event.clientY) - rect.top;
-                const right = Math.max(state.startPoint.x, event.clientX) - rect.left;
-                const bottom = Math.max(state.startPoint.y, event.clientY) - rect.top;
-                const minX = Math.floor(left / stageStore.scale),
-                    maxX = Math.floor((right - 1) / stageStore.scale);
-                const minY = Math.floor(top / stageStore.scale),
-                    maxY = Math.floor((bottom - 1) / stageStore.scale);
-                const minx = clamp(minX, 0, stageStore.width - 1),
-                    maxx = clamp(maxX, 0, stageStore.width - 1);
-                const miny = clamp(minY, 0, stageStore.height - 1),
-                    maxy = clamp(maxY, 0, stageStore.height - 1);
+                const left = Math.min(state.startPoint.x, event.clientX) - stageStore.stage.x;
+                const top = Math.min(state.startPoint.y, event.clientY) - stageStore.stage.y;
+                const right = Math.max(state.startPoint.x, event.clientX) - stageStore.stage.x;
+                const bottom = Math.max(state.startPoint.y, event.clientY) - stageStore.stage.y;
+                const minX = Math.floor(left / stageStore.stage.scale),
+                    maxX = Math.floor((right - 1) / stageStore.stage.scale);
+                const minY = Math.floor(top / stageStore.stage.scale),
+                    maxY = Math.floor((bottom - 1) / stageStore.stage.scale);
+                const minx = clamp(minX, 0, stageStore.stage.width - 1),
+                    maxx = clamp(maxX, 0, stageStore.stage.width - 1);
+                const miny = clamp(minY, 0, stageStore.stage.height - 1),
+                    maxy = clamp(maxY, 0, stageStore.stage.height - 1);
                 marquee.x = minx;
                 marquee.y = miny;
                 marquee.w = (maxx >= minx) ? (maxx - minx + 1) : 0;
@@ -375,27 +372,26 @@ export const useStageService = defineStore('stageService', () => {
         }
     }
 
-    function getPixelsFromInteraction(event, stageEl) {
+    function getPixelsFromInteraction(event) {
         let pixels = [];
         if (state.status === 'rect') {
-            const rect = stageEl.getBoundingClientRect();
-            const left = Math.min(state.startPoint.x, event.clientX) - rect.left;
-            const top = Math.min(state.startPoint.y, event.clientY) - rect.top;
-            const right = Math.max(state.startPoint.x, event.clientX) - rect.left;
-            const bottom = Math.max(state.startPoint.y, event.clientY) - rect.top;
-            const minX = Math.floor(left / stageStore.scale),
-                maxX = Math.floor((right - 1) / stageStore.scale);
-            const minY = Math.floor(top / stageStore.scale),
-                maxY = Math.floor((bottom - 1) / stageStore.scale);
+            const left = Math.min(state.startPoint.x, event.clientX) - stageStore.stage.x;
+            const top = Math.min(state.startPoint.y, event.clientY) - stageStore.stage.y;
+            const right = Math.max(state.startPoint.x, event.clientX) - stageStore.stage.x;
+            const bottom = Math.max(state.startPoint.y, event.clientY) - stageStore.stage.y;
+            const minX = Math.floor(left / stageStore.stage.scale),
+                maxX = Math.floor((right - 1) / stageStore.stage.scale);
+            const minY = Math.floor(top / stageStore.stage.scale),
+                maxY = Math.floor((bottom - 1) / stageStore.stage.scale);
 
             if (minX > maxX || minY > maxY) {
-                const p = clientToPixel(event, stageEl);
+                const p = clientToPixel(event);
                 if (p) pixels.push([p.x, p.y]);
             } else {
-                const minx = clamp(minX, 0, stageStore.width - 1),
-                    maxx = clamp(maxX, 0, stageStore.width - 1);
-                const miny = clamp(minY, 0, stageStore.height - 1),
-                    maxy = clamp(maxY, 0, stageStore.height - 1);
+                const minx = clamp(minX, 0, stageStore.stage.width - 1),
+                    maxx = clamp(maxX, 0, stageStore.stage.width - 1);
+                const miny = clamp(minY, 0, stageStore.stage.height - 1),
+                    maxy = clamp(maxY, 0, stageStore.stage.height - 1);
                 for (let yy = miny; yy <= maxy; yy++)
                     for (let xx = minx; xx <= maxx; xx++) pixels.push([xx, yy]);
             }
@@ -405,14 +401,14 @@ export const useStageService = defineStore('stageService', () => {
         return pixels;
     }
 
-    function pointerUp(event, stageEl) {
+    function pointerUp(event) {
         if (state.status === 'idle') return;
 
         const wasEditing = stageStore.isDraw || stageStore.isErase || stageStore.isGlobalErase;
         const wasSelecting = stageStore.isSelect;
 
         if (wasSelecting) {
-            const pixel = clientToPixel(event, stageEl);
+            const pixel = clientToPixel(event);
             if (!state.isDragging && pixel) { // It was a click, not a drag
                 const id = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
                 if (event.shiftKey) { // Toggle State click
@@ -427,7 +423,7 @@ export const useStageService = defineStore('stageService', () => {
                     });
                 }
             } else { // It was a drag
-                const pixels = getPixelsFromInteraction(event, stageEl);
+                const pixels = getPixelsFromInteraction(event);
                 if (pixels.length > 0) {
                     const intersectedIds = new Set();
                     for (const [x, y] of pixels) {
@@ -454,7 +450,7 @@ export const useStageService = defineStore('stageService', () => {
             }
         } else { // Draw/Erase tools
             if (state.status === 'rect') {
-                const pixels = getPixelsFromInteraction(event, stageEl);
+                const pixels = getPixelsFromInteraction(event);
                 if (pixels.length > 0) {
                     if (stageStore.isGlobalErase) {
                         if (selection.exists) layerSvc.removePixelsFromSelected(pixels);
@@ -468,7 +464,7 @@ export const useStageService = defineStore('stageService', () => {
         }
 
         try {
-            stageEl?.releasePointerCapture?.(state.pointerId);
+            event.target?.releasePointerCapture?.(state.pointerId);
         } catch {}
 
         // Commit changes and reset state
