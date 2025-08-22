@@ -75,7 +75,7 @@ export const useLayerStore = defineStore('layers', {
             const result = [];
             for (const id of ids) {
                 const layer = this._layersById[id];
-                if (layer) result.push([id, layer]);
+                if (layer) result.push(layer);
             }
             return result;
         },
