@@ -16,37 +16,6 @@ export const useStageService = defineStore('stageService', () => {
     const layerSvc = useLayerService();
     const input = useInputStore();
 
-    // --- Interaction State ---
-    const hoverLayerId = ref(null);
-
-    // --- Keyboard State & Handlers ---
-    let ctrlKeyDownTimestamp = 0;
-    const KEY_TAP_MS = 200;
-
-    function ctrlKeyDown() {
-        if (!toolStore.ctrlHeld) {
-            ctrlKeyDownTimestamp = performance.now();
-            toolStore.setCtrlHeld(true);
-        }
-    }
-    function ctrlKeyUp() {
-        if (performance.now() - ctrlKeyDownTimestamp < KEY_TAP_MS) {
-            if (toolStore.currentMode === 'single') {
-                if (toolStore.tool === 'draw' || toolStore.tool === 'erase') {
-                    toolStore.setTool(toolStore.tool === 'draw' ? 'erase' : 'draw');
-                }
-            } else { // multi mode
-                if (toolStore.tool === 'select' || toolStore.tool === 'globalErase') {
-                    toolStore.setTool(toolStore.tool === 'select' ? 'globalErase' : 'select');
-                }
-            }
-        }
-        toolStore.setCtrlHeld(false);
-        ctrlKeyDownTimestamp = 0;
-    }
-    function shiftKeyDown() { toolStore.setShiftHeld(true); }
-    function shiftKeyUp() { toolStore.setShiftHeld(false); }
-
     // --- Auto-tool switching on mode change ---
     watch(() => toolStore.currentMode, (newMode) => {
         if (newMode === 'single') {
@@ -61,18 +30,10 @@ export const useStageService = defineStore('stageService', () => {
     }, { immediate: true });
 
     // --- Overlay Paths ---
-    const addOverlayPath = computed(() => {
-        if (!toolStore.addOverlayLayerIds.size) return '';
+    const selectOverlayPath = computed(() => {
+        if (!toolStore.selectOverlayLayerIds.size) return '';
         const pixelUnionSet = new Set();
-        for (const id of toolStore.addOverlayLayerIds) {
-            layerSvc.layerById(id)?.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y)));
-        }
-        return pixelsToUnionPath(pixelUnionSet);
-    });
-    const removeOverlayPath = computed(() => {
-        if (!toolStore.removeOverlayLayerIds.size) return '';
-        const pixelUnionSet = new Set();
-        for (const id of toolStore.removeOverlayLayerIds) {
+        for (const id of toolStore.selectOverlayLayerIds) {
             layerSvc.layerById(id)?.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y)));
         }
         return pixelsToUnionPath(pixelUnionSet);
@@ -143,29 +104,6 @@ export const useStageService = defineStore('stageService', () => {
         return id;
     }
 
-    function bresenhamLine(x0, y0, x1, y1) {
-        const points = [];
-        let deltaX = Math.abs(x1 - x0),
-            stepX = x0 < x1 ? 1 : -1;
-        let deltaY = -Math.abs(y1 - y0),
-            stepY = y0 < y1 ? 1 : -1;
-        let error = deltaX + deltaY;
-        while (true) {
-            points.push([x0, y0]);
-            if (x0 === x1 && y0 === y1) break;
-            const error2 = 2 * error;
-            if (error2 >= deltaY) {
-                error += deltaY;
-                x0 += stepX;
-            }
-            if (error2 <= deltaX) {
-                error += deltaX;
-                y0 += stepY;
-            }
-        }
-        return points;
-    }
-
     function ensureStagePointerStyles() {
         if (document.getElementById('stage-style-fix')) return;
         const style = document.createElement('style');
@@ -188,7 +126,7 @@ export const useStageService = defineStore('stageService', () => {
         const pixel = clientToPixel(event);
         if (!pixel) {
             stageStore.updatePixelInfo('-');
-            hoverLayerId.value = null;
+            toolStore.hoverLayerId = null;
             return;
         }
         if (stageStore.display === 'original' && input.hasImage) {
@@ -199,9 +137,9 @@ export const useStageService = defineStore('stageService', () => {
             stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssU32(colorU32)}`);
         }
         if (toolStore.isSelect) {
-            hoverLayerId.value = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
+            toolStore.hoverLayerId = layerSvc.topVisibleLayerIdAt(pixel.x, pixel.y);
         } else {
-            hoverLayerId.value = null;
+            toolStore.hoverLayerId = null;
         }
     }
 
@@ -241,7 +179,7 @@ export const useStageService = defineStore('stageService', () => {
         const shape = toolStore.toolShape;
 
         if (tool === 'select') {
-            const isRemoving = toolStore.shiftHeld && selection.has(hoverLayerId.value);
+            const isRemoving = toolStore.shiftHeld && selection.has(toolStore.hoverLayerId);
             if (shape === 'stroke') {
                 return isRemoving ? CURSOR_CONFIG.REMOVE_STROKE : CURSOR_CONFIG.ADD_STROKE;
             }
@@ -261,22 +199,13 @@ export const useStageService = defineStore('stageService', () => {
 
     return {
         // interaction state
-        hoverLayerId,
-        addOverlayPath,
-        removeOverlayPath,
-        isDragging: computed(() => toolStore.state.isDragging),
+        selectOverlayPath,
         cursor,
         // methods
         recalcScale,
         updateHover,
         clientToPixel,
         getPixelsFromInteraction,
-        bresenhamLine,
-        // keyboard handlers
-        ctrlKeyDown,
-        ctrlKeyUp,
-        shiftKeyDown,
-        shiftKeyUp,
         // utils for components
         ensureCheckerboardPattern,
         ensureStagePointerStyles,
