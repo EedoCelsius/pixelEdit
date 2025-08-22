@@ -40,7 +40,7 @@ const selection = useSelectionStore();
 const selectables = ref([]);
 watch(() => selection.size, (size) => {
   selectables.value = size === 1 ? ['draw', 'erase'] : ['select', 'globalErase'];
-  if (!tools.value.includes(toolStore.static)) {
+  if (!selectables.value.includes(toolStore.static)) {
     toolStore.setStatic(size === 1 ? 'draw' : 'select');
   }
 }, { immediate: true });
