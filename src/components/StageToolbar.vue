@@ -18,9 +18,9 @@
 
     <!-- Tool Toggles -->
     <div class="inline-flex rounded-md overflow-hidden border border-white/15">
-      <button v-for="t in tools" :key="t"
-              @click="toolStore.setStatic(t)"
-              :class="`px-2 py-1 text-xs ${toolStore.expected === t ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+      <button v-for="tool in selectables" :key="t"
+              @click="toolStore.setStatic(tool)"
+              :class="`px-2 py-1 text-xs ${toolStore.expected === tool ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
         {{ t.charAt(0).toUpperCase() + t.slice(1) }}
       </button>
     </div>
@@ -37,13 +37,11 @@ const stageStore = useStageStore();
 const toolStore = useToolStore();
 const selection = useSelectionStore();
 
-const tools = ref([]);
+const selectables = ref([]);
 watch(() => selection.size, (size) => {
-  const multi = size !== 1;
-  tools.value = multi ? ['select', 'globalErase'] : ['draw', 'erase'];
-  const defaultTool = multi ? 'select' : 'draw';
+  selectables.value = size === 1 ? ['draw', 'erase'] : ['select', 'globalErase'];
   if (!tools.value.includes(toolStore.static)) {
-    toolStore.setStatic(defaultTool);
+    toolStore.setStatic(size === 1 ? 'draw' : 'select');
   }
 }, { immediate: true });
 </script>
