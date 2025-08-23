@@ -235,11 +235,15 @@ const overlayStyle = computed(() => (
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
 
+
 const centerStage = () => {
-  const rect = containerEl.value?.getBoundingClientRect();
-  if (!rect) return;
-  offset.x = (rect.width - stageStore.pixelWidth) / 2;
-  offset.y = (rect.height - stageStore.pixelHeight) / 2;
+  const el = containerEl.value;
+  if (!el) return;
+  const style = getComputedStyle(el);
+  const width = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+  const height = el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+  offset.x = (width - stageStore.pixelWidth) / 2;
+  offset.y = (height - stageStore.pixelHeight) / 2;
 };
 const updateCanvasPosition = () => {
     const rect = stageEl.value?.getBoundingClientRect();
@@ -248,13 +252,13 @@ const updateCanvasPosition = () => {
 
 const onResize = () => {
     stageService.recalcScale(containerEl.value);
-    centerStage();
     updateCanvasPosition();
+    centerStage();
 }
   
 const resizeObserver = new ResizeObserver(onResize);
 onMounted(() => {
-    requestAnimationFrame(onResize)
+    requestAnimationFrame(onResize);
     resizeObserver.observe(containerEl.value);
 });
 onUnmounted(resizeObserver.disconnect);
