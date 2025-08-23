@@ -197,7 +197,7 @@ const onWheel = (e) => {
   offset.x = px - ratio * (px - offset.x);
   offset.y = py - ratio * (py - offset.y);
   stageStore.setScale(clamped);
-  if (newScale < oldScale) containStage();
+  if (newScale < oldScale) positionStage();
   updateCanvasPosition();
 };
 
@@ -219,7 +219,7 @@ const handlePinch = () => {
   offset.y = cy - ratio * (cy - offset.y);
   stageStore.setScale(clamped);
   lastTouchDistance = dist;
-  if (newScale < oldScale) containStage();
+  if (newScale < oldScale) positionStage();
   updateCanvasPosition();
 };
 
@@ -251,7 +251,7 @@ const helperOverlay = computed(() => {
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
 
-const containStage = () => {
+const positionStage = (center = false) => {
   const el = containerEl.value;
   const style = getComputedStyle(el);
   const width = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
@@ -260,9 +260,14 @@ const containStage = () => {
   const maxY = height - stageStore.pixelHeight;
   const targetX = maxX >= 0 ? maxX / 2 : clamp(offset.x, maxX, 0);
   const targetY = maxY >= 0 ? maxY / 2 : clamp(offset.y, maxY, 0);
-  const strength = (stageStore.canvas.minScale / stageStore.canvas.scale) ** 2;
-  offset.x += (targetX - offset.x) * strength;
-  offset.y += (targetY - offset.y) * strength;
+  if (center) {
+    offset.x = targetX;
+    offset.y = targetY;
+  } else {
+    const strength = (stageStore.canvas.minScale / stageStore.canvas.scale) ** 2;
+    offset.x += (targetX - offset.x) * strength;
+    offset.y += (targetY - offset.y) * strength;
+  }
 };
 const updateCanvasPosition = () => {
     const el = containerEl.value;
@@ -276,14 +281,14 @@ const updateCanvasPosition = () => {
 const onDomResize = () => {
     stageService.recalcMinScale(containerEl.value);
     stageStore.setScale(stageStore.canvas.containScale);
-    containStage();
+    positionStage(true);
     updateCanvasPosition();
 };
 
 const onImageLoad = () => {
     stageService.recalcMinScale(containerEl.value);
     stageStore.setScale(stageStore.canvas.containScale);
-    containStage();
+    positionStage(true);
     updateCanvasPosition();
 };
 
