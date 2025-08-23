@@ -196,8 +196,8 @@ const onWheel = (e) => {
   offset.x = px - ratio * (px - offset.x);
   offset.y = py - ratio * (py - offset.y);
   stageStore.setScale(clamped);
-  updateCanvasPosition();
   if (clamped <= oldScale) containStage();
+  updateCanvasPosition();
 };
 
 const handlePinch = () => {
@@ -218,8 +218,8 @@ const handlePinch = () => {
   offset.y = cy - ratio * (cy - offset.y);
   stageStore.setScale(clamped);
   lastTouchDistance = dist;
-  updateCanvasPosition();
   if (clamped <= oldScale) containStage();
+  updateCanvasPosition();
 };
 
 const selectionPath = computed(() => layerSvc.selectionPath());
@@ -262,8 +262,13 @@ const containStage = () => {
   offset.y = maxY >= 0 ? maxY / 2 : clamp(offset.y, maxY, 0);
 };
 const updateCanvasPosition = () => {
-    const rect = stageEl.value?.getBoundingClientRect();
-    if (rect) stageStore.setCanvasPosition(rect.left, rect.top);
+    const el = containerEl.value;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    const left = rect.left + parseFloat(style.paddingLeft);
+    const top = rect.top + parseFloat(style.paddingTop);
+    stageStore.setCanvasPosition(left + offset.x, top + offset.y);
 };
 
 let initialLoad = true;
@@ -271,8 +276,8 @@ let initialLoad = true;
 const onResize = () => {
     const containScale = stageService.recalcScale(containerEl.value);
     if (initialLoad) stageStore.setScale(containScale);
-    updateCanvasPosition();
     containStage();
+    updateCanvasPosition();
     if (initialLoad) initialLoad = false;
 }
 
