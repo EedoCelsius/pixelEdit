@@ -184,8 +184,8 @@ const onWheel = (e) => {
   offset.x = px - ratio * (px - offset.x);
   offset.y = py - ratio * (py - offset.y);
   stageStore.setScale(clamped);
-  containStage();
   updateCanvasPosition();
+  containStage();
 };
 
 const handlePinch = () => {
@@ -206,8 +206,8 @@ const handlePinch = () => {
   offset.y = cy - ratio * (cy - offset.y);
   stageStore.setScale(clamped);
   lastTouchDistance = dist;
-  containStage();
   updateCanvasPosition();
+  containStage();
 };
 
 const selectionPath = computed(() => layerSvc.selectionPath());
@@ -238,7 +238,6 @@ const helperOverlay = computed(() => {
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
 
-
 const containStage = () => {
   const el = containerEl.value;
   if (!el) return;
@@ -257,8 +256,8 @@ const updateCanvasPosition = () => {
 
 const onResize = () => {
     stageService.recalcScale(containerEl.value);
-    containStage();
     updateCanvasPosition();
+    containStage();
 }
   
 const resizeObserver = new ResizeObserver(onResize);
