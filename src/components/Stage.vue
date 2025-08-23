@@ -277,7 +277,7 @@ const updateCanvasPosition = () => {
 let initialLoad = true;
 
 const onDomResize = () => {
-    const containScale = stageService.recalcScale(containerEl.value);
+    const containScale = stageService.recalcMinScale(containerEl.value);
     if (initialLoad) stageStore.setScale(containScale);
     containStage(true);
     updateCanvasPosition();
