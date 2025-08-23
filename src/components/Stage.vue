@@ -274,14 +274,14 @@ const updateCanvasPosition = () => {
 
 const onDomResize = () => {
     stageService.recalcMinScale(containerEl.value);
-    stageStore.setScale(stageStore.canvas.minScale);
+    stageStore.setScale(stageStore.canvas.containScale);
     containStage();
     updateCanvasPosition();
 };
 
 const onImageLoad = () => {
     stageService.recalcMinScale(containerEl.value);
-    stageStore.setScale(stageStore.canvas.minScale);
+    stageStore.setScale(stageStore.canvas.containScale);
     containStage();
     updateCanvasPosition();
 };
