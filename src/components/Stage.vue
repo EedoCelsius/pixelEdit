@@ -77,7 +77,7 @@ import { useSelectionStore } from '../stores/selection';
 import { useInputStore } from '../stores/input';
 import { useSelectService } from '../services/select';
 import { usePixelService } from '../services/pixel';
-import { rgbaCssU32, rgbaCssObj, calcMarquee } from '../utils';
+import { rgbaCssU32, rgbaCssObj, calcMarquee, clamp } from '../utils';
 import { OVERLAY_CONFIG } from '../constants';
 
 const stageStore = useStageStore();
@@ -184,6 +184,7 @@ const onWheel = (e) => {
   offset.x = px - ratio * (px - offset.x);
   offset.y = py - ratio * (py - offset.y);
   stageStore.setScale(clamped);
+  containStage();
   updateCanvasPosition();
 };
 
@@ -205,6 +206,7 @@ const handlePinch = () => {
   offset.y = cy - ratio * (cy - offset.y);
   stageStore.setScale(clamped);
   lastTouchDistance = dist;
+  containStage();
   updateCanvasPosition();
 };
 
@@ -236,14 +238,16 @@ const overlayStyle = computed(() => (
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
 
 
-const centerStage = () => {
+const containStage = () => {
   const el = containerEl.value;
   if (!el) return;
   const style = getComputedStyle(el);
   const width = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
   const height = el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-  offset.x = (width - stageStore.pixelWidth) / 2;
-  offset.y = (height - stageStore.pixelHeight) / 2;
+  const maxX = width - stageStore.pixelWidth;
+  const maxY = height - stageStore.pixelHeight;
+  offset.x = maxX >= 0 ? maxX / 2 : clamp(offset.x, maxX, 0);
+  offset.y = maxY >= 0 ? maxY / 2 : clamp(offset.y, maxY, 0);
 };
 const updateCanvasPosition = () => {
     const rect = stageEl.value?.getBoundingClientRect();
@@ -252,8 +256,8 @@ const updateCanvasPosition = () => {
 
 const onResize = () => {
     stageService.recalcScale(containerEl.value);
+    containStage();
     updateCanvasPosition();
-    centerStage();
 }
   
 const resizeObserver = new ResizeObserver(onResize);
