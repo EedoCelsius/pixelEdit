@@ -178,11 +178,12 @@ const onWheel = (e) => {
   const py = e.clientY - rect.top;
   const oldScale = stageStore.canvas.scale;
   const factor = e.deltaY < 0 ? 1.1 : 0.9;
-  const newScale = Math.max(1, Math.round(oldScale * factor));
-  const ratio = newScale / oldScale;
+  const newScale = Math.round(oldScale * factor);
+  const clamped = Math.max(stageStore.canvas.minScale, newScale);
+  const ratio = clamped / oldScale;
   offset.x = px - ratio * (px - offset.x);
   offset.y = py - ratio * (py - offset.y);
-  stageStore.setScale(newScale);
+  stageStore.setScale(clamped);
   updateCanvasPosition();
 };
 
@@ -197,11 +198,12 @@ const handlePinch = () => {
     return;
   }
   const oldScale = stageStore.canvas.scale;
-  const newScale = Math.max(1, Math.round(oldScale * (dist / lastTouchDistance)));
-  const ratio = newScale / oldScale;
+  const newScale = Math.round(oldScale * (dist / lastTouchDistance));
+  const clamped = Math.max(stageStore.canvas.minScale, newScale);
+  const ratio = clamped / oldScale;
   offset.x = cx - ratio * (cx - offset.x);
   offset.y = cy - ratio * (cy - offset.y);
-  stageStore.setScale(newScale);
+  stageStore.setScale(clamped);
   lastTouchDistance = dist;
   updateCanvasPosition();
 };
