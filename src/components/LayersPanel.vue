@@ -64,9 +64,9 @@ const dragId = ref(null);
 const editingId = ref(null);
 const listElement = ref(null);
 const icons = reactive({
-    show: './image/show.svg',
-    hide: './image/hide.svg',
-    del: './image/delete.svg'
+    show: '/image/layer_block/show.svg',
+    hide: '/image/layer_block/hide.svg',
+    del: '/image/layer_block/delete.svg'
 });
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);

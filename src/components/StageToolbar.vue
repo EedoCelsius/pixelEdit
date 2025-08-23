@@ -1,41 +1,48 @@
 <template>
-  <div class="flex items-center gap-2 p-2 flex-wrap">
-    <button @click="stageStore.toggleView" class="inline-flex items-center px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">{{ stageStore.toggleLabel }}</button>
+    <div class="flex items-center gap-2 p-2 flex-wrap">
+      <button @click="stageStore.toggleView" class="inline-flex items-center px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">{{ stageStore.toggleLabel }}</button>
 
-    <div class="h-4 w-px bg-white/10 mx-1"></div>
+      <div class="h-4 w-px bg-white/10 mx-1"></div>
 
-    <!-- Shape toggle -->
-    <div class="inline-flex rounded-md overflow-hidden border border-white/15">
-      <button @click="toolStore.setShape('stroke')"
-              :class="`px-2 py-1 text-xs ${toolStore.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
-        Stroke
-      </button>
-      <button @click="toolStore.setShape('rect')"
-              :class="`px-2 py-1 text-xs ${toolStore.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
-        Rect
-      </button>
+      <!-- Shape toggle -->
+      <div class="inline-flex rounded-md overflow-hidden border border-white/15">
+        <button @click="toolStore.setShape('stroke')"
+                :class="`px-2 py-1 text-xs ${toolStore.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+          Stroke
+        </button>
+        <button @click="toolStore.setShape('rect')"
+                :class="`px-2 py-1 text-xs ${toolStore.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+          Rect
+        </button>
+      </div>
+
+      <!-- Tool Toggles -->
+      <div class="inline-flex rounded-md overflow-hidden border border-white/15">
+        <button v-for="tool in selectables" :key="tool.type"
+                @click="toolStore.setStatic(tool.type)"
+                :class="`px-2 py-1 text-xs ${toolStore.expected === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+          {{ tool.name }}
+        </button>
+      </div>
+
+      <div class="flex-1"></div>
+
+      <button @click="undo" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">↶ Undo</button>
+      <button @click="redo" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">Redo ↷</button>
     </div>
-
-    <!-- Tool Toggles -->
-    <div class="inline-flex rounded-md overflow-hidden border border-white/15">
-      <button v-for="tool in selectables" :key="tool.type"
-              @click="toolStore.setStatic(tool.type)"
-              :class="`px-2 py-1 text-xs ${toolStore.expected === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
-        {{ tool.name }}
-      </button>
-    </div>
-  </div>
-</template>
+  </template>
 
 <script setup>
 import { reactive, watch } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useSelectionStore } from '../stores/selection';
+import { useOutputStore } from '../stores/output';
 
 const stageStore = useStageStore();
 const toolStore = useToolStore();
 const selection = useSelectionStore();
+const output = useOutputStore();
 
 const selectables = reactive([]);
 watch(() => selection.count, (size) => {
@@ -46,6 +53,9 @@ watch(() => selection.count, (size) => {
     toolStore.setStatic(size === 1 ? 'draw' : 'select');
   }
 }, { immediate: true });
+
+const undo = () => output.undo();
+const redo = () => output.redo();
 
 // Keyboard handlers
 let ctrlKeyDownTimestamp = 0;
