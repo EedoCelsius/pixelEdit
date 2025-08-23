@@ -196,7 +196,7 @@ const onWheel = (e) => {
   offset.x = px - ratio * (px - offset.x);
   offset.y = py - ratio * (py - offset.y);
   stageStore.setScale(clamped);
-  containStage();
+  if (0 < e.deltaY) containStage();
   updateCanvasPosition();
 };
 
@@ -218,7 +218,7 @@ const handlePinch = () => {
   offset.y = cy - ratio * (cy - offset.y);
   stageStore.setScale(clamped);
   lastTouchDistance = dist;
-  containStage();
+  if (0 < e.deltaY) containStage();
   updateCanvasPosition();
 };
 
@@ -252,7 +252,6 @@ const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern
 
 const containStage = (force = false) => {
   const el = containerEl.value;
-  if (!el) return;
   const style = getComputedStyle(el);
   const width = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
   const height = el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
@@ -260,13 +259,12 @@ const containStage = (force = false) => {
   const maxY = height - stageStore.pixelHeight;
   const targetX = maxX >= 0 ? maxX / 2 : clamp(offset.x, maxX, 0);
   const targetY = maxY >= 0 ? maxY / 2 : clamp(offset.y, maxY, 0);
-  const strength = force ? 1 : (stageStore.canvas.minScale / stageStore.canvas.scale) ** 256;
+  const strength = force ? 1 : (stageStore.canvas.minScale / stageStore.canvas.scale) ** 2;
   offset.x += (targetX - offset.x) * strength;
   offset.y += (targetY - offset.y) * strength;
 };
 const updateCanvasPosition = () => {
     const el = containerEl.value;
-    if (!el) return;
     const rect = el.getBoundingClientRect();
     const style = getComputedStyle(el);
     const left = rect.left + parseFloat(style.paddingLeft);
@@ -277,11 +275,10 @@ const updateCanvasPosition = () => {
 let initialLoad = true;
 
 const onDomResize = () => {
-    const containScale = stageService.recalcMinScale(containerEl.value);
-    if (initialLoad) stageStore.setScale(containScale);
-    containStage(true);
+    stageService.recalcMinScale(containerEl.value);
+    stageStore.setScale(containScale);
+    containStage();
     updateCanvasPosition();
-    if (initialLoad) initialLoad = false;
 }
 
 const resizeObserver = new ResizeObserver(onDomResize);
