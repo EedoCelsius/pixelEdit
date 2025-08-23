@@ -250,7 +250,7 @@ const helperOverlay = computed(() => {
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
 
-const containStage = (force = false) => {
+const containStage = () => {
   const el = containerEl.value;
   const style = getComputedStyle(el);
   const width = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
@@ -259,7 +259,7 @@ const containStage = (force = false) => {
   const maxY = height - stageStore.pixelHeight;
   const targetX = maxX >= 0 ? maxX / 2 : clamp(offset.x, maxX, 0);
   const targetY = maxY >= 0 ? maxY / 2 : clamp(offset.y, maxY, 0);
-  const strength = force ? 1 : (stageStore.canvas.minScale / stageStore.canvas.scale) ** 2;
+  const strength = (stageStore.canvas.minScale / stageStore.canvas.scale) ** 2;
   offset.x += (targetX - offset.x) * strength;
   offset.y += (targetY - offset.y) * strength;
 };
@@ -272,11 +272,13 @@ const updateCanvasPosition = () => {
     stageStore.setCanvasPosition(left + offset.x, top + offset.y);
 };
 
-let initialLoad = true;
-
 const onDomResize = () => {
+    const x = getComputedStyle(containerEl.value)
+    console.log(x.width, x.height);
+    console.log(stageStore.canvas.minScale);
     stageService.recalcMinScale(containerEl.value);
-    stageStore.setScale(containScale);
+    console.log(stageStore.canvas.minScale);
+    stageStore.setScale(stageStore.canvas.minScale);
     containStage();
     updateCanvasPosition();
 }
