@@ -3,7 +3,7 @@
     <button @click="onAdd" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">+ 레이어</button>
     <button @click="onMerge" :disabled="selection.count < 2" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">병합</button>
     <button @click="onCopy" :disabled="!selection.exists" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">복사</button>
-    <button @click="onRemoveEmpty" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">Remove empty</button>
+    <button @click="onSelectEmpty" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">Select empty</button>
     <button @click="onSplit" :disabled="selection.count !== 1" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">Split divided</button>
     <div class="flex-1"></div>
     <button @click="undo" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">↶ Undo</button>
@@ -44,10 +44,8 @@ const onCopy = () => {
     selection.replace(ids, ids?.[0] ?? null, null);
     output.commit();
 };
-const onRemoveEmpty = () => {
-    output.setRollbackPoint();
-    layerSvc.removeEmptyLayers();
-    output.commit();
+const onSelectEmpty = () => {
+    layerSvc.selectEmptyLayers();
 };
 const onSplit = () => {
     output.setRollbackPoint();

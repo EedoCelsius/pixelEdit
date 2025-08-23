@@ -101,9 +101,9 @@ export const useLayerService = defineStore('layerService', () => {
         return pathData.join(' ');
     }
 
-    function removeEmptyLayers() {
-        const removed = layers.deleteEmptyLayers();
-        if (removed.length) selection.clear();
+    function selectEmptyLayers() {
+        const ids = layers.order.filter(layerId => layers.pixelCountOf(layerId) === 0);
+        if (ids.length) selection.replace(ids, ids[0], ids[0]);
     }
 
     function splitLayer(layerId) {
@@ -185,7 +185,7 @@ export const useLayerService = defineStore('layerService', () => {
         mergeSelected,
         copySelected,
         selectionPath,
-        removeEmptyLayers,
+        selectEmptyLayers,
         splitLayer,
         selectByPixelCount,
         selectByColor,
