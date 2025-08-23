@@ -22,18 +22,21 @@ export const useStageService = defineStore('stageService', () => {
     });
 
     // --- Canvas Utilities ---
-    function recalcScale(wrapperElement) {
-        if (!wrapperElement) return stageStore.canvas.scale;
-        const padding = 20;
-        const maxW = (wrapperElement.clientWidth || 0) - padding;
-        const maxH = (wrapperElement.clientHeight || 0) - padding - 60;
-        const containScale = Math.floor(
+    function recalcMinScale(container) {
+        if (!container) return stageStore.canvas.scale;
+        const style = getComputedStyle(container);
+        const paddingLeft = parseFloat(style.paddingLeft) || 0;
+        const paddingRight = parseFloat(style.paddingRight) || 0;
+        const paddingTop = parseFloat(style.paddingTop) || 0;
+        const paddingBottom = parseFloat(style.paddingBottom) || 0;
+        const width = (container.clientWidth || 0) - paddingLeft - paddingRight;
+        const height = (container.clientHeight || 0) - paddingTop - paddingBottom;
+        const containScale =
             Math.min(
-                maxW / Math.max(1, stageStore.canvas.width),
-                maxH / Math.max(1, stageStore.canvas.height)
-            )
-        ) || 16;
-        const minScale = Math.max(1, Math.round(containScale * 0.9));
+                width / Math.max(1, stageStore.canvas.width),
+                height / Math.max(1, stageStore.canvas.height)
+            );
+        const minScale = Math.max(1, containScale * 0.9);
         stageStore.setMinScale(minScale);
         return containScale;
     }
@@ -159,7 +162,7 @@ export const useStageService = defineStore('stageService', () => {
         selectOverlayPath,
         cursor,
         // methods
-        recalcScale,
+        recalcMinScale,
         clientToPixel,
         getPixelsFromInteraction,
         // utils for components

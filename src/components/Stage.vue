@@ -190,7 +190,7 @@ const onWheel = (e) => {
   const py = e.clientY - rect.top;
   const oldScale = stageStore.canvas.scale;
   const factor = e.deltaY < 0 ? 1.1 : 0.9;
-  const newScale = Math.round(oldScale * factor);
+  const newScale = oldScale * factor;
   const clamped = Math.max(stageStore.canvas.minScale, newScale);
   const ratio = clamped / oldScale;
   offset.x = px - ratio * (px - offset.x);
@@ -211,7 +211,7 @@ const handlePinch = () => {
     return;
   }
   const oldScale = stageStore.canvas.scale;
-  const newScale = Math.round(oldScale * (dist / lastTouchDistance));
+  const newScale = oldScale * (dist / lastTouchDistance);
   const clamped = Math.max(stageStore.canvas.minScale, newScale);
   const ratio = clamped / oldScale;
   offset.x = cx - ratio * (cx - offset.x);
@@ -275,7 +275,7 @@ const updateCanvasPosition = () => {
 let initialLoad = true;
 
 const onDomResize = () => {
-    stageService.recalcScale(containerEl.value);
+    stageService.recalcMinScale(containerEl.value);
     stageStore.setScale(containScale);
     containStage();
     updateCanvasPosition();

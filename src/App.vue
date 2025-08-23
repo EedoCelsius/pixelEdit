@@ -19,7 +19,7 @@
 </template>
 
 <script setup>
-import { onMounted, nextTick, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useInputStore } from './stores/input';
 import { useStageStore } from './stores/stage';
 import { useStageService } from './services/stage';
@@ -175,7 +175,6 @@ onMounted(async () => {
   }
   selection.selectOne(layers.idsTopToBottom[0]);
 
-  nextTick(() => stageService.recalcScale(document.getElementById('stage')?.parentElement?.parentElement || document.body));
 
   window.addEventListener('keydown', onKeydown);
   window.addEventListener('keyup', onKeyup);
