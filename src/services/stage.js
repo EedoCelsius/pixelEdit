@@ -34,7 +34,8 @@ export const useStageService = defineStore('stageService', () => {
             width / Math.max(1, stageStore.canvas.width),
             height / Math.max(1, stageStore.canvas.height)
         );
-        const minScale = Math.max(1, containScale * 0.9);
+        stageStore.setContainScale(containScale);
+        const minScale = Math.max(1, containScale * 0.5);
         stageStore.setMinScale(minScale);
     }
     
