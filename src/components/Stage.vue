@@ -260,7 +260,7 @@ const containStage = (force = false) => {
   const maxY = height - stageStore.pixelHeight;
   const targetX = maxX >= 0 ? maxX / 2 : clamp(offset.x, maxX, 0);
   const targetY = maxY >= 0 ? maxY / 2 : clamp(offset.y, maxY, 0);
-  const strength = force ? 1 : (stageStore.canvas.minScale / stageStore.canvas.scale) ** (1/4);
+  const strength = force ? 1 : (stageStore.canvas.minScale / stageStore.canvas.scale) ** 256;
   offset.x += (targetX - offset.x) * strength;
   offset.y += (targetY - offset.y) * strength;
 };
