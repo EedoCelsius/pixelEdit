@@ -174,8 +174,9 @@ const onPointerCancel = (e) => {
 
 const onWheel = (e) => {
   const rect = containerEl.value.getBoundingClientRect();
-  const px = e.clientX - rect.left;
-  const py = e.clientY - rect.top;
+  const style = getComputedStyle(containerEl.value);
+  const px = e.clientX - rect.left - parseFloat(style.paddingLeft);
+  const py = e.clientY - rect.top - parseFloat(style.paddingTop);
   const oldScale = stageStore.canvas.scale;
   const factor = e.deltaY < 0 ? 1.1 : 0.9;
   const newScale = Math.round(oldScale * factor);
@@ -190,9 +191,10 @@ const onWheel = (e) => {
 
 const handlePinch = () => {
   const rect = containerEl.value.getBoundingClientRect();
+  const style = getComputedStyle(containerEl.value);
   const [t1, t2] = Array.from(touches.values());
-  const cx = (t1.x + t2.x) / 2 - rect.left;
-  const cy = (t1.y + t2.y) / 2 - rect.top;
+  const cx = (t1.x + t2.x) / 2 - rect.left - parseFloat(style.paddingLeft);
+  const cy = (t1.y + t2.y) / 2 - rect.top - parseFloat(style.paddingTop);
   const dist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
   if (!lastTouchDistance) {
     lastTouchDistance = dist;
