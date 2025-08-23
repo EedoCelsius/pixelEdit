@@ -23,17 +23,19 @@ export const useStageService = defineStore('stageService', () => {
 
     // --- Canvas Utilities ---
     function recalcScale(wrapperElement) {
-        if (!wrapperElement) return;
+        if (!wrapperElement) return stageStore.canvas.scale;
         const padding = 20;
         const maxW = (wrapperElement.clientWidth || 0) - padding;
         const maxH = (wrapperElement.clientHeight || 0) - padding - 60;
-        const newScale = Math.floor(
+        const containScale = Math.floor(
             Math.min(
                 maxW / Math.max(1, stageStore.canvas.width),
                 maxH / Math.max(1, stageStore.canvas.height)
             )
         ) || 16;
-        stageStore.setMinScale(newScale);
+        const minScale = Math.max(1, Math.round(containScale * 0.9));
+        stageStore.setMinScale(minScale);
+        return containScale;
     }
     
     const patternId = ref('chk');
