@@ -20,7 +20,7 @@
         <div class="text-xs text-slate-400">
           <span class="cursor-pointer" @click.stop="onPixelCountClick(id)" title="같은 크기의 모든 레이어 선택">{{ layers.pixelCountOf(id) }} px</span>
           <template v-if="layers.disconnectedCountOf(id) > 1">
-            <span class="mx-1">/</span>
+            <span class="mx-1">|</span>
             <span class="cursor-pointer" @click.stop="onDisconnectedClick(id)">Disconnected</span>:
             <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(id)">{{ layers.disconnectedCountOf(id) }}</span>
           </template>
