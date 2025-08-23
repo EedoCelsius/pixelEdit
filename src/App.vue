@@ -207,4 +207,24 @@ onMounted(async () => {
 
 /* 드래그/이름편집 UX */
 .layers.dragging,.layers .layer.dragging{cursor:grabbing!important}
+
+/* Scrollbar styling */
+*{
+  scrollbar-width:thin;
+  scrollbar-color:rgba(71,85,105,.8) rgba(30,41,59,.5);
+}
+*::-webkit-scrollbar{
+  width:8px;
+  height:8px;
+}
+*::-webkit-scrollbar-track{
+  background:rgba(30,41,59,.5);
+}
+*::-webkit-scrollbar-thumb{
+  background-color:rgba(71,85,105,.8);
+  border-radius:4px;
+}
+*::-webkit-scrollbar-thumb:hover{
+  background-color:rgba(100,116,139,.8);
+}
 </style>
