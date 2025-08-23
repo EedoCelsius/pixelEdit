@@ -1,5 +1,5 @@
 <template>
-  <div ref="containerEl" class="relative flex-1 min-h-0 p-2 overflow-hidden touch-none"
+  <div ref="containerEl" class="relative flex-1 min-h-0 p-2 overflow-scroll touch-none"
        @wheel.prevent="onWheel"
        @pointerdown="onContainerPointerDown"
        @pointermove="onContainerPointerMove"
@@ -185,19 +185,32 @@ const onPointerCancel = (e) => {
 };
 
 const onWheel = (e) => {
-  if (e.deltaY == 0) return;
-  const rect = containerEl.value.getBoundingClientRect();
-  const px = e.clientX - rect.left;
-  const py = e.clientY - rect.top;
-  const oldScale = stageStore.canvas.scale;
-  const factor = e.deltaY < 0 ? 1.1 : 0.9;
-  const newScale = oldScale * factor;
-  const clamped = Math.max(stageStore.canvas.minScale, newScale);
-  const ratio = clamped / oldScale;
-  offset.x = px - ratio * (px - offset.x);
-  offset.y = py - ratio * (py - offset.y);
-  stageStore.setScale(clamped);
-  if (newScale < oldScale) positionStage();
+  if (e.ctrlKey) {
+    if (e.deltaY === 0) return;
+    const rect = containerEl.value.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    const oldScale = stageStore.canvas.scale;
+    const factor = e.deltaY < 0 ? 1.1 : 0.9;
+    const newScale = oldScale * factor;
+    const clamped = Math.max(stageStore.canvas.minScale, newScale);
+    const ratio = clamped / oldScale;
+    offset.x = px - ratio * (px - offset.x);
+    offset.y = py - ratio * (py - offset.y);
+    stageStore.setScale(clamped);
+    if (newScale < oldScale) positionStage();
+  } else {
+    offset.x -= e.deltaX;
+    offset.y -= e.deltaY;
+    const el = containerEl.value;
+    const style = getComputedStyle(el);
+    const width = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const height = el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    const maxX = width - stageStore.pixelWidth;
+    const maxY = height - stageStore.pixelHeight;
+    offset.x = clamp(offset.x, maxX, 0);
+    offset.y = clamp(offset.y, maxY, 0);
+  }
   updateCanvasPosition();
 };
 
