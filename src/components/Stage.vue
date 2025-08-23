@@ -67,7 +67,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useStageService } from '../services/stage';
@@ -91,8 +91,8 @@ const selectSvc = useSelectService();
 const pixelSvc = usePixelService();
 const containerEl = ref(null);
 const stageEl = ref(null);
-const offset = ref({ x: 0, y: 0 });
-const marquee = ref({ visible: false, x: 0, y: 0, w: 0, h: 0 });
+const offset = reactive({ x: 0, y: 0 });
+const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
 
 const updateHover = (event) => {
     const pixel = stageService.clientToPixel(event);
@@ -117,10 +117,10 @@ const updateHover = (event) => {
 
 const updateMarquee = (e) => {
     if (toolStore.shape !== 'rect' || toolStore.pointer.status === 'idle' || !toolStore.pointer.start || !e) {
-        marquee.value = { visible: false, x: 0, y: 0, w: 0, h: 0 };
+        Object.assign(marquee, { visible: false, x: 0, y: 0, w: 0, h: 0 });
         return;
     }
-    marquee.value = calcMarquee(toolStore.pointer.start, { x: e.clientX, y: e.clientY }, stageStore.canvas);
+    Object.assign(marquee, calcMarquee(toolStore.pointer.start, { x: e.clientX, y: e.clientY }, stageStore.canvas));
 };
   
 const touches = new Map();
@@ -180,8 +180,8 @@ const onWheel = (e) => {
   const factor = e.deltaY < 0 ? 1.1 : 0.9;
   const newScale = Math.max(1, Math.round(oldScale * factor));
   const ratio = newScale / oldScale;
-  offset.value.x = px - ratio * (px - offset.value.x);
-  offset.value.y = py - ratio * (py - offset.value.y);
+  offset.x = px - ratio * (px - offset.x);
+  offset.y = py - ratio * (py - offset.y);
   stageStore.setScale(newScale);
   updateCanvasPosition();
 };
@@ -199,8 +199,8 @@ const handlePinch = () => {
   const oldScale = stageStore.canvas.scale;
   const newScale = Math.max(1, Math.round(oldScale * (dist / lastTouchDistance)));
   const ratio = newScale / oldScale;
-  offset.value.x = cx - ratio * (cx - offset.value.x);
-  offset.value.y = cy - ratio * (cy - offset.value.y);
+  offset.x = cx - ratio * (cx - offset.x);
+  offset.y = cy - ratio * (cy - offset.y);
   stageStore.setScale(newScale);
   lastTouchDistance = dist;
   updateCanvasPosition();
@@ -236,8 +236,8 @@ const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern
 const centerStage = () => {
   const rect = containerEl.value?.getBoundingClientRect();
   if (!rect) return;
-  offset.value.x = (rect.width - stageStore.pixelWidth) / 2;
-  offset.value.y = (rect.height - stageStore.pixelHeight) / 2;
+  offset.x = (rect.width - stageStore.pixelWidth) / 2;
+  offset.y = (rect.height - stageStore.pixelHeight) / 2;
 };
 const updateCanvasPosition = () => {
     const rect = stageEl.value?.getBoundingClientRect();

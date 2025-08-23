@@ -28,7 +28,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { reactive, watch } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useSelectionStore } from '../stores/selection';
@@ -37,12 +37,12 @@ const stageStore = useStageStore();
 const toolStore = useToolStore();
 const selection = useSelectionStore();
 
-const selectables = ref([]);
+const selectables = reactive([]);
 watch(() => selection.count, (size) => {
-  selectables.value = size === 1 ? 
-    [{ type: 'draw', name: 'Draw' }, { type: 'erase', name: 'Erase' }] :
-    [{ type: 'select', name: 'Select' }, { type: 'globalErase', name: 'Global Erase' }];
-  if (!selectables.value.includes(toolStore.static)) {
+  selectables.splice(0, selectables.length, ...(size === 1
+    ? [{ type: 'draw', name: 'Draw' }, { type: 'erase', name: 'Erase' }]
+    : [{ type: 'select', name: 'Select' }, { type: 'globalErase', name: 'Global Erase' }]));
+  if (!selectables.some(tool => tool.type === toolStore.static)) {
     toolStore.setStatic(size === 1 ? 'draw' : 'select');
   }
 }, { immediate: true });
