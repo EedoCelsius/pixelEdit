@@ -1,19 +1,19 @@
 <template>
     <div class="flex items-center gap-2 p-2 flex-wrap">
       <button @click="onAdd" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
-        <img src="/image/layer_toolbar/add.svg" alt="Add layer">
+        <img :src="'image/layer_toolbar/add.svg'" alt="Add layer" class="w-4 h-4">
       </button>
       <button @click="onMerge" :disabled="selection.count < 2" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
-        <img src="/image/layer_toolbar/merge.svg" alt="Merge layers">
+        <img :src="'image/layer_toolbar/merge.svg'" alt="Merge layers" class="w-4 h-4">
       </button>
       <button @click="onCopy" :disabled="!selection.exists" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
-        <img src="/image/layer_toolbar/copy.svg" alt="Copy layer">
+        <img :src="'image/layer_toolbar/copy.svg'" alt="Copy layer" class="w-4 h-4">
       </button>
       <button @click="onSelectEmpty" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
-        <img src="/image/layer_toolbar/empty.svg" alt="Select empty">
+        <img :src="'image/layer_toolbar/empty.svg'" alt="Select empty" class="w-4 h-4">
       </button>
       <button @click="onSplit" :disabled="selection.count !== 1" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
-        <img src="/image/layer_toolbar/split.svg" alt="Split divided">
+        <img :src="'image/layer_toolbar/split.svg'" alt="Split divided" class="w-4 h-4">
       </button>
     </div>
 </template>
