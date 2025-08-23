@@ -240,12 +240,12 @@ const centerStage = () => {
   offset.value.y = (rect.height - stageStore.pixelHeight) / 2;
 };
 const updateCanvasPosition = () => {
-    stageService.recalcScale(containerEl.value);
     const rect = stageEl.value?.getBoundingClientRect();
     if (rect) stageStore.setCanvasPosition(rect.left, rect.top);
 };
 
 const onResize = () => {
+    stageService.recalcScale(containerEl.value);
     centerStage();
     updateCanvasPosition();
 }
