@@ -196,7 +196,7 @@ const onWheel = (e) => {
   offset.x = px - ratio * (px - offset.x);
   offset.y = py - ratio * (py - offset.y);
   stageStore.setScale(clamped);
-  if (clamped <= oldScale) containStage();
+  containStage();
   updateCanvasPosition();
 };
 
@@ -218,7 +218,7 @@ const handlePinch = () => {
   offset.y = cy - ratio * (cy - offset.y);
   stageStore.setScale(clamped);
   lastTouchDistance = dist;
-  if (clamped <= oldScale) containStage();
+  containStage();
   updateCanvasPosition();
 };
 
@@ -276,7 +276,7 @@ const updateCanvasPosition = () => {
 
 let initialLoad = true;
 
-const onResize = () => {
+const onDomResize = () => {
     const containScale = stageService.recalcScale(containerEl.value);
     if (initialLoad) stageStore.setScale(containScale);
     containStage(true);
@@ -284,9 +284,9 @@ const onResize = () => {
     if (initialLoad) initialLoad = false;
 }
 
-const resizeObserver = new ResizeObserver(onResize);
+const resizeObserver = new ResizeObserver(onDomResize);
 onMounted(() => {
-    requestAnimationFrame(onResize);
+    requestAnimationFrame(onDomResize);
     resizeObserver.observe(containerEl.value);
 });
 onUnmounted(resizeObserver.disconnect);
