@@ -291,8 +291,22 @@ const updateCanvasPosition = () => {
     stageStore.setCanvasPosition(left + offset.x, top + offset.y);
 };
 
+let prevOffsetWidth = 0;
+let prevOffsetHeight = 0;
+let prevClientWidth = 0;
+let prevClientHeight = 0;
+
 const onDomResize = () => {
-    stageService.recalcMinScale(containerEl.value);
+    const el = containerEl.value;
+    const { offsetWidth, offsetHeight, clientWidth, clientHeight } = el;
+    const sizeChanged = offsetWidth !== prevOffsetWidth || offsetHeight !== prevOffsetHeight;
+    const scrollChanged = !sizeChanged && (clientWidth !== prevClientWidth || clientHeight !== prevClientHeight);
+    prevOffsetWidth = offsetWidth;
+    prevOffsetHeight = offsetHeight;
+    prevClientWidth = clientWidth;
+    prevClientHeight = clientHeight;
+    if (scrollChanged) return;
+    stageService.recalcMinScale(el);
     stageStore.setScale(stageStore.canvas.containScale);
     positionStage(true);
     updateCanvasPosition();
