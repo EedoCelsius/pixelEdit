@@ -22,20 +22,20 @@ export const useStageService = defineStore('stageService', () => {
     });
 
     // --- Canvas Utilities ---
-    function recalcMinScale(wrapperElement) {
-        if (!wrapperElement) return stageStore.canvas.scale;
-        const style = getComputedStyle(wrapperElement);
+    function recalcMinScale(container) {
+        if (!container) return stageStore.canvas.scale;
+        const style = getComputedStyle(container);
         const paddingLeft = parseFloat(style.paddingLeft) || 0;
         const paddingRight = parseFloat(style.paddingRight) || 0;
         const paddingTop = parseFloat(style.paddingTop) || 0;
         const paddingBottom = parseFloat(style.paddingBottom) || 0;
-        const maxW = (wrapperElement.clientWidth || 0) - paddingLeft - paddingRight;
-        const maxH = (wrapperElement.clientHeight || 0) - paddingTop - paddingBottom;
+        const width = (container.clientWidth || 0) - paddingLeft - paddingRight;
+        const height = (container.clientHeight || 0) - paddingTop - paddingBottom;
         const containScale =
             Math.min(
-                maxW / Math.max(1, stageStore.canvas.width),
-                maxH / Math.max(1, stageStore.canvas.height)
-            ) || 16;
+                width / Math.max(1, stageStore.canvas.width),
+                height / Math.max(1, stageStore.canvas.height)
+            );
         const minScale = Math.max(1, containScale * 0.9);
         stageStore.setMinScale(minScale);
         return containScale;
