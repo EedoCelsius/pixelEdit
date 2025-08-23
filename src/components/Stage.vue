@@ -185,6 +185,7 @@ const onPointerCancel = (e) => {
 };
 
 const onWheel = (e) => {
+  if (e.deltaY == 0) return;
   const rect = containerEl.value.getBoundingClientRect();
   const px = e.clientX - rect.left;
   const py = e.clientY - rect.top;
@@ -196,7 +197,7 @@ const onWheel = (e) => {
   offset.x = px - ratio * (px - offset.x);
   offset.y = py - ratio * (py - offset.y);
   stageStore.setScale(clamped);
-  if (0 < e.deltaY) containStage();
+  if (newScale < oldScale) containStage();
   updateCanvasPosition();
 };
 
@@ -218,7 +219,7 @@ const handlePinch = () => {
   offset.y = cy - ratio * (cy - offset.y);
   stageStore.setScale(clamped);
   lastTouchDistance = dist;
-  if (0 < e.deltaY) containStage();
+  if (newScale < oldScale) containStage();
   updateCanvasPosition();
 };
 
