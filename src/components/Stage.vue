@@ -186,7 +186,7 @@ const onWheel = (e) => {
   offset.y = py - ratio * (py - offset.y);
   stageStore.setScale(clamped);
   updateCanvasPosition();
-  containStage();
+  if (clamped <= oldScale) containStage();
 };
 
 const handlePinch = () => {
@@ -209,7 +209,7 @@ const handlePinch = () => {
   stageStore.setScale(clamped);
   lastTouchDistance = dist;
   updateCanvasPosition();
-  containStage();
+  if (clamped <= oldScale) containStage();
 };
 
 const selectionPath = computed(() => layerSvc.selectionPath());
