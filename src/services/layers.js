@@ -152,6 +152,14 @@ export const useLayerService = defineStore('layerService', () => {
         if (idsToSelect.length) selection.replace(idsToSelect, id, id);
     }
 
+    function selectByColor(id) {
+        const targetLayer = layers.getLayer(id);
+        if (!targetLayer) return;
+        const targetColor = targetLayer.getColorU32();
+        const idsToSelect = layers.order.filter(layerId => layers.colorOf(layerId) === targetColor);
+        if (idsToSelect.length) selection.replace(idsToSelect, id, id);
+    }
+
     return {
         forEachSelected,
         setColorForSelectedU32,
@@ -163,7 +171,8 @@ export const useLayerService = defineStore('layerService', () => {
         selectionPath,
         removeEmptyLayers,
         splitSelectedLayer,
-        selectByPixelCount
+        selectByPixelCount,
+        selectByColor
     };
 });
 
