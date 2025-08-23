@@ -9,6 +9,7 @@ export const useStageStore = defineStore('stage', {
             height: 16,
             scale: 16,
             minScale: 1,
+            containScale: 1,
         },
         display: 'result', // 'result' | 'original'
         imageSrc: '',
@@ -36,6 +37,9 @@ export const useStageStore = defineStore('stage', {
         },
         setScale(newScale) {
             this.canvas.scale = Math.max(this.canvas.minScale, newScale);
+        },
+        setContainScale(newContain) {
+            this.canvas.containScale = Math.max(1, newContain);
         },
         setMinScale(newMin) {
             this.canvas.minScale = Math.max(1, newMin);
