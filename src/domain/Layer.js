@@ -1,5 +1,5 @@
 import { effectScope, reactive, computed } from 'vue';
-import { coordsToKey, keyToCoords, pixelsToUnionPath, randColorU32 } from '../utils';
+import { coordsToKey, keyToCoords, pixelsToUnionPath, randColorU32, groupConnectedPixels } from '../utils';
 
 export class Layer {
     constructor({
@@ -17,6 +17,7 @@ export class Layer {
         this._scope = effectScope(true);
         this._pixels = reactive(new Set(keyedPixels)); // Set<string>
         this._pathData = this._scope.run(() => computed(() => pixelsToUnionPath(this._pixels)));
+        this._disconnected = this._scope.run(() => computed(() => groupConnectedPixels(this._pixels).length));
     }
     // Color API (u32)
     getColorU32() {
@@ -35,6 +36,9 @@ export class Layer {
     }
     get pixelCount() {
         return this._pixels.size;
+    }
+    get disconnectedCount() {
+        return this._disconnected.value;
     }
     forEachPixel(fn) {
         for (const pixelKey of this._pixels) {

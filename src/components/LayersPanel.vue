@@ -17,7 +17,14 @@
         <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
           <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(id)" @keydown="onNameKey(id,$event)" @blur="finishRename(id,$event)">{{ layers.nameOf(id) }}</span>
         </div>
-        <div class="text-xs text-slate-400 cursor-pointer" @click.stop="onPixelCountClick(id)" title="같은 크기의 모든 레이어 선택">{{ layers.pixelCountOf(id) }} px</div>
+        <div class="text-xs text-slate-400">
+          <span class="cursor-pointer" @click.stop="onPixelCountClick(id)" title="같은 크기의 모든 레이어 선택">{{ layers.pixelCountOf(id) }} px</span>
+          <template v-if="layers.disconnectedCountOf(id) > 1">
+            <span class="mx-1">/</span>
+            <span class="cursor-pointer" @click.stop="onDisconnectedClick(id)">Disconnected</span>:
+            <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(id)">{{ layers.disconnectedCountOf(id) }}</span>
+          </template>
+        </div>
       </div>
       <!-- 액션 -->
       <div class="flex gap-1 justify-end">
@@ -88,6 +95,22 @@ function onThumbnailClick(id) {
 
 function onPixelCountClick(id) {
     layerSvc.selectByPixelCount(id);
+    selection.setScrollRule({
+        type: "follow",
+        target: id
+    });
+}
+
+function onDisconnectedClick(id) {
+    layerSvc.selectDisconnectedLayers(id);
+    selection.setScrollRule({
+        type: "follow",
+        target: id
+    });
+}
+
+function onDisconnectedCountClick(id) {
+    layerSvc.selectByDisconnectedCount(id);
     selection.setScrollRule({
         type: "follow",
         target: id

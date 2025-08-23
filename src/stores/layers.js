@@ -46,6 +46,7 @@ export const useLayerStore = defineStore('layers', {
         nameOf: (state) => (id) => state._layersById[id]?.name,
         visibilityOf: (state) => (id) => !!state._layersById[id]?.visible,
         pixelCountOf: (state) => (id) => state._layersById[id]?.pixelCount ?? 0,
+        disconnectedCountOf: (state) => (id) => state._layersById[id]?.disconnectedCount ?? 0,
         compositeColorAt: (state) => (x, y) => {
             for (let i = state._order.length - 1; i >= 0; i--) {
                 const layer = state._layersById[state._order[i]];
