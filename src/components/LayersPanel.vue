@@ -2,7 +2,7 @@
   <div v-memo="[output.commitVersion, selection.ids]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
     <div v-for="id in layers.idsTopToBottom" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="id" :data-id="id" :class="{ selected: selection.isSelected(id), anchor: selection.anchorId===id, dragging: dragId===id }" draggable="true" @click="onLayerClick(id,$event)" @dragstart="onDragStart(id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(id,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(id,$event)">
       <!-- 썸네일 -->
-      <div @click.stop="onThumbnailClick(id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 크기의 모든 레이어 선택">
+      <div @click.stop="onThumbnailClick(id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
         <svg :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
           <rect x="0" y="0" :width="stageStore.canvas.width" :height="stageStore.canvas.height" :fill="patternUrl"/>
           <path :d="layers.pathOf(id)" :fill="rgbaCssU32(layers.colorOf(id))" :opacity="layers.visibilityOf(id)?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
@@ -17,7 +17,7 @@
         <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
           <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(id)" @keydown="onNameKey(id,$event)" @blur="finishRename(id,$event)">{{ layers.nameOf(id) }}</span>
         </div>
-        <div class="text-xs text-slate-400">{{ layers.pixelCountOf(id) }} px</div>
+        <div class="text-xs text-slate-400 cursor-pointer" @click.stop="onPixelCountClick(id)" title="같은 크기의 모든 레이어 선택">{{ layers.pixelCountOf(id) }} px</div>
       </div>
       <!-- 액션 -->
       <div class="flex gap-1 justify-end">
@@ -79,6 +79,14 @@ function onLayerClick(id, event) {
 }
 
 function onThumbnailClick(id) {
+    layerSvc.selectByColor(id);
+    selection.setScrollRule({
+        type: "follow",
+        target: id
+    });
+}
+
+function onPixelCountClick(id) {
     layerSvc.selectByPixelCount(id);
     selection.setScrollRule({
         type: "follow",
