@@ -1,7 +1,18 @@
 <template>
-  <div ref="containerEl" class="relative flex-1 min-h-0 p-2 flex items-center justify-center">
-    <div id="stage" ref="stageEl" class="relative rounded-lg shadow-inner ring-1 ring-white/10 select-none touch-none" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px', cursor: stageService.cursor }"
-         @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp" @pointercancel="onPointerCancel" @contextmenu.prevent>
+  <div ref="containerEl" class="relative flex-1 min-h-0 p-2 overflow-hidden">
+    <div id="stage" ref="stageEl" class="absolute rounded-lg shadow-inner ring-1 ring-white/10 select-none touch-none"
+         :style="{
+           width: stageStore.pixelWidth+'px',
+           height: stageStore.pixelHeight+'px',
+           cursor: stageService.cursor,
+           transform: `translate(${offset.x}px, ${offset.y}px)`
+         }"
+         @wheel.prevent="onWheel"
+         @pointerdown="onPointerDown"
+         @pointermove="onPointerMove"
+         @pointerup="onPointerUp"
+         @pointercancel="onPointerCancel"
+         @contextmenu.prevent>
       <!-- 체커보드 -->
       <svg class="absolute top-0 left-0 pointer-events-none block rounded-lg" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" style="image-rendering:pixelated">
         <rect x="0" y="0" :width="stageStore.canvas.width" :height="stageStore.canvas.height" :fill="patternUrl"/>
@@ -80,6 +91,7 @@ const selectSvc = useSelectService();
 const pixelSvc = usePixelService();
 const containerEl = ref(null);
 const stageEl = ref(null);
+const offset = ref({ x: 0, y: 0 });
 const marquee = ref({ visible: false, x: 0, y: 0, w: 0, h: 0 });
 
 const updateHover = (event) => {
@@ -111,29 +123,87 @@ const updateMarquee = (e) => {
     marquee.value = calcMarquee(toolStore.pointer.start, { x: e.clientX, y: e.clientY }, stageStore.canvas);
 };
   
+const touches = new Map();
+let lastTouchDistance = 0;
+
 const onPointerDown = (e) => {
-  updateCanvasPosition();
-    updateMarquee(e);
-    if (toolStore.isSelect) selectSvc.toolStart(e);
-    else pixelSvc.toolStart(e);
+  if (e.pointerType === 'touch') {
+    e.preventDefault();
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    lastTouchDistance = 0;
+    return;
+  }
+  updateMarquee(e);
+  if (toolStore.isSelect) selectSvc.toolStart(e);
+  else pixelSvc.toolStart(e);
 };
+
 const onPointerMove = (e) => {
-  updateCanvasPosition();
-    updateHover(e);
-    updateMarquee(e);
-    if (toolStore.isSelect) selectSvc.toolMove(e);
-    else pixelSvc.toolMove(e);
+  if (e.pointerType === 'touch') {
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touches.size === 2) handlePinch();
+    return;
+  }
+  updateHover(e);
+  updateMarquee(e);
+  if (toolStore.isSelect) selectSvc.toolMove(e);
+  else pixelSvc.toolMove(e);
 };
+
 const onPointerUp = (e) => {
-  updateCanvasPosition();
-    updateMarquee(e);
-    if (toolStore.isSelect) selectSvc.toolFinish(e);
-    else pixelSvc.toolFinish(e);
+  if (e.pointerType === 'touch') {
+    touches.delete(e.pointerId);
+    lastTouchDistance = 0;
+    return;
+  }
+  updateMarquee(e);
+  if (toolStore.isSelect) selectSvc.toolFinish(e);
+  else pixelSvc.toolFinish(e);
 };
+
 const onPointerCancel = (e) => {
+    if (e.pointerType === 'touch') {
+      touches.delete(e.pointerId);
+      lastTouchDistance = 0;
+      return;
+    }
     updateMarquee(e);
     if (toolStore.isSelect) selectSvc.cancel(e);
     else pixelSvc.cancel(e);
+};
+
+const onWheel = (e) => {
+  const rect = containerEl.value.getBoundingClientRect();
+  const px = e.clientX - rect.left;
+  const py = e.clientY - rect.top;
+  const oldScale = stageStore.canvas.scale;
+  const factor = e.deltaY < 0 ? 1.1 : 0.9;
+  const newScale = Math.max(1, Math.round(oldScale * factor));
+  const ratio = newScale / oldScale;
+  offset.value.x = px - ratio * (px - offset.value.x);
+  offset.value.y = py - ratio * (py - offset.value.y);
+  stageStore.setScale(newScale);
+  updateCanvasPosition();
+};
+
+const handlePinch = () => {
+  const rect = containerEl.value.getBoundingClientRect();
+  const [t1, t2] = Array.from(touches.values());
+  const cx = (t1.x + t2.x) / 2 - rect.left;
+  const cy = (t1.y + t2.y) / 2 - rect.top;
+  const dist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
+  if (!lastTouchDistance) {
+    lastTouchDistance = dist;
+    return;
+  }
+  const oldScale = stageStore.canvas.scale;
+  const newScale = Math.max(1, Math.round(oldScale * (dist / lastTouchDistance)));
+  const ratio = newScale / oldScale;
+  offset.value.x = cx - ratio * (cx - offset.value.x);
+  offset.value.y = cy - ratio * (cy - offset.value.y);
+  stageStore.setScale(newScale);
+  lastTouchDistance = dist;
+  updateCanvasPosition();
 };
 
 const selectionPath = computed(() => layerSvc.selectionPath());
@@ -163,19 +233,27 @@ const overlayStyle = computed(() => (
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
 
+const centerStage = () => {
+  const rect = containerEl.value?.getBoundingClientRect();
+  if (!rect) return;
+  offset.value.x = (rect.width - stageStore.pixelWidth) / 2;
+  offset.value.y = (rect.height - stageStore.pixelHeight) / 2;
+};
 const updateCanvasPosition = () => {
+    stageService.recalcScale(containerEl.value);
     const rect = stageEl.value?.getBoundingClientRect();
     if (rect) stageStore.setCanvasPosition(rect.left, rect.top);
 };
 
-const resizeObserver = new ResizeObserver(() => {
-    stageService.recalcScale(containerEl.value);
+const onResize = () => {
+    centerStage();
     updateCanvasPosition();
-});
+}
+  
+const resizeObserver = new ResizeObserver(onResize);
 onMounted(() => {
-    stageService.recalcScale(containerEl.value);
-    updateCanvasPosition();
+    requestAnimationFrame(onResize)
     resizeObserver.observe(containerEl.value);
 });
-onUnmounted(() => resizeObserver.disconnect());
+onUnmounted(resizeObserver.disconnect);
 </script>
