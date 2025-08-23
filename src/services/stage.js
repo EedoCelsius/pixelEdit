@@ -27,8 +27,13 @@ export const useStageService = defineStore('stageService', () => {
         const padding = 20;
         const maxW = (wrapperElement.clientWidth || 0) - padding;
         const maxH = (wrapperElement.clientHeight || 0) - padding - 60;
-        const newScale = Math.floor(Math.min(maxW / Math.max(1, stageStore.canvas.width), maxH / Math.max(1, stageStore.canvas.height))) || 16;
-        stageStore.setScale(Math.max(1, newScale));
+        const newScale = Math.floor(
+            Math.min(
+                maxW / Math.max(1, stageStore.canvas.width),
+                maxH / Math.max(1, stageStore.canvas.height)
+            )
+        ) || 16;
+        stageStore.setMinScale(newScale);
     }
     
     const patternId = ref('chk');

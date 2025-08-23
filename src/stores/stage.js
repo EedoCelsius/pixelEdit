@@ -8,6 +8,7 @@ export const useStageStore = defineStore('stage', {
             width: 16,
             height: 16,
             scale: 16,
+            minScale: 1,
         },
         display: 'result', // 'result' | 'original'
         imageSrc: '',
@@ -34,7 +35,13 @@ export const useStageStore = defineStore('stage', {
             this.imageSrc = src || '';
         },
         setScale(newScale) {
-            this.canvas.scale = Math.max(1, newScale | 0);
+            this.canvas.scale = Math.max(this.canvas.minScale, newScale | 0);
+        },
+        setMinScale(newMin) {
+            this.canvas.minScale = Math.max(1, newMin | 0);
+            if (this.canvas.scale < this.canvas.minScale) {
+                this.canvas.scale = this.canvas.minScale;
+            }
         },
         toggleView() {
             this.display = (this.display === 'original') ? 'result' : 'original';
