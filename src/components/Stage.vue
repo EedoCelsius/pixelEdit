@@ -22,7 +22,7 @@
         <rect x="0" y="0" :width="stageStore.canvas.width" :height="stageStore.canvas.height" :fill="patternUrl"/>
       </svg>
       <!-- 원본 -->
-      <img v-show="stageStore.display==='original'" class="absolute top-0 left-0 pointer-events-none block rounded-lg" :src="stageStore.imageSrc" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" alt="source image" style="image-rendering:pixelated" />
+      <img v-show="stageStore.display==='original'" class="absolute top-0 left-0 pointer-events-none block rounded-lg" :src="stageStore.imageSrc" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" alt="source image" style="image-rendering:pixelated" @load="onImageLoad" />
       <!-- 결과 레이어 -->
       <svg v-show="stageStore.display==='result'" class="absolute top-0 left-0 pointer-events-none block rounded-lg" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" style="image-rendering:pixelated">
         <g>
@@ -273,15 +273,18 @@ const updateCanvasPosition = () => {
 };
 
 const onDomResize = () => {
-    const x = getComputedStyle(containerEl.value)
-    console.log(x.width, x.height);
-    console.log(stageStore.canvas.minScale);
     stageService.recalcMinScale(containerEl.value);
-    console.log(stageStore.canvas.minScale);
     stageStore.setScale(stageStore.canvas.minScale);
     containStage();
     updateCanvasPosition();
-}
+};
+
+const onImageLoad = () => {
+    stageService.recalcMinScale(containerEl.value);
+    stageStore.setScale(stageStore.canvas.minScale);
+    containStage();
+    updateCanvasPosition();
+};
 
 const resizeObserver = new ResizeObserver(onDomResize);
 onMounted(() => {
