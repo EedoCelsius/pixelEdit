@@ -55,10 +55,10 @@
 
         <!-- 3. 선택/호버 오버레이 -->
         <path v-if="toolStore.isSelect"
-              :d="overlayPath"
-              :fill="overlayStyle.FILL_COLOR"
-              :stroke="overlayStyle.STROKE_COLOR"
-              :stroke-width="overlayStyle.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
+              :d="helperOverlay.path"
+              :fill="helperOverlay.FILL_COLOR"
+              :stroke="helperOverlay.STROKE_COLOR"
+              :stroke-width="helperOverlay.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
               fill-rule="evenodd"
               shape-rendering="crispEdges" />
       </svg>
@@ -211,29 +211,30 @@ const handlePinch = () => {
 };
 
 const selectionPath = computed(() => layerSvc.selectionPath());
-const hoverStyle = computed(() => {
-    if (!toolStore.hoverLayerId) return {};
-    const isRemoving = toolStore.shiftHeld && selection.isSelected(toolStore.hoverLayerId);
-    return isRemoving ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
+const helperOverlay = computed(() => {
+    let path;
+    let style;
+
+    if (toolStore.pointer.status !== 'idle') {
+        path = stageService.selectOverlayPath;
+        style = toolStore.pointer.status === 'remove'
+            ? OVERLAY_CONFIG.REMOVE
+            : OVERLAY_CONFIG.ADD;
+    } else {
+        path = layers.pathOf(toolStore.hoverLayerId);
+        if (toolStore.hoverLayerId) {
+            const isRemoving = toolStore.shiftHeld && selection.isSelected(toolStore.hoverLayerId);
+            style = isRemoving ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
+        }
+    }
+
+    return {
+        path,
+        FILL_COLOR: style?.FILL_COLOR,
+        STROKE_COLOR: style?.STROKE_COLOR,
+        STROKE_WIDTH_SCALE: style?.STROKE_WIDTH_SCALE,
+    };
 });
-
-const selectOverlayStyle = computed(() => (
-    toolStore.pointer.status === 'remove'
-        ? OVERLAY_CONFIG.REMOVE
-        : OVERLAY_CONFIG.ADD
-));
-
-const overlayPath = computed(() => (
-    toolStore.pointer.status !== 'idle'
-        ? stageService.selectOverlayPath
-        : layers.pathOf(toolStore.hoverLayerId)
-));
-
-const overlayStyle = computed(() => (
-    toolStore.pointer.status !== 'idle'
-        ? selectOverlayStyle.value
-        : hoverStyle.value
-));
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
 
