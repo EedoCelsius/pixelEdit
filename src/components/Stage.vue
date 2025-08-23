@@ -1,5 +1,10 @@
 <template>
-  <div ref="containerEl" class="relative flex-1 min-h-0 p-2 overflow-hidden">
+  <div ref="containerEl" class="relative flex-1 min-h-0 p-2 overflow-hidden touch-none"
+       @wheel.prevent="onWheel"
+       @pointerdown="onContainerPointerDown"
+       @pointermove="onContainerPointerMove"
+       @pointerup="onContainerPointerUp"
+       @pointercancel="onContainerPointerCancel">
     <div id="stage" ref="stageEl" class="absolute rounded-lg shadow-inner ring-1 ring-white/10 select-none touch-none"
          :style="{
            width: stageStore.pixelWidth+'px',
@@ -7,7 +12,6 @@
            cursor: stageService.cursor,
            transform: `translate(${offset.x}px, ${offset.y}px)`
          }"
-         @wheel.prevent="onWheel"
          @pointerdown="onPointerDown"
          @pointermove="onPointerMove"
          @pointerup="onPointerUp"
@@ -126,24 +130,40 @@ const updateMarquee = (e) => {
 const touches = new Map();
 let lastTouchDistance = 0;
 
+const onContainerPointerDown = (e) => {
+  if (e.pointerType !== 'touch') return;
+  e.preventDefault();
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  lastTouchDistance = 0;
+};
+
+const onContainerPointerMove = (e) => {
+  if (e.pointerType !== 'touch') return;
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (touches.size === 2) handlePinch();
+};
+
+const onContainerPointerUp = (e) => {
+  if (e.pointerType !== 'touch') return;
+  touches.delete(e.pointerId);
+  lastTouchDistance = 0;
+};
+
+const onContainerPointerCancel = (e) => {
+  if (e.pointerType !== 'touch') return;
+  touches.delete(e.pointerId);
+  lastTouchDistance = 0;
+};
+
 const onPointerDown = (e) => {
-  if (e.pointerType === 'touch') {
-    e.preventDefault();
-    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    lastTouchDistance = 0;
-    return;
-  }
+  if (e.pointerType === 'touch') return;
   updateMarquee(e);
   if (toolStore.isSelect) selectSvc.toolStart(e);
   else pixelSvc.toolStart(e);
 };
 
 const onPointerMove = (e) => {
-  if (e.pointerType === 'touch') {
-    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (touches.size === 2) handlePinch();
-    return;
-  }
+  if (e.pointerType === 'touch') return;
   updateHover(e);
   updateMarquee(e);
   if (toolStore.isSelect) selectSvc.toolMove(e);
@@ -151,22 +171,14 @@ const onPointerMove = (e) => {
 };
 
 const onPointerUp = (e) => {
-  if (e.pointerType === 'touch') {
-    touches.delete(e.pointerId);
-    lastTouchDistance = 0;
-    return;
-  }
+  if (e.pointerType === 'touch') return;
   updateMarquee(e);
   if (toolStore.isSelect) selectSvc.toolFinish(e);
   else pixelSvc.toolFinish(e);
 };
 
 const onPointerCancel = (e) => {
-    if (e.pointerType === 'touch') {
-      touches.delete(e.pointerId);
-      lastTouchDistance = 0;
-      return;
-    }
+    if (e.pointerType === 'touch') return;
     updateMarquee(e);
     if (toolStore.isSelect) selectSvc.cancel(e);
     else pixelSvc.cancel(e);
@@ -259,12 +271,16 @@ const updateCanvasPosition = () => {
     stageStore.setCanvasPosition(left + offset.x, top + offset.y);
 };
 
+let initialLoad = true;
+
 const onResize = () => {
-    stageService.recalcScale(containerEl.value);
+    const containScale = stageService.recalcScale(containerEl.value);
+    if (initialLoad) stageStore.setScale(containScale);
     containStage();
     updateCanvasPosition();
+    if (initialLoad) initialLoad = false;
 }
-  
+
 const resizeObserver = new ResizeObserver(onResize);
 onMounted(() => {
     requestAnimationFrame(onResize);
