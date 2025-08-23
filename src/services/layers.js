@@ -106,9 +106,8 @@ export const useLayerService = defineStore('layerService', () => {
         if (removed.length) selection.clear();
     }
 
-    function splitSelectedLayer() {
-        if (selection.count !== 1) return;
-        const layerId = selection.ids[0];
+    function splitLayer(layerId) {
+        if (layerId == null) return;
         const layer = layers.getLayer(layerId);
         if (!layer || layer.pixelCount < 2) return;
 
@@ -138,6 +137,23 @@ export const useLayerService = defineStore('layerService', () => {
         layers._order = orderWithoutNew;
 
         selection.replace(newIds, newIds[0], newIds[0]);
+    }
+
+    function selectDisconnectedLayers(id) {
+        const idsToSelect = layers.order.filter(layerId => layers.disconnectedCountOf(layerId) > 1);
+        if (idsToSelect.length) selection.replace(idsToSelect, id, id);
+    }
+
+    function selectByDisconnectedCount(id) {
+        const targetLayer = layers.getLayer(id);
+        if (!targetLayer) return;
+        const targetCount = targetLayer.disconnectedCount;
+        if (targetCount <= 1) {
+            selection.selectOne(id);
+            return;
+        }
+        const idsToSelect = layers.order.filter(layerId => layers.disconnectedCountOf(layerId) === targetCount);
+        if (idsToSelect.length) selection.replace(idsToSelect, id, id);
     }
 
     function selectByPixelCount(id) {
@@ -170,9 +186,11 @@ export const useLayerService = defineStore('layerService', () => {
         copySelected,
         selectionPath,
         removeEmptyLayers,
-        splitSelectedLayer,
+        splitLayer,
         selectByPixelCount,
-        selectByColor
+        selectByColor,
+        selectDisconnectedLayers,
+        selectByDisconnectedCount
     };
 });
 

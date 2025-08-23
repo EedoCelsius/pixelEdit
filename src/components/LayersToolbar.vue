@@ -51,7 +51,7 @@ const onRemoveEmpty = () => {
 };
 const onSplit = () => {
     output.setRollbackPoint();
-    layerSvc.splitSelectedLayer();
+    layerSvc.splitLayer(selection.anchorId);
     output.commit();
 };
 const undo = () => output.undo();
