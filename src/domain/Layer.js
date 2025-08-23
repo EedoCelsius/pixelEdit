@@ -38,7 +38,7 @@ export class Layer {
         return this._pixels.size;
     }
     get disconnectedCount() {
-        return this._disconnected.value;
+        return this._disconnected;
     }
     forEachPixel(fn) {
         for (const pixelKey of this._pixels) {
