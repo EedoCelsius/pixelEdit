@@ -31,13 +31,12 @@ export const useStageService = defineStore('stageService', () => {
         const paddingBottom = parseFloat(style.paddingBottom) || 0;
         const maxW = (wrapperElement.clientWidth || 0) - paddingLeft - paddingRight;
         const maxH = (wrapperElement.clientHeight || 0) - paddingTop - paddingBottom;
-        const containScale = Math.floor(
+        const containScale =
             Math.min(
                 maxW / Math.max(1, stageStore.canvas.width),
                 maxH / Math.max(1, stageStore.canvas.height)
-            )
-        ) || 16;
-        const minScale = Math.max(1, Math.round(containScale * 0.9));
+            ) || 16;
+        const minScale = Math.max(1, containScale * 0.9);
         stageStore.setMinScale(minScale);
         return containScale;
     }

@@ -35,10 +35,10 @@ export const useStageStore = defineStore('stage', {
             this.imageSrc = src || '';
         },
         setScale(newScale) {
-            this.canvas.scale = Math.max(this.canvas.minScale, newScale | 0);
+            this.canvas.scale = Math.max(this.canvas.minScale, newScale);
         },
         setMinScale(newMin) {
-            this.canvas.minScale = Math.max(1, newMin | 0);
+            this.canvas.minScale = Math.max(1, newMin);
             if (this.canvas.scale < this.canvas.minScale) {
                 this.canvas.scale = this.canvas.minScale;
             }
