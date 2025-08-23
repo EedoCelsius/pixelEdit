@@ -133,7 +133,6 @@ const onPointerDown = (e) => {
     lastTouchDistance = 0;
     return;
   }
-  updateCanvasPosition();
   updateMarquee(e);
   if (toolStore.isSelect) selectSvc.toolStart(e);
   else pixelSvc.toolStart(e);
@@ -145,7 +144,6 @@ const onPointerMove = (e) => {
     if (touches.size === 2) handlePinch();
     return;
   }
-  updateCanvasPosition();
   updateHover(e);
   updateMarquee(e);
   if (toolStore.isSelect) selectSvc.toolMove(e);
@@ -158,7 +156,6 @@ const onPointerUp = (e) => {
     lastTouchDistance = 0;
     return;
   }
-  updateCanvasPosition();
   updateMarquee(e);
   if (toolStore.isSelect) selectSvc.toolFinish(e);
   else pixelSvc.toolFinish(e);
@@ -236,28 +233,27 @@ const overlayStyle = computed(() => (
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
 
-const updateCanvasPosition = () => {
-    const rect = stageEl.value?.getBoundingClientRect();
-    if (rect) stageStore.setCanvasPosition(rect.left, rect.top);
-};
-
 const centerStage = () => {
   const rect = containerEl.value?.getBoundingClientRect();
   if (!rect) return;
   offset.value.x = (rect.width - stageStore.pixelWidth) / 2;
   offset.value.y = (rect.height - stageStore.pixelHeight) / 2;
 };
+const updateCanvasPosition = () => {
+    stageService.recalcScale(containerEl.value);
+    const rect = stageEl.value?.getBoundingClientRect();
+    if (rect) stageStore.setCanvasPosition(rect.left, rect.top);
+};
 
-const resizeObserver = new ResizeObserver(() => {
-    stageService.recalcScale(containerEl.value);
+const onResize = () => {
     centerStage();
     updateCanvasPosition();
-});
+}
+  
+const resizeObserver = new ResizeObserver(onResize);
 onMounted(() => {
-    stageService.recalcScale(containerEl.value);
-    centerStage();
-    updateCanvasPosition();
+    requestAnimationFrame(onResize)
     resizeObserver.observe(containerEl.value);
 });
-onUnmounted(() => resizeObserver.disconnect());
+onUnmounted(resizeObserver.disconnect);
 </script>
