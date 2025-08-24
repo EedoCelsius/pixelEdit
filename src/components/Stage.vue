@@ -82,7 +82,8 @@ import { useInputStore } from '../stores/input';
 import { useSelectService } from '../services/select';
 import { usePixelService } from '../services/pixel';
 import { useStageEventStore } from '../stores/stageEvent';
-import { rgbaCssU32, rgbaCssObj, calcMarquee, clamp } from '../utils';
+import { useViewportService } from '../services/viewport';
+import { rgbaCssU32, rgbaCssObj, calcMarquee } from '../utils';
 import { OVERLAY_CONFIG } from '../constants';
 
 const stageStore = useStageStore();
@@ -94,10 +95,11 @@ const layerSvc = useLayerService();
 const input = useInputStore();
 const selectSvc = useSelectService();
 const pixelSvc = usePixelService();
+const viewport = useViewportService();
 const containerEl = ref(null);
 const stageEl = ref(null);
-const offset = reactive({ x: 0, y: 0 });
 const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
+const offset = viewport.offset;
 
 const updateHover = (event) => {
     const pixel = stageService.clientToPixel(event);
@@ -128,33 +130,10 @@ const updateMarquee = (e) => {
     Object.assign(marquee, calcMarquee(toolStore.pointer.start, { x: e.clientX, y: e.clientY }, stageStore.canvas));
 };
   
-const touches = new Map();
-let lastTouchDistance = 0;
-
-const onContainerPointerDown = (e) => {
-  if (e.pointerType !== 'touch') return;
-  e.preventDefault();
-  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  lastTouchDistance = 0;
-};
-
-const onContainerPointerMove = (e) => {
-  if (e.pointerType !== 'touch') return;
-  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (touches.size === 2) handlePinch();
-};
-
-const onContainerPointerUp = (e) => {
-  if (e.pointerType !== 'touch') return;
-  touches.delete(e.pointerId);
-  lastTouchDistance = 0;
-};
-
-const onContainerPointerCancel = (e) => {
-  if (e.pointerType !== 'touch') return;
-  touches.delete(e.pointerId);
-  lastTouchDistance = 0;
-};
+const onContainerPointerDown = viewport.onContainerPointerDown;
+const onContainerPointerMove = (e) => viewport.onContainerPointerMove(e, containerEl.value);
+const onContainerPointerUp = viewport.onContainerPointerUp;
+const onContainerPointerCancel = viewport.onContainerPointerCancel;
 
 const onPointerDown = (e) => {
   stageEvents.addPointerDown(e);
@@ -211,48 +190,8 @@ watch(() => stageEvents.pointer.up, (e) => {
 
 watch(() => stageEvents.wheel, (e) => {
   if (!e) return;
-  if (!e.ctrlKey) {
-    offset.x -= e.deltaX;
-    offset.y -= e.deltaY;
-  } else {
-    if (e.deltaY === 0) return;
-    const rect = containerEl.value.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
-    const oldScale = stageStore.canvas.scale;
-    const factor = e.deltaY < 0 ? 1.1 : 0.9;
-    const newScale = oldScale * factor;
-    const clamped = Math.max(stageStore.canvas.minScale, newScale);
-    const ratio = clamped / oldScale;
-    offset.x = px - ratio * (px - offset.x);
-    offset.y = py - ratio * (py - offset.y);
-    stageStore.setScale(clamped);
-    if (newScale < oldScale) positionStage();
-  }
-  updateCanvasPosition();
+  viewport.onWheel(e, containerEl.value);
 });
-
-const handlePinch = () => {
-  const rect = containerEl.value.getBoundingClientRect();
-  const [t1, t2] = Array.from(touches.values());
-  const cx = (t1.x + t2.x) / 2 - rect.left;
-  const cy = (t1.y + t2.y) / 2 - rect.top;
-  const dist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
-  if (!lastTouchDistance) {
-    lastTouchDistance = dist;
-    return;
-  }
-  const oldScale = stageStore.canvas.scale;
-  const newScale = oldScale * (dist / lastTouchDistance);
-  const clamped = Math.max(stageStore.canvas.minScale, newScale);
-  const ratio = clamped / oldScale;
-  offset.x = cx - ratio * (cx - offset.x);
-  offset.y = cy - ratio * (cy - offset.y);
-  stageStore.setScale(clamped);
-  lastTouchDistance = dist;
-  if (newScale < oldScale) positionStage();
-  updateCanvasPosition();
-};
 
 const selectionPath = computed(() => layerSvc.selectionPath());
 const helperOverlay = computed(() => {
@@ -282,32 +221,8 @@ const helperOverlay = computed(() => {
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
 
-const positionStage = (center = false) => {
-  const el = containerEl.value;
-  const style = getComputedStyle(el);
-  const width = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-  const height = el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-  const maxX = width - stageStore.pixelWidth;
-  const maxY = height - stageStore.pixelHeight;
-  const targetX = maxX >= 0 ? maxX / 2 : clamp(offset.x, maxX, 0);
-  const targetY = maxY >= 0 ? maxY / 2 : clamp(offset.y, maxY, 0);
-  if (center) {
-    offset.x = targetX;
-    offset.y = targetY;
-  } else {
-    const strength = (stageStore.canvas.minScale / stageStore.canvas.scale) ** 2;
-    offset.x += (targetX - offset.x) * strength;
-    offset.y += (targetY - offset.y) * strength;
-  }
-};
-const updateCanvasPosition = () => {
-    const el = containerEl.value;
-    const rect = el.getBoundingClientRect();
-    const style = getComputedStyle(el);
-    const left = rect.left + parseFloat(style.paddingLeft);
-    const top = rect.top + parseFloat(style.paddingTop);
-    stageStore.setCanvasPosition(left + offset.x, top + offset.y);
-};
+const positionStage = (center = false) => viewport.positionStage(center, containerEl.value);
+const updateCanvasPosition = () => viewport.updateCanvasPosition(containerEl.value);
 
 let prevOffsetWidth = 0;
 let prevOffsetHeight = 0;
