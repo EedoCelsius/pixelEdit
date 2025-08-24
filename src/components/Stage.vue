@@ -1,6 +1,7 @@
 <template>
   <div ref="containerEl" class="relative flex-1 min-h-0 p-2 overflow-auto touch-none"
-       @wheel.prevent="onWheel"
+       @wheel="onWheel"
+       @scroll="onContainerScroll"
        @pointerdown="onContainerPointerDown"
        @pointermove="onContainerPointerMove"
        @pointerup="onContainerPointerUp"
@@ -155,6 +156,10 @@ const onContainerPointerCancel = (e) => {
   lastTouchDistance = 0;
 };
 
+const onContainerScroll = () => {
+  updateCanvasPosition();
+};
+
 const onPointerDown = (e) => {
   if (e.pointerType === 'touch') return;
   updateMarquee(e);
@@ -185,32 +190,22 @@ const onPointerCancel = (e) => {
 };
 
 const onWheel = (e) => {
-  if (e.ctrlKey) {
-    if (e.deltaY === 0) return;
-    const rect = containerEl.value.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
-    const oldScale = stageStore.canvas.scale;
-    const factor = e.deltaY < 0 ? 1.1 : 0.9;
-    const newScale = oldScale * factor;
-    const clamped = Math.max(stageStore.canvas.minScale, newScale);
-    const ratio = clamped / oldScale;
-    offset.x = px - ratio * (px - offset.x);
-    offset.y = py - ratio * (py - offset.y);
-    stageStore.setScale(clamped);
-    if (newScale < oldScale) positionStage();
-  } else {
-    offset.x -= e.deltaX;
-    offset.y -= e.deltaY;
-    const el = containerEl.value;
-    const style = getComputedStyle(el);
-    const width = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-    const height = el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-    const maxX = width - stageStore.pixelWidth;
-    const maxY = height - stageStore.pixelHeight;
-    offset.x = clamp(offset.x, maxX, 0);
-    offset.y = clamp(offset.y, maxY, 0);
-  }
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  if (e.deltaY === 0) return;
+  const el = containerEl.value;
+  const rect = el.getBoundingClientRect();
+  const px = e.clientX - rect.left + el.scrollLeft;
+  const py = e.clientY - rect.top + el.scrollTop;
+  const oldScale = stageStore.canvas.scale;
+  const factor = e.deltaY < 0 ? 1.1 : 0.9;
+  const newScale = oldScale * factor;
+  const clamped = Math.max(stageStore.canvas.minScale, newScale);
+  const ratio = clamped / oldScale;
+  offset.x = px - ratio * (px - offset.x);
+  offset.y = py - ratio * (py - offset.y);
+  stageStore.setScale(clamped);
+  if (newScale < oldScale) positionStage();
   updateCanvasPosition();
 };
 
@@ -286,8 +281,8 @@ const updateCanvasPosition = () => {
     const el = containerEl.value;
     const rect = el.getBoundingClientRect();
     const style = getComputedStyle(el);
-    const left = rect.left + parseFloat(style.paddingLeft);
-    const top = rect.top + parseFloat(style.paddingTop);
+    const left = rect.left + parseFloat(style.paddingLeft) - el.scrollLeft;
+    const top = rect.top + parseFloat(style.paddingTop) - el.scrollTop;
     stageStore.setCanvasPosition(left + offset.x, top + offset.y);
 };
 
