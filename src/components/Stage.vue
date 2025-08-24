@@ -1,7 +1,6 @@
 <template>
   <div ref="containerEl" class="relative flex-1 min-h-0 p-2 overflow-auto touch-none"
        @wheel.prevent="onWheel"
-       @scroll="onScroll"
        @pointerdown="onContainerPointerDown"
        @pointermove="onContainerPointerMove"
        @pointerup="onContainerPointerUp"
@@ -198,10 +197,9 @@ const onWheel = (e) => {
     offset.y -= e.deltaY;
   } else {
     if (e.deltaY === 0) return;
-    const el = containerEl.value;
-    const rect = el.getBoundingClientRect();
-    const px = e.clientX - rect.left + el.scrollLeft;
-    const py = e.clientY - rect.top + el.scrollTop;
+    const rect = containerEl.value.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
     const oldScale = stageStore.canvas.scale;
     const factor = e.deltaY < 0 ? 1.1 : 0.9;
     const newScale = oldScale * factor;
@@ -216,11 +214,10 @@ const onWheel = (e) => {
 };
 
 const handlePinch = () => {
-  const el = containerEl.value;
-  const rect = el.getBoundingClientRect();
+  const rect = containerEl.value.getBoundingClientRect();
   const [t1, t2] = Array.from(touches.values());
-  const cx = (t1.x + t2.x) / 2 - rect.left + el.scrollLeft;
-  const cy = (t1.y + t2.y) / 2 - rect.top + el.scrollTop;
+  const cx = (t1.x + t2.x) / 2 - rect.left;
+  const cy = (t1.y + t2.y) / 2 - rect.top;
   const dist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
   if (!lastTouchDistance) {
     lastTouchDistance = dist;
@@ -284,32 +281,12 @@ const positionStage = (center = false) => {
     offset.y += (targetY - offset.y) * strength;
   }
 };
-const fixOverflow = () => {
-    const el = containerEl.value;
-    if (offset.x < 0) {
-        el.scrollLeft += -offset.x;
-        offset.x = 0;
-    } else if (el.scrollLeft > 0 && offset.x > 0) {
-        const dx = Math.min(offset.x, el.scrollLeft);
-        el.scrollLeft -= dx;
-        offset.x -= dx;
-    }
-    if (offset.y < 0) {
-        el.scrollTop += -offset.y;
-        offset.y = 0;
-    } else if (el.scrollTop > 0 && offset.y > 0) {
-        const dy = Math.min(offset.y, el.scrollTop);
-        el.scrollTop -= dy;
-        offset.y -= dy;
-    }
-};
 const updateCanvasPosition = () => {
     const el = containerEl.value;
-    fixOverflow();
     const rect = el.getBoundingClientRect();
     const style = getComputedStyle(el);
-    const left = rect.left + parseFloat(style.paddingLeft) - el.scrollLeft;
-    const top = rect.top + parseFloat(style.paddingTop) - el.scrollTop;
+    const left = rect.left + parseFloat(style.paddingLeft);
+    const top = rect.top + parseFloat(style.paddingTop);
     stageStore.setCanvasPosition(left + offset.x, top + offset.y);
 };
 
@@ -347,8 +324,4 @@ onMounted(() => {
     resizeObserver.observe(containerEl.value);
 });
 onUnmounted(resizeObserver.disconnect);
-
-const onScroll = () => {
-    updateCanvasPosition();
-};
 </script>
