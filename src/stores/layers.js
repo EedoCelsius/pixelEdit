@@ -45,6 +45,7 @@ export const useLayerStore = defineStore('layers', {
         colorOf: (state) => (id) => state._layersById[id]?.getColorU32() ?? 0,
         nameOf: (state) => (id) => state._layersById[id]?.name,
         visibilityOf: (state) => (id) => !!state._layersById[id]?.visible,
+        lockedOf: (state) => (id) => !!state._layersById[id]?.locked,
         pixelCountOf: (state) => (id) => state._layersById[id]?.pixelCount ?? 0,
         disconnectedCountOf: (state) => (id) => state._layersById[id]?.disconnectedCount ?? 0,
         compositeColorAt: (state) => (x, y) => {
@@ -59,7 +60,7 @@ export const useLayerStore = defineStore('layers', {
             for (let i = state._order.length - 1; i >= 0; i--) {
                 const id = state._order[i];
                 const layer = state._layersById[id];
-                if (!layer || !layer.visible) continue;
+                if (!layer || !layer.visible || layer.locked) continue;
                 if (layer.has(x, y)) return id;
             }
             return null;
@@ -97,25 +98,31 @@ export const useLayerStore = defineStore('layers', {
         updateLayer(id, props) {
             const layer = this._layersById[id];
             if (!layer) return;
+            if (props.locked !== undefined) layer.locked = !!props.locked;
+            const locked = layer.locked;
             if (props.name !== undefined) layer.name = props.name;
-            if (props.colorU32 !== undefined) layer.setColorU32(props.colorU32);
             if (props.visible !== undefined) layer.visible = !!props.visible;
+            if (!locked && props.colorU32 !== undefined) layer.setColorU32(props.colorU32);
         },
         toggleVisibility(id) {
             const layer = this._layersById[id];
             if (layer) layer.visible = !layer.visible;
         },
+        toggleLock(id) {
+            const layer = this._layersById[id];
+            if (layer) layer.locked = !layer.locked;
+        },
         addPixels(id, pixels) {
             const layer = this._layersById[id];
-            if (layer) layer.addPixels(pixels);
+            if (layer && !layer.locked) layer.addPixels(pixels);
         },
         removePixels(id, pixels) {
             const layer = this._layersById[id];
-            if (layer) layer.removePixels(pixels);
+            if (layer && !layer.locked) layer.removePixels(pixels);
         },
         togglePixel(id, x, y) {
             const layer = this._layersById[id];
-            if (layer) layer.togglePixel(x, y);
+            if (layer && !layer.locked) layer.togglePixel(x, y);
         },
         /** Remove layers by ids */
         deleteLayers(ids) {
