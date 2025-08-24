@@ -60,7 +60,8 @@ const stageToolbar = ref(null);
 
 // Width control between display and layers
 const container = ref(null);
-const leftWidth = ref(50);
+// Display starts at 2/3 of the width (66.67%), leaving 1/3 for layers
+const leftWidth = ref((2 / 3) * 100);
 const isDragging = ref(false);
 
 const displayStyle = computed(() => ({ width: `${leftWidth.value}%` }));
