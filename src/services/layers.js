@@ -8,8 +8,9 @@ export const useLayerService = defineStore('layerService', () => {
     const selection = useSelectionStore();
 
     function forEachSelected(fn) {
-        for (const layer of layers.getLayers(selection.ids)) {
-            fn(layer);
+        for (const id of selection.ids) {
+            const layer = layers.getLayer(id);
+            if (layer) fn(layer, id);
         }
     }
 
