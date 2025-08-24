@@ -2,18 +2,18 @@ import { defineStore } from 'pinia';
 import { useStageService } from './stage';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
-import { useSelectionStore } from '../stores/selection';
 import { useLayerStore } from '../stores/layers';
 import { useOutputStore } from '../stores/output';
+import { useLayerPanelStore } from '../stores/layerPanel';
 import { coordsToKey, calcMarquee } from '../utils';
 
 export const useSelectService = defineStore('selectService', () => {
     const stage = useStageService();
     const stageStore = useStageStore();
     const toolStore = useToolStore();
-    const selection = useSelectionStore();
     const layers = useLayerStore();
     const output = useOutputStore();
+    const layerPanel = useLayerPanelStore();
 
     function toolStart(event) {
         if (event.button !== 0) return;
@@ -23,7 +23,7 @@ export const useSelectService = defineStore('selectService', () => {
         const startId = layers.topVisibleIdAt(pixel.x, pixel.y);
         const mode = !event.shiftKey
             ? 'select'
-            : selection.isSelected(startId)
+            : layers.isSelected(startId)
                 ? 'remove'
                 : 'add';
 
@@ -46,9 +46,9 @@ export const useSelectService = defineStore('selectService', () => {
             const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'remove') {
-                    if (selection.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (layers.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
                 } else if (mode === 'add') {
-                    if (!selection.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (!layers.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
                 } else {
                     toolStore.selectOverlayLayerIds.add(id);
                 }
@@ -77,11 +77,11 @@ export const useSelectService = defineStore('selectService', () => {
             toolStore.selectOverlayLayerIds.clear();
             if (mode === 'add') {
                 for (const id of intersectedIds) {
-                    if (!selection.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (!layers.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
                 }
             } else if (mode === 'remove') {
                 for (const id of intersectedIds) {
-                    if (selection.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (layers.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
                 }
             } else {
                 for (const id of intersectedIds) {
@@ -101,9 +101,9 @@ export const useSelectService = defineStore('selectService', () => {
             const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'remove') {
-                    if (selection.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (layers.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
                 } else if (mode === 'add') {
-                    if (!selection.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
+                    if (!layers.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
                 } else {
                     toolStore.selectOverlayLayerIds.add(id);
                 }
@@ -125,11 +125,12 @@ export const useSelectService = defineStore('selectService', () => {
             const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'select' || !mode) {
-                    selection.selectOne(id);
+                    layerPanel.setRange(id, id);
                 } else {
-                    selection.toggle(id);
+                    layers.toggleSelection(id);
+                    layerPanel.clearRange();
                 }
-                selection.setScrollRule({ type: 'follow', target: id });
+                layerPanel.setScrollRule({ type: 'follow', target: id });
             }
         } else {
             const pixels = stage.getPixelsFromInteraction(event);
@@ -140,7 +141,7 @@ export const useSelectService = defineStore('selectService', () => {
                     if (id !== null) intersectedIds.add(id);
                 }
                 const currentSelection = new Set(
-                    (mode === 'select' || !mode) ? [] : selection.ids
+                    (mode === 'select' || !mode) ? [] : layers.selectedIds
                 );
                 if (mode === 'add') {
                     intersectedIds.forEach(id => currentSelection.add(id));
@@ -149,13 +150,13 @@ export const useSelectService = defineStore('selectService', () => {
                 } else {
                     intersectedIds.forEach(id => currentSelection.add(id));
                 }
+                layers.replaceSelection([...currentSelection]);
                 if (mode === 'select' || !mode) {
-                    selection.replace([...currentSelection], null, null);
-                } else {
-                    selection.replace([...currentSelection], selection.anchorId, selection.tailId);
+                    layerPanel.clearRange();
                 }
             } else if (mode === 'select' || !mode) {
-                selection.clear();
+                layers.clearSelection();
+                layerPanel.clearRange();
             }
         }
 
@@ -183,13 +184,7 @@ export const useSelectService = defineStore('selectService', () => {
     }
 
     function selectRange(anchorId, tailId) {
-        const anchorIndex = layers.idsTopToBottom.indexOf(anchorId);
-        const tailIndex = layers.idsTopToBottom.indexOf(tailId);
-        const slice = layers.idsTopToBottom.slice(
-            Math.min(anchorIndex, tailIndex),
-            Math.max(anchorIndex, tailIndex) + 1
-        );
-        selection.replace(slice, anchorId, tailId);
+        layerPanel.setRange(anchorId, tailId);
     }
 
     return { toolStart, toolMove, toolFinish, cancel, selectRange };

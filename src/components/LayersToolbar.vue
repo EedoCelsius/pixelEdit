@@ -3,10 +3,10 @@
       <button @click="onAdd" title="Add layer" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
         <img :src="'image/layer_toolbar/add.svg'" alt="Add layer" class="w-4 h-4">
       </button>
-      <button @click="onCopy" :disabled="!selection.exists" title="Copy layer" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
+      <button @click="onCopy" :disabled="!layers.selectionExists" title="Copy layer" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
         <img :src="'image/layer_toolbar/copy.svg'" alt="Copy layer" class="w-4 h-4">
       </button>
-      <button @click="onMerge" :disabled="selection.count < 2" title="Merge layers" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
+      <button @click="onMerge" :disabled="layers.selectionCount < 2" title="Merge layers" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
         <img :src="'image/layer_toolbar/merge.svg'" alt="Merge layers" class="w-4 h-4">
       </button>
       <button @click="onSplit" :disabled="!canSplit" title="Split disconnected" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -22,37 +22,39 @@
 import { useLayerStore } from '../stores/layers';
 import { useLayerService } from '../services/layers';
 import { useOutputStore } from '../stores/output';
-import { useSelectionStore } from '../stores/selection';
+import { useLayerPanelStore } from '../stores/layerPanel';
 import { computed } from 'vue';
 
 const layers = useLayerStore();
 const layerSvc = useLayerService();
 const output = useOutputStore();
-const selection = useSelectionStore();
+const layerPanel = useLayerPanelStore();
 
 const hasEmptyLayers = computed(() => layers.order.some(id => layers.pixelCountOf(id) === 0));
-const canSplit = computed(() => selection.ids.some(id => layers.disconnectedCountOf(id) > 1));
+const canSplit = computed(() => layers.selectedIds.some(id => layers.disconnectedCountOf(id) > 1));
 
 const onAdd = () => {
     output.setRollbackPoint();
-    const above = selection.count ? layers.uppermostIdOf(selection.ids) : null;
+    const above = layers.selectionCount ? layers.uppermostIdOf(layers.selectedIds) : null;
     const id = layers.createLayer({});
     if (above !== null) {
         layers.reorderLayers([id], above, false);
     }
-    selection.selectOne(id);
+    layerPanel.setRange(id, id);
     output.commit();
 };
 const onMerge = () => {
     output.setRollbackPoint();
     const id = layerSvc.mergeSelected();
-    selection.selectOne(id);
+    layerPanel.setRange(id, id);
     output.commit();
 };
 const onCopy = () => {
     output.setRollbackPoint();
     const ids = layerSvc.copySelected();
-    selection.replace(ids, ids?.[0] ?? null, null);
+    layers.replaceSelection(ids);
+    if (ids?.[0] != null) layerPanel.setRange(ids[0], ids[0]);
+    else layerPanel.clearRange();
     output.commit();
 };
 const onSelectEmpty = () => {
@@ -60,7 +62,7 @@ const onSelectEmpty = () => {
 };
   const onSplit = () => {
       output.setRollbackPoint();
-      layerSvc.splitLayer(selection.anchorId);
+      layerSvc.splitLayer(layerPanel.anchorId);
       output.commit();
   };
 </script>

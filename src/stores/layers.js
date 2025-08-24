@@ -6,7 +6,8 @@ export const useLayerStore = defineStore('layers', {
     state: () => ({
         _order: [],
         _layersById: {},
-        _nextId: 1
+        _nextId: 1,
+        _selection: new Set()
     }),
     getters: {
         exists: (state) => state._order.length > 0,
@@ -48,6 +49,10 @@ export const useLayerStore = defineStore('layers', {
         lockedOf: (state) => (id) => !!state._layersById[id]?.locked,
         pixelCountOf: (state) => (id) => state._layersById[id]?.pixelCount ?? 0,
         disconnectedCountOf: (state) => (id) => state._layersById[id]?.disconnectedCount ?? 0,
+        selectedIds: (state) => [...state._selection],
+        selectionCount: (state) => state._selection.size,
+        selectionExists: (state) => state._selection.size > 0,
+        isSelected: (state) => (id) => state._selection.has(id),
         compositeColorAt: (state) => (x, y) => {
             for (let i = state._order.length - 1; i >= 0; i--) {
                 const layer = state._layersById[state._order[i]];
@@ -152,12 +157,30 @@ export const useLayerStore = defineStore('layers', {
             if (emptyIds.length) this.deleteLayers(emptyIds);
             return emptyIds;
         },
+        replaceSelection(ids = []) {
+            this._selection = new Set(ids);
+        },
+        addToSelection(ids = []) {
+            for (const id of ids) this._selection.add(id);
+        },
+        removeFromSelection(ids = []) {
+            for (const id of ids) this._selection.delete(id);
+        },
+        toggleSelection(id) {
+            if (id == null) return;
+            if (this._selection.has(id)) this._selection.delete(id);
+            else this._selection.add(id);
+        },
+        clearSelection() {
+            this._selection.clear();
+        },
         /** Serialization */
         serialize() {
             return {
                 nextId: this._nextId,
                 order: this._order.slice(),
-                byId: Object.fromEntries(this._order.map(id => [id, this._layersById[id]?.toJSON()]))
+                byId: Object.fromEntries(this._order.map(id => [id, this._layersById[id]?.toJSON()])),
+                selection: [...this._selection]
             };
         },
         applySerialized(payload) {
@@ -183,6 +206,7 @@ export const useLayerStore = defineStore('layers', {
             // nextId
             const maxId = layers.length ? Math.max(...layers) : 0;
             this._nextId = Math.max(payload?.nextId || 0, maxId + 1);
+            this._selection = new Set(payload?.selection || []);
         }
     }
 });
