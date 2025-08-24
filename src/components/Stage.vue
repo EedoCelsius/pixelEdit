@@ -1,7 +1,6 @@
 <template>
   <div ref="containerEl" class="relative flex-1 min-h-0 p-2 overflow-auto touch-none"
        @wheel.prevent="onWheel"
-       @scroll="onScroll"
        @pointerdown="onContainerPointerDown"
        @pointermove="onContainerPointerMove"
        @pointerup="onContainerPointerUp"
@@ -282,32 +281,12 @@ const positionStage = (center = false) => {
     offset.y += (targetY - offset.y) * strength;
   }
 };
-const fixOverflow = () => {
-    const el = containerEl.value;
-    if (offset.x < 0) {
-        el.scrollLeft += -offset.x;
-        offset.x = 0;
-    } else if (el.scrollLeft > 0 && offset.x > 0) {
-        const dx = Math.min(offset.x, el.scrollLeft);
-        el.scrollLeft -= dx;
-        offset.x -= dx;
-    }
-    if (offset.y < 0) {
-        el.scrollTop += -offset.y;
-        offset.y = 0;
-    } else if (el.scrollTop > 0 && offset.y > 0) {
-        const dy = Math.min(offset.y, el.scrollTop);
-        el.scrollTop -= dy;
-        offset.y -= dy;
-    }
-};
 const updateCanvasPosition = () => {
     const el = containerEl.value;
-    fixOverflow();
     const rect = el.getBoundingClientRect();
     const style = getComputedStyle(el);
-    const left = rect.left + parseFloat(style.paddingLeft) - el.scrollLeft;
-    const top = rect.top + parseFloat(style.paddingTop) - el.scrollTop;
+    const left = rect.left + parseFloat(style.paddingLeft);
+    const top = rect.top + parseFloat(style.paddingTop);
     stageStore.setCanvasPosition(left + offset.x, top + offset.y);
 };
 
@@ -345,8 +324,4 @@ onMounted(() => {
     resizeObserver.observe(containerEl.value);
 });
 onUnmounted(resizeObserver.disconnect);
-
-const onScroll = () => {
-    updateCanvasPosition();
-};
 </script>
