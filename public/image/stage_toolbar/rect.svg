@@ -5,7 +5,7 @@
    viewBox="0 0 32 32"
    version="1.1"
    id="svg2"
-   sodipodi:docname="add.svg"
+   sodipodi:docname="rect.svg"
    inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -35,12 +35,8 @@
      id="surface1"
      transform="matrix(0.24938433,0,0,0.24938433,0.07880576,0.07880576)">
     <path
-       style="fill:#f0f0f0;fill-opacity:1;fill-rule:nonzero;stroke:none"
+       style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none"
        d="M 15.984375,15.984375 H 112.01563 V 112.01563 H 15.984375 Z m 0,0"
        id="path1" />
-    <path
-       style="fill:#0fa60c;fill-opacity:1;fill-rule:nonzero;stroke:none"
-       d="M 86.855469,64 V 86.855469 H 64 V 105.14453 H 86.855469 V 128 H 105.14453 V 105.14453 H 128 V 86.855469 H 105.14453 V 64 Z m 0,0"
-       id="path2" />
   </g>
 </svg>
