@@ -309,7 +309,6 @@ const onScroll = () => {
     const el = containerEl.value;
     offset.x = Math.max(offset.x, 0) - el.scrollLeft;
     offset.y = Math.max(offset.y, 0) - el.scrollTop;
-    updateScroll();
     updateCanvasPosition();
 };
 
