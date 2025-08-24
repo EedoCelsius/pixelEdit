@@ -10,7 +10,7 @@ export const usePixelsStore = defineStore('pixelsStore', {
   },
   actions: {
     _ensureLayer(id) {
-      const map = this.$state._pixelsByLayer;
+      const map = this._pixelsByLayer;
       if (!map[id]) {
         map[id] = new Set();
       }
@@ -18,18 +18,17 @@ export const usePixelsStore = defineStore('pixelsStore', {
     },
     getPixels(id) {
       this._ensureLayer(id);
-      return readonly(this.pixelsByLayer[id]);
+      return this.pixelsByLayer[id];
     },
     addPixel(id, coord) {
       this._ensureLayer(id).add(coord);
     },
     removePixel(id, coord) {
-      const set = this.$state._pixelsByLayer[id];
+      const set = this._pixelsByLayer[id];
       if (set) set.delete(coord);
     },
-    clearLayer(id) {
-      const set = this.$state._pixelsByLayer[id];
-      if (set) set.clear();
+    removeLayer(id) {
+      delete this._pixelsByLayer[id];
     },
   },
 });
