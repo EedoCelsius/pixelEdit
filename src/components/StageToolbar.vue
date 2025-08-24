@@ -56,7 +56,8 @@ watch(() => selection.count, (size) => {
   selectables.splice(0, selectables.length, ...(size === 1
     ? [
         { type: 'draw', name: 'Draw', icon: 'image/stage_toolbar/draw.svg' },
-        { type: 'erase', name: 'Erase', icon: 'image/stage_toolbar/erase.svg' }
+        { type: 'erase', name: 'Erase', icon: 'image/stage_toolbar/erase.svg' },
+        { type: 'cut', name: 'Cut', icon: 'image/stage_toolbar/cut.svg' }
       ]
     : [
         { type: 'select', name: 'Select', icon: 'image/stage_toolbar/select.svg' },

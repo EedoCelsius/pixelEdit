@@ -37,6 +37,7 @@ export const useToolStore = defineStore('tool', {
         },
         isDraw() { return this.expected === 'draw'; },
         isErase() { return this.expected === 'erase'; },
+        isCut() { return this.expected === 'cut'; },
         isSelect() { return this.expected === 'select'; },
         isGlobalErase() { return this.expected === 'globalErase'; },
         isStroke: (state) => state.shape === 'stroke',

@@ -14,6 +14,7 @@ export const usePixelService = defineStore('pixelService', () => {
     const layers = useLayerStore();
     const layerSvc = useLayerService();
     const output = useOutputStore();
+    let cutLayerId = null;
 
     function toolStart(event) {
         if (event.button !== 0) return;
@@ -21,6 +22,19 @@ export const usePixelService = defineStore('pixelService', () => {
         if (!pixel) return;
 
         output.setRollbackPoint();
+
+        if (toolStore.expected === 'cut') {
+            if (selection.count !== 1) return;
+            const sourceId = selection.ids[0];
+            const srcLayer = layers.getLayer(sourceId);
+            if (!srcLayer) return;
+            cutLayerId = layers.createLayer({
+                name: `Cut of ${layers.nameOf(sourceId)}`,
+                colorU32: srcLayer.getColorU32(),
+                visible: srcLayer.visible,
+            }, sourceId);
+            toolStore.selectOverlayLayerIds.add(cutLayerId);
+        }
 
         toolStore.pointer.status = toolStore.expected;
         toolStore.pointer.start = { x: event.clientX, y: event.clientY };
@@ -39,8 +53,9 @@ export const usePixelService = defineStore('pixelService', () => {
             if (toolStore.isGlobalErase) {
                 if (selection.exists) removePixelsFromSelected([[pixel.x, pixel.y]]);
                 else removePixelsFromAll([[pixel.x, pixel.y]]);
-            } else if (toolStore.isDraw || toolStore.isErase) {
+            } else if (toolStore.isDraw || toolStore.isErase || toolStore.isCut) {
                 if (toolStore.isErase) removePixelsFromSelection([[pixel.x, pixel.y]]);
+                else if (toolStore.isCut) cutPixelsFromSelection([[pixel.x, pixel.y]]);
                 else addPixelsToSelection([[pixel.x, pixel.y]]);
             }
         }
@@ -65,8 +80,9 @@ export const usePixelService = defineStore('pixelService', () => {
             if (toolStore.isGlobalErase) {
                 if (selection.exists) removePixelsFromSelected(delta);
                 else removePixelsFromAll(delta);
-            } else if (toolStore.isDraw || toolStore.isErase) {
+            } else if (toolStore.isDraw || toolStore.isErase || toolStore.isCut) {
                 if (toolStore.isErase) removePixelsFromSelection(delta);
+                else if (toolStore.isCut) cutPixelsFromSelection(delta);
                 else addPixelsToSelection(delta);
             }
         }
@@ -81,11 +97,16 @@ export const usePixelService = defineStore('pixelService', () => {
                 if (toolStore.isGlobalErase) {
                     if (selection.exists) removePixelsFromSelected(pixels);
                     else removePixelsFromAll(pixels);
-                } else if (toolStore.isDraw || toolStore.isErase) {
+                } else if (toolStore.isDraw || toolStore.isErase || toolStore.isCut) {
                     if (toolStore.isErase) removePixelsFromSelection(pixels);
+                    else if (toolStore.isCut) cutPixelsFromSelection(pixels);
                     else addPixelsToSelection(pixels);
                 }
             }
+        }
+
+        if (toolStore.isCut && cutLayerId != null) {
+            selection.selectOne(cutLayerId);
         }
 
         try {
@@ -108,6 +129,7 @@ export const usePixelService = defineStore('pixelService', () => {
         toolStore.pointer.start = null;
         toolStore.visited.clear();
         toolStore.selectOverlayLayerIds.clear();
+        cutLayerId = null;
     }
 
     function addPixelsToSelection(pixels) {
@@ -120,6 +142,20 @@ export const usePixelService = defineStore('pixelService', () => {
         if (selection.count !== 1) return;
         const id = selection.ids[0];
         layers.removePixels(id, pixels);
+    }
+
+    function cutPixelsFromSelection(pixels) {
+        if (selection.count !== 1 || cutLayerId == null) return;
+        const sourceId = selection.ids[0];
+        const srcLayer = layers.getLayer(sourceId);
+        if (!srcLayer) return;
+        const pixelsToMove = [];
+        for (const [x, y] of pixels) {
+            if (srcLayer.has(x, y)) pixelsToMove.push([x, y]);
+        }
+        if (!pixelsToMove.length) return;
+        layers.removePixels(sourceId, pixelsToMove);
+        layers.addPixels(cutLayerId, pixelsToMove);
     }
 
     function togglePointInSelection(x, y) {
