@@ -26,15 +26,18 @@
           </template>
         </div>
       </div>
-      <!-- 액션 -->
-      <div class="flex gap-1 justify-end">
-        <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
-          <img :src="(layers.visibilityOf(id)?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(id)" />
+        <!-- 액션 -->
+        <div class="flex gap-1 justify-end">
+          <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="잠금/잠금해제">
+            <img :src="(layers.lockedOf(id)?icons.locked:icons.unlocked)" alt="lock/unlock" class="w-4 h-4 cursor-pointer" @error="icons.locked=icons.unlocked=''" @click.stop="toggleLock(id)" />
+          </div>
+          <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
+            <img :src="(layers.visibilityOf(id)?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(id)" />
+          </div>
+          <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
+            <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(id)" />
+          </div>
         </div>
-        <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
-          <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(id)" />
-        </div>
-      </div>
     </div>
     <div v-show="layers.idsTopToBottom.length===0" class="text-xs text-slate-400/80 py-6 text-center">(레이어가 없습니다)</div>
   </div>
@@ -66,7 +69,9 @@ const listElement = ref(null);
 const icons = reactive({
     show: 'image/layer_block/show.svg',
     hide: 'image/layer_block/hide.svg',
-    del: 'image/layer_block/delete.svg'
+    del: 'image/layer_block/delete.svg',
+    locked: 'image/layer_block/locked.svg',
+    unlocked: 'image/layer_block/unlocked.svg'
 });
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
@@ -173,6 +178,13 @@ function toggleVisibility(id) {
     output.setRollbackPoint();
     if (selection.isSelected(id)) layerSvc.setVisibilityForSelected(!layers.visibilityOf(id));
     else layers.toggleVisibility(id);
+    output.commit();
+}
+
+function toggleLock(id) {
+    output.setRollbackPoint();
+    if (selection.isSelected(id)) layerSvc.setLockForSelected(!layers.lockedOf(id));
+    else layers.toggleLock(id);
     output.commit();
 }
 
