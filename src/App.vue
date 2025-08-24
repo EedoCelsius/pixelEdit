@@ -173,8 +173,6 @@ onMounted(async () => {
     layers.createLayer({});
     layers.createLayer({});
   }
-  selection.selectOne(layers.idsTopToBottom[0]);
-
 
   window.addEventListener('keydown', onKeydown);
   window.addEventListener('keyup', onKeyup);
