@@ -7,12 +7,14 @@
       <!-- Shape toggle -->
       <div class="inline-flex rounded-md overflow-hidden border border-white/15">
         <button @click="toolStore.setShape('stroke')"
-                :class="`px-2 py-1 text-xs ${toolStore.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
-          Stroke
+                :title="'Stroke'"
+                :class="`p-1 ${toolStore.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+          <img :src="'image/stage_toolbar/stroke.svg'" alt="Stroke" class="w-4 h-4">
         </button>
         <button @click="toolStore.setShape('rect')"
-                :class="`px-2 py-1 text-xs ${toolStore.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
-          Rect
+                :title="'Rect'"
+                :class="`p-1 ${toolStore.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+          <img :src="'image/stage_toolbar/rect.svg'" alt="Rect" class="w-4 h-4">
         </button>
       </div>
 
@@ -20,15 +22,20 @@
       <div class="inline-flex rounded-md overflow-hidden border border-white/15">
         <button v-for="tool in selectables" :key="tool.type"
                 @click="toolStore.setStatic(tool.type)"
-                :class="`px-2 py-1 text-xs ${toolStore.expected === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
-          {{ tool.name }}
+                :title="tool.name"
+                :class="`p-1 ${toolStore.expected === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+          <img :src="tool.icon" :alt="tool.name" class="w-4 h-4">
         </button>
       </div>
 
       <div class="flex-1"></div>
 
-      <button @click="undo" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">↶ Undo</button>
-      <button @click="redo" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">Redo ↷</button>
+      <button @click="undo" title="Undo" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
+        <img :src="'image/stage_toolbar/undo.svg'" alt="Undo" class="w-4 h-4">
+      </button>
+      <button @click="redo" title="Redo" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
+        <img :src="'image/stage_toolbar/redo.svg'" alt="Redo" class="w-4 h-4">
+      </button>
     </div>
   </template>
 
@@ -47,8 +54,14 @@ const output = useOutputStore();
 const selectables = reactive([]);
 watch(() => selection.count, (size) => {
   selectables.splice(0, selectables.length, ...(size === 1
-    ? [{ type: 'draw', name: 'Draw' }, { type: 'erase', name: 'Erase' }]
-    : [{ type: 'select', name: 'Select' }, { type: 'globalErase', name: 'Global Erase' }]));
+    ? [
+        { type: 'draw', name: 'Draw', icon: 'image/stage_toolbar/draw.svg' },
+        { type: 'erase', name: 'Erase', icon: 'image/stage_toolbar/erase.svg' }
+      ]
+    : [
+        { type: 'select', name: 'Select', icon: 'image/stage_toolbar/select.svg' },
+        { type: 'globalErase', name: 'Global Erase', icon: 'image/stage_toolbar/global_erase.svg' }
+      ]));
   if (!selectables.some(tool => tool.type === toolStore.static)) {
     toolStore.setStatic(size === 1 ? 'draw' : 'select');
   }
