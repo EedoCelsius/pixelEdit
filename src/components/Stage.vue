@@ -1,6 +1,7 @@
 <template>
   <div ref="containerEl" class="relative flex-1 min-h-0 p-2 overflow-auto touch-none"
        @wheel.prevent="onWheel"
+       @scroll="onContainerScroll"
        @pointerdown="onContainerPointerDown"
        @pointermove="onContainerPointerMove"
        @pointerup="onContainerPointerUp"
@@ -197,7 +198,8 @@ const onWheel = (e) => {
     offset.y -= e.deltaY;
   } else {
     if (e.deltaY === 0) return;
-    const rect = containerEl.value.getBoundingClientRect();
+    const el = containerEl.value;
+    const rect = el.getBoundingClientRect();
     const px = e.clientX - rect.left;
     const py = e.clientY - rect.top;
     const oldScale = stageStore.canvas.scale;
@@ -205,8 +207,10 @@ const onWheel = (e) => {
     const newScale = oldScale * factor;
     const clamped = Math.max(stageStore.canvas.minScale, newScale);
     const ratio = clamped / oldScale;
-    offset.x = px - ratio * (px - offset.x);
-    offset.y = py - ratio * (py - offset.y);
+    const visibleOffsetX = offset.x - el.scrollLeft;
+    const visibleOffsetY = offset.y - el.scrollTop;
+    offset.x = px - ratio * (px - visibleOffsetX) + el.scrollLeft;
+    offset.y = py - ratio * (py - visibleOffsetY) + el.scrollTop;
     stageStore.setScale(clamped);
     if (newScale < oldScale) positionStage();
   }
@@ -214,7 +218,8 @@ const onWheel = (e) => {
 };
 
 const handlePinch = () => {
-  const rect = containerEl.value.getBoundingClientRect();
+  const el = containerEl.value;
+  const rect = el.getBoundingClientRect();
   const [t1, t2] = Array.from(touches.values());
   const cx = (t1.x + t2.x) / 2 - rect.left;
   const cy = (t1.y + t2.y) / 2 - rect.top;
@@ -227,8 +232,10 @@ const handlePinch = () => {
   const newScale = oldScale * (dist / lastTouchDistance);
   const clamped = Math.max(stageStore.canvas.minScale, newScale);
   const ratio = clamped / oldScale;
-  offset.x = cx - ratio * (cx - offset.x);
-  offset.y = cy - ratio * (cy - offset.y);
+  const visibleOffsetX = offset.x - el.scrollLeft;
+  const visibleOffsetY = offset.y - el.scrollTop;
+  offset.x = cx - ratio * (cx - visibleOffsetX) + el.scrollLeft;
+  offset.y = cy - ratio * (cy - visibleOffsetY) + el.scrollTop;
   stageStore.setScale(clamped);
   lastTouchDistance = dist;
   if (newScale < oldScale) positionStage();
@@ -285,9 +292,12 @@ const updateCanvasPosition = () => {
     const el = containerEl.value;
     const rect = el.getBoundingClientRect();
     const style = getComputedStyle(el);
-    const left = rect.left + parseFloat(style.paddingLeft);
-    const top = rect.top + parseFloat(style.paddingTop);
+    const left = rect.left + parseFloat(style.paddingLeft) - el.scrollLeft;
+    const top = rect.top + parseFloat(style.paddingTop) - el.scrollTop;
     stageStore.setCanvasPosition(left + offset.x, top + offset.y);
+};
+const onContainerScroll = () => {
+    updateCanvasPosition();
 };
 
 let prevOffsetWidth = 0;
