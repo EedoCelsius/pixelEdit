@@ -106,7 +106,10 @@ export const usePixelService = defineStore('pixelService', () => {
         }
 
         if (toolStore.isCut && cutLayerId != null) {
-            selection.selectOne(cutLayerId);
+            if (layers.pixelCountOf(cutLayerId))
+                selection.selectOne(cutLayerId);
+            else
+                layers.deleteLayers([cutLayerId])
         }
 
         try {
