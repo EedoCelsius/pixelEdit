@@ -22,14 +22,14 @@ export const OVERLAY_CONFIG = {
 };
 
 export const CURSOR_CONFIG = {
-    DRAW_STROKE: `url("image/stage_cursor/strokePlus.svg") 0 0, crosshair`,
-    DRAW_RECT: 'url("image/stage_cursor/RectPlus.svg") 0 0, crosshair',
-    ERASE_STROKE: `url("image/stage_cursor/strokeMinus.svg") 0 0, crosshair`,
-    ERASE_RECT: 'url("image/stage_cursor/RectMinus.svg") 0 0, crosshair',
-    ADD_STROKE: `url("image/stage_cursor/strokePlus.svg") 0 0, crosshair`,
-    ADD_RECT: 'url("image/stage_cursor/RectPlus.svg") 0 0, crosshair',
-    REMOVE_STROKE: `url("image/stage_cursor/strokeMinus.svg") 0 0, crosshair`,
-    REMOVE_RECT: 'url("image/stage_cursor/RectMinus.svg") 0 0, crosshair',
-    GLOBAL_ERASE_STROKE: `url("image/stage_cursor/strokeMinus.svg") 0 0, crosshair`,
-    GLOBAL_ERASE_RECT: 'url("image/stage_cursor/RectMinus.svg") 0 0, crosshair',
+    DRAW_STROKE: `url("image/stage_cursor/draw_stroke.svg") 0 0, crosshair`,
+    DRAW_RECT: 'url("image/stage_cursor/draw_rect.svg") 0 0, crosshair',
+    ERASE_STROKE: `url("image/stage_cursor/erase_stroke.svg") 0 0, crosshair`,
+    ERASE_RECT: 'url("image/stage_cursor/erase_rect.svg") 0 0, crosshair',
+    ADD_STROKE: `url("image/stage_cursor/add_stroke.svg") 0 0, crosshair`,
+    ADD_RECT: 'url("image/stage_cursor/add_rect.svg") 0 0, crosshair',
+    REMOVE_STROKE: `url("image/stage_cursor/remove_stroke.svg") 0 0, crosshair`,
+    REMOVE_RECT: 'url("image/stage_cursor/remove_rect.svg") 0 0, crosshair',
+    GLOBAL_ERASE_STROKE: `url("image/stage_cursor/global_erase_stroke.svg") 0 0, crosshair`,
+    GLOBAL_ERASE_RECT: 'url("image/stage_cursor/global_erase_rect.svg") 0 0, crosshair',
 };
