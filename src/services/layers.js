@@ -16,7 +16,14 @@ export const useLayerService = defineStore('layerService', () => {
 
     function setColorForSelectedU32(colorU32) {
         for (const id of selection.ids) {
+            if (layers.lockedOf(id)) continue;
             layers.updateLayer(id, { colorU32 });
+        }
+    }
+
+    function setLockedForSelected(isLocked) {
+        for (const id of selection.ids) {
+            layers.updateLayer(id, { locked: isLocked });
         }
     }
 
@@ -180,6 +187,7 @@ export const useLayerService = defineStore('layerService', () => {
     return {
         forEachSelected,
         setColorForSelectedU32,
+        setLockedForSelected,
         setVisibilityForSelected,
         deleteSelected,
         reorderGroup,

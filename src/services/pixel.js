@@ -113,24 +113,28 @@ export const usePixelService = defineStore('pixelService', () => {
     function addPixelsToSelection(pixels) {
         if (selection.count !== 1) return;
         const id = selection.ids[0];
+        if (layers.lockedOf(id)) return;
         layers.addPixels(id, pixels);
     }
 
     function removePixelsFromSelection(pixels) {
         if (selection.count !== 1) return;
         const id = selection.ids[0];
+        if (layers.lockedOf(id)) return;
         layers.removePixels(id, pixels);
     }
 
     function togglePointInSelection(x, y) {
         if (selection.count !== 1) return;
         const id = selection.ids[0];
+        if (layers.lockedOf(id)) return;
         layers.togglePixel(id, x, y);
     }
 
     function removePixelsFromSelected(pixels) {
         if (!pixels || !pixels.length) return;
         layerSvc.forEachSelected((layer, id) => {
+            if (layer.locked) return;
             const pixelsToRemove = [];
             for (const [x, y] of pixels) {
                 if (layer.has(x, y)) pixelsToRemove.push([x, y]);
@@ -143,7 +147,7 @@ export const usePixelService = defineStore('pixelService', () => {
         if (!pixels || !pixels.length) return;
         for (const id of layers.order) {
             const layer = layers.getLayer(id);
-            if (!layer) continue;
+            if (!layer || layer.locked) continue;
             const pixelsToRemove = [];
             for (const [x, y] of pixels) {
                 if (layer.has(x, y)) pixelsToRemove.push([x, y]);
