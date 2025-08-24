@@ -10,7 +10,7 @@
       </div>
       <!-- 색상 -->
       <div class="h-6 w-6 rounded border border-white/25 p-0 relative overflow-hidden">
-        <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :class="{ 'cursor-not-allowed opacity-50': layers.lockedOf(id) }" :disabled="layers.lockedOf(id)" :value="rgbaToHexU32(layers.colorOf(id))" @pointerdown.stop @mousedown.stop @click.stop="onColorDown()" @input.stop="onColorInput(id, $event)" @change.stop="onColorChange()" title="색상 변경" />
+        <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :class="{ 'cursor-not-allowed': layers.lockedOf(id) }" :disabled="layers.lockedOf(id)" :value="rgbaToHexU32(layers.colorOf(id))" @pointerdown.stop @mousedown.stop @click.stop="onColorDown()" @input.stop="onColorInput(id, $event)" @change.stop="onColorChange()" title="색상 변경" />
       </div>
       <!-- 이름/픽셀 -->
       <div class="min-w-0 flex-1">
