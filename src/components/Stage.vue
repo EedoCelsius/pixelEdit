@@ -190,23 +190,39 @@ const onPointerCancel = (e) => {
 };
 
 const onWheel = (e) => {
-  if (!e.ctrlKey) return;
-  e.preventDefault();
-  if (e.deltaY === 0) return;
   const el = containerEl.value;
-  const rect = el.getBoundingClientRect();
-  const px = e.clientX - rect.left + el.scrollLeft;
-  const py = e.clientY - rect.top + el.scrollTop;
-  const oldScale = stageStore.canvas.scale;
-  const factor = e.deltaY < 0 ? 1.1 : 0.9;
-  const newScale = oldScale * factor;
-  const clamped = Math.max(stageStore.canvas.minScale, newScale);
-  const ratio = clamped / oldScale;
-  offset.x = px - ratio * (px - offset.x);
-  offset.y = py - ratio * (py - offset.y);
-  stageStore.setScale(clamped);
-  if (newScale < oldScale) positionStage();
-  updateCanvasPosition();
+  if (e.ctrlKey) {
+    e.preventDefault();
+    if (e.deltaY === 0) return;
+    const rect = el.getBoundingClientRect();
+    const px = e.clientX - rect.left + el.scrollLeft;
+    const py = e.clientY - rect.top + el.scrollTop;
+    const oldScale = stageStore.canvas.scale;
+    const factor = e.deltaY < 0 ? 1.1 : 0.9;
+    const newScale = oldScale * factor;
+    const clamped = Math.max(stageStore.canvas.minScale, newScale);
+    const ratio = clamped / oldScale;
+    offset.x = px - ratio * (px - offset.x);
+    offset.y = py - ratio * (py - offset.y);
+    stageStore.setScale(clamped);
+    if (newScale < oldScale) positionStage();
+    updateCanvasPosition();
+    return;
+  }
+
+  let handled = false;
+  if (el.scrollWidth <= el.clientWidth) {
+    offset.x -= e.deltaX;
+    handled = true;
+  }
+  if (el.scrollHeight <= el.clientHeight) {
+    offset.y -= e.deltaY;
+    handled = true;
+  }
+  if (handled) {
+    e.preventDefault();
+    updateCanvasPosition();
+  }
 };
 
 const handlePinch = () => {
