@@ -10,7 +10,7 @@
       </div>
       <!-- 색상 -->
       <div class="h-6 w-6 rounded border border-white/25 p-0 relative overflow-hidden">
-        <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :value="rgbaToHexU32(layers.colorOf(id))" @pointerdown.stop @mousedown.stop @click.stop="onColorDown()" @input.stop="onColorInput(id, $event)" @change.stop="onColorChange()" title="색상 변경" />
+        <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :class="{ 'cursor-not-allowed': layers.lockedOf(id) }" :disabled="layers.lockedOf(id)" :value="rgbaToHexU32(layers.colorOf(id))" @pointerdown.stop @mousedown.stop @click.stop="onColorDown()" @input.stop="onColorInput(id, $event)" @change.stop="onColorChange()" title="색상 변경" />
       </div>
       <!-- 이름/픽셀 -->
       <div class="min-w-0 flex-1">
@@ -31,10 +31,13 @@
         <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
           <img :src="(layers.visibilityOf(id)?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(id)" />
         </div>
+        <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="잠금/해제">
+          <img :src="(layers.lockedOf(id)?icons.lock:icons.unlock)" alt="lock/unlock" class="w-4 h-4 cursor-pointer" @error="icons.lock=icons.unlock=''" @click.stop="toggleLock(id)" />
+        </div>
         <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
           <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(id)" />
         </div>
-      </div>
+        </div>
     </div>
     <div v-show="layers.idsTopToBottom.length===0" class="text-xs text-slate-400/80 py-6 text-center">(레이어가 없습니다)</div>
   </div>
@@ -66,6 +69,8 @@ const listElement = ref(null);
 const icons = reactive({
     show: 'image/layer_block/show.svg',
     hide: 'image/layer_block/hide.svg',
+    lock: 'image/layer_block/locked.svg',
+    unlock: 'image/layer_block/unlocked.svg',
     del: 'image/layer_block/delete.svg'
 });
 
@@ -161,6 +166,7 @@ function onColorDown() {
 }
 
 function onColorInput(id, event) {
+    if (layers.lockedOf(id)) return;
     const colorU32 = hexToRgbaU32(event.target.value);
     selection.isSelected(id) ? layerSvc.setColorForSelectedU32(colorU32) : layers.updateLayer(id, { colorU32 });
 }
@@ -173,6 +179,13 @@ function toggleVisibility(id) {
     output.setRollbackPoint();
     if (selection.isSelected(id)) layerSvc.setVisibilityForSelected(!layers.visibilityOf(id));
     else layers.toggleVisibility(id);
+    output.commit();
+}
+
+function toggleLock(id) {
+    output.setRollbackPoint();
+    if (selection.isSelected(id)) layerSvc.setLockedForSelected(!layers.lockedOf(id));
+    else layers.toggleLock(id);
     output.commit();
 }
 
