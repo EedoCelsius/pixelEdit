@@ -14,6 +14,7 @@
          }"
          @pointerdown="onPointerDown"
          @pointermove="onPointerMove"
+         @pointerleave="onPointerLeave"
          @pointerup="onPointerUp"
          @pointercancel="onPointerCancel"
          @contextmenu.prevent>
@@ -182,6 +183,12 @@ const onPointerCancel = (e) => {
     updateMarquee(e);
     if (toolStore.isSelect) selectSvc.cancel(e);
     else pixelSvc.cancel(e);
+};
+
+const onPointerLeave = (e) => {
+    if (e.pointerType === 'touch') return;
+    toolStore.hoverLayerId = null;
+    stageStore.updatePixelInfo('-');
 };
 
 const onWheel = (e) => {
