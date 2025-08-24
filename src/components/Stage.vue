@@ -213,14 +213,10 @@ const onWheel = (e) => {
     const style = getComputedStyle(el);
     const width = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
     const height = el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-    const diffX = width - stageStore.pixelWidth;
-    const diffY = height - stageStore.pixelHeight;
-    const minX = Math.min(0, diffX);
-    const maxX = Math.max(0, diffX);
-    const minY = Math.min(0, diffY);
-    const maxY = Math.max(0, diffY);
-    offset.x = clamp(offset.x, minX, maxX);
-    offset.y = clamp(offset.y, minY, maxY);
+    const maxX = width - stageStore.pixelWidth;
+    const maxY = height - stageStore.pixelHeight;
+    offset.x = clamp(offset.x, maxX, 0);
+    offset.y = clamp(offset.y, maxY, 0);
   }
   updateCanvasPosition();
 };
@@ -280,14 +276,10 @@ const positionStage = (center = false) => {
   const style = getComputedStyle(el);
   const width = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
   const height = el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-  const diffX = width - stageStore.pixelWidth;
-  const diffY = height - stageStore.pixelHeight;
-  const minX = Math.min(0, diffX);
-  const maxX = Math.max(0, diffX);
-  const minY = Math.min(0, diffY);
-  const maxY = Math.max(0, diffY);
-  const targetX = center ? (minX + maxX) / 2 : clamp(offset.x, minX, maxX);
-  const targetY = center ? (minY + maxY) / 2 : clamp(offset.y, minY, maxY);
+  const maxX = width - stageStore.pixelWidth;
+  const maxY = height - stageStore.pixelHeight;
+  const targetX = maxX >= 0 ? maxX / 2 : clamp(offset.x, maxX, 0);
+  const targetY = maxY >= 0 ? maxY / 2 : clamp(offset.y, maxY, 0);
   if (center) {
     offset.x = targetX;
     offset.y = targetY;
