@@ -18,12 +18,12 @@
           <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(id)" @keydown="onNameKey(id,$event)" @blur="finishRename(id,$event)">{{ layers.nameOf(id) }}</span>
         </div>
         <div class="text-xs text-slate-400">
-          <span class="cursor-pointer" @click.stop="onPixelCountClick(id)" title="같은 크기의 모든 레이어 선택">{{ layers.pixelCountOf(id) }} px</span>
           <template v-if="layers.disconnectedCountOf(id) > 1">
+            <span class="cursor-pointer" @click.stop="onDisconnectedClick(id)">⚠️</span>
+            <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(id)">{{ layers.disconnectedCountOf(id) }} piece</span>
             <span class="mx-1">|</span>
-            <span class="cursor-pointer" @click.stop="onDisconnectedClick(id)">Disconnected</span>:
-            <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(id)">{{ layers.disconnectedCountOf(id) }}</span>
           </template>
+          <span class="cursor-pointer" @click.stop="onPixelCountClick(id)" title="같은 크기의 모든 레이어 선택">{{ layers.pixelCountOf(id) }} px</span>
         </div>
       </div>
       <!-- 액션 -->
