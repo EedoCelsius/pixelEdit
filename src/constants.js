@@ -32,4 +32,6 @@ export const CURSOR_CONFIG = {
     REMOVE_RECT: 'url("image/stage_cursor/remove_rect.svg") 0 0, crosshair',
     GLOBAL_ERASE_STROKE: `url("image/stage_cursor/global_erase_stroke.svg") 0 0, crosshair`,
     GLOBAL_ERASE_RECT: 'url("image/stage_cursor/global_erase_rect.svg") 0 0, crosshair',
+    CUT_STROKE: `url("image/stage_cursor/cut_stroke.svg") 0 0, crosshair`,
+    CUT_RECT: 'url("image/stage_cursor/cut_rect.svg") 0 0, crosshair',
 };
