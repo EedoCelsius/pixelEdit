@@ -6,13 +6,11 @@ export class Layer {
         name,
         colorU32,
         visible,
-        locked,
         pixels
     } = {}) {
         this.name = name || 'Layer';
         this.visible = visible ?? true;
         this._color = (colorU32 >>> 0) || randColorU32();
-        this.locked = !!locked;
 
         const keyedPixels = pixels ? pixels.map(p => coordsToKey(p[0], p[1])) : [];
         // reactive pixels + scoped computed cache
@@ -74,7 +72,6 @@ export class Layer {
         return {
             name: this.name,
             visible: this.visible,
-            locked: this.locked,
             color: this._color >>> 0,
             pixels: [...this._pixels].map(s => keyToCoords(s))
         };
@@ -84,7 +81,6 @@ export class Layer {
             name: data.name,
             colorU32: data.color >>> 0,
             visible: !!data.visible,
-            locked: !!data.locked,
             pixels: data.pixels
         });
     }
