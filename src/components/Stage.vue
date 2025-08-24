@@ -72,7 +72,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useStageService } from '../services/stage';
@@ -82,6 +82,7 @@ import { useSelectionStore } from '../stores/selection';
 import { useInputStore } from '../stores/input';
 import { useSelectService } from '../services/select';
 import { usePixelService } from '../services/pixel';
+import { useStageEventStore } from '../stores/stageEvent';
 import { rgbaCssU32, rgbaCssObj, calcMarquee, clamp } from '../utils';
 import { OVERLAY_CONFIG } from '../constants';
 
@@ -94,6 +95,7 @@ const selection = useSelectionStore();
 const input = useInputStore();
 const selectSvc = useSelectService();
 const pixelSvc = usePixelService();
+const eventStore = useStageEventStore();
 const containerEl = ref(null);
 const stageEl = ref(null);
 const offset = reactive({ x: 0, y: 0 });
@@ -131,88 +133,6 @@ const updateMarquee = (e) => {
 const touches = new Map();
 let lastTouchDistance = 0;
 
-const onContainerPointerDown = (e) => {
-  if (e.pointerType !== 'touch') return;
-  e.preventDefault();
-  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  lastTouchDistance = 0;
-};
-
-const onContainerPointerMove = (e) => {
-  if (e.pointerType !== 'touch') return;
-  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (touches.size === 2) handlePinch();
-};
-
-const onContainerPointerUp = (e) => {
-  if (e.pointerType !== 'touch') return;
-  touches.delete(e.pointerId);
-  lastTouchDistance = 0;
-};
-
-const onContainerPointerCancel = (e) => {
-  if (e.pointerType !== 'touch') return;
-  touches.delete(e.pointerId);
-  lastTouchDistance = 0;
-};
-
-const onPointerDown = (e) => {
-  if (e.pointerType === 'touch') return;
-  updateMarquee(e);
-  if (toolStore.isSelect) selectSvc.toolStart(e);
-  else pixelSvc.toolStart(e);
-};
-
-const onPointerMove = (e) => {
-  if (e.pointerType === 'touch') return;
-  updateHover(e);
-  updateMarquee(e);
-  if (toolStore.isSelect) selectSvc.toolMove(e);
-  else pixelSvc.toolMove(e);
-};
-
-const onPointerUp = (e) => {
-  if (e.pointerType === 'touch') return;
-  updateMarquee(e);
-  if (toolStore.isSelect) selectSvc.toolFinish(e);
-  else pixelSvc.toolFinish(e);
-};
-
-const onPointerCancel = (e) => {
-    if (e.pointerType === 'touch') return;
-    updateMarquee(e);
-    if (toolStore.isSelect) selectSvc.cancel(e);
-    else pixelSvc.cancel(e);
-};
-
-const onPointerLeave = (e) => {
-    if (e.pointerType === 'touch') return;
-    toolStore.hoverLayerId = null;
-    stageStore.updatePixelInfo('-');
-};
-
-const onWheel = (e) => {
-  if (!e.ctrlKey) {
-    offset.x -= e.deltaX;
-    offset.y -= e.deltaY;
-  } else {
-    if (e.deltaY === 0) return;
-    const rect = containerEl.value.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
-    const oldScale = stageStore.canvas.scale;
-    const factor = e.deltaY < 0 ? 1.1 : 0.9;
-    const newScale = oldScale * factor;
-    const clamped = Math.max(stageStore.canvas.minScale, newScale);
-    const ratio = clamped / oldScale;
-    offset.x = px - ratio * (px - offset.x);
-    offset.y = py - ratio * (py - offset.y);
-    stageStore.setScale(clamped);
-    if (newScale < oldScale) positionStage();
-  }
-  updateCanvasPosition();
-};
-
 const handlePinch = () => {
   const rect = containerEl.value.getBoundingClientRect();
   const [t1, t2] = Array.from(touches.values());
@@ -234,6 +154,90 @@ const handlePinch = () => {
   if (newScale < oldScale) positionStage();
   updateCanvasPosition();
 };
+
+// watchers for event store
+watch(() => eventStore.pointer.down, (e) => {
+  if (!e) return;
+  if (e.pointerType === 'touch') {
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    lastTouchDistance = 0;
+  } else {
+    updateMarquee(e);
+    if (toolStore.isSelect) selectSvc.toolStart(e);
+    else pixelSvc.toolStart(e);
+  }
+});
+
+watch(() => eventStore.pointer.move, (e) => {
+  if (!e) return;
+  if (e.pointerType === 'touch') {
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touches.size === 2) handlePinch();
+  } else if (e.type === 'pointerleave') {
+    toolStore.hoverLayerId = null;
+    stageStore.updatePixelInfo('-');
+  } else {
+    updateHover(e);
+    updateMarquee(e);
+    if (toolStore.isSelect) selectSvc.toolMove(e);
+    else pixelSvc.toolMove(e);
+  }
+});
+
+watch(() => eventStore.pointer.up[0], (e) => {
+  if (!e) return;
+  if (e.pointerType === 'touch') {
+    touches.delete(e.pointerId);
+    lastTouchDistance = 0;
+  } else {
+    updateMarquee(e);
+    if (e.type === 'pointercancel') {
+      if (toolStore.isSelect) selectSvc.cancel(e);
+      else pixelSvc.cancel(e);
+    } else {
+      if (toolStore.isSelect) selectSvc.toolFinish(e);
+      else pixelSvc.toolFinish(e);
+    }
+  }
+});
+
+watch(() => eventStore.wheel, (e) => {
+  if (!e) return;
+  if (!e.ctrlKey) {
+    offset.x -= e.deltaX;
+    offset.y -= e.deltaY;
+  } else {
+    if (e.deltaY === 0) return;
+    const rect = containerEl.value.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    const oldScale = stageStore.canvas.scale;
+    const factor = e.deltaY < 0 ? 1.1 : 0.9;
+    const newScale = oldScale * factor;
+    const clamped = Math.max(stageStore.canvas.minScale, newScale);
+    const ratio = clamped / oldScale;
+    offset.x = px - ratio * (px - offset.x);
+    offset.y = py - ratio * (py - offset.y);
+    stageStore.setScale(clamped);
+    if (newScale < oldScale) positionStage();
+  }
+  updateCanvasPosition();
+});
+
+const onContainerPointerDown = (e) => {
+  if (e.pointerType === 'touch') e.preventDefault();
+  eventStore.pointerDown(e);
+};
+const onContainerPointerMove = (e) => eventStore.pointerMove(e);
+const onContainerPointerUp = (e) => eventStore.pointerUp(e);
+const onContainerPointerCancel = (e) => eventStore.pointerUp(e);
+
+const onPointerDown = (e) => eventStore.pointerDown(e);
+const onPointerMove = (e) => eventStore.pointerMove(e);
+const onPointerUp = (e) => eventStore.pointerUp(e);
+const onPointerCancel = (e) => eventStore.pointerUp(e);
+const onPointerLeave = (e) => eventStore.pointerMove(e);
+const onWheel = (e) => { eventStore.wheelEvent(e); };
 
 const selectionPath = computed(() => layerSvc.selectionPath());
 const helperOverlay = computed(() => {
