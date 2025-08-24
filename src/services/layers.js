@@ -1,53 +1,52 @@
 import { defineStore } from 'pinia';
 import { useLayerStore } from '../stores/layers';
-import { useSelectionStore } from '../stores/selection';
+import { useLayerPanelStore } from '../stores/layerPanel';
 import { keyToCoords, buildOutline, findPixelComponents, getPixelUnionSet } from '../utils';
 
 export const useLayerService = defineStore('layerService', () => {
     const layers = useLayerStore();
-    const selection = useSelectionStore();
+    const layerPanel = useLayerPanelStore();
 
     function forEachSelected(fn) {
-        for (const id of selection.ids) {
+        for (const id of layers.selectedIds) {
             const layer = layers.getLayer(id);
             if (layer) fn(layer, id);
         }
     }
 
     function setColorForSelectedU32(colorU32) {
-        for (const id of selection.ids) {
+        for (const id of layers.selectedIds) {
             if (layers.lockedOf(id)) continue;
             layers.updateLayer(id, { colorU32 });
         }
     }
 
     function setLockedForSelected(isLocked) {
-        for (const id of selection.ids) {
+        for (const id of layers.selectedIds) {
             layers.updateLayer(id, { locked: isLocked });
         }
     }
 
     function setVisibilityForSelected(isVisible) {
-        for (const id of selection.ids) {
+        for (const id of layers.selectedIds) {
             layers.updateLayer(id, { visible: isVisible });
         }
     }
 
     function deleteSelected() {
-        const ids = selection.ids;
+        const ids = layers.selectedIds;
         layers.deleteLayers(ids);
-        selection.removeMany(ids);
+        layers.removeFromSelection(ids);
+        layerPanel.clearRange();
     }
 
     function reorderGroup(selIds, targetId, placeBelow = true) {
         layers.reorderLayers(selIds, targetId, placeBelow);
-        const newAnchorId = selection.anchorId;
-        selection.replace(selIds, newAnchorId, newAnchorId);
     }
 
     function mergeSelected() {
-        if (selection.count < 2) return;
-        const pixelUnionSet = getPixelUnionSet(layers.getLayers(selection.ids));
+        if (layers.selectionCount < 2) return;
+        const pixelUnionSet = getPixelUnionSet(layers.getLayers(layers.selectedIds));
 
         let r = 0, g = 0, b = 0;
         if (pixelUnionSet.size) {
@@ -68,23 +67,23 @@ export const useLayerService = defineStore('layerService', () => {
                 g += (colorU32 >>> 16) & 255;
                 b += (colorU32 >>> 8) & 255;
             });
-            r = Math.round(r / selection.count);
-            g = Math.round(g / selection.count);
-            b = Math.round(b / selection.count);
+            r = Math.round(r / layers.selectionCount);
+            g = Math.round(g / layers.selectionCount);
+            b = Math.round(b / layers.selectionCount);
         }
         const colorU32 = (((r & 255) << 24) | ((g & 255) << 16) | ((b & 255) << 8) | 255) >>> 0;
 
-        const anchorName = layers.nameOf(selection.anchorId) || 'Merged';
+        const anchorName = layers.nameOf(layerPanel.anchorId) || 'Merged';
         const newLayerId = layers.createLayer({ name: `Merged ${anchorName}`, colorU32 });
         const layer = layers.getLayer(newLayerId);
         for (const k of pixelUnionSet) layer.addPixels([keyToCoords(k)]);
-        layers.reorderLayers([newLayerId], layers.lowermostIdOf(selection.ids), true);
+        layers.reorderLayers([newLayerId], layers.lowermostIdOf(layers.selectedIds), true);
         deleteSelected();
         return newLayerId;
     }
 
     function copySelected() {
-        if (!selection.count) return [];
+        if (!layers.selectionCount) return [];
         const newLayerIds = [];
         forEachSelected((layer, id) => {
             const newLayerId = layers.createLayer({
@@ -99,8 +98,8 @@ export const useLayerService = defineStore('layerService', () => {
     }
 
     function selectionPath() {
-        if (!selection.count) return '';
-        const pixelUnionSet = getPixelUnionSet(layers.getLayers(selection.ids));
+        if (!layers.selectionCount) return '';
+        const pixelUnionSet = getPixelUnionSet(layers.getLayers(layers.selectedIds));
         const groups = buildOutline(pixelUnionSet);
         const pathData = [];
         for (const group of groups)
@@ -111,7 +110,10 @@ export const useLayerService = defineStore('layerService', () => {
 
     function selectEmptyLayers() {
         const ids = layers.order.filter(layerId => layers.pixelCountOf(layerId) === 0);
-        if (ids.length) selection.replace(ids, ids[0], ids[0]);
+        if (ids.length) {
+            layers.replaceSelection(ids);
+            layerPanel.setRange(ids[0], ids[0]);
+        }
     }
 
     function splitLayer(layerId) {
@@ -144,12 +146,16 @@ export const useLayerService = defineStore('layerService', () => {
         orderWithoutNew.splice(originalIndex, 0, ...newIds.reverse());
         layers._order = orderWithoutNew;
 
-        selection.replace(newIds, newIds[0], newIds[0]);
+        layers.replaceSelection(newIds);
+        layerPanel.setRange(newIds[0], newIds[0]);
     }
 
     function selectDisconnectedLayers(id) {
         const idsToSelect = layers.order.filter(layerId => layers.disconnectedCountOf(layerId) > 1);
-        if (idsToSelect.length) selection.replace(idsToSelect, id, id);
+        if (idsToSelect.length) {
+            layers.replaceSelection(idsToSelect);
+            layerPanel.setRange(id, id);
+        }
     }
 
     function selectByDisconnectedCount(id) {
@@ -157,11 +163,14 @@ export const useLayerService = defineStore('layerService', () => {
         if (!targetLayer) return;
         const targetCount = targetLayer.disconnectedCount;
         if (targetCount <= 1) {
-            selection.selectOne(id);
+            layerPanel.setRange(id, id);
             return;
         }
         const idsToSelect = layers.order.filter(layerId => layers.disconnectedCountOf(layerId) === targetCount);
-        if (idsToSelect.length) selection.replace(idsToSelect, id, id);
+        if (idsToSelect.length) {
+            layers.replaceSelection(idsToSelect);
+            layerPanel.setRange(id, id);
+        }
     }
 
     function selectByPixelCount(id) {
@@ -169,11 +178,14 @@ export const useLayerService = defineStore('layerService', () => {
         if (!targetLayer) return;
         const targetCount = targetLayer.pixelCount;
         if (targetCount === 0) {
-            selection.selectOne(id);
+            layerPanel.setRange(id, id);
             return;
         }
         const idsToSelect = layers.order.filter(layerId => layers.pixelCountOf(layerId) === targetCount);
-        if (idsToSelect.length) selection.replace(idsToSelect, id, id);
+        if (idsToSelect.length) {
+            layers.replaceSelection(idsToSelect);
+            layerPanel.setRange(id, id);
+        }
     }
 
     function selectByColor(id) {
@@ -181,7 +193,10 @@ export const useLayerService = defineStore('layerService', () => {
         if (!targetLayer) return;
         const targetColor = targetLayer.getColorU32();
         const idsToSelect = layers.order.filter(layerId => layers.colorOf(layerId) === targetColor);
-        if (idsToSelect.length) selection.replace(idsToSelect, id, id);
+        if (idsToSelect.length) {
+            layers.replaceSelection(idsToSelect);
+            layerPanel.setRange(id, id);
+        }
     }
 
     return {
