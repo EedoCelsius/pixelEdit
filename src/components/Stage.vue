@@ -1,5 +1,6 @@
 <template>
   <div ref="containerEl" class="relative flex-1 min-h-0 p-2 overflow-auto touch-none"
+       @scroll="onScroll"
        @wheel.prevent="onWheel"
        @pointerdown="onContainerPointerDown"
        @pointermove="onContainerPointerMove"
@@ -192,14 +193,15 @@ const onPointerLeave = (e) => {
 };
 
 const onWheel = (e) => {
+  const el = containerEl.value;
   if (!e.ctrlKey) {
-    offset.x -= e.deltaX;
-    offset.y -= e.deltaY;
+    el.scrollBy({ left: e.deltaX, top: e.deltaY });
+    return;
   } else {
     if (e.deltaY === 0) return;
-    const rect = containerEl.value.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
+    const rect = el.getBoundingClientRect();
+    const px = e.clientX - rect.left + el.scrollLeft;
+    const py = e.clientY - rect.top + el.scrollTop;
     const oldScale = stageStore.canvas.scale;
     const factor = e.deltaY < 0 ? 1.1 : 0.9;
     const newScale = oldScale * factor;
@@ -209,15 +211,16 @@ const onWheel = (e) => {
     offset.y = py - ratio * (py - offset.y);
     stageStore.setScale(clamped);
     if (newScale < oldScale) positionStage();
+    updateCanvasPosition();
   }
-  updateCanvasPosition();
 };
 
 const handlePinch = () => {
-  const rect = containerEl.value.getBoundingClientRect();
+  const el = containerEl.value;
+  const rect = el.getBoundingClientRect();
   const [t1, t2] = Array.from(touches.values());
-  const cx = (t1.x + t2.x) / 2 - rect.left;
-  const cy = (t1.y + t2.y) / 2 - rect.top;
+  const cx = (t1.x + t2.x) / 2 - rect.left + el.scrollLeft;
+  const cy = (t1.y + t2.y) / 2 - rect.top + el.scrollTop;
   const dist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
   if (!lastTouchDistance) {
     lastTouchDistance = dist;
@@ -280,14 +283,19 @@ const positionStage = (center = false) => {
     offset.x += (targetX - offset.x) * strength;
     offset.y += (targetY - offset.y) * strength;
   }
+  updateCanvasPosition();
 };
 const updateCanvasPosition = () => {
     const el = containerEl.value;
     const rect = el.getBoundingClientRect();
     const style = getComputedStyle(el);
-    const left = rect.left + parseFloat(style.paddingLeft);
-    const top = rect.top + parseFloat(style.paddingTop);
-    stageStore.setCanvasPosition(left + offset.x, top + offset.y);
+    const left = rect.left + parseFloat(style.paddingLeft) + offset.x - el.scrollLeft;
+    const top = rect.top + parseFloat(style.paddingTop) + offset.y - el.scrollTop;
+    stageStore.setCanvasPosition(left, top);
+};
+
+const onScroll = () => {
+    updateCanvasPosition();
 };
 
 let prevOffsetWidth = 0;
@@ -308,14 +316,12 @@ const onDomResize = () => {
     stageService.recalcMinScale(el);
     stageStore.setScale(stageStore.canvas.containScale);
     positionStage(true);
-    updateCanvasPosition();
 };
 
 const onImageLoad = () => {
     stageService.recalcMinScale(containerEl.value);
     stageStore.setScale(stageStore.canvas.containScale);
     positionStage(true);
-    updateCanvasPosition();
 };
 
 const resizeObserver = new ResizeObserver(onDomResize);
