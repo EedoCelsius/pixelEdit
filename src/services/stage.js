@@ -152,6 +152,8 @@ export const useStageService = defineStore('stageService', () => {
         if (tool === 'erase' && shape === 'rect') return CURSOR_CONFIG.ERASE_RECT;
         if (tool === 'globalErase' && shape === 'stroke') return CURSOR_CONFIG.GLOBAL_ERASE_STROKE;
         if (tool === 'globalErase' && shape === 'rect') return CURSOR_CONFIG.GLOBAL_ERASE_RECT;
+        if (tool === 'cut' && shape === 'stroke') return CURSOR_CONFIG.CUT_STROKE;
+        if (tool === 'cut' && shape === 'rect') return CURSOR_CONFIG.CUT_RECT;
         return 'default';
     });
 
