@@ -1,6 +1,7 @@
 <template>
   <div ref="containerEl" class="relative flex-1 min-h-0 p-2 overflow-auto touch-none"
        @wheel.prevent="onWheel"
+       @scroll="onScroll"
        @pointerdown="onContainerPointerDown"
        @pointermove="onContainerPointerMove"
        @pointerup="onContainerPointerUp"
@@ -99,6 +100,29 @@ const stageEl = ref(null);
 const offset = reactive({ x: 0, y: 0 });
 const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
 
+const getEffectiveOffset = () => ({
+    x: offset.x - containerEl.value.scrollLeft,
+    y: offset.y - containerEl.value.scrollTop,
+});
+
+const setEffectiveOffset = (x, y) => {
+    const el = containerEl.value;
+    if (x < 0) {
+        el.scrollLeft = -x;
+        offset.x = 0;
+    } else {
+        el.scrollLeft = 0;
+        offset.x = x;
+    }
+    if (y < 0) {
+        el.scrollTop = -y;
+        offset.y = 0;
+    } else {
+        el.scrollTop = 0;
+        offset.y = y;
+    }
+};
+
 const updateHover = (event) => {
     const pixel = stageService.clientToPixel(event);
     if (!pixel) {
@@ -192,21 +216,24 @@ const onPointerLeave = (e) => {
 };
 
 const onWheel = (e) => {
+  const el = containerEl.value;
   if (!e.ctrlKey) {
-    offset.x -= e.deltaX;
-    offset.y -= e.deltaY;
+    const eff = getEffectiveOffset();
+    setEffectiveOffset(eff.x - e.deltaX, eff.y - e.deltaY);
   } else {
     if (e.deltaY === 0) return;
-    const rect = containerEl.value.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
+    const rect = el.getBoundingClientRect();
+    const px = e.clientX - rect.left + el.scrollLeft;
+    const py = e.clientY - rect.top + el.scrollTop;
     const oldScale = stageStore.canvas.scale;
     const factor = e.deltaY < 0 ? 1.1 : 0.9;
     const newScale = oldScale * factor;
     const clamped = Math.max(stageStore.canvas.minScale, newScale);
     const ratio = clamped / oldScale;
-    offset.x = px - ratio * (px - offset.x);
-    offset.y = py - ratio * (py - offset.y);
+    const eff = getEffectiveOffset();
+    const newX = px - ratio * (px - eff.x);
+    const newY = py - ratio * (py - eff.y);
+    setEffectiveOffset(newX, newY);
     stageStore.setScale(clamped);
     if (newScale < oldScale) positionStage();
   }
@@ -214,10 +241,11 @@ const onWheel = (e) => {
 };
 
 const handlePinch = () => {
-  const rect = containerEl.value.getBoundingClientRect();
+  const el = containerEl.value;
+  const rect = el.getBoundingClientRect();
   const [t1, t2] = Array.from(touches.values());
-  const cx = (t1.x + t2.x) / 2 - rect.left;
-  const cy = (t1.y + t2.y) / 2 - rect.top;
+  const cx = (t1.x + t2.x) / 2 - rect.left + el.scrollLeft;
+  const cy = (t1.y + t2.y) / 2 - rect.top + el.scrollTop;
   const dist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
   if (!lastTouchDistance) {
     lastTouchDistance = dist;
@@ -227,11 +255,17 @@ const handlePinch = () => {
   const newScale = oldScale * (dist / lastTouchDistance);
   const clamped = Math.max(stageStore.canvas.minScale, newScale);
   const ratio = clamped / oldScale;
-  offset.x = cx - ratio * (cx - offset.x);
-  offset.y = cy - ratio * (cy - offset.y);
+  const eff = getEffectiveOffset();
+  const newX = cx - ratio * (cx - eff.x);
+  const newY = cy - ratio * (cy - eff.y);
+  setEffectiveOffset(newX, newY);
   stageStore.setScale(clamped);
   lastTouchDistance = dist;
   if (newScale < oldScale) positionStage();
+  updateCanvasPosition();
+};
+
+const onScroll = () => {
   updateCanvasPosition();
 };
 
@@ -270,23 +304,24 @@ const positionStage = (center = false) => {
   const height = el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
   const maxX = width - stageStore.pixelWidth;
   const maxY = height - stageStore.pixelHeight;
-  const targetX = maxX >= 0 ? maxX / 2 : clamp(offset.x, maxX, 0);
-  const targetY = maxY >= 0 ? maxY / 2 : clamp(offset.y, maxY, 0);
+  const eff = getEffectiveOffset();
+  const targetX = maxX >= 0 ? maxX / 2 : clamp(eff.x, maxX, 0);
+  const targetY = maxY >= 0 ? maxY / 2 : clamp(eff.y, maxY, 0);
   if (center) {
-    offset.x = targetX;
-    offset.y = targetY;
+    setEffectiveOffset(targetX, targetY);
   } else {
     const strength = (stageStore.canvas.minScale / stageStore.canvas.scale) ** 2;
-    offset.x += (targetX - offset.x) * strength;
-    offset.y += (targetY - offset.y) * strength;
+    const newX = eff.x + (targetX - eff.x) * strength;
+    const newY = eff.y + (targetY - eff.y) * strength;
+    setEffectiveOffset(newX, newY);
   }
 };
 const updateCanvasPosition = () => {
     const el = containerEl.value;
     const rect = el.getBoundingClientRect();
     const style = getComputedStyle(el);
-    const left = rect.left + parseFloat(style.paddingLeft);
-    const top = rect.top + parseFloat(style.paddingTop);
+    const left = rect.left + parseFloat(style.paddingLeft) - el.scrollLeft;
+    const top = rect.top + parseFloat(style.paddingTop) - el.scrollTop;
     stageStore.setCanvasPosition(left + offset.x, top + offset.y);
 };
 
