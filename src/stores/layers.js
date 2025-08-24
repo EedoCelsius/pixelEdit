@@ -6,7 +6,8 @@ export const useLayerStore = defineStore('layers', {
     state: () => ({
         _order: [],
         _layersById: {},
-        _nextId: 1
+        _nextId: 1,
+        _selectionIds: new Set(),
     }),
     getters: {
         exists: (state) => state._order.length > 0,
@@ -47,6 +48,10 @@ export const useLayerStore = defineStore('layers', {
         visibilityOf: (state) => (id) => !!state._layersById[id]?.visible,
         pixelCountOf: (state) => (id) => state._layersById[id]?.pixelCount ?? 0,
         disconnectedCountOf: (state) => (id) => state._layersById[id]?.disconnectedCount ?? 0,
+        hasSelection: (state) => state._selectionIds.size > 0,
+        isSelected: (state) => (id) => state._selectionIds.has(id),
+        selectionCount: (state) => state._selectionIds.size,
+        selectedIds: (state) => [...state._selectionIds],
         compositeColorAt: (state) => (x, y) => {
             for (let i = state._order.length - 1; i >= 0; i--) {
                 const layer = state._layersById[state._order[i]];
@@ -117,6 +122,41 @@ export const useLayerStore = defineStore('layers', {
             const layer = this._layersById[id];
             if (layer) layer.togglePixel(x, y);
         },
+        replaceSelection(ids = []) {
+            this._selectionIds = new Set(ids);
+        },
+        addSelection(id) {
+            if (id == null) return;
+            this._selectionIds.add(id);
+        },
+        addSelections(ids = []) {
+            for (const id of ids) this._selectionIds.add(id);
+        },
+        removeSelection(id) {
+            if (id == null) return;
+            this._selectionIds.delete(id);
+        },
+        removeSelections(ids = []) {
+            ids.forEach(id => this._selectionIds.delete(id));
+        },
+        selectOne(id = null) {
+            if (id === null) {
+                this.clearSelection();
+                return;
+            }
+            this.replaceSelection([id]);
+        },
+        clearSelection() {
+            this.replaceSelection([]);
+        },
+        toggleSelection(id = null) {
+            if (id === null) return;
+            if (this._selectionIds.has(id)) {
+                this.removeSelection(id);
+            } else {
+                this.addSelection(id);
+            }
+        },
         /** Remove layers by ids */
         deleteLayers(ids) {
             const idSet = new Set(ids);
@@ -125,6 +165,7 @@ export const useLayerStore = defineStore('layers', {
                 this._layersById[id]?.dispose?.();
                 delete this._layersById[id];
             }
+            this.removeSelections(ids);
         },
         /** Reorder selected ids as a block relative to targetId. */
         reorderLayers(ids, targetId, placeBelow = true) {
@@ -154,6 +195,11 @@ export const useLayerStore = defineStore('layers', {
                 byId: Object.fromEntries(this._order.map(id => [id, this._layersById[id]?.toJSON()]))
             };
         },
+        serializeSelection() {
+            return {
+                selection: [...this._selectionIds],
+            };
+        },
         applySerialized(payload) {
             const order = payload?.order || [];
             const byId = payload?.byId || {};
@@ -177,6 +223,9 @@ export const useLayerStore = defineStore('layers', {
             // nextId
             const maxId = layers.length ? Math.max(...layers) : 0;
             this._nextId = Math.max(payload?.nextId || 0, maxId + 1);
+        },
+        applySerializedSelection(payload) {
+            this.replaceSelection(payload?.selection || []);
         }
     }
 });

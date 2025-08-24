@@ -2,7 +2,6 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
-import { useSelectionStore } from '../stores/selection';
 import { useLayerStore } from '../stores/layers';
 import { keyToCoords, pixelsToUnionPath, clamp, getPixelUnionSet } from '../utils';
 import { CURSOR_CONFIG } from '../constants';
@@ -11,7 +10,6 @@ export const useStageService = defineStore('stageService', () => {
     // stores
     const stageStore = useStageStore();
     const toolStore = useToolStore();
-    const selection = useSelectionStore();
     const layers = useLayerStore();
 
     // --- Overlay Paths ---
@@ -138,7 +136,7 @@ export const useStageService = defineStore('stageService', () => {
         const shape = toolStore.shape;
 
         if (tool === 'select') {
-            const isRemoving = toolStore.shiftHeld && selection.isSelected(toolStore.hoverLayerId);
+            const isRemoving = toolStore.shiftHeld && layers.isSelected(toolStore.hoverLayerId);
             if (shape === 'stroke') {
                 return isRemoving ? CURSOR_CONFIG.REMOVE_STROKE : CURSOR_CONFIG.ADD_STROKE;
             }

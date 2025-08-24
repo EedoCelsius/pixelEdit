@@ -43,16 +43,16 @@
 import { reactive, watch } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
-import { useSelectionStore } from '../stores/selection';
+import { useLayerStore } from '../stores/layers';
 import { useOutputStore } from '../stores/output';
 
 const stageStore = useStageStore();
 const toolStore = useToolStore();
-const selection = useSelectionStore();
+const layers = useLayerStore();
 const output = useOutputStore();
 
 const selectables = reactive([]);
-watch(() => selection.count, (size) => {
+watch(() => layers.selectionCount, (size) => {
   selectables.splice(0, selectables.length, ...(size === 1
     ? [
         { type: 'draw', name: 'Draw', icon: 'image/stage_toolbar/draw.svg' },
@@ -63,9 +63,9 @@ watch(() => selection.count, (size) => {
         { type: 'select', name: 'Select', icon: 'image/stage_toolbar/select.svg' },
         { type: 'globalErase', name: 'Global Erase', icon: 'image/stage_toolbar/global_erase.svg' }
       ]));
-  if (!selectables.some(tool => tool.type === toolStore.static)) {
-    toolStore.setStatic(size === 1 ? 'draw' : 'select');
-  }
+    if (!selectables.some(tool => tool.type === toolStore.static)) {
+      toolStore.setStatic(size === 1 ? 'draw' : 'select');
+    }
 }, { immediate: true });
 
 const undo = () => output.undo();

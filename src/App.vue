@@ -36,9 +36,9 @@ import { useInputStore } from './stores/input';
 import { useStageStore } from './stores/stage';
 import { useStageService } from './services/stage';
 import { useLayerStore } from './stores/layers';
-import { useSelectionStore } from './stores/selection';
+import { useLayerPanelStore } from './stores/layerPanel';
 import { useLayerService } from './services/layers';
-import { useSelectService } from './services/select';
+import { useRangeSelectionService } from './services/rangeSelection';
 import { useOutputStore } from './stores/output';
 
 import StageToolbar from './components/StageToolbar.vue';
@@ -52,9 +52,9 @@ const input = useInputStore();
 const stageStore = useStageStore();
 const stageService = useStageService();
 const layers = useLayerStore();
-const selection = useSelectionStore();
+const layerPanel = useLayerPanelStore();
 const layerSvc = useLayerService();
-const selectSvc = useSelectService();
+const rangeSelect = useRangeSelectionService();
 const output = useOutputStore();
 const stageToolbar = ref(null);
 
@@ -103,45 +103,45 @@ function onKeydown(event) {
       event.preventDefault();
       if (!layers.exists) return;
       if (shift && !ctrl) {
-        if (!selection.exists) return;
-        const newTail = layers.aboveId(selection.tailId) ?? layers.uppermostId;
-        selectSvc.selectRange(selection.anchorId, newTail);
-        selection.setScrollRule({ type: 'follow-up', target: newTail });
+        if (!layers.hasSelection) return;
+        const newTail = layers.aboveId(layerPanel.tailId) ?? layers.uppermostId;
+        rangeSelect.selectRange(layerPanel.anchorId, newTail);
+        layerPanel.setScrollRule({ type: 'follow-up', target: newTail });
       } else if (!ctrl) {
-        const nextId = layers.aboveId(selection.anchorId) ?? selection.anchorId;
-        selection.selectOne(nextId);
-        selection.setScrollRule({ type: 'follow-up', target: nextId });
+        const nextId = layers.aboveId(layerPanel.anchorId) ?? layerPanel.anchorId;
+        rangeSelect.selectOne(nextId);
+        layerPanel.setScrollRule({ type: 'follow-up', target: nextId });
       }
       return;
     case 'ArrowDown':
       event.preventDefault();
       if (!layers.exists) return;
       if (shift && !ctrl) {
-        if (!selection.exists) return;
-        const newTail = layers.belowId(selection.tailId) ?? layers.lowermostId;
-        selectSvc.selectRange(selection.anchorId, newTail);
-        selection.setScrollRule({ type: 'follow-down', target: newTail });
+        if (!layers.hasSelection) return;
+        const newTail = layers.belowId(layerPanel.tailId) ?? layers.lowermostId;
+        rangeSelect.selectRange(layerPanel.anchorId, newTail);
+        layerPanel.setScrollRule({ type: 'follow-down', target: newTail });
       } else if (!ctrl) {
-        const nextId = layers.belowId(selection.anchorId) ?? selection.anchorId;
-        selection.selectOne(nextId);
-        selection.setScrollRule({ type: 'follow-down', target: nextId });
+        const nextId = layers.belowId(layerPanel.anchorId) ?? layerPanel.anchorId;
+        rangeSelect.selectOne(nextId);
+        layerPanel.setScrollRule({ type: 'follow-down', target: nextId });
       }
       return;
     case 'Delete':
     case 'Backspace':
       event.preventDefault();
-      if (!selection.exists) return;
+      if (!layers.hasSelection) return;
       output.setRollbackPoint();
-      const belowId = layers.belowId(layers.lowermostIdOf(selection.ids));
+      const belowId = layers.belowId(layers.lowermostIdOf(layers.selectedIds));
       layerSvc.deleteSelected();
       const newSelect = layers.has(belowId) ? belowId : layers.lowermostId;
-      selection.selectOne(newSelect);
-      selection.setScrollRule({ type: "follow", target: newSelect });
+      rangeSelect.selectOne(newSelect);
+      layerPanel.setScrollRule({ type: "follow", target: newSelect });
       output.commit();
       return;
     case 'Enter':
          if (!ctrl && !shift) {
-            const anchorId = selection.anchorId;
+           const anchorId = layerPanel.anchorId;
             const row = document.querySelector(`.layer[data-id="${anchorId}"] .nameText`)
             if (row) {
                 event.preventDefault();
@@ -155,7 +155,7 @@ function onKeydown(event) {
         output.rollbackPending();
         return;
       }
-      selection.clear();
+      rangeSelect.clearSelection();
       return;
   }
   
@@ -163,7 +163,7 @@ function onKeydown(event) {
     if (key === 'a') {
       event.preventDefault();
       const anchor = layers.uppermostId, tail = layers.lowermostId;
-      selection.replace(layers.order, anchor, tail);
+      rangeSelect.replaceSelection(layers.order, anchor, tail);
     } else if (key === 'z' && !shift) {
       event.preventDefault();
       output.undo();

@@ -12,14 +12,12 @@
 import { computed } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useLayerStore } from '../stores/layers';
-import { useSelectionStore } from '../stores/selection';
 import { getPixelUnionSet } from '../utils';
 
 const stageStore = useStageStore();
 const layers = useLayerStore();
-const selection = useSelectionStore();
 const selectedAreaPixelCount = computed(() => {
-    const pixelSet = getPixelUnionSet(layers.getLayers(selection.ids));
+    const pixelSet = getPixelUnionSet(layers.getLayers(layers.selectedIds));
     return pixelSet.size;
   });
 </script>

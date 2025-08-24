@@ -41,7 +41,7 @@
       <svg class="absolute top-0 left-0 pointer-events-none block rounded-lg" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" style="image-rendering:pixelated">
           <!-- 1. 기본 선택 윤곽 (하늘색) -->
           <path id="selectionOutline"
-                v-if="selection.exists"
+                v-if="layers.hasSelection"
                 :d="selectionPath"
                 :fill="OVERLAY_CONFIG.SELECTED.FILL_COLOR"
                 :stroke="OVERLAY_CONFIG.SELECTED.STROKE_COLOR"
@@ -78,7 +78,6 @@ import { useToolStore } from '../stores/tool';
 import { useStageService } from '../services/stage';
 import { useLayerStore } from '../stores/layers';
 import { useLayerService } from '../services/layers';
-import { useSelectionStore } from '../stores/selection';
 import { useInputStore } from '../stores/input';
 import { useSelectService } from '../services/select';
 import { usePixelService } from '../services/pixel';
@@ -90,7 +89,6 @@ const toolStore = useToolStore();
 const stageService = useStageService();
 const layers = useLayerStore();
 const layerSvc = useLayerService();
-const selection = useSelectionStore();
 const input = useInputStore();
 const selectSvc = useSelectService();
 const pixelSvc = usePixelService();
@@ -248,7 +246,7 @@ const helperOverlay = computed(() => {
     } else {
         path = layers.pathOf(toolStore.hoverLayerId);
         if (toolStore.hoverLayerId) {
-            const isRemoving = toolStore.shiftHeld && selection.isSelected(toolStore.hoverLayerId);
+            const isRemoving = toolStore.shiftHeld && layers.isSelected(toolStore.hoverLayerId);
             style = isRemoving ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
         }
     }

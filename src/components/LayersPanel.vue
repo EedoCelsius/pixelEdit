@@ -1,6 +1,6 @@
 <template>
-  <div v-memo="[output.commitVersion, selection.ids, layers.count]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
-    <div v-for="id in layers.idsTopToBottom" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="id" :data-id="id" :class="{ selected: selection.isSelected(id), anchor: selection.anchorId===id, dragging: dragId===id }" draggable="true" @click="onLayerClick(id,$event)" @dragstart="onDragStart(id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(id,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(id,$event)">
+  <div v-memo="[output.commitVersion, layers.selectedIds, layers.count]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
+    <div v-for="id in layers.idsTopToBottom" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="id" :data-id="id" :class="{ selected: layers.isSelected(id), anchor: layerPanel.anchorId===id, dragging: dragId===id }" draggable="true" @click="onLayerClick(id,$event)" @dragstart="onDragStart(id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(id,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(id,$event)">
       <!-- 썸네일 -->
       <div @click.stop="onThumbnailClick(id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
         <svg :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
@@ -48,18 +48,18 @@ import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from
 import { useStageStore } from '../stores/stage';
 import { useStageService } from '../services/stage';
 import { useLayerStore } from '../stores/layers';
-import { useSelectionStore } from '../stores/selection';
+import { useLayerPanelStore } from '../stores/layerPanel';
 import { useLayerService } from '../services/layers';
-import { useSelectService } from '../services/select';
+import { useRangeSelectionService } from '../services/rangeSelection';
 import { useOutputStore } from '../stores/output';
 import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, coordsToKey, clamp } from '../utils';
 
 const stageStore = useStageStore();
 const stageService = useStageService();
 const layers = useLayerStore();
-const selection = useSelectionStore();
+const layerPanel = useLayerPanelStore();
 const layerSvc = useLayerService();
-const selectSvc = useSelectService();
+const rangeSelect = useRangeSelectionService();
 const output = useOutputStore();
 
 const dragging = ref(false);
@@ -78,13 +78,13 @@ const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern
 
 function onLayerClick(id, event) {
     if (event.shiftKey) {
-        selectSvc.selectRange(selection.anchorId ?? id, id);
+        rangeSelect.selectRange(layerPanel.anchorId ?? id, id);
     } else if (event.ctrlKey || event.metaKey) {
-        selection.toggle(id);
+        rangeSelect.toggleSelection(id);
     } else {
-        selection.selectOne(id);
+        rangeSelect.selectOne(id);
     }
-    selection.setScrollRule({
+    layerPanel.setScrollRule({
         type: "follow",
         target: id
     });
@@ -92,7 +92,7 @@ function onLayerClick(id, event) {
 
 function onThumbnailClick(id) {
     layerSvc.selectByColor(id);
-    selection.setScrollRule({
+    layerPanel.setScrollRule({
         type: "follow",
         target: id
     });
@@ -100,7 +100,7 @@ function onThumbnailClick(id) {
 
 function onPixelCountClick(id) {
     layerSvc.selectByPixelCount(id);
-    selection.setScrollRule({
+    layerPanel.setScrollRule({
         type: "follow",
         target: id
     });
@@ -108,7 +108,7 @@ function onPixelCountClick(id) {
 
 function onDisconnectedClick(id) {
     layerSvc.selectDisconnectedLayers(id);
-    selection.setScrollRule({
+    layerPanel.setScrollRule({
         type: "follow",
         target: id
     });
@@ -116,7 +116,7 @@ function onDisconnectedClick(id) {
 
 function onDisconnectedCountClick(id) {
     layerSvc.selectByDisconnectedCount(id);
-    selection.setScrollRule({
+    layerPanel.setScrollRule({
         type: "follow",
         target: id
     });
@@ -136,7 +136,7 @@ function onDragEnd() {
 
 function onDragOver(id, event) {
     const row = event.currentTarget;
-    if (selection.isSelected(id)) {
+    if (layers.isSelected(id)) {
         row.classList.remove('insert-before', 'insert-after');
         event.dataTransfer.dropEffect = 'none';
         return;
@@ -157,7 +157,7 @@ function onDrop(id, event) {
     const targetId = id;
     const rect = row.getBoundingClientRect();
     const placeBelow = (event.clientY - rect.top) > rect.height * 0.5;
-    layers.reorderLayers(selection.ids, targetId, placeBelow);
+    layers.reorderLayers(layers.selectedIds, targetId, placeBelow);
     output.commit();
 }
 
@@ -168,7 +168,7 @@ function onColorDown() {
 function onColorInput(id, event) {
     if (layers.lockedOf(id)) return;
     const colorU32 = hexToRgbaU32(event.target.value);
-    selection.isSelected(id) ? layerSvc.setColorForSelectedU32(colorU32) : layers.updateLayer(id, { colorU32 });
+    layers.isSelected(id) ? layerSvc.setColorForSelectedU32(colorU32) : layers.updateLayer(id, { colorU32 });
 }
 
 function onColorChange() {
@@ -177,27 +177,27 @@ function onColorChange() {
 
 function toggleVisibility(id) {
     output.setRollbackPoint();
-    if (selection.isSelected(id)) layerSvc.setVisibilityForSelected(!layers.visibilityOf(id));
+    if (layers.isSelected(id)) layerSvc.setVisibilityForSelected(!layers.visibilityOf(id));
     else layers.toggleVisibility(id);
     output.commit();
 }
 
 function toggleLock(id) {
     output.setRollbackPoint();
-    if (selection.isSelected(id)) layerSvc.setLockedForSelected(!layers.lockedOf(id));
+    if (layers.isSelected(id)) layerSvc.setLockedForSelected(!layers.lockedOf(id));
     else layers.toggleLock(id);
     output.commit();
 }
 
 function deleteLayer(id) {
     output.setRollbackPoint();
-    const targets = selection.isSelected(id) ? selection.ids : [id];
+    const targets = layers.isSelected(id) ? layers.selectedIds : [id];
     const belowId = layers.belowId(layers.lowermostIdOf(targets));
     layers.deleteLayers(targets);
     const newSelectId = layers.has(belowId) ? belowId : layers.lowermostId;
-    selection.selectOne(newSelectId);
+    rangeSelect.selectOne(newSelectId);
     if (newSelectId) {
-        selection.setScrollRule({
+        layerPanel.setScrollRule({
             type: "follow",
             target: newSelectId
         });
@@ -276,7 +276,7 @@ function ensureBlockVisibility({
     });
 }
 
-watch(() => selection.scrollRule, rule => nextTick(() => ensureBlockVisibility(rule)));
+watch(() => layerPanel.scrollRule, rule => nextTick(() => ensureBlockVisibility(rule)));
 
 function startRename(id) {
     output.setRollbackPoint();
@@ -288,7 +288,7 @@ function startRename(id) {
     sel.removeAllRanges();
     sel.addRange(range);
     element.focus();
-    selection.setScrollRule({
+    layerPanel.setScrollRule({
         type: "follow",
         target: id
     });
@@ -307,7 +307,7 @@ function finishRename(id, event) {
         event.target.innerText = oldName;
         output.clearRollbackPoint();
     }
-    selection.setScrollRule({
+    layerPanel.setScrollRule({
         type: "follow",
         target: id
     });
@@ -333,7 +333,7 @@ function handleGlobalPointerDown(event) {
     const isLayers = listElement.value && listElement.value.contains(target);
     const isButton = !!target.closest('button');
     if (isStage || isLayers || isButton) return;
-    selection.clear();
+    rangeSelect.clearSelection();
 }
 
 onMounted(() => {

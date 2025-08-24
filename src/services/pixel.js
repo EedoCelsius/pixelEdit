@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
 import { useStageService } from './stage';
 import { useToolStore } from '../stores/tool';
-import { useSelectionStore } from '../stores/selection';
 import { useLayerStore } from '../stores/layers';
+import { useRangeSelectionService } from './rangeSelection';
 import { useLayerService } from './layers';
 import { useOutputStore } from '../stores/output';
 import { coordsToKey } from '../utils';
@@ -10,8 +10,8 @@ import { coordsToKey } from '../utils';
 export const usePixelService = defineStore('pixelService', () => {
     const stage = useStageService();
     const toolStore = useToolStore();
-    const selection = useSelectionStore();
     const layers = useLayerStore();
+    const rangeSelect = useRangeSelectionService();
     const layerSvc = useLayerService();
     const output = useOutputStore();
     let cutLayerId = null;
@@ -24,8 +24,8 @@ export const usePixelService = defineStore('pixelService', () => {
         output.setRollbackPoint();
 
         if (toolStore.expected === 'cut') {
-            if (selection.count !== 1) return;
-            const sourceId = selection.ids[0];
+            if (layers.selectionCount !== 1) return;
+            const sourceId = layers.selectedIds[0];
             const srcLayer = layers.getLayer(sourceId);
             if (!srcLayer) return;
             cutLayerId = layers.createLayer({
@@ -51,7 +51,7 @@ export const usePixelService = defineStore('pixelService', () => {
             toolStore.visited.add(coordsToKey(pixel.x, pixel.y));
 
             if (toolStore.isGlobalErase) {
-                if (selection.exists) removePixelsFromSelected([[pixel.x, pixel.y]]);
+                if (layers.hasSelection) removePixelsFromSelected([[pixel.x, pixel.y]]);
                 else removePixelsFromAll([[pixel.x, pixel.y]]);
             } else if (toolStore.isDraw || toolStore.isErase || toolStore.isCut) {
                 if (toolStore.isErase) removePixelsFromSelection([[pixel.x, pixel.y]]);
@@ -78,7 +78,7 @@ export const usePixelService = defineStore('pixelService', () => {
             toolStore.visited.add(k);
             const delta = [[pixel.x, pixel.y]];
             if (toolStore.isGlobalErase) {
-                if (selection.exists) removePixelsFromSelected(delta);
+                if (layers.hasSelection) removePixelsFromSelected(delta);
                 else removePixelsFromAll(delta);
             } else if (toolStore.isDraw || toolStore.isErase || toolStore.isCut) {
                 if (toolStore.isErase) removePixelsFromSelection(delta);
@@ -95,7 +95,7 @@ export const usePixelService = defineStore('pixelService', () => {
             const pixels = stage.getPixelsFromInteraction(event);
             if (pixels.length > 0) {
                 if (toolStore.isGlobalErase) {
-                    if (selection.exists) removePixelsFromSelected(pixels);
+                    if (layers.hasSelection) removePixelsFromSelected(pixels);
                     else removePixelsFromAll(pixels);
                 } else if (toolStore.isDraw || toolStore.isErase || toolStore.isCut) {
                     if (toolStore.isErase) removePixelsFromSelection(pixels);
@@ -107,7 +107,7 @@ export const usePixelService = defineStore('pixelService', () => {
 
         if (toolStore.isCut && cutLayerId != null) {
             if (layers.pixelCountOf(cutLayerId))
-                selection.selectOne(cutLayerId);
+                rangeSelect.selectOne(cutLayerId);
             else
                 layers.deleteLayers([cutLayerId])
         }
@@ -136,22 +136,22 @@ export const usePixelService = defineStore('pixelService', () => {
     }
 
     function addPixelsToSelection(pixels) {
-        if (selection.count !== 1) return;
-        const id = selection.ids[0];
+        if (layers.selectionCount !== 1) return;
+        const id = layers.selectedIds[0];
         if (layers.lockedOf(id)) return;
         layers.addPixels(id, pixels);
     }
 
     function removePixelsFromSelection(pixels) {
-        if (selection.count !== 1) return;
-        const id = selection.ids[0];
+        if (layers.selectionCount !== 1) return;
+        const id = layers.selectedIds[0];
         if (layers.lockedOf(id)) return;
         layers.removePixels(id, pixels);
     }
 
     function cutPixelsFromSelection(pixels) {
-        if (selection.count !== 1 || cutLayerId == null) return;
-        const sourceId = selection.ids[0];
+        if (layers.selectionCount !== 1 || cutLayerId == null) return;
+        const sourceId = layers.selectedIds[0];
         const srcLayer = layers.getLayer(sourceId);
         if (!srcLayer) return;
         const pixelsToMove = [];
@@ -164,8 +164,8 @@ export const usePixelService = defineStore('pixelService', () => {
     }
 
     function togglePointInSelection(x, y) {
-        if (selection.count !== 1) return;
-        const id = selection.ids[0];
+        if (layers.selectionCount !== 1) return;
+        const id = layers.selectedIds[0];
         if (layers.lockedOf(id)) return;
         layers.togglePixel(id, x, y);
     }
