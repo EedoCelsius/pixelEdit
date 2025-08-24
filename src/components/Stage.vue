@@ -10,7 +10,7 @@
            width: stageStore.pixelWidth+'px',
            height: stageStore.pixelHeight+'px',
            cursor: stageService.cursor,
-           transform: `translate(${offset.x}px, ${offset.y}px)`
+           transform: `translate(${displayOffset.x}px, ${displayOffset.y}px)`
          }"
          @pointerdown="onPointerDown"
          @pointermove="onPointerMove"
@@ -98,6 +98,27 @@ const containerEl = ref(null);
 const stageEl = ref(null);
 const offset = reactive({ x: 0, y: 0 });
 const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
+
+const displayOffset = computed(() => ({
+  x: Math.max(0, offset.x),
+  y: Math.max(0, offset.y)
+}));
+
+const applyOffset = () => {
+  const el = containerEl.value;
+  if (!el) return;
+  el.scrollLeft = Math.max(0, -offset.x);
+  el.scrollTop = Math.max(0, -offset.y);
+};
+
+const onScroll = () => {
+  const el = containerEl.value;
+  if (!el) return;
+  offset.x = displayOffset.value.x - el.scrollLeft;
+  offset.y = displayOffset.value.y - el.scrollTop;
+  applyOffset();
+  updateCanvasPosition();
+};
 
 const updateHover = (event) => {
     const pixel = stageService.clientToPixel(event);
@@ -210,6 +231,7 @@ const onWheel = (e) => {
     stageStore.setScale(clamped);
     if (newScale < oldScale) positionStage();
   }
+  applyOffset();
   updateCanvasPosition();
 };
 
@@ -232,6 +254,7 @@ const handlePinch = () => {
   stageStore.setScale(clamped);
   lastTouchDistance = dist;
   if (newScale < oldScale) positionStage();
+  applyOffset();
   updateCanvasPosition();
 };
 
@@ -308,6 +331,7 @@ const onDomResize = () => {
     stageService.recalcMinScale(el);
     stageStore.setScale(stageStore.canvas.containScale);
     positionStage(true);
+    applyOffset();
     updateCanvasPosition();
 };
 
@@ -315,6 +339,7 @@ const onImageLoad = () => {
     stageService.recalcMinScale(containerEl.value);
     stageStore.setScale(stageStore.canvas.containScale);
     positionStage(true);
+    applyOffset();
     updateCanvasPosition();
 };
 
@@ -322,6 +347,11 @@ const resizeObserver = new ResizeObserver(onDomResize);
 onMounted(() => {
     requestAnimationFrame(onDomResize);
     resizeObserver.observe(containerEl.value);
+    containerEl.value.addEventListener('scroll', onScroll);
+    applyOffset();
 });
-onUnmounted(resizeObserver.disconnect);
+onUnmounted(() => {
+    resizeObserver.disconnect();
+    containerEl.value?.removeEventListener('scroll', onScroll);
+});
 </script>
