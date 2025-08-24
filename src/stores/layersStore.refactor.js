@@ -1,11 +1,10 @@
 import { defineStore } from 'pinia';
-import { reactive, computed, readonly } from 'vue';
 
 export const useLayersStore = defineStore('layersStore', {
   state: () => ({
-    _order: reactive([]),
-    _layersById: reactive({}),
-    _selected: reactive(new Set()),
+    _order: [],
+    _layersById: {},
+    _selected: new Set(),
     _nextId: 1,
   }),
   getters: {

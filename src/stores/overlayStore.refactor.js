@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia';
-import { reactive, readonly } from 'vue';
+import { readonly } from 'vue';
 
 export const useOverlayStore = defineStore('overlayStore', {
   state: () => ({
-    _selected: reactive(new Set()),
-    _marquee: reactive(new Set()),
-    _helper: reactive(new Set()),
+    _selected: new Set(),
+    _marquee: new Set(),
+    _helper: new Set(),
   }),
   getters: {
     selected: (state) => readonly(state._selected),

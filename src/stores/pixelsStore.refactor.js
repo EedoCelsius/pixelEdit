@@ -1,19 +1,20 @@
 import { defineStore } from 'pinia';
-import { reactive, readonly } from 'vue';
+import { readonly } from 'vue';
 
 export const usePixelsStore = defineStore('pixelsStore', {
   state: () => ({
-    _pixelsByLayer: reactive({}),
+    pixelsByLayer: {},
   }),
   getters: {
-    pixelsByLayer: (state) => readonly(state._pixelsByLayer),
+    pixelsByLayer: (state) => readonly(state.pixelsByLayer),
   },
   actions: {
     _ensureLayer(id) {
-      if (!this._pixelsByLayer[id]) {
-        this._pixelsByLayer[id] = reactive(new Set());
+      const map = this.$state.pixelsByLayer;
+      if (!map[id]) {
+        map[id] = new Set();
       }
-      return this._pixelsByLayer[id];
+      return map[id];
     },
     getPixels(id) {
       return readonly(this._ensureLayer(id));
@@ -22,11 +23,11 @@ export const usePixelsStore = defineStore('pixelsStore', {
       this._ensureLayer(id).add(coord);
     },
     removePixel(id, coord) {
-      const set = this._pixelsByLayer[id];
+      const set = this.$state.pixelsByLayer[id];
       if (set) set.delete(coord);
     },
     clearLayer(id) {
-      const set = this._pixelsByLayer[id];
+      const set = this.$state.pixelsByLayer[id];
       if (set) set.clear();
     },
   },

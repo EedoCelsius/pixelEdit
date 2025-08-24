@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
-import { reactive, readonly } from 'vue';
+import { readonly } from 'vue';
 
 export const useHistoryStore = defineStore('historyStore', {
   state: () => ({
-    _undoStack: reactive([]),
-    _redoStack: reactive([]),
+    _undoStack: [],
+    _redoStack: [],
     _snapshotId: 0,
   }),
   getters: {
