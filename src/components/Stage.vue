@@ -72,7 +72,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useStageService } from '../services/stage';
@@ -81,12 +81,14 @@ import { useLayerService } from '../services/layers';
 import { useInputStore } from '../stores/input';
 import { useSelectService } from '../services/select';
 import { usePixelService } from '../services/pixel';
+import { useStageEventStore } from '../stores/stageEvent';
 import { rgbaCssU32, rgbaCssObj, calcMarquee, clamp } from '../utils';
 import { OVERLAY_CONFIG } from '../constants';
 
 const stageStore = useStageStore();
 const toolStore = useToolStore();
 const stageService = useStageService();
+const stageEvents = useStageEventStore();
 const layers = useLayerStore();
 const layerSvc = useLayerService();
 const input = useInputStore();
@@ -155,32 +157,19 @@ const onContainerPointerCancel = (e) => {
 };
 
 const onPointerDown = (e) => {
-  if (e.pointerType === 'touch') return;
-  updateMarquee(e);
-  if (toolStore.isSelect) selectSvc.toolStart(e);
-  else pixelSvc.toolStart(e);
+  stageEvents.addPointerDown(e);
 };
 
 const onPointerMove = (e) => {
-  if (e.pointerType === 'touch') return;
-  updateHover(e);
-  updateMarquee(e);
-  if (toolStore.isSelect) selectSvc.toolMove(e);
-  else pixelSvc.toolMove(e);
+  stageEvents.setPointerMove(e);
 };
 
 const onPointerUp = (e) => {
-  if (e.pointerType === 'touch') return;
-  updateMarquee(e);
-  if (toolStore.isSelect) selectSvc.toolFinish(e);
-  else pixelSvc.toolFinish(e);
+  stageEvents.setPointerUp(e);
 };
 
 const onPointerCancel = (e) => {
-    if (e.pointerType === 'touch') return;
-    updateMarquee(e);
-    if (toolStore.isSelect) selectSvc.cancel(e);
-    else pixelSvc.cancel(e);
+  stageEvents.setPointerUp(e);
 };
 
 const onPointerLeave = (e) => {
@@ -190,6 +179,38 @@ const onPointerLeave = (e) => {
 };
 
 const onWheel = (e) => {
+  stageEvents.setWheel(e);
+};
+
+watch(() => stageEvents.lastPointerDown, (e) => {
+  if (!e || e.pointerType === 'touch') return;
+  updateMarquee(e);
+  if (toolStore.isSelect) selectSvc.toolStart(e);
+  else pixelSvc.toolStart(e);
+});
+
+watch(() => stageEvents.pointer.move, (e) => {
+  if (!e || e.pointerType === 'touch') return;
+  updateHover(e);
+  updateMarquee(e);
+  if (toolStore.isSelect) selectSvc.toolMove(e);
+  else pixelSvc.toolMove(e);
+});
+
+watch(() => stageEvents.pointer.up, (e) => {
+  if (!e || e.pointerType === 'touch') return;
+  updateMarquee(e);
+  if (e.type === 'pointercancel') {
+    if (toolStore.isSelect) selectSvc.cancel(e);
+    else pixelSvc.cancel(e);
+  } else {
+    if (toolStore.isSelect) selectSvc.toolFinish(e);
+    else pixelSvc.toolFinish(e);
+  }
+});
+
+watch(() => stageEvents.wheel, (e) => {
+  if (!e) return;
   if (!e.ctrlKey) {
     offset.x -= e.deltaX;
     offset.y -= e.deltaY;
@@ -209,7 +230,7 @@ const onWheel = (e) => {
     if (newScale < oldScale) positionStage();
   }
   updateCanvasPosition();
-};
+});
 
 const handlePinch = () => {
   const rect = containerEl.value.getBoundingClientRect();
