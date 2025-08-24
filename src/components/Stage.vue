@@ -192,7 +192,10 @@ const onPointerLeave = (e) => {
 };
 
 const onWheel = (e) => {
-  if (e.ctrlKey) {
+  if (!e.ctrlKey) {
+    offset.x -= e.deltaX;
+    offset.y -= e.deltaY;
+  } else {
     if (e.deltaY === 0) return;
     const rect = containerEl.value.getBoundingClientRect();
     const px = e.clientX - rect.left;
@@ -206,17 +209,6 @@ const onWheel = (e) => {
     offset.y = py - ratio * (py - offset.y);
     stageStore.setScale(clamped);
     if (newScale < oldScale) positionStage();
-  } else {
-    offset.x -= e.deltaX;
-    offset.y -= e.deltaY;
-    const el = containerEl.value;
-    const style = getComputedStyle(el);
-    const width = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-    const height = el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-    const maxX = width - stageStore.pixelWidth;
-    const maxY = height - stageStore.pixelHeight;
-    offset.x = clamp(offset.x, maxX, 0);
-    offset.y = clamp(offset.y, maxY, 0);
   }
   updateCanvasPosition();
 };
