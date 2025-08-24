@@ -4,13 +4,14 @@
        @pointerdown="onContainerPointerDown"
        @pointermove="onContainerPointerMove"
        @pointerup="onContainerPointerUp"
-       @pointercancel="onContainerPointerCancel">
+       @pointercancel="onContainerPointerCancel"
+       @scroll="onScroll">
     <div id="stage" ref="stageEl" class="absolute rounded-lg shadow-inner ring-1 ring-white/10 select-none touch-none"
          :style="{
            width: stageStore.pixelWidth+'px',
            height: stageStore.pixelHeight+'px',
            cursor: stageService.cursor,
-           transform: `translate(${offset.x}px, ${offset.y}px)`
+           transform: `translate(${displayOffset.x}px, ${displayOffset.y}px)`
          }"
          @pointerdown="onPointerDown"
          @pointermove="onPointerMove"
@@ -96,8 +97,21 @@ const selectSvc = useSelectService();
 const pixelSvc = usePixelService();
 const containerEl = ref(null);
 const stageEl = ref(null);
+// 가상 위치(음수 포함)
 const offset = reactive({ x: 0, y: 0 });
+// 실제 스테이지 이동값(음수 방지)
+const displayOffset = reactive({ x: 0, y: 0 });
 const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
+
+const applyOffset = () => {
+  const el = containerEl.value;
+  displayOffset.x = Math.max(offset.x, 0);
+  displayOffset.y = Math.max(offset.y, 0);
+  el.scrollTo({
+    left: Math.max(0, -offset.x),
+    top: Math.max(0, -offset.y)
+  });
+};
 
 const updateHover = (event) => {
     const pixel = stageService.clientToPixel(event);
@@ -156,6 +170,13 @@ const onContainerPointerCancel = (e) => {
   lastTouchDistance = 0;
 };
 
+const onScroll = () => {
+  const el = containerEl.value;
+  offset.x = displayOffset.x - el.scrollLeft;
+  offset.y = displayOffset.y - el.scrollTop;
+  updateCanvasPosition();
+};
+
 const onPointerDown = (e) => {
   if (e.pointerType === 'touch') return;
   updateMarquee(e);
@@ -197,9 +218,10 @@ const onWheel = (e) => {
     offset.y -= e.deltaY;
   } else {
     if (e.deltaY === 0) return;
-    const rect = containerEl.value.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
+    const el = containerEl.value;
+    const rect = el.getBoundingClientRect();
+    const px = e.clientX - rect.left + el.scrollLeft;
+    const py = e.clientY - rect.top + el.scrollTop;
     const oldScale = stageStore.canvas.scale;
     const factor = e.deltaY < 0 ? 1.1 : 0.9;
     const newScale = oldScale * factor;
@@ -210,14 +232,16 @@ const onWheel = (e) => {
     stageStore.setScale(clamped);
     if (newScale < oldScale) positionStage();
   }
+  applyOffset();
   updateCanvasPosition();
 };
 
 const handlePinch = () => {
-  const rect = containerEl.value.getBoundingClientRect();
+  const el = containerEl.value;
+  const rect = el.getBoundingClientRect();
   const [t1, t2] = Array.from(touches.values());
-  const cx = (t1.x + t2.x) / 2 - rect.left;
-  const cy = (t1.y + t2.y) / 2 - rect.top;
+  const cx = (t1.x + t2.x) / 2 - rect.left + el.scrollLeft;
+  const cy = (t1.y + t2.y) / 2 - rect.top + el.scrollTop;
   const dist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
   if (!lastTouchDistance) {
     lastTouchDistance = dist;
@@ -232,6 +256,7 @@ const handlePinch = () => {
   stageStore.setScale(clamped);
   lastTouchDistance = dist;
   if (newScale < oldScale) positionStage();
+  applyOffset();
   updateCanvasPosition();
 };
 
@@ -287,7 +312,10 @@ const updateCanvasPosition = () => {
     const style = getComputedStyle(el);
     const left = rect.left + parseFloat(style.paddingLeft);
     const top = rect.top + parseFloat(style.paddingTop);
-    stageStore.setCanvasPosition(left + offset.x, top + offset.y);
+    stageStore.setCanvasPosition(
+        left + displayOffset.x - el.scrollLeft,
+        top + displayOffset.y - el.scrollTop
+    );
 };
 
 let prevOffsetWidth = 0;
@@ -308,6 +336,7 @@ const onDomResize = () => {
     stageService.recalcMinScale(el);
     stageStore.setScale(stageStore.canvas.containScale);
     positionStage(true);
+    applyOffset();
     updateCanvasPosition();
 };
 
@@ -315,6 +344,7 @@ const onImageLoad = () => {
     stageService.recalcMinScale(containerEl.value);
     stageStore.setScale(stageStore.canvas.containScale);
     positionStage(true);
+    applyOffset();
     updateCanvasPosition();
 };
 
