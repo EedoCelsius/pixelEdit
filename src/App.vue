@@ -1,15 +1,27 @@
 <template>
-    <div class="grid grid-cols-1 gap-3 lg:grid-cols-2 flex-1 min-h-0 w-full">
+    <div ref="container" class="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 w-full">
       <!-- ===== 좌: 디스플레이 ===== -->
-      <section class="rounded-xl border border-white/10 bg-sky-950/30 flex flex-col min-h-0 overflow-hidden">
+      <section
+        class="rounded-xl border border-white/10 bg-sky-950/30 flex flex-col min-h-0 overflow-hidden"
+        :style="displayStyle"
+      >
         <h2 class="m-0 px-3 py-2 text-xs uppercase tracking-wide text-slate-300/90 border-b border-white/10">Display</h2>
         <stage-toolbar ref="stageToolbar" class="border-b border-white/10"></stage-toolbar>
         <Stage class="flex-1 min-h-0"></Stage>
         <stage-info class="border-t border-white/10"></stage-info>
       </section>
 
+      <!-- 드래그 핸들 -->
+      <div
+        class="hidden lg:block w-1 bg-white/20 cursor-col-resize"
+        @mousedown="startDrag"
+      ></div>
+
       <!-- ===== 우: 레이어 ===== -->
-      <aside class="rounded-xl border border-white/10 bg-sky-950/30 flex flex-col min-h-0 overflow-hidden">
+      <aside
+        class="rounded-xl border border-white/10 bg-sky-950/30 flex flex-col min-h-0 overflow-hidden"
+        :style="layersStyle"
+      >
         <h2 class="m-0 px-3 py-2 text-xs uppercase tracking-wide text-slate-300/90 border-b border-white/10">Layers</h2>
         <layers-toolbar class="border-b border-white/10"></layers-toolbar>
         <layers-panel class="flex-1 min-h-0"></layers-panel>
@@ -19,7 +31,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed, onUnmounted } from 'vue';
 import { useInputStore } from './stores/input';
 import { useStageStore } from './stores/stage';
 import { useStageService } from './services/stage';
@@ -45,6 +57,30 @@ const layerSvc = useLayerService();
 const selectSvc = useSelectService();
 const output = useOutputStore();
 const stageToolbar = ref(null);
+
+// Width control between display and layers
+const container = ref(null);
+const leftWidth = ref(50);
+const isDragging = ref(false);
+
+const displayStyle = computed(() => ({ width: `${leftWidth.value}%` }));
+const layersStyle = computed(() => ({ width: `${100 - leftWidth.value}%` }));
+
+function startDrag(event) {
+  isDragging.value = true;
+  event.preventDefault();
+}
+
+function onDrag(event) {
+  if (!isDragging.value || !container.value) return;
+  const rect = container.value.getBoundingClientRect();
+  const percent = ((event.clientX - rect.left) / rect.width) * 100;
+  leftWidth.value = Math.min(80, Math.max(20, percent));
+}
+
+function stopDrag() {
+  isDragging.value = false;
+}
 
 // General key handler
 function onKeydown(event) {
@@ -180,6 +216,13 @@ onMounted(async () => {
     stageToolbar.value?.ctrlKeyUp();
     stageToolbar.value?.shiftKeyUp();
   });
+  window.addEventListener('mousemove', onDrag);
+  window.addEventListener('mouseup', stopDrag);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('mousemove', onDrag);
+  window.removeEventListener('mouseup', stopDrag);
 });
 </script>
 
