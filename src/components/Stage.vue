@@ -59,7 +59,7 @@
                 shape-rendering="crispEdges" />
 
         <!-- 3. 선택/호버 오버레이 -->
-        <path v-if="toolStore.isSelect"
+        <path v-if="toolStore.isSelect || toolStore.pointer.status === 'cut'"
               :d="helperOverlay.path"
               :fill="helperOverlay.FILL_COLOR"
               :stroke="helperOverlay.STROKE_COLOR"

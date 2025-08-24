@@ -29,10 +29,11 @@ export const usePixelService = defineStore('pixelService', () => {
             const srcLayer = layers.getLayer(sourceId);
             if (!srcLayer) return;
             cutLayerId = layers.createLayer({
-                name: `${layers.nameOf(sourceId)} cut`,
+                name: `Cut of ${layers.nameOf(sourceId)}`,
                 colorU32: srcLayer.getColorU32(),
                 visible: srcLayer.visible,
             }, sourceId);
+            toolStore.selectOverlayLayerIds.add(cutLayerId);
         }
 
         toolStore.pointer.status = toolStore.expected;
@@ -148,8 +149,15 @@ export const usePixelService = defineStore('pixelService', () => {
     function cutPixelsFromSelection(pixels) {
         if (selection.count !== 1 || cutLayerId == null) return;
         const sourceId = selection.ids[0];
-        layers.removePixels(sourceId, pixels);
-        layers.addPixels(cutLayerId, pixels);
+        const srcLayer = layers.getLayer(sourceId);
+        if (!srcLayer) return;
+        const pixelsToMove = [];
+        for (const [x, y] of pixels) {
+            if (srcLayer.has(x, y)) pixelsToMove.push([x, y]);
+        }
+        if (!pixelsToMove.length) return;
+        layers.removePixels(sourceId, pixelsToMove);
+        layers.addPixels(cutLayerId, pixelsToMove);
     }
 
     function togglePointInSelection(x, y) {
