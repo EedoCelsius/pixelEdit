@@ -35,15 +35,15 @@ import { onMounted, ref, computed, onUnmounted } from 'vue';
 import { useStore } from './stores';
 import { useService } from './services';
 
-import StageToolbar from './components/StageToolbar.vue';
 import Stage from './components/Stage.vue';
 import StageInfo from './components/StageInfo.vue';
 import LayersToolbar from './components/LayersToolbar.vue';
 import LayersPanel from './components/LayersPanel.vue';
 import ExportPanel from './components/ExportPanel.vue';
 
+import StageToolbar from './components/StageToolbar.vue';
 const { input, stage: stageStore, layers, output } = useStore();
-const { stage: stageService, layerPanel, layers: layerSvc, query } = useService();
+const { stage: stageService, layerPanel, query } = useService();
 const stageToolbar = ref(null);
 
 // Width control between display and layers
@@ -101,7 +101,9 @@ function onKeydown(event) {
       if (!layers.selectionExists) return;
       output.setRollbackPoint();
       const belowId = query.below(query.lowermost(layers.selectedIds));
-      layerSvc.deleteSelected();
+      const ids = layers.selectedIds;
+      layers.deleteLayers(ids);
+      layers.removeFromSelection(ids);
       const newSelect = layers.has(belowId) ? belowId : query.lowermost();
       layerPanel.setRange(newSelect, newSelect);
       layerPanel.setScrollRule({ type: "follow", target: newSelect });
