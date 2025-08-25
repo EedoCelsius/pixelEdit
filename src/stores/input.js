@@ -169,9 +169,9 @@ export const useInputStore = defineStore('input', {
                     }
                 }
             const quantize = u => {
-                const r = (u >>> 24) & 255,
-                    g = (u >>> 16) & 255,
-                    b = (u >>> 8) & 255;
+                const r = (u >>> 0) & 255,
+                    g = (u >>> 8) & 255,
+                    b = (u >>> 16) & 255;
                 return ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
             };
             const groupSum = new Map();
