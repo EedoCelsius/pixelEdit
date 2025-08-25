@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { packRGBA } from '../utils';
+import { packRGBA, averageColorU32 } from '../utils';
 
 export const useInputStore = defineStore('input', {
     state: () => ({
@@ -82,11 +82,10 @@ export const useInputStore = defineStore('input', {
         },
         segment(tolerance = 32) {
             if (!this.isLoaded) return [];
-            const width = this._width,
-                height = this._height,
-                data = this._buffer;
+            const width = this.width,
+                height = this.height,
+                data = this.buffer;
             const visited = new Uint8Array(width * height);
-            const getIndex = (x, y) => (y * width + x) * 4;
             const directions = [
                 [1, 0],
                 [-1, 0],
@@ -100,7 +99,7 @@ export const useInputStore = defineStore('input', {
                 for (let x = 0; x < width; x++) {
                     const flatIndex = y * width + x;
                     if (visited[flatIndex]) continue;
-                    const pixelIndex = getIndex(x, y);
+                    const pixelIndex = this._offset(x, y);
                     const seedColor = {
                         r: data[pixelIndex],
                         g: data[pixelIndex + 1],
@@ -112,13 +111,10 @@ export const useInputStore = defineStore('input', {
                     queue.length = 0;
                     queue.push([x, y]);
                     const pixels = [];
-                    let sumR = 0,
-                        sumG = 0,
-                        sumB = 0,
-                        sumA = 0;
+                    const colors = [];
                     while (queue.length) {
                         const [cx, cy] = queue.pop();
-                        const currentIndex = getIndex(cx, cy);
+                        const currentIndex = this._offset(cx, cy);
                         const currentR = data[currentIndex],
                             currentG = data[currentIndex + 1],
                             currentB = data[currentIndex + 2],
@@ -130,17 +126,14 @@ export const useInputStore = defineStore('input', {
                                 a: currentA
                             }, seedColor) > tolerance) continue;
                         pixels.push([cx, cy]);
-                        sumR += currentR;
-                        sumG += currentG;
-                        sumB += currentB;
-                        sumA += currentA;
+                        colors.push(packRGBA({ r: currentR, g: currentG, b: currentB, a: currentA }));
                         for (const [dx, dy] of directions) {
                             const nextX = cx + dx,
                                 nextY = cy + dy;
-                            if (nextX < 0 || nextY < 0 || nextX >= width || nextY >= height) continue;
+                            if (!this.isWithin(nextX, nextY)) continue;
                             const nextFlatIndex = nextY * width + nextX;
                             if (visited[nextFlatIndex]) continue;
-                            const nextIndex = getIndex(nextX, nextY);
+                            const nextIndex = this._offset(nextX, nextY);
                             const nextAlpha = data[nextIndex + 3];
                             if (nextAlpha > 0 && colorDistance({
                                     r: data[nextIndex],
@@ -156,15 +149,9 @@ export const useInputStore = defineStore('input', {
                         }
                     }
                     if (pixels.length) {
-                        const averageColor = {
-                            r: Math.round(sumR / pixels.length),
-                            g: Math.round(sumG / pixels.length),
-                            b: Math.round(sumB / pixels.length),
-                            a: 255
-                        };
                         segments.push({
-                            pixels: pixels,
-                            colorU32: packRGBA(averageColor)
+                            pixels,
+                            colorU32: averageColorU32(colors)
                         });
                     }
                 }

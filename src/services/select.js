@@ -1,17 +1,15 @@
 import { defineStore } from 'pinia';
 import { useStageService } from './stage';
 import { useOverlayService } from './overlay';
-import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useLayerStore } from '../stores/layers';
 import { useOutputStore } from '../stores/output';
 import { useLayerPanelService } from './layerPanel';
-import { coordsToKey, calcMarquee } from '../utils';
+import { coordsToKey } from '../utils';
 
 export const useSelectService = defineStore('selectService', () => {
     const stage = useStageService();
     const overlay = useOverlayService();
-    const stageStore = useStageStore();
     const toolStore = useToolStore();
     const layers = useLayerStore();
     const output = useOutputStore();
@@ -56,17 +54,11 @@ export const useSelectService = defineStore('selectService', () => {
         if (toolStore.pointer.status === 'idle') return;
 
         if (toolStore.shape === 'rect') {
-            const { x, y, w, h } = calcMarquee(
-                toolStore.pointer.start,
-                { x: event.clientX, y: event.clientY },
-                stageStore.canvas
-            );
+            const pixels = stage.getPixelsFromInteraction(event);
             const intersectedIds = new Set();
-            for (let yy = y; yy < y + h; yy++) {
-                for (let xx = x; xx < x + w; xx++) {
-                    const id = layers.topVisibleIdAt(xx, yy);
-                    if (id !== null) intersectedIds.add(id);
-                }
+            for (const [xx, yy] of pixels) {
+                const id = layers.topVisibleIdAt(xx, yy);
+                if (id !== null) intersectedIds.add(id);
             }
             overlay.setFromIntersected(intersectedIds);
         } else {

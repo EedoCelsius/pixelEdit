@@ -49,14 +49,15 @@ export const usePixelService = defineStore('pixelService', () => {
         } else {
             toolStore.visited.clear();
             toolStore.visited.add(coordsToKey(pixel.x, pixel.y));
+            const pixels = stage.getPixelsFromInteraction(event);
 
             if (toolStore.isGlobalErase) {
-                if (layers.selectionExists) removePixelsFromSelected([[pixel.x, pixel.y]]);
-                else removePixelsFromAll([[pixel.x, pixel.y]]);
+                if (layers.selectionExists) removePixelsFromSelected(pixels);
+                else removePixelsFromAll(pixels);
             } else if (toolStore.isDraw || toolStore.isErase || toolStore.isCut) {
-                if (toolStore.isErase) removePixelsFromSelection([[pixel.x, pixel.y]]);
-                else if (toolStore.isCut) cutPixelsFromSelection([[pixel.x, pixel.y]]);
-                else addPixelsToSelection([[pixel.x, pixel.y]]);
+                if (toolStore.isErase) removePixelsFromSelection(pixels);
+                else if (toolStore.isCut) cutPixelsFromSelection(pixels);
+                else addPixelsToSelection(pixels);
             }
         }
     }
