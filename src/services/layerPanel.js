@@ -19,9 +19,11 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
     function markInternal(fn) {
         internal = true;
         try {
-            fn();
+            return fn();
         } finally {
-            internal = false;
+            queueMicrotask(() => {
+                internal = false;
+            });
         }
     }
 
@@ -30,8 +32,7 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         () => {
             if (internal) return;
             clearRange();
-        },
-        { flush: 'sync' }
+        }
     );
 
     function setRange(anchorId = null, tailId = null) {
