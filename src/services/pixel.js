@@ -8,82 +8,100 @@ import { coordToKey } from '../utils';
 export const usePixelService = defineStore('pixelService', () => {
     const stage = useStageService();
     const overlay = useOverlayService();
-    const { layers } = useStore();
+    const { layers, viewportEvent: viewportEvents } = useStore();
     let cutLayerId = null;
 
-    function startDraw(event) {
+    function startDraw() {
         const tool = useStageToolService();
         if (tool.shape !== 'rect') {
-            const pixels = tool.getPixelsFromInteraction(event);
+            const event = viewportEvents.pointer[tool.pointer.id]?.down;
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('down');
             addPixelsToSelection(pixels);
         }
     }
 
-    function moveDraw(event) {
+    function moveDraw() {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'draw' || tool.shape === 'rect') return;
+        const event = viewportEvents.pointer[tool.pointer.id]?.move;
+        if (!event) return;
         const coord = stage.clientToCoord(event);
         if (!coord) return;
         addPixelsToSelection([coord]);
     }
 
-    function finishDraw(event) {
+    function finishDraw() {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'draw') return;
         if (tool.shape === 'rect') {
-            const pixels = tool.getPixelsFromInteraction(event);
+            const event = viewportEvents.pointer[tool.pointer.id]?.up;
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('up');
             if (pixels.length > 0) addPixelsToSelection(pixels);
         }
     }
 
-    function startErase(event) {
+    function startErase() {
         const tool = useStageToolService();
         if (tool.shape !== 'rect') {
-            const pixels = tool.getPixelsFromInteraction(event);
+            const event = viewportEvents.pointer[tool.pointer.id]?.down;
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('down');
             removePixelsFromSelection(pixels);
         }
     }
 
-    function moveErase(event) {
+    function moveErase() {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'erase' || tool.shape === 'rect') return;
+        const event = viewportEvents.pointer[tool.pointer.id]?.move;
+        if (!event) return;
         const coord = stage.clientToCoord(event);
         if (!coord) return;
         removePixelsFromSelection([coord]);
     }
 
-    function finishErase(event) {
+    function finishErase() {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'erase') return;
         if (tool.shape === 'rect') {
-            const pixels = tool.getPixelsFromInteraction(event);
+            const event = viewportEvents.pointer[tool.pointer.id]?.up;
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('up');
             if (pixels.length > 0) removePixelsFromSelection(pixels);
         }
     }
 
-    function startGlobalErase(event) {
+    function startGlobalErase() {
         const tool = useStageToolService();
         if (tool.shape !== 'rect') {
-            const pixels = tool.getPixelsFromInteraction(event);
+            const event = viewportEvents.pointer[tool.pointer.id]?.down;
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('down');
             if (layers.selectionExists) removePixelsFromSelected(pixels);
             else removePixelsFromAll(pixels);
         }
     }
 
-    function moveGlobalErase(event) {
+    function moveGlobalErase() {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'globalErase' || tool.shape === 'rect') return;
+        const event = viewportEvents.pointer[tool.pointer.id]?.move;
+        if (!event) return;
         const coord = stage.clientToCoord(event);
         if (!coord) return;
         if (layers.selectionExists) removePixelsFromSelected([coord]);
         else removePixelsFromAll([coord]);
     }
 
-    function finishGlobalErase(event) {
+    function finishGlobalErase() {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'globalErase') return;
         if (tool.shape === 'rect') {
-            const pixels = tool.getPixelsFromInteraction(event);
+            const event = viewportEvents.pointer[tool.pointer.id]?.up;
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('up');
             if (pixels.length > 0) {
                 if (layers.selectionExists) removePixelsFromSelected(pixels);
                 else removePixelsFromAll(pixels);
@@ -91,7 +109,7 @@ export const usePixelService = defineStore('pixelService', () => {
         }
     }
 
-    function startCut(event) {
+    function startCut() {
         const tool = useStageToolService();
         if (layers.selectionCount !== 1) return;
         const sourceId = layers.selectedIds[0];
@@ -106,24 +124,30 @@ export const usePixelService = defineStore('pixelService', () => {
         overlay.helper.mode = 'add';
 
         if (tool.shape !== 'rect') {
-            const pixels = tool.getPixelsFromInteraction(event);
+            const event = viewportEvents.pointer[tool.pointer.id]?.down;
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('down');
             cutPixelsFromSelection(pixels);
         }
     }
 
-    function moveCut(event) {
+    function moveCut() {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'cut' || tool.shape === 'rect') return;
+        const event = viewportEvents.pointer[tool.pointer.id]?.move;
+        if (!event) return;
         const coord = stage.clientToCoord(event);
         if (!coord) return;
         cutPixelsFromSelection([coord]);
     }
 
-    function finishCut(event) {
+    function finishCut() {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'cut') return;
         if (tool.shape === 'rect') {
-            const pixels = tool.getPixelsFromInteraction(event);
+            const event = viewportEvents.pointer[tool.pointer.id]?.up;
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('up');
             if (pixels.length > 0) cutPixelsFromSelection(pixels);
         }
         if (cutLayerId != null) {

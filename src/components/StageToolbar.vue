@@ -46,7 +46,7 @@ import { useService } from '../services';
 import { CTRL_TAP_THRESHOLD_MS, SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 
-const { stage: stageStore, layers, output, stageEvent: stageEvents } = useStore();
+const { stage: stageStore, layers, output, viewportEvent: viewportEvents } = useStore();
 const { stageTool: stageToolService } = useService();
 
 const selectables = ref(SINGLE_SELECTION_TOOLS);
@@ -61,15 +61,19 @@ const undo = () => output.undo();
 const redo = () => output.redo();
 
 // Keyboard handlers
-let ctrlKeyDownTimestamp = 0;
-function ctrlKeyDown() {
-  if (!stageEvents.ctrlHeld) {
-    ctrlKeyDownTimestamp = performance.now();
-    stageEvents.setCtrlHeld(true);
+const isCtrlDown = () => {
+  const entry = viewportEvents.keyboard.ctrl;
+  return entry && (!entry.up || entry.down.timeStamp > entry.up.timeStamp);
+};
+function ctrlKeyDown(e) {
+  if (!isCtrlDown()) {
+    viewportEvents.setKey(e);
   }
 }
-function ctrlKeyUp() {
-  if (performance.now() - ctrlKeyDownTimestamp < CTRL_TAP_THRESHOLD_MS) {
+function ctrlKeyUp(e) {
+  const down = viewportEvents.keyboard.ctrl?.down;
+  const upEvent = e || { key: 'Control', type: 'keyup', timeStamp: performance.now() };
+  if (down && upEvent.timeStamp - down.timeStamp < CTRL_TAP_THRESHOLD_MS) {
     const t = stageToolService.prepared;
     if (t === 'draw' || t === 'erase') {
       stageToolService.setPrepared(t === 'draw' ? 'erase' : 'draw');
@@ -77,11 +81,10 @@ function ctrlKeyUp() {
       stageToolService.setPrepared(t === 'select' ? 'globalErase' : 'select');
     }
   }
-  stageEvents.setCtrlHeld(false);
-  ctrlKeyDownTimestamp = 0;
+  viewportEvents.setKey(upEvent);
 }
-function shiftKeyDown() { stageEvents.setShiftHeld(true); }
-function shiftKeyUp() { stageEvents.setShiftHeld(false); }
+function shiftKeyDown(e) { viewportEvents.setKey(e); }
+function shiftKeyUp(e) { viewportEvents.setKey(e || { key: 'Shift', type: 'keyup', timeStamp: performance.now() }); }
 
 defineExpose({ ctrlKeyDown, ctrlKeyUp, shiftKeyDown, shiftKeyUp });
 </script>

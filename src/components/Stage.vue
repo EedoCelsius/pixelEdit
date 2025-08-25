@@ -78,32 +78,44 @@ import { useService } from '../services';
 import { OVERLAY_CONFIG, GRID_STROKE_COLOR } from '@/constants';
 import { rgbaCssU32 } from '../utils';
 
-const { stage: stageStore, layers, stageEvent: stageEvents } = useStore();
+const { stage: stageStore, layers, viewportEvent: viewportEvents } = useStore();
 const { stage: stageService, overlay, stageTool: stageToolService, viewport } = useService();
 const viewportEl = ref(null);
 const stageEl = ref(null);
 const marquee = stageToolService.marquee;
 const offset = viewport.offset;
 
-    const onViewportPointerDown = viewport.onViewportPointerDown;
-    const onViewportPointerMove = viewport.onViewportPointerMove;
-    const onViewportPointerUp = viewport.onViewportPointerUp;
-const onViewportPointerCancel = viewport.onViewportPointerCancel;
+const onViewportPointerDown = (e) => {
+  if (e.pointerType === 'touch') e.preventDefault();
+  viewportEvents.addPointerDown(e);
+};
+
+const onViewportPointerMove = (e) => {
+  viewportEvents.setPointerMove(e);
+};
+
+const onViewportPointerUp = (e) => {
+  viewportEvents.setPointerUp(e);
+};
+
+const onViewportPointerCancel = (e) => {
+  viewportEvents.setPointerUp(e);
+};
 
 const onPointerDown = (e) => {
-  stageEvents.addPointerDown(e);
+  viewportEvents.addPointerDown(e);
 };
 
 const onPointerMove = (e) => {
-  stageEvents.setPointerMove(e);
+  viewportEvents.setPointerMove(e);
 };
 
 const onPointerUp = (e) => {
-  stageEvents.setPointerUp(e);
+  viewportEvents.setPointerUp(e);
 };
 
 const onPointerCancel = (e) => {
-  stageEvents.setPointerUp(e);
+  viewportEvents.setPointerUp(e);
 };
 
     const onPointerLeave = (e) => {
@@ -114,7 +126,7 @@ const onPointerCancel = (e) => {
     };
 
 const onWheel = (e) => {
-  stageEvents.setWheel(e);
+  viewportEvents.setWheel(e);
 };
 
 const helperOverlay = computed(() => {
