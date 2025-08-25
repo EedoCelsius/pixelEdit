@@ -319,8 +319,8 @@ function handleGlobalPointerDown(event) {
     const isLayers = listElement.value && listElement.value.contains(target);
     const isButton = !!target.closest('button');
     if (isStage || isLayers || isButton) return;
-      layerPanel.clearSelection();
-}
+      layers.clearSelection();
+  }
 
 onMounted(() => {
     window.addEventListener('pointerdown', handleGlobalPointerDown, {

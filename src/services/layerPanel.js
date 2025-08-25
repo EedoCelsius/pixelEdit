@@ -34,39 +34,28 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         }
     }
 
-    function edit(fn) {
-        disableWatch();
-        try {
-            return fn();
-        } finally {
-            if (state.anchorId != null && state.tailId != null) {
-                enableWatch();
-            }
-        }
-    }
-
     function setRange(anchorId = null, tailId = null) {
-        edit(() => {
-            if (anchorId == null || tailId == null) {
-                state.anchorId = null;
-                state.tailId = null;
-                layers.clearSelection();
-                return;
-            }
-            const order = layers.order;
-            const start = order.indexOf(anchorId);
-            const end = order.indexOf(tailId);
-            if (start < 0 || end < 0) {
-                state.anchorId = null;
-                state.tailId = null;
-                layers.clearSelection();
-                return;
-            }
-            const [min, max] = start < end ? [start, end] : [end, start];
-            layers.replaceSelection(order.slice(min, max + 1));
-            state.anchorId = anchorId;
-            state.tailId = tailId;
-        });
+        disableWatch();
+        if (anchorId == null || tailId == null) {
+            state.anchorId = null;
+            state.tailId = null;
+            layers.clearSelection();
+            return;
+        }
+        const order = layers.order;
+        const start = order.indexOf(anchorId);
+        const end = order.indexOf(tailId);
+        if (start < 0 || end < 0) {
+            state.anchorId = null;
+            state.tailId = null;
+            layers.clearSelection();
+            return;
+        }
+        const [min, max] = start < end ? [start, end] : [end, start];
+        layers.replaceSelection(order.slice(min, max + 1));
+        state.anchorId = anchorId;
+        state.tailId = tailId;
+        enableWatch();
     }
 
     function clearRange() {
@@ -83,8 +72,7 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         if (event.shiftKey) {
             setRange(state.anchorId ?? id, id);
         } else if (event.ctrlKey || event.metaKey) {
-            edit(() => layers.toggleSelection(id));
-            clearRange();
+            layers.toggleSelection(id);
         } else {
             setRange(id, id);
         }
@@ -120,19 +108,7 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
     }
 
     function selectAll() {
-        edit(() => {
-            const anchor = query.uppermostId;
-            const tail = query.lowermostId;
-            layers.replaceSelection(layers.order);
-            state.anchorId = anchor;
-            state.tailId = tail;
-        });
-    }
-
-    function clearSelection() {
-        disableWatch();
-        layers.clearSelection();
-        clearRange();
+        setRange(query.uppermostId, query.lowermostId);
     }
 
     function serialize() {
@@ -163,7 +139,6 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         onArrowUp,
         onArrowDown,
         selectAll,
-        clearSelection,
         serialize,
         applySerialized
     };

@@ -130,8 +130,8 @@ export const useSelectService = defineStore('selectService', () => {
                     layerPanel.clearRange();
                 }
             } else if (mode === 'select' || !mode) {
-                layerPanel.clearSelection();
-            }
+                    layers.clearSelection();
+                }
         }
 
         try {

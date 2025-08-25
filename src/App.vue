@@ -135,7 +135,7 @@ function onKeydown(event) {
         output.rollbackPending();
         return;
       }
-      layerPanel.clearSelection();
+      layers.clearSelection();
       return;
   }
 
