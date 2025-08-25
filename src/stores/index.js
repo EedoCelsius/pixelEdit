@@ -2,14 +2,14 @@ import { useInputStore } from './input';
 import { useLayerStore } from './layers';
 import { useOutputStore } from './output';
 import { useStageStore } from './stage';
-import { useStageEventStore } from './stageEvent';
+import { useViewportEventStore } from './viewportEvent';
 
 export {
     useInputStore,
     useLayerStore,
     useOutputStore,
     useStageStore,
-    useStageEventStore
+    useViewportEventStore
 };
 
 export const useStore = () => ({
@@ -17,5 +17,5 @@ export const useStore = () => ({
     layers: useLayerStore(),
     output: useOutputStore(),
     stage: useStageStore(),
-    stageEvent: useStageEventStore()
+    viewportEvent: useViewportEventStore()
 });

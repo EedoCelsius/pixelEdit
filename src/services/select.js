@@ -9,7 +9,7 @@ export const useSelectService = defineStore('selectService', () => {
     const stage = useStageService();
     const overlay = useOverlayService();
     const layerPanel = useLayerPanelService();
-    const { layers, stageEvent: stageEvents } = useStore();
+    const { layers, viewportEvent: viewportEvents } = useStore();
 
     const addByMode = (id) => {
         const tool = useStageToolService();
@@ -33,12 +33,14 @@ export const useSelectService = defineStore('selectService', () => {
         }
     }
 
-    function move(event) {
+    function move() {
         const tool = useStageToolService();
         if (tool.pointer.status === 'idle') return;
+        const event = viewportEvents.pointer[tool.pointer.id]?.move;
+        if (!event) return;
 
         if (tool.shape === 'rect') {
-            const pixels = tool.getPixelsFromInteraction(event);
+            const pixels = tool.getPixelsFromInteraction('move');
             const intersectedIds = new Set();
             for (const coord of pixels) {
                 const id = layers.topVisibleIdAt(coord);
@@ -58,16 +60,18 @@ export const useSelectService = defineStore('selectService', () => {
         }
     }
 
-    function finish(event) {
+    function finish() {
         const tool = useStageToolService();
         if (tool.pointer.status === 'idle') return;
 
         const mode = tool.pointer.status;
+        const event = viewportEvents.pointer[tool.pointer.id]?.up;
+        if (!event) return;
 
         const coord = stage.clientToCoord(event);
-        const start = stageEvents.pointer.start;
-        const dx = start ? Math.abs(event.clientX - start.x) : 0;
-        const dy = start ? Math.abs(event.clientY - start.y) : 0;
+            const startEvent = viewportEvents.pointer[tool.pointer.id]?.down;
+            const dx = startEvent ? Math.abs(event.clientX - startEvent.clientX) : 0;
+            const dy = startEvent ? Math.abs(event.clientY - startEvent.clientY) : 0;
         const isClick = dx <= 4 && dy <= 4;
         if (isClick && coord) {
             const id = layers.topVisibleIdAt(coord);
@@ -80,7 +84,7 @@ export const useSelectService = defineStore('selectService', () => {
                 layerPanel.setScrollRule({ type: 'follow', target: id });
             }
         } else {
-            const pixels = tool.getPixelsFromInteraction(event);
+            const pixels = tool.getPixelsFromInteraction('up');
             if (pixels.length > 0) {
                 const intersectedIds = new Set();
                 for (const coord of pixels) {

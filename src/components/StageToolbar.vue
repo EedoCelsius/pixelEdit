@@ -43,10 +43,10 @@
 import { ref, watch } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
-import { CTRL_TAP_THRESHOLD_MS, SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS } from '@/constants';
+import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 
-const { stage: stageStore, layers, output, stageEvent: stageEvents } = useStore();
+const { stage: stageStore, layers, output, viewportEvent: viewportEvents } = useStore();
 const { stageTool: stageToolService } = useService();
 
 const selectables = ref(SINGLE_SELECTION_TOOLS);
@@ -61,27 +61,35 @@ const undo = () => output.undo();
 const redo = () => output.redo();
 
 // Keyboard handlers
-let ctrlKeyDownTimestamp = 0;
-function ctrlKeyDown() {
-  if (!stageEvents.ctrlHeld) {
-    ctrlKeyDownTimestamp = performance.now();
-    stageEvents.setCtrlHeld(true);
-  }
+const isCtrlDown = () => {
+  const ctrl = viewportEvents.keyboard['Control'];
+  const meta = viewportEvents.keyboard['Meta'];
+  const check = (entry) => entry && (!entry.up || entry.down?.timeStamp > entry.up.timeStamp);
+  return check(ctrl) || check(meta);
+};
+function ctrlKeyDown(e) {
+  viewportEvents.setKeyDown(e);
 }
-function ctrlKeyUp() {
-  if (performance.now() - ctrlKeyDownTimestamp < CTRL_TAP_THRESHOLD_MS) {
-    const t = stageToolService.prepared;
-    if (t === 'draw' || t === 'erase') {
-      stageToolService.setPrepared(t === 'draw' ? 'erase' : 'draw');
-    } else if (t === 'select' || t === 'globalErase') {
-      stageToolService.setPrepared(t === 'select' ? 'globalErase' : 'select');
+function ctrlKeyUp(e) {
+  if (e) {
+    const down = viewportEvents.keyboard[e.key]?.down;
+    if (down && !down.repeat) {
+      const t = stageToolService.prepared;
+      if (t === 'draw' || t === 'erase') {
+        stageToolService.setPrepared(t === 'draw' ? 'erase' : 'draw');
+      } else if (t === 'select' || t === 'globalErase') {
+        stageToolService.setPrepared(t === 'select' ? 'globalErase' : 'select');
+      }
     }
+    viewportEvents.setKeyUp(e);
+  } else {
+    const ts = performance.now();
+    viewportEvents.setKeyUp({ key: 'Control', type: 'keyup', timeStamp: ts });
+    viewportEvents.setKeyUp({ key: 'Meta', type: 'keyup', timeStamp: ts });
   }
-  stageEvents.setCtrlHeld(false);
-  ctrlKeyDownTimestamp = 0;
 }
-function shiftKeyDown() { stageEvents.setShiftHeld(true); }
-function shiftKeyUp() { stageEvents.setShiftHeld(false); }
+function shiftKeyDown(e) { viewportEvents.setKeyDown(e); }
+function shiftKeyUp(e) { viewportEvents.setKeyUp(e || { key: 'Shift', type: 'keyup', timeStamp: performance.now() }); }
 
 defineExpose({ ctrlKeyDown, ctrlKeyUp, shiftKeyDown, shiftKeyUp });
 </script>

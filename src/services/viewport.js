@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia';
-import { reactive, ref } from 'vue';
+import { reactive, ref, watch } from 'vue';
 import { useStore } from '../stores';
 import { clamp } from '../utils';
 import { WHEEL_ZOOM_IN_FACTOR, WHEEL_ZOOM_OUT_FACTOR, POSITION_LERP_EXPONENT } from '@/constants';
 
 export const useViewportService = defineStore('viewportService', () => {
-  const { stage: stageStore } = useStore();
+  const { stage: stageStore, viewportEvent: viewportEvents } = useStore();
   const offset = reactive({ x: 0, y: 0 });
   const touches = new Map();
   const element = ref(null);
@@ -15,32 +15,7 @@ export const useViewportService = defineStore('viewportService', () => {
     element.value = el;
   }
 
-  function onViewportPointerDown(e) {
-    if (e.pointerType !== 'touch') return;
-    e.preventDefault();
-    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    lastTouchDistance = 0;
-  }
-
-  function onViewportPointerMove(e) {
-    if (e.pointerType !== 'touch') return;
-    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (touches.size === 2) handlePinch();
-  }
-
-  function onViewportPointerUp(e) {
-    if (e.pointerType !== 'touch') return;
-    touches.delete(e.pointerId);
-    lastTouchDistance = 0;
-  }
-
-  function onViewportPointerCancel(e) {
-    if (e.pointerType !== 'touch') return;
-    touches.delete(e.pointerId);
-    lastTouchDistance = 0;
-  }
-
-  function onWheel(e) {
+  function handleWheel(e) {
     const viewportEl = element.value;
     if (!viewportEl) return;
     if (!e.ctrlKey) {
@@ -118,15 +93,41 @@ export const useViewportService = defineStore('viewportService', () => {
     stageStore.setCanvasPosition(left + offset.x, top + offset.y);
   }
 
+  watch(() => {
+    const id = viewportEvents.pointer.recent;
+    return id != null ? viewportEvents.pointer[id]?.down : null;
+  }, (e) => {
+    if (!e || e.pointerType !== 'touch') return;
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    lastTouchDistance = 0;
+  });
+
+  watch(() => {
+    const id = viewportEvents.pointer.recent;
+    return id != null ? viewportEvents.pointer[id]?.move : null;
+  }, (e) => {
+    if (!e || e.pointerType !== 'touch') return;
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touches.size === 2) handlePinch();
+  });
+
+  watch(() => {
+    const id = viewportEvents.pointer.recent;
+    return id != null ? viewportEvents.pointer[id]?.up : null;
+  }, (e) => {
+    if (!e || e.pointerType !== 'touch') return;
+    touches.delete(e.pointerId);
+    lastTouchDistance = 0;
+  });
+
+  watch(() => viewportEvents.wheel, (e) => {
+    if (e) handleWheel(e);
+  });
+
   return {
     element,
     setElement,
     offset,
-    onViewportPointerDown,
-    onViewportPointerMove,
-    onViewportPointerUp,
-    onViewportPointerCancel,
-    onWheel,
     positionStage,
     updateCanvasPosition,
   };
