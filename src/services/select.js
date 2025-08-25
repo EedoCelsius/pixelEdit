@@ -3,7 +3,7 @@ import { useStageService } from './stage';
 import { useOverlayService } from './overlay';
 import { useLayerPanelService } from './layerPanel';
 import { useStore } from '../stores';
-import { coordsToKey } from '../utils';
+import { coordToKey } from '../utils';
 
 export const useSelectService = defineStore('selectService', () => {
     const stage = useStageService();
@@ -11,12 +11,23 @@ export const useSelectService = defineStore('selectService', () => {
     const layerPanel = useLayerPanelService();
     const { tool: toolStore, layers, output } = useStore();
 
+    const addByMode = (id) => {
+        const mode = toolStore.pointer.status;
+        if (mode === 'remove') {
+            if (layers.isSelected(id)) overlay.helper.add(id);
+        } else if (mode === 'add') {
+            if (!layers.isSelected(id)) overlay.helper.add(id);
+        } else {
+            overlay.helper.add(id);
+        }
+    };
+
     function toolStart(event) {
         if (event.button !== 0) return;
-        const pixel = stage.clientToPixel(event);
-        if (!pixel) return;
+        const coord = stage.clientToCoord(event);
+        if (!coord) return;
 
-        const startId = layers.topVisibleIdAt(pixel.x, pixel.y);
+        const startId = layers.topVisibleIdAt(coord);
         const mode = !event.shiftKey
             ? 'select'
             : layers.isSelected(startId)
@@ -27,22 +38,21 @@ export const useSelectService = defineStore('selectService', () => {
 
         toolStore.pointer.status = mode;
         toolStore.pointer.start = { x: event.clientX, y: event.clientY };
+        overlay.helper.mode = mode === 'remove' ? 'remove' : 'add';
 
         try {
             event.target.setPointerCapture?.(event.pointerId);
             toolStore.pointer.id = event.pointerId;
         } catch {}
 
+        overlay.helper.clear();
         if (toolStore.shape === 'rect') {
             // rectangle interactions tracked directly in components
         } else {
             toolStore.visited.clear();
-            toolStore.visited.add(coordsToKey(pixel.x, pixel.y));
-
-            const id = layers.topVisibleIdAt(pixel.x, pixel.y);
-            if (id !== null) {
-                overlay.addByMode(id);
-            }
+            toolStore.visited.add(coordToKey(coord));
+            const id = layers.topVisibleIdAt(coord);
+            if (id !== null) addByMode(id);
         }
     }
 
@@ -52,24 +62,25 @@ export const useSelectService = defineStore('selectService', () => {
         if (toolStore.shape === 'rect') {
             const pixels = stage.getPixelsFromInteraction(event);
             const intersectedIds = new Set();
-            for (const [xx, yy] of pixels) {
-                const id = layers.topVisibleIdAt(xx, yy);
+            for (const coord of pixels) {
+                const id = layers.topVisibleIdAt(coord);
                 if (id !== null) intersectedIds.add(id);
             }
-            overlay.setFromIntersected(intersectedIds);
+            overlay.helper.clear();
+            intersectedIds.forEach(addByMode);
         } else {
-            const pixel = stage.clientToPixel(event);
-            if (!pixel) {
+            const coord = stage.clientToCoord(event);
+            if (!coord) {
                 return;
             }
-            const k = coordsToKey(pixel.x, pixel.y);
+            const k = coordToKey(coord);
             if (toolStore.visited.has(k)) {
                 return;
             }
             toolStore.visited.add(k);
-            const id = layers.topVisibleIdAt(pixel.x, pixel.y);
+            const id = layers.topVisibleIdAt(coord);
             if (id !== null) {
-                overlay.addByMode(id);
+                addByMode(id);
             }
         }
     }
@@ -79,13 +90,13 @@ export const useSelectService = defineStore('selectService', () => {
 
         const mode = toolStore.pointer.status;
 
-        const pixel = stage.clientToPixel(event);
+        const coord = stage.clientToCoord(event);
         const start = toolStore.pointer.start;
         const dx = start ? Math.abs(event.clientX - start.x) : 0;
         const dy = start ? Math.abs(event.clientY - start.y) : 0;
         const isClick = dx <= 4 && dy <= 4;
-        if (isClick && pixel) {
-            const id = layers.topVisibleIdAt(pixel.x, pixel.y);
+        if (isClick && coord) {
+            const id = layers.topVisibleIdAt(coord);
             if (id !== null) {
                 if (mode === 'select' || !mode) {
                     layers.replaceSelection([id]);
@@ -98,8 +109,8 @@ export const useSelectService = defineStore('selectService', () => {
             const pixels = stage.getPixelsFromInteraction(event);
             if (pixels.length > 0) {
                 const intersectedIds = new Set();
-                for (const [x, y] of pixels) {
-                    const id = layers.topVisibleIdAt(x, y);
+                for (const coord of pixels) {
+                    const id = layers.topVisibleIdAt(coord);
                     if (id !== null) intersectedIds.add(id);
                 }
                 const currentSelection = new Set(
@@ -135,10 +146,10 @@ export const useSelectService = defineStore('selectService', () => {
     function reset() {
         toolStore.pointer.status = 'idle';
         toolStore.pointer.id = null;
-        toolStore.pointer.start = null;
-        toolStore.visited.clear();
-        overlay.clearHover();
-        overlay.clear();
+       toolStore.pointer.start = null;
+       toolStore.visited.clear();
+        overlay.helper.clear();
+        overlay.helper.mode = 'add';
     }
 
     return { toolStart, toolMove, toolFinish, cancel };

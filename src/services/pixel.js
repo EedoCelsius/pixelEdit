@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { useStageService } from './stage';
 import { useOverlayService } from './overlay';
 import { useStore } from '../stores';
-import { coordsToKey } from '../utils';
+import { coordToKey } from '../utils';
 
 export const usePixelService = defineStore('pixelService', () => {
     const stage = useStageService();
@@ -12,8 +12,8 @@ export const usePixelService = defineStore('pixelService', () => {
 
     function toolStart(event) {
         if (event.button !== 0) return;
-        const pixel = stage.clientToPixel(event);
-        if (!pixel) return;
+        const coord = stage.clientToCoord(event);
+        if (!coord) return;
 
         output.setRollbackPoint();
 
@@ -26,7 +26,9 @@ export const usePixelService = defineStore('pixelService', () => {
                 color: sourceProps.color,
                 visible: sourceProps.visible,
             }, sourceId);
-            overlay.add(cutLayerId);
+            overlay.helper.clear();
+            overlay.helper.add(cutLayerId);
+            overlay.helper.mode = 'add';
         }
 
         toolStore.pointer.status = toolStore.expected;
@@ -41,7 +43,7 @@ export const usePixelService = defineStore('pixelService', () => {
             // no additional pointer state needed for rectangle interactions
         } else {
             toolStore.visited.clear();
-            toolStore.visited.add(coordsToKey(pixel.x, pixel.y));
+            toolStore.visited.add(coordToKey(coord));
             const pixels = stage.getPixelsFromInteraction(event);
 
             if (toolStore.isGlobalErase) {
@@ -61,16 +63,16 @@ export const usePixelService = defineStore('pixelService', () => {
         if (toolStore.shape === 'rect') {
             // rectangle interactions handled in stage component
         } else {
-            const pixel = stage.clientToPixel(event);
-            if (!pixel) {
+            const coord = stage.clientToCoord(event);
+            if (!coord) {
                 return;
             }
-            const k = coordsToKey(pixel.x, pixel.y);
+            const k = coordToKey(coord);
             if (toolStore.visited.has(k)) {
                 return;
             }
             toolStore.visited.add(k);
-            const delta = [[pixel.x, pixel.y]];
+            const delta = [coord];
             if (toolStore.isGlobalErase) {
                 if (layers.selectionExists) removePixelsFromSelected(delta);
                 else removePixelsFromAll(delta);
@@ -125,7 +127,8 @@ export const usePixelService = defineStore('pixelService', () => {
         toolStore.pointer.id = null;
         toolStore.pointer.start = null;
         toolStore.visited.clear();
-        overlay.clear();
+        overlay.helper.clear();
+        overlay.helper.mode = 'add';
         cutLayerId = null;
     }
 
@@ -145,20 +148,20 @@ export const usePixelService = defineStore('pixelService', () => {
         if (layers.selectionCount !== 1 || cutLayerId == null) return;
         const sourceId = layers.selectedIds[0];
         const coords = layers.getProperty(sourceId, 'pixels');
-        const set = new Set(coords.map(([x, y]) => coordsToKey(x, y)));
+        const set = new Set(coords.map(coordToKey));
         const pixelsToMove = [];
-        for (const [x, y] of pixels) {
-            if (set.has(coordsToKey(x, y))) pixelsToMove.push([x, y]);
+        for (const coord of pixels) {
+            if (set.has(coordToKey(coord))) pixelsToMove.push(coord);
         }
         if (!pixelsToMove.length) return;
         layers.removePixels(sourceId, pixelsToMove);
         layers.addPixels(cutLayerId, pixelsToMove);
     }
 
-    function togglePointInSelection(x, y) {
+    function togglePointInSelection(coord) {
         if (layers.selectionCount !== 1) return;
         const id = layers.selectedIds[0];
-        layers.togglePixel(id, x, y);
+        layers.togglePixel(id, coord);
     }
 
     function removePixelsFromSelected(pixels) {
@@ -166,10 +169,10 @@ export const usePixelService = defineStore('pixelService', () => {
         for (const id of layers.selectedIds) {
             const props = layers.getProperties(id);
             const coords = props.pixels;
-            const set = new Set(coords.map(([x, y]) => coordsToKey(x, y)));
+            const set = new Set(coords.map(coordToKey));
             const pixelsToRemove = [];
-            for (const [x, y] of pixels) {
-                if (set.has(coordsToKey(x, y))) pixelsToRemove.push([x, y]);
+            for (const coord of pixels) {
+                if (set.has(coordToKey(coord))) pixelsToRemove.push(coord);
             }
             if (pixelsToRemove.length) layers.removePixels(id, pixelsToRemove);
         }
@@ -180,10 +183,10 @@ export const usePixelService = defineStore('pixelService', () => {
         for (const id of layers.order) {
             const props = layers.getProperties(id);
             const coords = props.pixels;
-            const set = new Set(coords.map(([x, y]) => coordsToKey(x, y)));
+            const set = new Set(coords.map(coordToKey));
             const pixelsToRemove = [];
-            for (const [x, y] of pixels) {
-                if (set.has(coordsToKey(x, y))) pixelsToRemove.push([x, y]);
+            for (const coord of pixels) {
+                if (set.has(coordToKey(coord))) pixelsToRemove.push(coord);
             }
             if (pixelsToRemove.length) layers.removePixels(id, pixelsToRemove);
         }

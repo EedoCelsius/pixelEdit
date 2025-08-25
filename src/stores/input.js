@@ -47,21 +47,22 @@ export const useInputStore = defineStore('input', {
         async loadFromQuery() {
             await this.load(new URL(location.href).searchParams.get('pixel'));
         },
-        isWithin(x, y) {
+        isWithin([x, y]) {
             return x >= 0 && y >= 0 && x < this._width && y < this._height;
         },
-        _offset(x, y) {
+        _offset([x, y]) {
             return ((y * this._width) + x) * 4;
         },
-        readPixel(x, y) {
-            if (!this.isLoaded || !this.isWithin(x, y)) return {
+        readPixel(coord) {
+            const [x, y] = coord;
+            if (!this.isLoaded || !this.isWithin(coord)) return {
                 r: 0,
                 g: 0,
                 b: 0,
                 a: 0
             };
             const data = this._buffer;
-            const i = this._offset(x, y);
+            const i = this._offset(coord);
             return {
                 r: data[i],
                 g: data[i + 1],
@@ -69,9 +70,9 @@ export const useInputStore = defineStore('input', {
                 a: data[i + 3]
             };
         },
-        writePixel(x, y, { r = 0, g = 0, b = 0, a = 255 } = {}) {
-            if (!this.isLoaded || !this.isWithin(x, y)) return;
-            const i = this._offset(x, y);
+        writePixel(coord, { r = 0, g = 0, b = 0, a = 255 } = {}) {
+            if (!this.isLoaded || !this.isWithin(coord)) return;
+            const i = this._offset(coord);
             this._buffer[i] = r;
             this._buffer[i + 1] = g;
             this._buffer[i + 2] = b;
@@ -99,7 +100,7 @@ export const useInputStore = defineStore('input', {
                 for (let x = 0; x < width; x++) {
                     const flatIndex = y * width + x;
                     if (visited[flatIndex]) continue;
-                    const pixelIndex = this._offset(x, y);
+                    const pixelIndex = this._offset([x, y]);
                     const seedColor = {
                         r: data[pixelIndex],
                         g: data[pixelIndex + 1],
@@ -114,7 +115,7 @@ export const useInputStore = defineStore('input', {
                     const colors = [];
                     while (queue.length) {
                         const [cx, cy] = queue.pop();
-                        const currentIndex = this._offset(cx, cy);
+                        const currentIndex = this._offset([cx, cy]);
                         const currentR = data[currentIndex],
                             currentG = data[currentIndex + 1],
                             currentB = data[currentIndex + 2],
@@ -130,10 +131,10 @@ export const useInputStore = defineStore('input', {
                         for (const [dx, dy] of directions) {
                             const nextX = cx + dx,
                                 nextY = cy + dy;
-                            if (!this.isWithin(nextX, nextY)) continue;
+                            if (!this.isWithin([nextX, nextY])) continue;
                             const nextFlatIndex = nextY * width + nextX;
                             if (visited[nextFlatIndex]) continue;
-                            const nextIndex = this._offset(nextX, nextY);
+                            const nextIndex = this._offset([nextX, nextY]);
                             const nextAlpha = data[nextIndex + 3];
                             if (nextAlpha > 0 && colorDistance({
                                     r: data[nextIndex],
