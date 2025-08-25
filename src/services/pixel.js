@@ -3,7 +3,6 @@ import { useStageService } from './stage';
 import { useOverlayService } from './overlay';
 import { useToolStore } from '../stores/tool';
 import { useLayerStore } from '../stores/layers';
-import { useLayerService } from './layers';
 import { useLayerPanelService } from './layerPanel';
 import { useOutputStore } from '../stores/output';
 import { coordsToKey } from '../utils';
@@ -13,7 +12,6 @@ export const usePixelService = defineStore('pixelService', () => {
     const overlay = useOverlayService();
     const toolStore = useToolStore();
     const layers = useLayerStore();
-    const layerSvc = useLayerService();
     const layerPanel = useLayerPanelService();
     const output = useOutputStore();
     let cutLayerId = null;
@@ -173,16 +171,16 @@ export const usePixelService = defineStore('pixelService', () => {
 
     function removePixelsFromSelected(pixels) {
         if (!pixels || !pixels.length) return;
-        layerSvc.forEachSelected((id) => {
-            if (layers.lockedOf(id)) return;
+        for (const id of layers.selectedIds) {
+            if (layers.lockedOf(id)) continue;
             const set = layers.pixels[id];
-            if (!set) return;
+            if (!set) continue;
             const pixelsToRemove = [];
             for (const [x, y] of pixels) {
                 if (set.has(coordsToKey(x, y))) pixelsToRemove.push([x, y]);
             }
             if (pixelsToRemove.length) layers.removePixels(id, pixelsToRemove);
-        });
+        }
     }
 
     function removePixelsFromAll(pixels) {

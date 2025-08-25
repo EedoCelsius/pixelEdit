@@ -9,12 +9,6 @@ export const useLayerService = defineStore('layerService', () => {
     const layerPanel = useLayerPanelService();
     const query = useQueryService();
 
-    function forEachSelected(fn) {
-        for (const id of layers.selectedIds) {
-            fn(id);
-        }
-    }
-
     function setColorForSelectedU32(colorU32) {
         for (const id of layers.selectedIds) {
             if (layers.lockedOf(id)) continue;
@@ -56,9 +50,9 @@ export const useLayerService = defineStore('layerService', () => {
                 colors.push(layers.compositeColorAt(x, y));
             }
         } else {
-            forEachSelected(id => {
+            for (const id of layers.selectedIds) {
                 colors.push(layers.colorOf(id));
-            });
+            }
         }
         const colorU32 = averageColorU32(colors);
 
@@ -74,7 +68,7 @@ export const useLayerService = defineStore('layerService', () => {
     function copySelected() {
         if (!layers.selectionCount) return [];
         const newLayerIds = [];
-        forEachSelected((id) => {
+        for (const id of layers.selectedIds) {
             const newLayerId = layers.createLayer({
                 name: `Copy of ${layers.nameOf(id)}`,
                 colorU32: layers.colorOf(id),
@@ -82,7 +76,7 @@ export const useLayerService = defineStore('layerService', () => {
                 pixels: layers.snapshotPixels(id)
             }, id);
             newLayerIds.push(newLayerId);
-        });
+        }
         return newLayerIds;
     }
 
@@ -185,7 +179,6 @@ export const useLayerService = defineStore('layerService', () => {
     }
 
     return {
-        forEachSelected,
         setColorForSelectedU32,
         setLockedForSelected,
         setVisibilityForSelected,
