@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia';
 import { computed } from 'vue';
-import { useLayerStore } from '../stores/layers';
+import { useStore } from '../stores';
 
 export const useQueryService = defineStore('queryService', () => {
-    const layers = useLayerStore();
+    const { layers } = useStore();
 
     const uppermostId = computed(() => {
         const order = layers.idsBottomToTop;

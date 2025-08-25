@@ -73,31 +73,13 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useStageStore } from '../stores/stage';
-import { useToolStore } from '../stores/tool';
-import { useStageService } from '../services/stage';
-import { useOverlayService } from '../services/overlay';
-import { useLayerStore } from '../stores/layers';
-import { useLayerService } from '../services/layers';
-import { useInputStore } from '../stores/input';
-import { useSelectService } from '../services/select';
-import { usePixelService } from '../services/pixel';
-import { useStageEventStore } from '../stores/stageEvent';
-import { useViewportService } from '../services/viewport';
+import { useStore } from '../stores';
+import { useService } from '../services';
 import { rgbaCssU32, rgbaCssObj, calcMarquee } from '../utils';
 import { OVERLAY_CONFIG, GRID_STROKE_COLOR } from '@/constants';
 
-const stageStore = useStageStore();
-const toolStore = useToolStore();
-const stageService = useStageService();
-const overlay = useOverlayService();
-const stageEvents = useStageEventStore();
-const layers = useLayerStore();
-const layerSvc = useLayerService();
-const input = useInputStore();
-const selectSvc = useSelectService();
-const pixelSvc = usePixelService();
-const viewport = useViewportService();
+const { stage: stageStore, tool: toolStore, layers, input, stageEvent: stageEvents } = useStore();
+const { stage: stageService, overlay, layers: layerSvc, select: selectSvc, pixel: pixelSvc, viewport } = useService();
 const viewportEl = ref(null);
 const stageEl = ref(null);
 const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });

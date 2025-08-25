@@ -1,17 +1,13 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { useStageStore } from '../stores/stage';
-import { useToolStore } from '../stores/tool';
-import { useLayerStore } from '../stores/layers';
+import { useStore } from '../stores';
 import { useOverlayService } from './overlay';
 import { keyToCoords, getPixelUnionSet, pixelsToUnionPath, calcMarquee } from '../utils';
 import { CURSOR_CONFIG, SVG_NAMESPACE, CHECKERBOARD_CONFIG, MIN_SCALE_RATIO } from '@/constants';
 
 export const useStageService = defineStore('stageService', () => {
     // stores
-    const stageStore = useStageStore();
-    const toolStore = useToolStore();
-    const layers = useLayerStore();
+    const { stage: stageStore, tool: toolStore, layers } = useStore();
     const overlay = useOverlayService();
     // stage element reference
     const element = ref(null);

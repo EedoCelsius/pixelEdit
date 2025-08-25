@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia';
-import { useLayerStore } from '../stores/layers';
+import { useStore } from '../stores';
 import { useLayerPanelService } from './layerPanel';
 import { useQueryService } from './query';
 import { keyToCoords, buildOutline, findPixelComponents, getPixelUnionSet, averageColorU32 } from '../utils';
 
 export const useLayerService = defineStore('layerService', () => {
-    const layers = useLayerStore();
+    const { layers } = useStore();
     const layerPanel = useLayerPanelService();
     const query = useQueryService();
 

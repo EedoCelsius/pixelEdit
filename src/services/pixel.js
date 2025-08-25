@@ -1,19 +1,15 @@
 import { defineStore } from 'pinia';
 import { useStageService } from './stage';
 import { useOverlayService } from './overlay';
-import { useToolStore } from '../stores/tool';
-import { useLayerStore } from '../stores/layers';
 import { useLayerPanelService } from './layerPanel';
-import { useOutputStore } from '../stores/output';
+import { useStore } from '../stores';
 import { coordsToKey } from '../utils';
 
 export const usePixelService = defineStore('pixelService', () => {
     const stage = useStageService();
     const overlay = useOverlayService();
-    const toolStore = useToolStore();
-    const layers = useLayerStore();
     const layerPanel = useLayerPanelService();
-    const output = useOutputStore();
+    const { tool: toolStore, layers, output } = useStore();
     let cutLayerId = null;
 
     function toolStart(event) {

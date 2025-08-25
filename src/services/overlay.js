@@ -1,12 +1,10 @@
 import { defineStore } from 'pinia';
 import { computed, reactive, ref } from 'vue';
-import { useToolStore } from '../stores/tool';
-import { useLayerStore } from '../stores/layers';
+import { useStore } from '../stores';
 import { pixelsToUnionPath, getPixelUnionSet } from '../utils';
 
 export const useOverlayService = defineStore('overlayService', () => {
-    const toolStore = useToolStore();
-    const layers = useLayerStore();
+    const { tool: toolStore, layers } = useStore();
 
     const hoverLayerId = ref(null);
     const selectOverlayLayerIds = reactive(new Set());

@@ -41,17 +41,11 @@
 
 <script setup>
 import { ref, watch } from 'vue';
-import { useStageStore } from '../stores/stage';
-import { useToolStore } from '../stores/tool';
-import { useLayerStore } from '../stores/layers';
-import { useOutputStore } from '../stores/output';
+import { useStore } from '../stores';
 import { CTRL_TAP_THRESHOLD_MS, SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 
-const stageStore = useStageStore();
-const toolStore = useToolStore();
-const layers = useLayerStore();
-const output = useOutputStore();
+const { stage: stageStore, tool: toolStore, layers, output } = useStore();
 
 const selectables = ref(SINGLE_SELECTION_TOOLS);
 watch(() => layers.selectionCount, (size) => {

@@ -19,19 +19,13 @@
 </template>
 
 <script setup>
-import { useLayerStore } from '../stores/layers';
-import { useLayerService } from '../services/layers';
-import { useOutputStore } from '../stores/output';
-import { useLayerPanelService } from '../services/layerPanel';
+import { useStore } from '../stores';
+import { useService } from '../services';
 import { computed } from 'vue';
-import { useQueryService } from '../services/query';
 import toolbarIcons from '../image/layer_toolbar';
 
-const layers = useLayerStore();
-const layerSvc = useLayerService();
-const output = useOutputStore();
-const layerPanel = useLayerPanelService();
-const query = useQueryService();
+const { layers, output } = useStore();
+const { layers: layerSvc, layerPanel, query } = useService();
 
 const hasEmptyLayers = computed(() => layers.order.some(id => (layers.getProperty(id, 'pixels')?.size ?? 0) === 0));
 const canSplit = computed(() => layers.selectedIds.some(id => layers.disconnectedCountOf(id) > 1));
