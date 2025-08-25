@@ -60,7 +60,7 @@ export const useLayerService = defineStore('layerService', () => {
         const newLayerId = layers.createLayer({ name: `Merged ${anchorName}`, color: colorU32 });
         const newPixels = [...pixelUnionSet].map(keyToCoords);
         if (newPixels.length) layers.addPixels(newLayerId, newPixels);
-        layers.reorderLayers([newLayerId], query.lowermostIdOf(layers.selectedIds), true);
+        layers.reorderLayers([newLayerId], query.lowermost(layers.selectedIds), true);
         deleteSelected();
         return newLayerId;
     }

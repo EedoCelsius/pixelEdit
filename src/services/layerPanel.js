@@ -83,11 +83,11 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         if (!layers.exists || ctrl) return;
         if (shift) {
             if (!layers.selectionExists) return;
-            const newTail = query.aboveId(state.tailId) ?? query.uppermostId;
+            const newTail = query.above(state.tailId) ?? query.uppermost();
             setRange(state.anchorId, newTail);
             setScrollRule({ type: 'follow-up', target: newTail });
         } else {
-            const nextId = query.aboveId(state.anchorId) ?? state.anchorId;
+            const nextId = query.above(state.anchorId) ?? state.anchorId;
             setRange(nextId, nextId);
             setScrollRule({ type: 'follow-up', target: nextId });
         }
@@ -97,18 +97,18 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         if (!layers.exists || ctrl) return;
         if (shift) {
             if (!layers.selectionExists) return;
-            const newTail = query.belowId(state.tailId) ?? query.lowermostId;
+            const newTail = query.below(state.tailId) ?? query.lowermost();
             setRange(state.anchorId, newTail);
             setScrollRule({ type: 'follow-down', target: newTail });
         } else {
-            const nextId = query.belowId(state.anchorId) ?? state.anchorId;
+            const nextId = query.below(state.anchorId) ?? state.anchorId;
             setRange(nextId, nextId);
             setScrollRule({ type: 'follow-down', target: nextId });
         }
     }
 
     function selectAll() {
-        setRange(query.uppermostId, query.lowermostId);
+        setRange(query.uppermost(), query.lowermost());
     }
 
     function serialize() {

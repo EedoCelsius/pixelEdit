@@ -15,7 +15,9 @@ export const useQueryService = defineStore('queryService', () => {
         const idSet = new Set(ids);
         if (!idSet.size) return null;
         const order = layers.idsBottomToTop;
-        const index = Math.max(...order.map((id, idx) => idSet.has(id) ? idx : -1));
+        const index = Math.max(
+            ...order.map((id, idx) => (idSet.has(id) ? idx : -1))
+        );
         return index >= 0 ? order[index] : null;
     }
 
@@ -23,18 +25,28 @@ export const useQueryService = defineStore('queryService', () => {
         const idSet = new Set(ids);
         if (!idSet.size) return null;
         const order = layers.idsBottomToTop;
-        const index = Math.min(...order.map((id, idx) => idSet.has(id) ? idx : Infinity));
+        const index = Math.min(
+            ...order.map((id, idx) => (idSet.has(id) ? idx : Infinity))
+        );
         return isFinite(index) ? order[index] : null;
     }
 
-    function aboveId(id) {
+    function uppermost(ids) {
+        return ids == null ? uppermostId.value : uppermostIdOf(ids);
+    }
+
+    function lowermost(ids) {
+        return ids == null ? lowermostId.value : lowermostIdOf(ids);
+    }
+
+    function above(id) {
         if (id == null) return null;
         const order = layers.idsBottomToTop;
         const idx = order.indexOf(id);
         return order[idx + 1] ?? null;
     }
 
-    function belowId(id) {
+    function below(id) {
         if (id == null) return null;
         const order = layers.idsBottomToTop;
         const idx = order.indexOf(id);
@@ -68,12 +80,10 @@ export const useQueryService = defineStore('queryService', () => {
     }
 
     return {
-        uppermostId,
-        lowermostId,
-        uppermostIdOf,
-        lowermostIdOf,
-        aboveId,
-        belowId,
+        uppermost,
+        lowermost,
+        above,
+        below,
         empty,
         byPixelCount,
         byColor,
