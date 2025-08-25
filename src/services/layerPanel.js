@@ -15,31 +15,41 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
 
     const exists = computed(() => state.anchorId != null && state.tailId != null);
 
-    let internal = false;
-    function markInternal(fn) {
-        internal = true;
-        try {
-            return fn();
-        } finally {
-            queueMicrotask(() => {
-                internal = false;
-            });
+    let stopWatch = null;
+    function enableWatch() {
+        if (!stopWatch) {
+            stopWatch = watch(
+                () => layers.selectedIds,
+                () => {
+                    clearRange();
+                },
+                { flush: 'sync' }
+            );
+        }
+    }
+    function disableWatch() {
+        if (stopWatch) {
+            stopWatch();
+            stopWatch = null;
         }
     }
 
-    watch(
-        () => layers.selectedIds,
-        () => {
-            if (internal) return;
-            clearRange();
+    function edit(fn) {
+        disableWatch();
+        try {
+            return fn();
+        } finally {
+            if (state.anchorId != null && state.tailId != null) {
+                enableWatch();
+            }
         }
-    );
+    }
 
     function setRange(anchorId = null, tailId = null) {
-        markInternal(() => {
-            state.anchorId = anchorId;
-            state.tailId = tailId;
+        edit(() => {
             if (anchorId == null || tailId == null) {
+                state.anchorId = null;
+                state.tailId = null;
                 layers.clearSelection();
                 return;
             }
@@ -47,19 +57,22 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
             const start = order.indexOf(anchorId);
             const end = order.indexOf(tailId);
             if (start < 0 || end < 0) {
+                state.anchorId = null;
+                state.tailId = null;
                 layers.clearSelection();
                 return;
             }
             const [min, max] = start < end ? [start, end] : [end, start];
             layers.replaceSelection(order.slice(min, max + 1));
+            state.anchorId = anchorId;
+            state.tailId = tailId;
         });
     }
 
     function clearRange() {
-        markInternal(() => {
-            state.anchorId = null;
-            state.tailId = null;
-        });
+        disableWatch();
+        state.anchorId = null;
+        state.tailId = null;
     }
 
     function setScrollRule(rule) {
@@ -70,7 +83,7 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         if (event.shiftKey) {
             setRange(state.anchorId ?? id, id);
         } else if (event.ctrlKey || event.metaKey) {
-            markInternal(() => layers.toggleSelection(id));
+            edit(() => layers.toggleSelection(id));
             clearRange();
         } else {
             setRange(id, id);
@@ -107,7 +120,7 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
     }
 
     function selectAll() {
-        markInternal(() => {
+        edit(() => {
             const anchor = query.uppermostId;
             const tail = query.lowermostId;
             layers.replaceSelection(layers.order);
@@ -117,7 +130,8 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
     }
 
     function clearSelection() {
-        markInternal(() => layers.clearSelection());
+        disableWatch();
+        layers.clearSelection();
         clearRange();
     }
 
@@ -130,10 +144,12 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
     }
 
     function applySerialized(payload) {
-        markInternal(() => {
-            state.anchorId = payload?.anchor ?? null;
-            state.tailId = payload?.tailId ?? null;
-        });
+        disableWatch();
+        state.anchorId = payload?.anchor ?? null;
+        state.tailId = payload?.tailId ?? null;
+        if (state.anchorId != null && state.tailId != null) {
+            enableWatch();
+        }
         state.scrollRule = payload?.scrollRule;
     }
 
