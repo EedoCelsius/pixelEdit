@@ -2,9 +2,9 @@ import { defineStore } from 'pinia';
 import { useStore } from '../stores';
 import { useLayerPanelService } from './layerPanel';
 import { useQueryService } from './query';
-import { buildOutline, findPixelComponents, getPixelUnion, averageColorU32 } from '../utils';
+import { findPixelComponents, getPixelUnion, averageColorU32 } from '../utils';
 
-export const useLayerService = defineStore('layerService', () => {
+export const useLayerToolService = defineStore('layerToolService', () => {
     const { layers } = useStore();
     const layerPanel = useLayerPanelService();
     const query = useQueryService();
@@ -53,17 +53,6 @@ export const useLayerService = defineStore('layerService', () => {
         return newLayerIds;
     }
 
-    function selectionPath() {
-        if (!layers.selectionCount) return '';
-        const pixelUnion = getPixelUnion(layers.getProperties(layers.selectedIds));
-        const groups = buildOutline(pixelUnion);
-        const pathData = [];
-        for (const group of groups)
-            for (const [[x0, y0], [x1, y1]] of group)
-                pathData.push(`M ${x0} ${y0} L ${x1} ${y1}`);
-        return pathData.join(' ');
-    }
-
     function splitLayer(layerId) {
         if (layerId == null) return;
         if (layers.getProperty(layerId, 'pixels').length < 2) return;
@@ -101,7 +90,6 @@ export const useLayerService = defineStore('layerService', () => {
     return {
         mergeSelected,
         copySelected,
-        selectionPath,
         splitLayer,
     };
 });
