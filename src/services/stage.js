@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { useStore } from '../stores';
 import { useOverlayService } from './overlay';
-import { keyToCoords, getPixelUnionSet, pixelsToUnionPath, calcMarquee } from '../utils';
+import { keyToCoord, getPixelUnion, pixelsToUnionPath, calcMarquee } from '../utils';
 import { CURSOR_CONFIG, SVG_NAMESPACE, CHECKERBOARD_CONFIG, MIN_SCALE_RATIO } from '@/constants';
 
 export const useStageService = defineStore('stageService', () => {
@@ -19,8 +19,8 @@ export const useStageService = defineStore('stageService', () => {
     // --- Overlay Paths ---
     const selectOverlayPath = computed(() => {
         if (!overlay.selectOverlayLayerIds.size) return '';
-        const pixelUnionSet = getPixelUnionSet(layers.getProperties([...overlay.selectOverlayLayerIds]));
-        return pixelsToUnionPath(pixelUnionSet);
+        const pixelUnion = getPixelUnion(layers.getProperties([...overlay.selectOverlayLayerIds]));
+        return pixelsToUnionPath(pixelUnion);
     });
 
     // --- Canvas Utilities ---
@@ -91,11 +91,11 @@ export const useStageService = defineStore('stageService', () => {
         return id;
     }
 
-    function clientToPixel(event) {
+    function clientToCoord(event) {
         const x = Math.floor((event.clientX - stageStore.canvas.x) / stageStore.canvas.scale);
         const y = Math.floor((event.clientY - stageStore.canvas.y) / stageStore.canvas.scale);
         if (x < 0 || y < 0 || x >= stageStore.canvas.width || y >= stageStore.canvas.height) return null;
-        return { x, y };
+        return [x, y];
     }
 
 
@@ -109,14 +109,14 @@ export const useStageService = defineStore('stageService', () => {
                 stageStore.canvas
             );
             if (!visible || w === 0 || h === 0) {
-                const p = clientToPixel(event);
-                if (p) pixels.push([p.x, p.y]);
+                const coord = clientToCoord(event);
+                if (coord) pixels.push(coord);
             } else {
                 for (let yy = y; yy < y + h; yy++)
                     for (let xx = x; xx < x + w; xx++) pixels.push([xx, yy]);
             }
         } else {
-            toolStore.visited.forEach(key => pixels.push(keyToCoords(key)));
+            toolStore.visited.forEach(key => pixels.push(keyToCoord(key)));
         }
         return pixels;
     }
@@ -153,7 +153,7 @@ export const useStageService = defineStore('stageService', () => {
         cursor,
         // methods
         recalcMinScale,
-        clientToPixel,
+        clientToCoord,
         getPixelsFromInteraction,
         // utils for components
         ensureCheckerboardPattern,

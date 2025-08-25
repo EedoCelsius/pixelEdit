@@ -47,7 +47,7 @@
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
-import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, coordsToKey, clamp } from '../utils';
+import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, clamp } from '../utils';
 import blockIcons from '../image/layer_block';
 
 const { stage: stageStore, layers, output } = useStore();

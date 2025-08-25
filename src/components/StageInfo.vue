@@ -11,11 +11,11 @@
 <script setup>
 import { computed } from 'vue';
 import { useStore } from '../stores';
-import { getPixelUnionSet } from '../utils';
+import { getPixelUnion } from '../utils';
 
 const { stage: stageStore, layers } = useStore();
 const selectedAreaPixelCount = computed(() => {
-    const pixelSet = getPixelUnionSet(layers.getProperties(layers.selectedIds));
-    return pixelSet.size;
+    const pixels = getPixelUnion(layers.getProperties(layers.selectedIds));
+    return pixels.length;
   });
 </script>

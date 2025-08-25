@@ -1,14 +1,14 @@
 export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-export const coordsToKey = (x, y) => x + "," + y;
-export const keyToCoords = (key) => key.split(",").map(n => +n);
+export const coordToKey = ([x, y]) => x + ',' + y;
+export const keyToCoord = (key) => key.split(',').map(n => +n);
 
-export function getPixelUnionSet(props = []) {
-    const pixelUnionSet = new Set();
+export function getPixelUnion(props = []) {
+    const set = new Set();
     const layers = Array.isArray(props) ? props : [props];
     for (const layer of layers)
-        for (const [x, y] of layer.pixels)
-            pixelUnionSet.add(coordsToKey(x, y));
-    return pixelUnionSet;
+        for (const coord of layer.pixels)
+            set.add(coordToKey(coord));
+    return [...set].map(keyToCoord);
 }
 
 export function calcMarquee(start, current, canvas) {
@@ -158,8 +158,9 @@ export function rgbaToHexU32(packedColor) {
     return '#' + [r, g, b].map(value => value.toString(16).padStart(2, '0')).join('');
 }
 
-export function groupConnectedPixels(pixelSet) {
-    if (!pixelSet || !pixelSet.size) return [];
+export function groupConnectedPixels(pixels) {
+    if (!pixels || !pixels.length) return [];
+    const pixelSet = new Set(pixels.map(coordToKey));
     const neighbors = [
         [1, 0],
         [-1, 0],
@@ -170,51 +171,38 @@ export function groupConnectedPixels(pixelSet) {
     const components = [];
     for (const startPixelKey of pixelSet) {
         if (seen.has(startPixelKey)) continue;
-        const componentKeys = [];
+        const component = [];
         const queue = [startPixelKey];
         seen.add(startPixelKey);
         while (queue.length) {
             const currentPixelKey = queue.pop();
-            componentKeys.push(currentPixelKey);
-            const [x, y] = keyToCoords(currentPixelKey);
+            component.push(keyToCoord(currentPixelKey));
+            const [x, y] = keyToCoord(currentPixelKey);
             for (const [dx, dy] of neighbors) {
-                const neighborKey = coordsToKey(x + dx, y + dy);
+                const neighborKey = coordToKey([x + dx, y + dy]);
                 if (pixelSet.has(neighborKey) && !seen.has(neighborKey)) {
                     seen.add(neighborKey);
                     queue.push(neighborKey);
                 }
             }
         }
-        components.push(componentKeys);
+        components.push(component);
     }
     return components;
 }
 
 export function buildOutline(pixels) {
-    const pixelSet = new Set(pixels);
+    const pixelSet = new Set(pixels.map(coordToKey));
     if (!pixelSet.size) return [];
     const paths = [];
-    const components = groupConnectedPixels(pixelSet);
-    for (const componentKeys of components) {
+    const components = groupConnectedPixels(pixels);
+    for (const component of components) {
         const edges = [];
-        for (const pixelKey of componentKeys) {
-            const [x, y] = keyToCoords(pixelKey);
-            if (!pixelSet.has(coordsToKey(x, y - 1))) edges.push([
-                [x, y],
-                [x + 1, y]
-            ]);
-            if (!pixelSet.has(coordsToKey(x + 1, y))) edges.push([
-                [x + 1, y],
-                [x + 1, y + 1]
-            ]);
-            if (!pixelSet.has(coordsToKey(x, y + 1))) edges.push([
-                [x, y + 1],
-                [x + 1, y + 1]
-            ]);
-            if (!pixelSet.has(coordsToKey(x - 1, y))) edges.push([
-                [x, y],
-                [x, y + 1]
-            ]);
+        for (const [x, y] of component) {
+            if (!pixelSet.has(coordToKey([x, y - 1]))) edges.push([[x, y], [x + 1, y]]);
+            if (!pixelSet.has(coordToKey([x + 1, y]))) edges.push([[x + 1, y], [x + 1, y + 1]]);
+            if (!pixelSet.has(coordToKey([x, y + 1]))) edges.push([[x, y + 1], [x + 1, y + 1]]);
+            if (!pixelSet.has(coordToKey([x - 1, y]))) edges.push([[x, y], [x, y + 1]]);
         }
         paths.push(edges);
     }
@@ -280,7 +268,7 @@ export function edgesToLoops(edges) {
 }
 
 export function pixelsToUnionPath(pixels) {
-    if (!pixels || !pixels.size) return '';
+    if (!pixels || !pixels.length) return '';
     const groups = buildOutline(pixels);
     const parts = [];
     for (const segments of groups) {
@@ -300,8 +288,5 @@ export function pixelsToUnionPath(pixels) {
 }
 
 export function findPixelComponents(pixels) {
-    const pixelSet = new Set(pixels.map(p => typeof p === 'string' ? p : coordsToKey(p[0], p[1])));
-    if (!pixelSet.size) return [];
-    const components = groupConnectedPixels(pixelSet);
-    return components.map(component => component.map(key => keyToCoords(key)));
+    return groupConnectedPixels(pixels);
 }
