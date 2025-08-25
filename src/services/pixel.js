@@ -132,14 +132,12 @@ export const usePixelService = defineStore('pixelService', () => {
     function addPixelsToSelection(pixels) {
         if (layers.selectionCount !== 1) return;
         const id = layers.selectedIds[0];
-        if (layers.getProperty(id, 'locked')) return;
         layers.addPixels(id, pixels);
     }
 
     function removePixelsFromSelection(pixels) {
         if (layers.selectionCount !== 1) return;
         const id = layers.selectedIds[0];
-        if (layers.getProperty(id, 'locked')) return;
         layers.removePixels(id, pixels);
     }
 
@@ -160,7 +158,6 @@ export const usePixelService = defineStore('pixelService', () => {
     function togglePointInSelection(x, y) {
         if (layers.selectionCount !== 1) return;
         const id = layers.selectedIds[0];
-        if (layers.getProperty(id, 'locked')) return;
         layers.togglePixel(id, x, y);
     }
 
@@ -168,7 +165,6 @@ export const usePixelService = defineStore('pixelService', () => {
         if (!pixels || !pixels.length) return;
         for (const id of layers.selectedIds) {
             const props = layers.getProperties(id);
-            if (props.locked) continue;
             const coords = props.pixels;
             const set = new Set(coords.map(([x, y]) => coordsToKey(x, y)));
             const pixelsToRemove = [];
@@ -183,7 +179,6 @@ export const usePixelService = defineStore('pixelService', () => {
         if (!pixels || !pixels.length) return;
         for (const id of layers.order) {
             const props = layers.getProperties(id);
-            if (props.locked) continue;
             const coords = props.pixels;
             const set = new Set(coords.map(([x, y]) => coordsToKey(x, y)));
             const pixelsToRemove = [];

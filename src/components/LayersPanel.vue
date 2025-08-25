@@ -51,7 +51,7 @@ import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, coordsToKey, clamp } from '../u
 import blockIcons from '../image/layer_block';
 
 const { stage: stageStore, layers, output } = useStore();
-const { stage: stageService, layerPanel, layers: layerSvc, query } = useService();
+const { stage: stageService, layerPanel, query } = useService();
 
 const dragging = ref(false);
 const dragId = ref(null);
@@ -161,9 +161,14 @@ function onColorDown() {
 }
 
 function onColorInput(id, event) {
-    if (layers.getProperty(id, 'locked')) return;
     const colorU32 = hexToRgbaU32(event.target.value);
-    layers.isSelected(id) ? layerSvc.setColorForSelectedU32(colorU32) : layers.updateProperties(id, { color: colorU32 });
+    if (layers.isSelected(id)) {
+        for (const sid of layers.selectedIds) {
+            layers.updateProperties(sid, { color: colorU32 });
+        }
+    } else {
+        layers.updateProperties(id, { color: colorU32 });
+    }
 }
 
 function onColorChange() {
@@ -172,15 +177,27 @@ function onColorChange() {
 
 function toggleVisibility(id) {
     output.setRollbackPoint();
-    if (layers.isSelected(id)) layerSvc.setVisibilityForSelected(!layers.getProperty(id, 'visible'));
-    else layers.toggleVisibility(id);
+    if (layers.isSelected(id)) {
+        const newVisible = !layers.getProperty(id, 'visible');
+        for (const sid of layers.selectedIds) {
+            layers.updateProperties(sid, { visible: newVisible });
+        }
+    } else {
+        layers.toggleVisibility(id);
+    }
     output.commit();
 }
 
 function toggleLock(id) {
     output.setRollbackPoint();
-    if (layers.isSelected(id)) layerSvc.setLockedForSelected(!layers.getProperty(id, 'locked'));
-    else layers.toggleLock(id);
+    if (layers.isSelected(id)) {
+        const newLocked = !layers.getProperty(id, 'locked');
+        for (const sid of layers.selectedIds) {
+            layers.updateProperties(sid, { locked: newLocked });
+        }
+    } else {
+        layers.toggleLock(id);
+    }
     output.commit();
 }
 
