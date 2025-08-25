@@ -54,7 +54,7 @@ const onCopy = () => {
     output.commit();
 };
 const onSelectEmpty = () => {
-    const ids = query.byEmpty();
+    const ids = query.empty();
     if (ids.length) {
         layers.replaceSelection(ids);
         layerPanel.clearRange();

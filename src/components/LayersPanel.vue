@@ -91,7 +91,7 @@ const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern
   }
 
   function onDisconnectedClick(id) {
-      const ids = query.byDisconnected();
+      const ids = query.disconnected();
       if (ids.length) {
           layers.replaceSelection(ids);
           layerPanel.clearRange();

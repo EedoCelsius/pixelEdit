@@ -41,7 +41,7 @@ export const useQueryService = defineStore('queryService', () => {
         return order[idx - 1] ?? null;
     }
 
-    function byEmpty() {
+    function empty() {
         return layers.order.filter(id => layers.getProperty(id, 'pixels').length === 0);
     }
 
@@ -57,7 +57,7 @@ export const useQueryService = defineStore('queryService', () => {
         );
     }
 
-    function byDisconnected() {
+    function disconnected() {
         return layers.order.filter(layerId => layers.disconnectedCountOf(layerId) > 1);
     }
 
@@ -74,10 +74,10 @@ export const useQueryService = defineStore('queryService', () => {
         lowermostIdOf,
         aboveId,
         belowId,
-        byEmpty,
+        empty,
         byPixelCount,
         byColor,
-        byDisconnected,
+        disconnected,
         byDisconnectedCount,
     };
 });
