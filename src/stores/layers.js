@@ -103,15 +103,11 @@ export const useLayerStore = defineStore('layers', {
         /** Update properties of a layer */
         updateProperties(id, props) {
             if (this._name[id] == null) return;
-            if (this._locked[id] && props.locked !== false && (props.name !== undefined || props.color !== undefined || props.pixels !== undefined)) return;
             if (props.name !== undefined) this._name[id] = props.name;
-            if (props.color !== undefined) this._color[id] = (props.color >>> 0);
             if (props.visible !== undefined) this._visible[id] = !!props.visible;
             if (props.locked !== undefined) this._locked[id] = !!props.locked;
-            if (props.pixels !== undefined) {
-                const keyedPixels = props.pixels.map(coordToKey);
-                this._pixels[id] = reactive(new Set(keyedPixels));
-            }
+            if (!this._locked[id] && props.color !== undefined) this._color[id] = (props.color >>> 0);
+            if (!this._locked[id] && props.pixels !== undefined) this._pixels[id] = new Set(props.pixels.map(coordToKey));
         },
         toggleVisibility(id) {
             if (this._name[id] == null) return;
