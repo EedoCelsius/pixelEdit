@@ -187,6 +187,8 @@ export const usePixelService = defineStore('pixelService', () => {
         if (!pixelsToMove.length) return;
         layers.removePixels(sourceId, pixelsToMove);
         layers.addPixels(cutLayerId, pixelsToMove);
+        overlay.helper.clear();
+        overlay.helper.add(cutLayerId);
     }
 
     function togglePointInSelection(coord) {
