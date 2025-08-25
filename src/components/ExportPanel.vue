@@ -24,16 +24,12 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue';
-import { useStageStore } from '../stores/stage';
-import { useStageService } from '../services/stage';
-import { useLayerStore } from '../stores/layers';
-import { useOutputStore } from '../stores/output';
+import { useStore } from '../stores';
+import { useService } from '../services';
 import { rgbaCssU32 } from '../utils';
 
-const stageStore = useStageStore();
-const stageService = useStageService();
-const layers = useLayerStore();
-const output = useOutputStore();
+const { stage: stageStore, layers, output } = useStore();
+const { stage: stageService } = useService();
 const text = ref('');
 const textareaElement = ref(null);
 

@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
 import { reactive, toRefs, watch, computed } from 'vue';
-import { useLayerStore } from '../stores/layers';
+import { useStore } from '../stores';
 import { useQueryService } from './query';
 
 export const useLayerPanelService = defineStore('layerPanelService', () => {
-    const layers = useLayerStore();
+    const { layers } = useStore();
     const query = useQueryService();
 
     const state = reactive({

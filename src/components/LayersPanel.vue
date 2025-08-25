@@ -45,23 +45,13 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
-import { useStageStore } from '../stores/stage';
-import { useStageService } from '../services/stage';
-import { useLayerStore } from '../stores/layers';
-import { useLayerPanelService } from '../services/layerPanel';
-import { useLayerService } from '../services/layers';
-import { useOutputStore } from '../stores/output';
-import { useQueryService } from '../services/query';
+import { useStore } from '../stores';
+import { useService } from '../services';
 import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, coordsToKey, clamp } from '../utils';
 import blockIcons from '../image/layer_block';
 
-const stageStore = useStageStore();
-const stageService = useStageService();
-const layers = useLayerStore();
-const layerPanel = useLayerPanelService();
-const layerSvc = useLayerService();
-const output = useOutputStore();
-const query = useQueryService();
+const { stage: stageStore, layers, output } = useStore();
+const { stage: stageService, layerPanel, layers: layerSvc, query } = useService();
 
 const dragging = ref(false);
 const dragId = ref(null);

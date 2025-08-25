@@ -32,14 +32,8 @@
 
 <script setup>
 import { onMounted, ref, computed, onUnmounted } from 'vue';
-import { useInputStore } from './stores/input';
-import { useStageStore } from './stores/stage';
-import { useStageService } from './services/stage';
-import { useLayerStore } from './stores/layers';
-import { useLayerPanelService } from './services/layerPanel';
-import { useLayerService } from './services/layers';
-import { useOutputStore } from './stores/output';
-import { useQueryService } from './services/query';
+import { useStore } from './stores';
+import { useService } from './services';
 
 import StageToolbar from './components/StageToolbar.vue';
 import Stage from './components/Stage.vue';
@@ -48,15 +42,9 @@ import LayersToolbar from './components/LayersToolbar.vue';
 import LayersPanel from './components/LayersPanel.vue';
 import ExportPanel from './components/ExportPanel.vue';
 
-const input = useInputStore();
-const stageStore = useStageStore();
-const stageService = useStageService();
-const layers = useLayerStore();
-const layerPanel = useLayerPanelService();
-const layerSvc = useLayerService();
-const output = useOutputStore();
+const { input, stage: stageStore, layers, output } = useStore();
+const { stage: stageService, layerPanel, layers: layerSvc, query } = useService();
 const stageToolbar = ref(null);
-const query = useQueryService();
 
 // Width control between display and layers
 const container = ref(null);

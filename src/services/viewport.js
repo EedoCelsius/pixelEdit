@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia';
 import { reactive, ref } from 'vue';
-import { useStageStore } from '../stores/stage';
+import { useStore } from '../stores';
 import { clamp } from '../utils';
 import { WHEEL_ZOOM_IN_FACTOR, WHEEL_ZOOM_OUT_FACTOR, POSITION_LERP_EXPONENT } from '@/constants';
 
 export const useViewportService = defineStore('viewportService', () => {
-  const stageStore = useStageStore();
+  const { stage: stageStore } = useStore();
   const offset = reactive({ x: 0, y: 0 });
   const touches = new Map();
   const element = ref(null);
