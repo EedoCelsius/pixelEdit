@@ -41,7 +41,7 @@ export const useLayerService = defineStore('layerService', () => {
 
     function mergeSelected() {
         if (layers.selectionCount < 2) return;
-        const pixelUnionSet = getPixelUnionSet(layers, layers.selectedIds);
+        const pixelUnionSet = getPixelUnionSet(layers.getProperties(layers.selectedIds));
 
         const colors = [];
         if (pixelUnionSet.size) {
@@ -70,11 +70,12 @@ export const useLayerService = defineStore('layerService', () => {
         const newLayerIds = [];
         for (const id of layers.selectedIds) {
             const layer = layers.getProperties(id);
+            const pixels = [...layer.pixels];
             const newLayerId = layers.createLayer({
                 name: `Copy of ${layer.name}`,
                 color: layer.color,
                 visible: layer.visible,
-                pixels: layers.snapshotPixels(id)
+                pixels
             }, id);
             newLayerIds.push(newLayerId);
         }
@@ -83,7 +84,7 @@ export const useLayerService = defineStore('layerService', () => {
 
     function selectionPath() {
         if (!layers.selectionCount) return '';
-        const pixelUnionSet = getPixelUnionSet(layers, layers.selectedIds);
+        const pixelUnionSet = getPixelUnionSet(layers.getProperties(layers.selectedIds));
         const groups = buildOutline(pixelUnionSet);
         const pathData = [];
         for (const group of groups)
@@ -93,7 +94,7 @@ export const useLayerService = defineStore('layerService', () => {
     }
 
     function selectEmptyLayers() {
-    const ids = layers.order.filter(layerId => (layers.getProperty(layerId, 'pixels')?.size ?? 0) === 0);
+        const ids = layers.order.filter(layerId => layers.getProperty(layerId, 'pixels').length === 0);
         if (ids.length) {
             layers.replaceSelection(ids);
             layerPanel.clearRange();
@@ -102,9 +103,9 @@ export const useLayerService = defineStore('layerService', () => {
 
     function splitLayer(layerId) {
         if (layerId == null) return;
-    if ((layers.getProperty(layerId, 'pixels')?.size ?? 0) < 2) return;
+        if (layers.getProperty(layerId, 'pixels').length < 2) return;
 
-        const pixels = layers.snapshotPixels(layerId);
+        const pixels = layers.getProperty(layerId, 'pixels');
         const components = findPixelComponents(pixels);
         if (components.length <= 1) return;
 
@@ -158,12 +159,12 @@ export const useLayerService = defineStore('layerService', () => {
 
     function selectByPixelCount(id) {
         if (!layers.has(id)) return;
-        const targetCount = layers.getProperty(id, 'pixels')?.size ?? 0;
+        const targetCount = layers.getProperty(id, 'pixels').length;
         if (targetCount === 0) {
             layerPanel.setRange(id, id);
             return;
         }
-        const idsToSelect = layers.order.filter(layerId => (layers.getProperty(layerId, 'pixels')?.size ?? 0) === targetCount);
+        const idsToSelect = layers.order.filter(layerId => layers.getProperty(layerId, 'pixels').length === targetCount);
         if (idsToSelect.length) {
             layers.replaceSelection(idsToSelect);
             layerPanel.clearRange();
