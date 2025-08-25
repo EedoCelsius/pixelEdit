@@ -9,12 +9,12 @@
         <button @click="toolStore.setShape('stroke')"
                 :title="'Stroke'"
                 :class="`p-1 ${toolStore.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
-          <img :src="'image/stage_toolbar/stroke.svg'" alt="Stroke" class="w-4 h-4">
+          <img :src="stageIcons.stroke" alt="Stroke" class="w-4 h-4">
         </button>
         <button @click="toolStore.setShape('rect')"
                 :title="'Rect'"
                 :class="`p-1 ${toolStore.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
-          <img :src="'image/stage_toolbar/rect.svg'" alt="Rect" class="w-4 h-4">
+          <img :src="stageIcons.rect" alt="Rect" class="w-4 h-4">
         </button>
       </div>
 
@@ -31,10 +31,10 @@
       <div class="flex-1"></div>
 
       <button @click="undo" title="Undo" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
-        <img :src="'image/stage_toolbar/undo.svg'" alt="Undo" class="w-4 h-4">
+        <img :src="stageIcons.undo" alt="Undo" class="w-4 h-4">
       </button>
       <button @click="redo" title="Redo" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
-        <img :src="'image/stage_toolbar/redo.svg'" alt="Redo" class="w-4 h-4">
+        <img :src="stageIcons.redo" alt="Redo" class="w-4 h-4">
       </button>
     </div>
   </template>
@@ -45,6 +45,7 @@ import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useLayerStore } from '../stores/layers';
 import { useOutputStore } from '../stores/output';
+import stageIcons from '../image/stage_toolbar';
 
 const stageStore = useStageStore();
 const toolStore = useToolStore();
@@ -55,13 +56,13 @@ const selectables = reactive([]);
 watch(() => layers.selectionCount, (size) => {
   selectables.splice(0, selectables.length, ...(size === 1
     ? [
-        { type: 'draw', name: 'Draw', icon: 'image/stage_toolbar/draw.svg' },
-        { type: 'erase', name: 'Erase', icon: 'image/stage_toolbar/erase.svg' },
-        { type: 'cut', name: 'Cut', icon: 'image/stage_toolbar/cut.svg' }
+        { type: 'draw', name: 'Draw', icon: stageIcons.draw },
+        { type: 'erase', name: 'Erase', icon: stageIcons.erase },
+        { type: 'cut', name: 'Cut', icon: stageIcons.cut }
       ]
     : [
-        { type: 'select', name: 'Select', icon: 'image/stage_toolbar/select.svg' },
-        { type: 'globalErase', name: 'Global Erase', icon: 'image/stage_toolbar/global_erase.svg' }
+        { type: 'select', name: 'Select', icon: stageIcons.select },
+        { type: 'globalErase', name: 'Global Erase', icon: stageIcons.globalErase }
       ]));
   if (!selectables.some(tool => tool.type === toolStore.static)) {
     toolStore.setStatic(size === 1 ? 'draw' : 'select');
