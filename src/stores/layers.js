@@ -103,6 +103,7 @@ export const useLayerStore = defineStore('layers', {
         /** Update properties of a layer */
         updateProperties(id, props) {
             if (this._name[id] == null) return;
+            if (this._locked[id] && props.locked !== false && (props.name !== undefined || props.color !== undefined || props.pixels !== undefined)) return;
             if (props.name !== undefined) this._name[id] = props.name;
             if (props.color !== undefined) this._color[id] = (props.color >>> 0);
             if (props.visible !== undefined) this._visible[id] = !!props.visible;
@@ -121,14 +122,17 @@ export const useLayerStore = defineStore('layers', {
             this._locked[id] = !this._locked[id];
         },
         addPixels(id, pixels) {
+            if (this._locked[id]) return;
             const set = this._pixels[id];
             for (const coord of pixels) set.add(coordToKey(coord));
         },
         removePixels(id, pixels) {
+            if (this._locked[id]) return;
             const set = this._pixels[id];
             for (const coord of pixels) set.delete(coordToKey(coord));
         },
         togglePixel(id, coord) {
+            if (this._locked[id]) return;
             const set = this._pixels[id];
             const key = coordToKey(coord);
             if (set.has(key)) set.delete(key);

@@ -9,35 +9,6 @@ export const useLayerService = defineStore('layerService', () => {
     const layerPanel = useLayerPanelService();
     const query = useQueryService();
 
-    function setColorForSelectedU32(colorU32) {
-        for (const id of layers.selectedIds) {
-            if (layers.getProperty(id, 'locked')) continue;
-            layers.updateProperties(id, { color: colorU32 });
-        }
-    }
-
-    function setLockedForSelected(isLocked) {
-        for (const id of layers.selectedIds) {
-            layers.updateProperties(id, { locked: isLocked });
-        }
-    }
-
-    function setVisibilityForSelected(isVisible) {
-        for (const id of layers.selectedIds) {
-            layers.updateProperties(id, { visible: isVisible });
-        }
-    }
-
-    function deleteSelected() {
-        const ids = layers.selectedIds;
-        layers.deleteLayers(ids);
-        layers.removeFromSelection(ids);
-    }
-
-    function reorderGroup(selIds, targetId, placeBelow = true) {
-        layers.reorderLayers(selIds, targetId, placeBelow);
-    }
-
     function mergeSelected() {
         if (layers.selectionCount < 2) return;
         const pixelUnion = getPixelUnion(layers.getProperties(layers.selectedIds));
@@ -59,7 +30,9 @@ export const useLayerService = defineStore('layerService', () => {
         const newPixels = pixelUnion;
         if (newPixels.length) layers.addPixels(newLayerId, newPixels);
         layers.reorderLayers([newLayerId], query.lowermost(layers.selectedIds), true);
-        deleteSelected();
+        const ids = layers.selectedIds;
+        layers.deleteLayers(ids);
+        layers.removeFromSelection(ids);
         return newLayerId;
     }
 
@@ -126,11 +99,6 @@ export const useLayerService = defineStore('layerService', () => {
     }
 
     return {
-        setColorForSelectedU32,
-        setLockedForSelected,
-        setVisibilityForSelected,
-        deleteSelected,
-        reorderGroup,
         mergeSelected,
         copySelected,
         selectionPath,
