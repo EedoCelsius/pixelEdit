@@ -54,7 +54,11 @@ const onCopy = () => {
     output.commit();
 };
 const onSelectEmpty = () => {
-    layerSvc.selectEmptyLayers();
+    const ids = query.empty();
+    if (ids.length) {
+        layers.replaceSelection(ids);
+        layerPanel.clearRange();
+    }
 };
   const onSplit = () => {
       output.setRollbackPoint();

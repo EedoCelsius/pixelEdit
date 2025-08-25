@@ -93,14 +93,6 @@ export const useLayerService = defineStore('layerService', () => {
         return pathData.join(' ');
     }
 
-    function selectEmptyLayers() {
-        const ids = layers.order.filter(layerId => layers.getProperty(layerId, 'pixels').length === 0);
-        if (ids.length) {
-            layers.replaceSelection(ids);
-            layerPanel.clearRange();
-        }
-    }
-
     function splitLayer(layerId) {
         if (layerId == null) return;
         if (layers.getProperty(layerId, 'pixels').length < 2) return;
@@ -135,52 +127,6 @@ export const useLayerService = defineStore('layerService', () => {
         layerPanel.setRange(newIds[0], newIds[newIds.length - 1]);
     }
 
-    function selectDisconnectedLayers(id) {
-        const idsToSelect = layers.order.filter(layerId => layers.disconnectedCountOf(layerId) > 1);
-        if (idsToSelect.length) {
-            layers.replaceSelection(idsToSelect);
-            layerPanel.clearRange();
-        }
-    }
-
-    function selectByDisconnectedCount(id) {
-        if (!layers.has(id)) return;
-        const targetCount = layers.disconnectedCountOf(id);
-        if (targetCount <= 1) {
-            layerPanel.setRange(id, id);
-            return;
-        }
-        const idsToSelect = layers.order.filter(layerId => layers.disconnectedCountOf(layerId) === targetCount);
-        if (idsToSelect.length) {
-            layers.replaceSelection(idsToSelect);
-            layerPanel.clearRange();
-        }
-    }
-
-    function selectByPixelCount(id) {
-        if (!layers.has(id)) return;
-        const targetCount = layers.getProperty(id, 'pixels').length;
-        if (targetCount === 0) {
-            layerPanel.setRange(id, id);
-            return;
-        }
-        const idsToSelect = layers.order.filter(layerId => layers.getProperty(layerId, 'pixels').length === targetCount);
-        if (idsToSelect.length) {
-            layers.replaceSelection(idsToSelect);
-            layerPanel.clearRange();
-        }
-    }
-
-    function selectByColor(id) {
-        if (!layers.has(id)) return;
-        const targetColor = layers.getProperty(id, 'color');
-        const idsToSelect = layers.order.filter(layerId => layers.getProperty(layerId, 'color') === targetColor);
-        if (idsToSelect.length) {
-            layers.replaceSelection(idsToSelect);
-            layerPanel.clearRange();
-        }
-    }
-
     return {
         setColorForSelectedU32,
         setLockedForSelected,
@@ -190,12 +136,7 @@ export const useLayerService = defineStore('layerService', () => {
         mergeSelected,
         copySelected,
         selectionPath,
-        selectEmptyLayers,
         splitLayer,
-        selectByPixelCount,
-        selectByColor,
-        selectDisconnectedLayers,
-        selectByDisconnectedCount
     };
 });
 
