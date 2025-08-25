@@ -60,9 +60,9 @@ const onSelectEmpty = () => {
         layerPanel.clearRange();
     }
 };
-  const onSplit = () => {
-      output.setRollbackPoint();
-      layerSvc.splitLayer(layerPanel.anchorId);
-      output.commit();
-  };
+const onSplit = () => {
+    output.setRollbackPoint();
+    layerSvc.splitLayer(layerPanel.anchorId);
+    output.commit();
+};
 </script>

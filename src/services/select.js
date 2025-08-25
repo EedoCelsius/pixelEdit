@@ -88,10 +88,9 @@ export const useSelectService = defineStore('selectService', () => {
             const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
                 if (mode === 'select' || !mode) {
-                    layerPanel.setRange(id, id);
+                    layers.replaceSelection([id]);
                 } else {
                     layers.toggleSelection(id);
-                    layerPanel.clearRange();
                 }
                 layerPanel.setScrollRule({ type: 'follow', target: id });
             }
@@ -114,12 +113,9 @@ export const useSelectService = defineStore('selectService', () => {
                     intersectedIds.forEach(id => currentSelection.add(id));
                 }
                 layers.replaceSelection([...currentSelection]);
-                if (mode === 'select' || !mode) {
-                    layerPanel.clearRange();
-                }
             } else if (mode === 'select' || !mode) {
-                    layers.clearSelection();
-                }
+                layers.clearSelection();
+            }
         }
 
         try {
@@ -145,9 +141,5 @@ export const useSelectService = defineStore('selectService', () => {
         overlay.clear();
     }
 
-    function selectRange(anchorId, tailId) {
-        layerPanel.setRange(anchorId, tailId);
-    }
-
-    return { toolStart, toolMove, toolFinish, cancel, selectRange };
+    return { toolStart, toolMove, toolFinish, cancel };
 });
