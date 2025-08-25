@@ -53,6 +53,7 @@ import { useLayerService } from '../services/layers';
 import { useOutputStore } from '../stores/output';
 import { useQueryService } from '../services/query';
 import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, coordsToKey, clamp } from '../utils';
+import blockIcons from '../image/layer_block';
 
 const stageStore = useStageStore();
 const stageService = useStageService();
@@ -66,13 +67,7 @@ const dragging = ref(false);
 const dragId = ref(null);
 const editingId = ref(null);
 const listElement = ref(null);
-const icons = reactive({
-    show: 'image/layer_block/show.svg',
-    hide: 'image/layer_block/hide.svg',
-    lock: 'image/layer_block/locked.svg',
-    unlock: 'image/layer_block/unlocked.svg',
-    del: 'image/layer_block/delete.svg'
-});
+const icons = reactive(blockIcons);
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
 
