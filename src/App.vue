@@ -84,9 +84,9 @@ function onKeydown(event) {
   switch (event.key) {
     case 'Control':
     case 'Meta':
-      return stageToolbar.value?.ctrlKeyDown();
+      return stageToolbar.value?.ctrlKeyDown(event);
     case 'Shift':
-      return stageToolbar.value?.shiftKeyDown();
+      return stageToolbar.value?.shiftKeyDown(event);
     case 'ArrowUp':
       event.preventDefault();
       layerPanel.onArrowUp(shift, ctrl);
@@ -147,9 +147,9 @@ function onKeyup(event) {
   switch (event.key) {
     case 'Control':
     case 'Meta':
-      return stageToolbar.value?.ctrlKeyUp();
+      return stageToolbar.value?.ctrlKeyUp(event);
     case 'Shift':
-      return stageToolbar.value?.shiftKeyUp();
+      return stageToolbar.value?.shiftKeyUp(event);
   }
 }
 
