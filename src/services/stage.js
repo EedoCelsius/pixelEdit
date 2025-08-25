@@ -19,7 +19,7 @@ export const useStageService = defineStore('stageService', () => {
     // --- Overlay Paths ---
     const selectOverlayPath = computed(() => {
         if (!overlay.selectOverlayLayerIds.size) return '';
-        const pixelUnionSet = getPixelUnionSet(layers, overlay.selectOverlayLayerIds);
+        const pixelUnionSet = getPixelUnionSet(layers.getProperties([...overlay.selectOverlayLayerIds]));
         return pixelsToUnionPath(pixelUnionSet);
     });
 

@@ -15,7 +15,7 @@ import { getPixelUnionSet } from '../utils';
 
 const { stage: stageStore, layers } = useStore();
 const selectedAreaPixelCount = computed(() => {
-    const pixelSet = getPixelUnionSet(layers, layers.selectedIds);
+    const pixelSet = getPixelUnionSet(layers.getProperties(layers.selectedIds));
     return pixelSet.size;
   });
 </script>

@@ -27,7 +27,7 @@ import toolbarIcons from '../image/layer_toolbar';
 const { layers, output } = useStore();
 const { layers: layerSvc, layerPanel, query } = useService();
 
-const hasEmptyLayers = computed(() => layers.order.some(id => (layers.getProperty(id, 'pixels')?.size ?? 0) === 0));
+const hasEmptyLayers = computed(() => layers.order.some(id => layers.getProperty(id, 'pixels').length === 0));
 const canSplit = computed(() => layers.selectedIds.some(id => layers.disconnectedCountOf(id) > 1));
 
 const onAdd = () => {

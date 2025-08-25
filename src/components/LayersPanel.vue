@@ -23,7 +23,7 @@
             <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(props.id)">{{ layers.disconnectedCountOf(props.id) }} piece</span>
             <span class="mx-1">|</span>
           </template>
-          <span class="cursor-pointer" @click.stop="onPixelCountClick(props.id)" title="같은 크기의 모든 레이어 선택">{{ props.pixels?.size ?? 0 }} px</span>
+          <span class="cursor-pointer" @click.stop="onPixelCountClick(props.id)" title="같은 크기의 모든 레이어 선택">{{ props.pixels.length }} px</span>
         </div>
       </div>
       <!-- 액션 -->

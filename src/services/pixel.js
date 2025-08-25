@@ -102,7 +102,7 @@ export const usePixelService = defineStore('pixelService', () => {
         }
 
         if (toolStore.isCut && cutLayerId != null) {
-            if ((layers.getProperty(cutLayerId, 'pixels')?.size ?? 0))
+            if (layers.getProperty(cutLayerId, 'pixels').length)
                 layerPanel.setRange(cutLayerId, cutLayerId);
             else
                 layers.deleteLayers([cutLayerId]);
@@ -148,8 +148,8 @@ export const usePixelService = defineStore('pixelService', () => {
     function cutPixelsFromSelection(pixels) {
         if (layers.selectionCount !== 1 || cutLayerId == null) return;
         const sourceId = layers.selectedIds[0];
-        const set = layers.getProperty(sourceId, 'pixels');
-        if (!set) return;
+        const coords = layers.getProperty(sourceId, 'pixels');
+        const set = new Set(coords.map(([x, y]) => coordsToKey(x, y)));
         const pixelsToMove = [];
         for (const [x, y] of pixels) {
             if (set.has(coordsToKey(x, y))) pixelsToMove.push([x, y]);
@@ -171,8 +171,8 @@ export const usePixelService = defineStore('pixelService', () => {
         for (const id of layers.selectedIds) {
             const props = layers.getProperties(id);
             if (props.locked) continue;
-            const set = props.pixels;
-            if (!set) continue;
+            const coords = props.pixels;
+            const set = new Set(coords.map(([x, y]) => coordsToKey(x, y)));
             const pixelsToRemove = [];
             for (const [x, y] of pixels) {
                 if (set.has(coordsToKey(x, y))) pixelsToRemove.push([x, y]);
@@ -186,8 +186,8 @@ export const usePixelService = defineStore('pixelService', () => {
         for (const id of layers.order) {
             const props = layers.getProperties(id);
             if (props.locked) continue;
-            const set = props.pixels;
-            if (!set) continue;
+            const coords = props.pixels;
+            const set = new Set(coords.map(([x, y]) => coordsToKey(x, y)));
             const pixelsToRemove = [];
             for (const [x, y] of pixels) {
                 if (set.has(coordsToKey(x, y))) pixelsToRemove.push([x, y]);

@@ -20,20 +20,20 @@ export const useLayerStore = defineStore('layers', {
         idsBottomToTop: (state) => readonly(state._order),
         idsTopToBottom: (state) => readonly([...state._order].reverse()),
         indexOfLayer: (state) => (id) => state._order.indexOf(id),
-        pathOf: (state) => (id) => pixelsToUnionPath(state._pixels[id] || new Set()),
-        disconnectedCountOf: (state) => (id) => groupConnectedPixels(state._pixels[id] || new Set()).length,
+        pathOf: (state) => (id) => pixelsToUnionPath(state._pixels[id]),
+        disconnectedCountOf: (state) => (id) => groupConnectedPixels(state._pixels[id]).length,
         getProperty: (state) => (id, prop) => {
             switch (prop) {
                 case 'name':
                     return state._name[id];
                 case 'color':
-                    return (state._color[id] ?? 0) >>> 0;
+                    return (state._color[id] >>> 0);
                 case 'visible':
                     return !!state._visible[id];
                 case 'locked':
                     return !!state._locked[id];
                 case 'pixels':
-                    return state._pixels[id];
+                    return [...state._pixels[id]].map(keyToCoords);
                 default:
                     return undefined;
             }
@@ -42,10 +42,10 @@ export const useLayerStore = defineStore('layers', {
             const propsOf = (id) => ({
                 id,
                 name: state._name[id],
-                color: (state._color[id] ?? 0) >>> 0,
+                color: (state._color[id] >>> 0),
                 visible: !!state._visible[id],
                 locked: !!state._locked[id],
-                pixels: state._pixels[id]
+                pixels: [...state._pixels[id]].map(keyToCoords)
             });
             return (ids = []) => {
                 if (Array.isArray(ids)) return ids.map(propsOf);
@@ -62,7 +62,7 @@ export const useLayerStore = defineStore('layers', {
                 const id = state._order[i];
                 if (!state._visible[id]) continue;
                 const set = state._pixels[id];
-                if (set && set.has(key)) return (state._color[id] ?? 0) >>> 0;
+                if (set.has(key)) return (state._color[id] >>> 0);
             }
             return 0x00000000 >>> 0;
         },
@@ -72,7 +72,7 @@ export const useLayerStore = defineStore('layers', {
                 const id = state._order[i];
                 if (!state._visible[id]) continue;
                 const set = state._pixels[id];
-                if (set && set.has(key)) return id;
+                if (set.has(key)) return id;
             }
             return null;
         },
@@ -121,28 +121,18 @@ export const useLayerStore = defineStore('layers', {
             this._locked[id] = !this._locked[id];
         },
         addPixels(id, pixels) {
-            let set = this._pixels[id];
-            if (!set) return;
+            const set = this._pixels[id];
             for (const [x, y] of pixels) set.add(coordsToKey(x, y));
         },
         removePixels(id, pixels) {
             const set = this._pixels[id];
-            if (!set) return;
             for (const [x, y] of pixels) set.delete(coordsToKey(x, y));
         },
         togglePixel(id, x, y) {
-            let set = this._pixels[id];
-            if (!set) return;
+            const set = this._pixels[id];
             const key = coordsToKey(x, y);
             if (set.has(key)) set.delete(key);
             else set.add(key);
-        },
-        snapshotPixels(id) {
-            const arr = [];
-            const set = this._pixels[id];
-            if (!set) return arr;
-            for (const key of set) arr.push(keyToCoords(key));
-            return arr;
         },
         /** Remove layers by ids */
         deleteLayers(ids) {
@@ -171,7 +161,7 @@ export const useLayerStore = defineStore('layers', {
         deleteEmptyLayers() {
             const emptyIds = this._order.filter(id => {
                 const set = this._pixels[id];
-                return !set || set.size === 0;
+                return set.size === 0;
             });
             if (emptyIds.length) this.deleteLayers(emptyIds);
             return emptyIds;
@@ -201,8 +191,8 @@ export const useLayerStore = defineStore('layers', {
                     name: this._name[id],
                     visible: !!this._visible[id],
                     locked: !!this._locked[id],
-                    color: (this._color[id] ?? 0) >>> 0,
-                    pixels: [...(this._pixels[id] || [])].map(key => keyToCoords(key))
+                    color: (this._color[id] >>> 0),
+                    pixels: [...this._pixels[id]].map(key => keyToCoords(key))
                 }])),
                 selection: [...this._selection]
             };
