@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia';
 import { useLayerStore } from '../stores/layers';
 import { useLayerPanelStore } from '../stores/layerPanel';
+import { useQueryService } from './query';
 import { keyToCoords, buildOutline, findPixelComponents, getPixelUnionSet } from '../utils';
 
 export const useLayerService = defineStore('layerService', () => {
     const layers = useLayerStore();
     const layerPanel = useLayerPanelStore();
+    const query = useQueryService();
 
     function forEachSelected(fn) {
         for (const id of layers.selectedIds) {
@@ -77,7 +79,7 @@ export const useLayerService = defineStore('layerService', () => {
         const newLayerId = layers.createLayer({ name: `Merged ${anchorName}`, colorU32 });
         const layer = layers.getLayer(newLayerId);
         for (const k of pixelUnionSet) layer.addPixels([keyToCoords(k)]);
-        layers.reorderLayers([newLayerId], layers.lowermostIdOf(layers.selectedIds), true);
+        layers.reorderLayers([newLayerId], query.lowermostIdOf(layers.selectedIds), true);
         deleteSelected();
         return newLayerId;
     }

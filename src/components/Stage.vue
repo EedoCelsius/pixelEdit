@@ -27,7 +27,7 @@
       <!-- 결과 레이어 -->
       <svg v-show="stageStore.display==='result'" class="absolute top-0 left-0 pointer-events-none block rounded-lg" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" style="image-rendering:pixelated">
         <g>
-          <path v-for="id in layers.idsBottomToTop" :key="'pix-'+id" :d="layers.pathOf(id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(layers.colorOf(id))" :visibility="layers.visibilityOf(id)?'visible':'hidden'"></path>
+            <path v-for="id in layers.idsBottomToTop" :key="'pix-'+id" :d="layers.pathOf(id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(layers.colorOf(id))" :visibility="layers.visibilityOf(id)?'visible':'hidden'"></path>
         </g>
       </svg>
       <!-- 그리드 -->

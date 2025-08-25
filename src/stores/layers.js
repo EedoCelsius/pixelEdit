@@ -15,33 +15,9 @@ export const useLayerStore = defineStore('layers', {
         layersById: (state) => shallowReadonly(state._layersById),
         has: (state) => (id) => state._layersById[id] != null,
         count: (state) => state._order.length,
+        idsBottomToTop: (state) => readonly(state._order.slice()),
+        idsTopToBottom: (state, getters) => readonly(getters.idsBottomToTop.slice().reverse()),
         indexOfLayer: (state) => (id) => state._order.indexOf(id),
-        idsBottomToTop: (state) => state._order.slice(),
-        idsTopToBottom: (state) => state._order.slice().reverse(),
-        uppermostId: (state) => state._order[state._order.length - 1] ?? null,
-        lowermostId: (state) => state._order[0] ?? null,
-        uppermostIdOf: (state) => (ids) => {
-            const idSet = new Set(ids);
-            if (!idSet.size) return null;
-            const index = Math.max(...state._order.map((id, idx) => idSet.has(id) ? idx : -1));
-            return index >= 0 ? state._order[index] : null;
-        },
-        lowermostIdOf: (state) => (ids) => {
-            const idSet = new Set(ids);
-            if (!idSet.size) return null;
-            const index = Math.min(...state._order.map((id, idx) => idSet.has(id) ? idx : Infinity));
-            return isFinite(index) ? state._order[index] : null;
-        },
-        aboveId: (state) => (id) => {
-            if (id == null) return null;
-            const idx = state._order.indexOf(id);
-            return state._order[idx + 1] ?? null;
-        },
-        belowId: (state) => (id) => {
-            if (id == null) return null;
-            const idx = state._order.indexOf(id);
-            return state._order[idx - 1] ?? null;
-        },
         pathOf: (state) => (id) => state._layersById[id]?.d,
         colorOf: (state) => (id) => state._layersById[id]?.getColorU32() ?? 0,
         nameOf: (state) => (id) => state._layersById[id]?.name,
