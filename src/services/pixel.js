@@ -26,10 +26,11 @@ export const usePixelService = defineStore('pixelService', () => {
         if (toolStore.expected === 'cut') {
             if (layers.selectionCount !== 1) return;
             const sourceId = layers.selectedIds[0];
+            const sourceProps = layers.getProperties(sourceId);
             cutLayerId = layers.createLayer({
-                name: `Cut of ${layers.nameOf(sourceId)}`,
-                colorU32: layers.colorOf(sourceId),
-                visible: layers.visibilityOf(sourceId),
+                name: `Cut of ${sourceProps.name}`,
+                color: sourceProps.color,
+                visible: sourceProps.visible,
             }, sourceId);
             overlay.add(cutLayerId);
         }
@@ -105,10 +106,10 @@ export const usePixelService = defineStore('pixelService', () => {
         }
 
         if (toolStore.isCut && cutLayerId != null) {
-            if (layers.pixelCountOf(cutLayerId))
+            if ((layers.getProperty(cutLayerId, 'pixels')?.size ?? 0))
                 layerPanel.setRange(cutLayerId, cutLayerId);
             else
-                layers.deleteLayers([cutLayerId])
+                layers.deleteLayers([cutLayerId]);
         }
 
         try {
@@ -137,21 +138,21 @@ export const usePixelService = defineStore('pixelService', () => {
     function addPixelsToSelection(pixels) {
         if (layers.selectionCount !== 1) return;
         const id = layers.selectedIds[0];
-        if (layers.lockedOf(id)) return;
+        if (layers.getProperty(id, 'locked')) return;
         layers.addPixels(id, pixels);
     }
 
     function removePixelsFromSelection(pixels) {
         if (layers.selectionCount !== 1) return;
         const id = layers.selectedIds[0];
-        if (layers.lockedOf(id)) return;
+        if (layers.getProperty(id, 'locked')) return;
         layers.removePixels(id, pixels);
     }
 
     function cutPixelsFromSelection(pixels) {
         if (layers.selectionCount !== 1 || cutLayerId == null) return;
         const sourceId = layers.selectedIds[0];
-        const set = layers.pixels[sourceId];
+        const set = layers.getProperty(sourceId, 'pixels');
         if (!set) return;
         const pixelsToMove = [];
         for (const [x, y] of pixels) {
@@ -165,15 +166,16 @@ export const usePixelService = defineStore('pixelService', () => {
     function togglePointInSelection(x, y) {
         if (layers.selectionCount !== 1) return;
         const id = layers.selectedIds[0];
-        if (layers.lockedOf(id)) return;
+        if (layers.getProperty(id, 'locked')) return;
         layers.togglePixel(id, x, y);
     }
 
     function removePixelsFromSelected(pixels) {
         if (!pixels || !pixels.length) return;
         for (const id of layers.selectedIds) {
-            if (layers.lockedOf(id)) continue;
-            const set = layers.pixels[id];
+            const props = layers.getProperties(id);
+            if (props.locked) continue;
+            const set = props.pixels;
             if (!set) continue;
             const pixelsToRemove = [];
             for (const [x, y] of pixels) {
@@ -186,8 +188,9 @@ export const usePixelService = defineStore('pixelService', () => {
     function removePixelsFromAll(pixels) {
         if (!pixels || !pixels.length) return;
         for (const id of layers.order) {
-            if (layers.lockedOf(id)) continue;
-            const set = layers.pixels[id];
+            const props = layers.getProperties(id);
+            if (props.locked) continue;
+            const set = props.pixels;
             if (!set) continue;
             const pixelsToRemove = [];
             for (const [x, y] of pixels) {

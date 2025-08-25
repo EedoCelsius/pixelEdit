@@ -180,7 +180,7 @@ onMounted(async () => {
       const segment = autoSegments[i];
       layers.createLayer({
         name: `Auto ${i+1}`,
-        colorU32: segment.colorU32,
+        color: segment.colorU32,
         visible: true,
         pixels: segment.pixels
       });
