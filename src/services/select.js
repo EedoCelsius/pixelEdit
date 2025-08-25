@@ -4,7 +4,6 @@ import { useOverlayService } from './overlay';
 import { useLayerPanelService } from './layerPanel';
 import { useStore } from '../stores';
 import { useStageToolService } from './stageTool';
-import { useToolService } from './tool';
 
 export const useSelectService = defineStore('selectService', () => {
     const stage = useStageService();
@@ -24,28 +23,13 @@ export const useSelectService = defineStore('selectService', () => {
         }
     };
 
-    function start(event) {
+    function start(coord, startId) {
         const tool = useStageToolService();
-        if (event.button !== 0) return;
-        const coord = stage.clientToCoord(event);
-        if (!coord) return;
-
-        const startId = layers.topVisibleIdAt(coord);
-        const mode = !event.shiftKey
-            ? 'select'
-            : layers.isSelected(startId)
-                ? 'remove'
-                : 'add';
-
-        if (!tool.begin(event, mode)) return;
-        overlay.helper.mode = mode === 'remove' ? 'remove' : 'add';
-
         overlay.helper.clear();
         if (tool.shape === 'rect') {
             // rectangle interactions tracked directly in components
         } else {
-            const id = layers.topVisibleIdAt(coord);
-            if (id !== null) addByMode(id);
+            if (startId !== null) addByMode(startId);
         }
     }
 
@@ -118,20 +102,9 @@ export const useSelectService = defineStore('selectService', () => {
                 layers.clearSelection();
             }
         }
-
-        const common = useToolService();
-        common.finish(event);
     }
 
-    function cancel(event) {
-        const common = useToolService();
-        common.cancel();
-    }
-
-    function reset() {
-        const common = useToolService();
-        common.reset();
-    }
+    function cancel() {}
 
     const tools = { select: { start, move, finish } };
 

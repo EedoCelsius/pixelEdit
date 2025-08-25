@@ -3,7 +3,6 @@ import { useStageService } from './stage';
 import { useOverlayService } from './overlay';
 import { useStore } from '../stores';
 import { useStageToolService } from './stageTool';
-import { useToolService } from './tool';
 import { coordToKey } from '../utils';
 
 export const usePixelService = defineStore('pixelService', () => {
@@ -14,8 +13,6 @@ export const usePixelService = defineStore('pixelService', () => {
 
     function startDraw(event) {
         const tool = useStageToolService();
-        const coord = tool.begin(event, 'draw');
-        if (!coord) return;
         if (tool.shape !== 'rect') {
             const pixels = tool.getPixelsFromInteraction(event);
             addPixelsToSelection(pixels);
@@ -37,14 +34,10 @@ export const usePixelService = defineStore('pixelService', () => {
             const pixels = tool.getPixelsFromInteraction(event);
             if (pixels.length > 0) addPixelsToSelection(pixels);
         }
-        const common = useToolService();
-        common.finish(event);
     }
 
     function startErase(event) {
         const tool = useStageToolService();
-        const coord = tool.begin(event, 'erase');
-        if (!coord) return;
         if (tool.shape !== 'rect') {
             const pixels = tool.getPixelsFromInteraction(event);
             removePixelsFromSelection(pixels);
@@ -66,14 +59,10 @@ export const usePixelService = defineStore('pixelService', () => {
             const pixels = tool.getPixelsFromInteraction(event);
             if (pixels.length > 0) removePixelsFromSelection(pixels);
         }
-        const common = useToolService();
-        common.finish(event);
     }
 
     function startGlobalErase(event) {
         const tool = useStageToolService();
-        const coord = tool.begin(event, 'globalErase');
-        if (!coord) return;
         if (tool.shape !== 'rect') {
             const pixels = tool.getPixelsFromInteraction(event);
             if (layers.selectionExists) removePixelsFromSelected(pixels);
@@ -100,14 +89,10 @@ export const usePixelService = defineStore('pixelService', () => {
                 else removePixelsFromAll(pixels);
             }
         }
-        const common = useToolService();
-        common.finish(event);
     }
 
     function startCut(event) {
         const tool = useStageToolService();
-        const coord = tool.begin(event, 'cut');
-        if (!coord) return;
         if (layers.selectionCount !== 1) return;
         const sourceId = layers.selectedIds[0];
         const sourceProps = layers.getProperties(sourceId);
@@ -147,19 +132,10 @@ export const usePixelService = defineStore('pixelService', () => {
             else
                 layers.deleteLayers([cutLayerId]);
         }
-        const common = useToolService();
-        common.finish(event);
-    }
-
-    function cancel(event) {
-        const common = useToolService();
-        common.cancel();
         cutLayerId = null;
     }
 
-    function reset() {
-        const common = useToolService();
-        common.reset();
+    function cancel() {
         cutLayerId = null;
     }
 

@@ -52,22 +52,6 @@ export const useStageToolService = defineStore('stageToolService', () => {
     function setPrepared(t) { prepared.value = t; }
     function setShape(s) { shape.value = s === 'rect' ? 'rect' : 'stroke'; }
 
-    function begin(event, status) {
-        if (event.button !== 0) return null;
-        const coord = stageSvc.clientToCoord(event);
-        if (!coord) return null;
-
-        output.setRollbackPoint();
-
-        pointer.status = status;
-        try {
-            event.target.setPointerCapture?.(event.pointerId);
-            pointer.id = event.pointerId;
-        } catch {}
-
-        return coord;
-    }
-
     const updateHover = (event) => {
         const coord = stageSvc.clientToCoord(event);
         if (!coord) {
@@ -152,10 +136,31 @@ export const useStageToolService = defineStore('stageToolService', () => {
     });
 
     watch(() => stageEvents.lastPointerDown, (e) => {
-        if (!e || e.pointerType === 'touch') return;
+        if (!e || e.pointerType === 'touch' || e.button !== 0) return;
+        const coord = stageSvc.clientToCoord(e);
+        if (!coord) return;
+
+        output.setRollbackPoint();
+        try {
+            e.target.setPointerCapture?.(e.pointerId);
+            pointer.id = e.pointerId;
+        } catch {}
+
+        if (isSelect.value) {
+            const startId = layers.topVisibleIdAt(coord);
+            const mode = !e.shiftKey
+                ? 'select'
+                : layers.isSelected(startId)
+                    ? 'remove'
+                    : 'add';
+            pointer.status = mode;
+            overlay.helper.mode = mode === 'remove' ? 'remove' : 'add';
+            selectSvc.tools.select.start(coord, startId);
+        } else {
+            pointer.status = active.value;
+            pixelSvc.tools[active.value].start(e);
+        }
         updateMarquee(e);
-        if (isSelect.value) selectSvc.tools.select.start(e);
-        else pixelSvc.tools[active.value].start(e);
     });
 
     watch(() => stageEvents.pointer.move, (e) => {
@@ -170,12 +175,19 @@ export const useStageToolService = defineStore('stageToolService', () => {
         if (!e || e.pointerType === 'touch') return;
         updateMarquee(e);
         if (e.type === 'pointercancel') {
-            if (isSelect.value) selectSvc.cancel(e);
-            else pixelSvc.cancel(e);
+            if (isSelect.value) selectSvc.cancel();
+            else pixelSvc.cancel();
+            output.rollbackPending();
         } else {
             if (isSelect.value) selectSvc.tools.select.finish(e);
             else pixelSvc.tools[active.value].finish(e);
+            output.commit();
         }
+        try { e.target?.releasePointerCapture?.(pointer.id); } catch {}
+        pointer.status = 'idle';
+        pointer.id = null;
+        overlay.helper.clear();
+        overlay.helper.mode = 'add';
     });
 
     watch(() => stageEvents.wheel, (e) => {
@@ -200,6 +212,5 @@ export const useStageToolService = defineStore('stageToolService', () => {
         setShape,
         cursor,
         getPixelsFromInteraction,
-        begin,
     };
 });
