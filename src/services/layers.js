@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { useLayerStore } from '../stores/layers';
 import { useLayerPanelStore } from '../stores/layerPanel';
 import { useQueryService } from './query';
-import { keyToCoords, buildOutline, findPixelComponents, getPixelUnionSet } from '../utils';
+import { keyToCoords, buildOutline, findPixelComponents, getPixelUnionSet, averageColorU32 } from '../utils';
 
 export const useLayerService = defineStore('layerService', () => {
     const layers = useLayerStore();
@@ -50,30 +50,18 @@ export const useLayerService = defineStore('layerService', () => {
         if (layers.selectionCount < 2) return;
         const pixelUnionSet = getPixelUnionSet(layers.getLayers(layers.selectedIds));
 
-        let r = 0, g = 0, b = 0;
+        const colors = [];
         if (pixelUnionSet.size) {
             for (const pixelKey of pixelUnionSet) {
                 const [x, y] = keyToCoords(pixelKey);
-                const colorU32 = layers.compositeColorAt(x, y);
-                r += (colorU32 >>> 24) & 255;
-                g += (colorU32 >>> 16) & 255;
-                b += (colorU32 >>> 8) & 255;
+                colors.push(layers.compositeColorAt(x, y));
             }
-            r = Math.round(r / pixelUnionSet.size);
-            g = Math.round(g / pixelUnionSet.size);
-            b = Math.round(b / pixelUnionSet.size);
         } else {
             forEachSelected(L => {
-                const colorU32 = L.getColorU32();
-                r += (colorU32 >>> 24) & 255;
-                g += (colorU32 >>> 16) & 255;
-                b += (colorU32 >>> 8) & 255;
+                colors.push(L.getColorU32());
             });
-            r = Math.round(r / layers.selectionCount);
-            g = Math.round(g / layers.selectionCount);
-            b = Math.round(b / layers.selectionCount);
         }
-        const colorU32 = (((r & 255) << 24) | ((g & 255) << 16) | ((b & 255) << 8) | 255) >>> 0;
+        const colorU32 = averageColorU32(colors);
 
         const anchorName = layers.nameOf(layerPanel.anchorId) || 'Merged';
         const newLayerId = layers.createLayer({ name: `Merged ${anchorName}`, colorU32 });

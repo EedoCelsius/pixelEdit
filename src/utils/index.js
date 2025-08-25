@@ -34,20 +34,20 @@ export function calcMarquee(start, current, canvas) {
     };
 }
 
-// --- color helpers (32-bit unsigned RGBA packed as 0xRRGGBBAA) ---
+// --- color helpers (32-bit unsigned RGBA packed as 0xAABBGGRR) ---
 export const packRGBA = (color) => {
     const r = clamp((+color.r || 0), 0, 255),
         g = clamp((+color.g || 0), 0, 255),
         b = clamp((+color.b || 0), 0, 255);
     const alphaRaw = (color.a == null ? 255 : +color.a);
     const a = alphaRaw <= 1 ? Math.round(alphaRaw * 255) : Math.round(alphaRaw);
-    return (((r & 255) << 24) | ((g & 255) << 16) | ((b & 255) << 8) | ((a & 255) | 0)) >>> 0;
+    return ((r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | ((a & 255) << 24)) >>> 0;
 };
 export const unpackRGBA = (packedColor) => ({
-    r: (packedColor >>> 24) & 255,
-    g: (packedColor >>> 16) & 255,
-    b: (packedColor >>> 8) & 255,
-    a: (packedColor >>> 0) & 255
+    r: (packedColor >>> 0) & 255,
+    g: (packedColor >>> 8) & 255,
+    b: (packedColor >>> 16) & 255,
+    a: (packedColor >>> 24) & 255
 });
 export const rgbaCssU32 = (packedColor) => {
     const {
@@ -65,6 +65,24 @@ export const randColorU32 = () => packRGBA({
     b: Math.floor(50 + Math.random() * 180),
     a: 255
 });
+
+export function averageColorU32(colors = []) {
+    if (!colors.length) return 0;
+    let r = 0, g = 0, b = 0, a = 0;
+    for (const c of colors) {
+        r += (c >>> 0) & 255;
+        g += (c >>> 8) & 255;
+        b += (c >>> 16) & 255;
+        a += (c >>> 24) & 255;
+    }
+    const count = colors.length;
+    return packRGBA({
+        r: Math.round(r / count),
+        g: Math.round(g / count),
+        b: Math.round(b / count),
+        a: Math.round(a / count)
+    });
+}
 
 // simplified hex helpers
 export function hexToRgbaU32(hexString) {
