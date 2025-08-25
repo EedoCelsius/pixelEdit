@@ -1,116 +1,130 @@
 import { defineStore } from 'pinia';
-import { readonly, shallowReadonly } from 'vue';
-import { Layer } from '../domain/Layer';
+import { readonly, reactive } from 'vue';
+import { coordsToKey, keyToCoords, pixelsToUnionPath, randColorU32, groupConnectedPixels } from '../utils';
 
 export const useLayerStore = defineStore('layers', {
     state: () => ({
         _order: [],
-        _layersById: {},
-        _nextId: 1,
+        name: {},
+        color: {},
+        visible: {},
+        locked: {},
+        pixels: {},
         _selection: new Set()
     }),
     getters: {
         exists: (state) => state._order.length > 0,
         order: (state) => readonly(state._order),
-        layersById: (state) => shallowReadonly(state._layersById),
-        has: (state) => (id) => state._layersById[id] != null,
+        has: (state) => (id) => state.name[id] != null,
         count: (state) => state._order.length,
         idsBottomToTop: (state) => readonly(state._order.slice()),
         idsTopToBottom: (state, getters) => readonly(getters.idsBottomToTop.slice().reverse()),
         indexOfLayer: (state) => (id) => state._order.indexOf(id),
-        pathOf: (state) => (id) => state._layersById[id]?.d,
-        colorOf: (state) => (id) => state._layersById[id]?.getColorU32() ?? 0,
-        nameOf: (state) => (id) => state._layersById[id]?.name,
-        visibilityOf: (state) => (id) => !!state._layersById[id]?.visible,
-        lockedOf: (state) => (id) => !!state._layersById[id]?.locked,
-        pixelCountOf: (state) => (id) => state._layersById[id]?.pixelCount ?? 0,
-        disconnectedCountOf: (state) => (id) => state._layersById[id]?.disconnectedCount ?? 0,
+        pathOf: (state) => (id) => pixelsToUnionPath(state.pixels[id] || new Set()),
+        colorOf: (state) => (id) => (state.color[id] ?? 0) >>> 0,
+        nameOf: (state) => (id) => state.name[id],
+        visibilityOf: (state) => (id) => !!state.visible[id],
+        lockedOf: (state) => (id) => !!state.locked[id],
+        pixelCountOf: (state) => (id) => state.pixels[id]?.size ?? 0,
+        disconnectedCountOf: (state) => (id) => groupConnectedPixels(state.pixels[id] || new Set()).length,
         selectedIds: (state) => [...state._selection],
         selectionCount: (state) => state._selection.size,
         selectionExists: (state) => state._selection.size > 0,
         isSelected: (state) => (id) => state._selection.has(id),
         compositeColorAt: (state) => (x, y) => {
+            const key = coordsToKey(x, y);
             for (let i = state._order.length - 1; i >= 0; i--) {
-                const layer = state._layersById[state._order[i]];
-                if (!layer || !layer.visible) continue;
-                if (layer.has(x, y)) return layer.getColorU32() >>> 0;
+                const id = state._order[i];
+                if (!state.visible[id]) continue;
+                const set = state.pixels[id];
+                if (set && set.has(key)) return (state.color[id] ?? 0) >>> 0;
             }
             return 0x00000000 >>> 0;
         },
         topVisibleIdAt: (state) => (x, y) => {
+            const key = coordsToKey(x, y);
             for (let i = state._order.length - 1; i >= 0; i--) {
                 const id = state._order[i];
-                const layer = state._layersById[id];
-                if (!layer || !layer.visible) continue;
-                if (layer.has(x, y)) return id;
+                if (!state.visible[id]) continue;
+                const set = state.pixels[id];
+                if (set && set.has(key)) return id;
             }
             return null;
         },
     },
     actions: {
         _allocId() {
-            return this._nextId++;
-        },
-        getLayer(id) {
-            return this._layersById[id] || null;
-        },
-        getLayers(ids) {
-            const result = [];
-            for (const id of ids) {
-                const layer = this._layersById[id];
-                if (layer) result.push(layer);
-            }
-            return result;
+            let id = Date.now();
+            while (this.has(id)) id++;
+            return id;
         },
         /** Create a layer and insert relative to a reference id (above = on top of it). If refId null -> push on top */
-        createLayer(layerProperties, above = null) {
-            const layer = new Layer(layerProperties);
+        createLayer(layerProperties = {}, above = null) {
             const id = this._allocId();
-            this._layersById[id] = layer;
+            this.name[id] = layerProperties.name || 'Layer';
+            this.visible[id] = layerProperties.visible ?? true;
+            this.locked[id] = layerProperties.locked ?? false;
+            this.color[id] = (layerProperties.colorU32 ?? randColorU32()) >>> 0;
+            const keyedPixels = layerProperties.pixels ? layerProperties.pixels.map(p => coordsToKey(p[0], p[1])) : [];
+            this.pixels[id] = reactive(new Set(keyedPixels));
             if (above === null) {
                 this._order.push(id);
             } else {
                 const idx = this.indexOfLayer(above);
-                (idx < 0) ? this._order.push(id): this._order.splice(idx + 1, 0, id);
+                (idx < 0) ? this._order.push(id) : this._order.splice(idx + 1, 0, id);
             }
             return id;
         },
         /** Update properties of a layer */
         updateLayer(id, props) {
-            const layer = this._layersById[id];
-            if (!layer) return;
-            if (props.name !== undefined) layer.name = props.name;
-            if (props.colorU32 !== undefined) layer.setColorU32(props.colorU32);
-            if (props.visible !== undefined) layer.visible = !!props.visible;
-            if (props.locked !== undefined) layer.locked = !!props.locked;
+            if (this.name[id] == null) return;
+            if (props.name !== undefined) this.name[id] = props.name;
+            if (props.colorU32 !== undefined) this.color[id] = (props.colorU32 >>> 0);
+            if (props.visible !== undefined) this.visible[id] = !!props.visible;
+            if (props.locked !== undefined) this.locked[id] = !!props.locked;
         },
         toggleVisibility(id) {
-            const layer = this._layersById[id];
-            if (layer) layer.visible = !layer.visible;
+            if (this.name[id] == null) return;
+            this.visible[id] = !this.visible[id];
         },
         toggleLock(id) {
-            const layer = this._layersById[id];
-            if (layer) layer.locked = !layer.locked;
+            if (this.name[id] == null) return;
+            this.locked[id] = !this.locked[id];
         },
         addPixels(id, pixels) {
-            const layer = this._layersById[id];
-            if (layer) layer.addPixels(pixels);
+            let set = this.pixels[id];
+            if (!set) return;
+            for (const [x, y] of pixels) set.add(coordsToKey(x, y));
         },
         removePixels(id, pixels) {
-            const layer = this._layersById[id];
-            if (layer) layer.removePixels(pixels);
+            const set = this.pixels[id];
+            if (!set) return;
+            for (const [x, y] of pixels) set.delete(coordsToKey(x, y));
         },
         togglePixel(id, x, y) {
-            const layer = this._layersById[id];
-            if (layer) layer.togglePixel(x, y);
+            let set = this.pixels[id];
+            if (!set) return;
+            const key = coordsToKey(x, y);
+            if (set.has(key)) set.delete(key);
+            else set.add(key);
+        },
+        snapshotPixels(id) {
+            const arr = [];
+            const set = this.pixels[id];
+            if (!set) return arr;
+            for (const key of set) arr.push(keyToCoords(key));
+            return arr;
         },
         /** Remove layers by ids */
         deleteLayers(ids) {
             const idSet = new Set(ids);
             this._order = this._order.filter(id => !idSet.has(id));
             for (const id of idSet) {
-                this._layersById[id]?.dispose?.();
-                delete this._layersById[id];
+                delete this.name[id];
+                delete this.color[id];
+                delete this.visible[id];
+                delete this.locked[id];
+                delete this.pixels[id];
             }
         },
         /** Reorder selected ids as a block relative to targetId. */
@@ -127,8 +141,8 @@ export const useLayerStore = defineStore('layers', {
         },
         deleteEmptyLayers() {
             const emptyIds = this._order.filter(id => {
-                const layer = this._layersById[id];
-                return layer && layer.pixelCount === 0;
+                const set = this.pixels[id];
+                return !set || set.size === 0;
             });
             if (emptyIds.length) this.deleteLayers(emptyIds);
             return emptyIds;
@@ -153,35 +167,40 @@ export const useLayerStore = defineStore('layers', {
         /** Serialization */
         serialize() {
             return {
-                nextId: this._nextId,
                 order: this._order.slice(),
-                byId: Object.fromEntries(this._order.map(id => [id, this._layersById[id]?.toJSON()])),
+                byId: Object.fromEntries(this._order.map(id => [id, {
+                    name: this.name[id],
+                    visible: !!this.visible[id],
+                    locked: !!this.locked[id],
+                    color: (this.color[id] ?? 0) >>> 0,
+                    pixels: [...(this.pixels[id] || [])].map(key => keyToCoords(key))
+                }])),
                 selection: [...this._selection]
             };
         },
         applySerialized(payload) {
             const order = payload?.order || [];
             const byId = payload?.byId || {};
-            const layers = [];
             // reset
-            this._order.splice(0, this._order.length);
-            for (const k of Object.keys(this._layersById)) {
-                this._layersById[k].dispose?.();
-                delete this._layersById[k];
-            }
+            this._order = [];
+            this.name = {};
+            this.color = {};
+            this.visible = {};
+            this.locked = {};
+            this.pixels = {};
             // rebuild
             for (const idStr of order) {
                 const id = +idStr;
                 const info = byId[idStr] || byId[id];
                 if (!info) continue;
-                const layer = Layer.fromJSON(info);
-                this._layersById[id] = layer;
+                this.name[id] = info.name || 'Layer';
+                this.visible[id] = !!info.visible;
+                this.locked[id] = !!info.locked;
+                this.color[id] = (info.color ?? randColorU32()) >>> 0;
+                const keyedPixels = info.pixels ? info.pixels.map(p => coordsToKey(p[0], p[1])) : [];
+                this.pixels[id] = reactive(new Set(keyedPixels));
                 this._order.push(id);
-                layers.push(id);
             }
-            // nextId
-            const maxId = layers.length ? Math.max(...layers) : 0;
-            this._nextId = Math.max(payload?.nextId || 0, maxId + 1);
             this._selection = new Set(payload?.selection || []);
         }
     }

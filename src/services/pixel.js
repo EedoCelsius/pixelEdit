@@ -28,12 +28,10 @@ export const usePixelService = defineStore('pixelService', () => {
         if (toolStore.expected === 'cut') {
             if (layers.selectionCount !== 1) return;
             const sourceId = layers.selectedIds[0];
-            const srcLayer = layers.getLayer(sourceId);
-            if (!srcLayer) return;
             cutLayerId = layers.createLayer({
                 name: `Cut of ${layers.nameOf(sourceId)}`,
-                colorU32: srcLayer.getColorU32(),
-                visible: srcLayer.visible,
+                colorU32: layers.colorOf(sourceId),
+                visible: layers.visibilityOf(sourceId),
             }, sourceId);
             overlay.add(cutLayerId);
         }
@@ -154,11 +152,11 @@ export const usePixelService = defineStore('pixelService', () => {
     function cutPixelsFromSelection(pixels) {
         if (layers.selectionCount !== 1 || cutLayerId == null) return;
         const sourceId = layers.selectedIds[0];
-        const srcLayer = layers.getLayer(sourceId);
-        if (!srcLayer) return;
+        const set = layers.pixels[sourceId];
+        if (!set) return;
         const pixelsToMove = [];
         for (const [x, y] of pixels) {
-            if (srcLayer.has(x, y)) pixelsToMove.push([x, y]);
+            if (set.has(coordsToKey(x, y))) pixelsToMove.push([x, y]);
         }
         if (!pixelsToMove.length) return;
         layers.removePixels(sourceId, pixelsToMove);
@@ -174,11 +172,13 @@ export const usePixelService = defineStore('pixelService', () => {
 
     function removePixelsFromSelected(pixels) {
         if (!pixels || !pixels.length) return;
-        layerSvc.forEachSelected((layer, id) => {
-            if (layer.locked) return;
+        layerSvc.forEachSelected((id) => {
+            if (layers.lockedOf(id)) return;
+            const set = layers.pixels[id];
+            if (!set) return;
             const pixelsToRemove = [];
             for (const [x, y] of pixels) {
-                if (layer.has(x, y)) pixelsToRemove.push([x, y]);
+                if (set.has(coordsToKey(x, y))) pixelsToRemove.push([x, y]);
             }
             if (pixelsToRemove.length) layers.removePixels(id, pixelsToRemove);
         });
@@ -187,11 +187,12 @@ export const usePixelService = defineStore('pixelService', () => {
     function removePixelsFromAll(pixels) {
         if (!pixels || !pixels.length) return;
         for (const id of layers.order) {
-            const layer = layers.getLayer(id);
-            if (!layer || layer.locked) continue;
+            if (layers.lockedOf(id)) continue;
+            const set = layers.pixels[id];
+            if (!set) continue;
             const pixelsToRemove = [];
             for (const [x, y] of pixels) {
-                if (layer.has(x, y)) pixelsToRemove.push([x, y]);
+                if (set.has(coordsToKey(x, y))) pixelsToRemove.push([x, y]);
             }
             if (pixelsToRemove.length) layers.removePixels(id, pixelsToRemove);
         }

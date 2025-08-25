@@ -4,7 +4,7 @@ import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useLayerStore } from '../stores/layers';
 import { useOverlayService } from './overlay';
-import { keyToCoords, clamp } from '../utils';
+import { keyToCoords, clamp, getPixelUnionSet, pixelsToUnionPath } from '../utils';
 import { CURSOR_CONFIG } from '../constants';
 
 export const useStageService = defineStore('stageService', () => {
@@ -23,7 +23,7 @@ export const useStageService = defineStore('stageService', () => {
     // --- Overlay Paths ---
     const selectOverlayPath = computed(() => {
         if (!overlay.selectOverlayLayerIds.size) return '';
-        const pixelUnionSet = getPixelUnionSet(layers.getLayers(overlay.selectOverlayLayerIds));
+        const pixelUnionSet = getPixelUnionSet(layers, overlay.selectOverlayLayerIds);
         return pixelsToUnionPath(pixelUnionSet);
     });
 
