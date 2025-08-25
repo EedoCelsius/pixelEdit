@@ -1,14 +1,12 @@
 import { defineStore } from 'pinia';
 import { useStageService } from './stage';
 import { useOverlayService } from './overlay';
-import { useLayerPanelService } from './layerPanel';
 import { useStore } from '../stores';
 import { coordsToKey } from '../utils';
 
 export const usePixelService = defineStore('pixelService', () => {
     const stage = useStageService();
     const overlay = useOverlayService();
-    const layerPanel = useLayerPanelService();
     const { tool: toolStore, layers, output } = useStore();
     let cutLayerId = null;
 
@@ -103,7 +101,7 @@ export const usePixelService = defineStore('pixelService', () => {
 
         if (toolStore.isCut && cutLayerId != null) {
             if (layers.getProperty(cutLayerId, 'pixels').length)
-                layerPanel.setRange(cutLayerId, cutLayerId);
+                layers.replaceSelection([cutLayerId]);
             else
                 layers.deleteLayers([cutLayerId]);
         }

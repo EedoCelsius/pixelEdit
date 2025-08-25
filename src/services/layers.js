@@ -32,7 +32,6 @@ export const useLayerService = defineStore('layerService', () => {
         const ids = layers.selectedIds;
         layers.deleteLayers(ids);
         layers.removeFromSelection(ids);
-        layerPanel.clearRange();
     }
 
     function reorderGroup(selIds, targetId, placeBelow = true) {
@@ -124,7 +123,7 @@ export const useLayerService = defineStore('layerService', () => {
         layers._order = orderWithoutNew;
 
         layers.replaceSelection(newIds);
-        layerPanel.setRange(newIds[0], newIds[newIds.length - 1]);
+        return newIds;
     }
 
     return {
