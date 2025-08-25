@@ -11,8 +11,7 @@ export const useLayerService = defineStore('layerService', () => {
 
     function forEachSelected(fn) {
         for (const id of layers.selectedIds) {
-            const layer = layers.getLayer(id);
-            if (layer) fn(layer, id);
+            fn(id);
         }
     }
 
@@ -48,7 +47,7 @@ export const useLayerService = defineStore('layerService', () => {
 
     function mergeSelected() {
         if (layers.selectionCount < 2) return;
-        const pixelUnionSet = getPixelUnionSet(layers.getLayers(layers.selectedIds));
+        const pixelUnionSet = getPixelUnionSet(layers, layers.selectedIds);
 
         const colors = [];
         if (pixelUnionSet.size) {
@@ -57,16 +56,16 @@ export const useLayerService = defineStore('layerService', () => {
                 colors.push(layers.compositeColorAt(x, y));
             }
         } else {
-            forEachSelected(L => {
-                colors.push(L.getColorU32());
+            forEachSelected(id => {
+                colors.push(layers.colorOf(id));
             });
         }
         const colorU32 = averageColorU32(colors);
 
         const anchorName = layers.nameOf(layerPanel.anchorId) || 'Merged';
         const newLayerId = layers.createLayer({ name: `Merged ${anchorName}`, colorU32 });
-        const layer = layers.getLayer(newLayerId);
-        for (const k of pixelUnionSet) layer.addPixels([keyToCoords(k)]);
+        const newPixels = [...pixelUnionSet].map(keyToCoords);
+        if (newPixels.length) layers.addPixels(newLayerId, newPixels);
         layers.reorderLayers([newLayerId], query.lowermostIdOf(layers.selectedIds), true);
         deleteSelected();
         return newLayerId;
@@ -75,12 +74,12 @@ export const useLayerService = defineStore('layerService', () => {
     function copySelected() {
         if (!layers.selectionCount) return [];
         const newLayerIds = [];
-        forEachSelected((layer, id) => {
+        forEachSelected((id) => {
             const newLayerId = layers.createLayer({
-                name: `Copy of ${layer.name}`,
-                colorU32: layer.getColorU32(),
-                visible: layer.visible,
-                pixels: layer.snapshotPixels()
+                name: `Copy of ${layers.nameOf(id)}`,
+                colorU32: layers.colorOf(id),
+                visible: layers.visibilityOf(id),
+                pixels: layers.snapshotPixels(id)
             }, id);
             newLayerIds.push(newLayerId);
         });
@@ -89,7 +88,7 @@ export const useLayerService = defineStore('layerService', () => {
 
     function selectionPath() {
         if (!layers.selectionCount) return '';
-        const pixelUnionSet = getPixelUnionSet(layers.getLayers(layers.selectedIds));
+        const pixelUnionSet = getPixelUnionSet(layers, layers.selectedIds);
         const groups = buildOutline(pixelUnionSet);
         const pathData = [];
         for (const group of groups)
@@ -108,16 +107,15 @@ export const useLayerService = defineStore('layerService', () => {
 
     function splitLayer(layerId) {
         if (layerId == null) return;
-        const layer = layers.getLayer(layerId);
-        if (!layer || layer.pixelCount < 2) return;
+        if (layers.pixelCountOf(layerId) < 2) return;
 
-        const pixels = layer.snapshotPixels();
+        const pixels = layers.snapshotPixels(layerId);
         const components = findPixelComponents(pixels);
         if (components.length <= 1) return;
 
         const originalName = layers.nameOf(layerId);
-        const originalColor = layer.getColorU32();
-        const originalVisibility = layer.visible;
+        const originalColor = layers.colorOf(layerId);
+        const originalVisibility = layers.visibilityOf(layerId);
         const originalIndex = layers.indexOfLayer(layerId);
 
         const newIds = components.reverse().map((componentPixels, index) => (
@@ -149,9 +147,8 @@ export const useLayerService = defineStore('layerService', () => {
     }
 
     function selectByDisconnectedCount(id) {
-        const targetLayer = layers.getLayer(id);
-        if (!targetLayer) return;
-        const targetCount = targetLayer.disconnectedCount;
+        if (!layers.has(id)) return;
+        const targetCount = layers.disconnectedCountOf(id);
         if (targetCount <= 1) {
             layerPanel.setRange(id, id);
             return;
@@ -164,9 +161,8 @@ export const useLayerService = defineStore('layerService', () => {
     }
 
     function selectByPixelCount(id) {
-        const targetLayer = layers.getLayer(id);
-        if (!targetLayer) return;
-        const targetCount = targetLayer.pixelCount;
+        if (!layers.has(id)) return;
+        const targetCount = layers.pixelCountOf(id);
         if (targetCount === 0) {
             layerPanel.setRange(id, id);
             return;
@@ -179,9 +175,8 @@ export const useLayerService = defineStore('layerService', () => {
     }
 
     function selectByColor(id) {
-        const targetLayer = layers.getLayer(id);
-        if (!targetLayer) return;
-        const targetColor = targetLayer.getColorU32();
+        if (!layers.has(id)) return;
+        const targetColor = layers.colorOf(id);
         const idsToSelect = layers.order.filter(layerId => layers.colorOf(layerId) === targetColor);
         if (idsToSelect.length) {
             layers.replaceSelection(idsToSelect);

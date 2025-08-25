@@ -2,11 +2,13 @@ export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export const coordsToKey = (x, y) => x + "," + y;
 export const keyToCoords = (key) => key.split(",").map(n => +n);
 
-export function getPixelUnionSet(layers) {
+export function getPixelUnionSet(layerStore, ids = []) {
     const pixelUnionSet = new Set();
-    if (!layers) return pixelUnionSet;
-    for (const layer of layers) {
-        layer.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y)));
+    if (!layerStore || !ids) return pixelUnionSet;
+    for (const id of ids) {
+        const set = layerStore.pixels[id];
+        if (!set) continue;
+        for (const key of set) pixelUnionSet.add(key);
     }
     return pixelUnionSet;
 }

@@ -13,7 +13,7 @@ export const useOverlayService = defineStore('overlayService', () => {
 
     const selectOverlayPath = computed(() => {
         if (!selectOverlayLayerIds.size) return '';
-        const pixelUnionSet = getPixelUnionSet(layers.getLayers(selectOverlayLayerIds));
+        const pixelUnionSet = getPixelUnionSet(layers, selectOverlayLayerIds);
         return pixelsToUnionPath(pixelUnionSet);
     });
 
