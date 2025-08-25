@@ -76,6 +76,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useStageService } from '../services/stage';
+import { useOverlayService } from '../services/overlay';
 import { useLayerStore } from '../stores/layers';
 import { useLayerService } from '../services/layers';
 import { useInputStore } from '../stores/input';
@@ -89,6 +90,7 @@ import { OVERLAY_CONFIG } from '../constants';
 const stageStore = useStageStore();
 const toolStore = useToolStore();
 const stageService = useStageService();
+const overlay = useOverlayService();
 const stageEvents = useStageEventStore();
 const layers = useLayerStore();
 const layerSvc = useLayerService();
@@ -101,26 +103,26 @@ const stageEl = ref(null);
 const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
 const offset = viewport.offset;
 
-const updateHover = (event) => {
-    const pixel = stageService.clientToPixel(event);
-    if (!pixel) {
-        stageStore.updatePixelInfo('-');
-        toolStore.hoverLayerId = null;
-        return;
-    }
-    if (stageStore.display === 'original' && input.isLoaded) {
-        const colorObject = input.readPixel(pixel.x, pixel.y);
-        stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssObj(colorObject)}`);
-    } else {
-        const colorU32 = layers.compositeColorAt(pixel.x, pixel.y);
-        stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssU32(colorU32)}`);
-    }
-    if (toolStore.isSelect) {
-        toolStore.hoverLayerId = layers.topVisibleIdAt(pixel.x, pixel.y);
-    } else {
-        toolStore.hoverLayerId = null;
-    }
-};
+    const updateHover = (event) => {
+        const pixel = stageService.clientToPixel(event);
+        if (!pixel) {
+            stageStore.updatePixelInfo('-');
+            overlay.clearHover();
+            return;
+        }
+        if (stageStore.display === 'original' && input.isLoaded) {
+            const colorObject = input.readPixel(pixel.x, pixel.y);
+            stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssObj(colorObject)}`);
+        } else {
+            const colorU32 = layers.compositeColorAt(pixel.x, pixel.y);
+            stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssU32(colorU32)}`);
+        }
+        if (toolStore.isSelect) {
+            overlay.setHover(layers.topVisibleIdAt(pixel.x, pixel.y));
+        } else {
+            overlay.clearHover();
+        }
+    };
 
 const updateMarquee = (e) => {
     if (toolStore.shape !== 'rect' || toolStore.pointer.status === 'idle' || !toolStore.pointer.start || !e) {
@@ -151,11 +153,11 @@ const onPointerCancel = (e) => {
   stageEvents.setPointerUp(e);
 };
 
-const onPointerLeave = (e) => {
-    if (e.pointerType === 'touch') return;
-    toolStore.hoverLayerId = null;
-    stageStore.updatePixelInfo('-');
-};
+    const onPointerLeave = (e) => {
+        if (e.pointerType === 'touch') return;
+        overlay.clearHover();
+        stageStore.updatePixelInfo('-');
+    };
 
 const onWheel = (e) => {
   stageEvents.setWheel(e);
@@ -199,14 +201,14 @@ const helperOverlay = computed(() => {
     let style;
 
     if (toolStore.pointer.status !== 'idle') {
-        path = stageService.selectOverlayPath;
+        path = overlay.selectOverlayPath;
         style = toolStore.pointer.status === 'remove'
             ? OVERLAY_CONFIG.REMOVE
             : OVERLAY_CONFIG.ADD;
     } else {
-        path = layers.pathOf(toolStore.hoverLayerId);
-        if (toolStore.hoverLayerId) {
-            const isRemoving = toolStore.shiftHeld && layers.isSelected(toolStore.hoverLayerId);
+        path = overlay.hoverOverlayPath;
+        if (overlay.hoverLayerId) {
+            const isRemoving = toolStore.shiftHeld && layers.isSelected(overlay.hoverLayerId);
             style = isRemoving ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
         }
     }

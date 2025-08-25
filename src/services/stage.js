@@ -3,7 +3,8 @@ import { ref, computed } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useLayerStore } from '../stores/layers';
-import { keyToCoords, pixelsToUnionPath, clamp, getPixelUnionSet } from '../utils';
+import { useOverlayService } from './overlay';
+import { keyToCoords, clamp } from '../utils';
 import { CURSOR_CONFIG } from '../constants';
 
 export const useStageService = defineStore('stageService', () => {
@@ -11,13 +12,7 @@ export const useStageService = defineStore('stageService', () => {
     const stageStore = useStageStore();
     const toolStore = useToolStore();
     const layers = useLayerStore();
-
-    // --- Overlay Paths ---
-    const selectOverlayPath = computed(() => {
-        if (!toolStore.selectOverlayLayerIds.size) return '';
-        const pixelUnionSet = getPixelUnionSet(layers.getLayers(toolStore.selectOverlayLayerIds));
-        return pixelsToUnionPath(pixelUnionSet);
-    });
+    const overlay = useOverlayService();
 
     // --- Canvas Utilities ---
     function recalcMinScale(container) {
@@ -136,7 +131,7 @@ export const useStageService = defineStore('stageService', () => {
         const shape = toolStore.shape;
 
         if (tool === 'select') {
-            const isRemoving = toolStore.shiftHeld && layers.isSelected(toolStore.hoverLayerId);
+            const isRemoving = toolStore.shiftHeld && layers.isSelected(overlay.hoverLayerId);
             if (shape === 'stroke') {
                 return isRemoving ? CURSOR_CONFIG.REMOVE_STROKE : CURSOR_CONFIG.ADD_STROKE;
             }
@@ -157,7 +152,6 @@ export const useStageService = defineStore('stageService', () => {
 
     return {
         // interaction state
-        selectOverlayPath,
         cursor,
         // methods
         recalcMinScale,

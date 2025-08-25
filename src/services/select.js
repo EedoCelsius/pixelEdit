@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { useStageService } from './stage';
+import { useOverlayService } from './overlay';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useLayerStore } from '../stores/layers';
@@ -9,6 +10,7 @@ import { coordsToKey, calcMarquee } from '../utils';
 
 export const useSelectService = defineStore('selectService', () => {
     const stage = useStageService();
+    const overlay = useOverlayService();
     const stageStore = useStageStore();
     const toolStore = useToolStore();
     const layers = useLayerStore();
@@ -45,21 +47,13 @@ export const useSelectService = defineStore('selectService', () => {
 
             const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
-                if (mode === 'remove') {
-                    if (layers.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
-                } else if (mode === 'add') {
-                    if (!layers.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
-                } else {
-                    toolStore.selectOverlayLayerIds.add(id);
-                }
+                overlay.addByMode(id);
             }
         }
     }
 
     function toolMove(event) {
         if (toolStore.pointer.status === 'idle') return;
-
-        const mode = toolStore.pointer.status;
 
         if (toolStore.shape === 'rect') {
             const { x, y, w, h } = calcMarquee(
@@ -74,20 +68,7 @@ export const useSelectService = defineStore('selectService', () => {
                     if (id !== null) intersectedIds.add(id);
                 }
             }
-            toolStore.selectOverlayLayerIds.clear();
-            if (mode === 'add') {
-                for (const id of intersectedIds) {
-                    if (!layers.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
-                }
-            } else if (mode === 'remove') {
-                for (const id of intersectedIds) {
-                    if (layers.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
-                }
-            } else {
-                for (const id of intersectedIds) {
-                    toolStore.selectOverlayLayerIds.add(id);
-                }
-            }
+            overlay.setFromIntersected(intersectedIds);
         } else {
             const pixel = stage.clientToPixel(event);
             if (!pixel) {
@@ -100,13 +81,7 @@ export const useSelectService = defineStore('selectService', () => {
             toolStore.visited.add(k);
             const id = layers.topVisibleIdAt(pixel.x, pixel.y);
             if (id !== null) {
-                if (mode === 'remove') {
-                    if (layers.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
-                } else if (mode === 'add') {
-                    if (!layers.isSelected(id)) toolStore.selectOverlayLayerIds.add(id);
-                } else {
-                    toolStore.selectOverlayLayerIds.add(id);
-                }
+                overlay.addByMode(id);
             }
         }
     }
@@ -179,8 +154,8 @@ export const useSelectService = defineStore('selectService', () => {
         toolStore.pointer.id = null;
         toolStore.pointer.start = null;
         toolStore.visited.clear();
-        toolStore.hoverLayerId = null;
-        toolStore.selectOverlayLayerIds.clear();
+        overlay.clearHover();
+        overlay.clear();
     }
 
     function selectRange(anchorId, tailId) {

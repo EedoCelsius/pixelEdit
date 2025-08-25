@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { useStageService } from './stage';
+import { useOverlayService } from './overlay';
 import { useToolStore } from '../stores/tool';
 import { useLayerStore } from '../stores/layers';
 import { useLayerService } from './layers';
@@ -9,6 +10,7 @@ import { coordsToKey } from '../utils';
 
 export const usePixelService = defineStore('pixelService', () => {
     const stage = useStageService();
+    const overlay = useOverlayService();
     const toolStore = useToolStore();
     const layers = useLayerStore();
     const layerSvc = useLayerService();
@@ -33,7 +35,7 @@ export const usePixelService = defineStore('pixelService', () => {
                 colorU32: srcLayer.getColorU32(),
                 visible: srcLayer.visible,
             }, sourceId);
-            toolStore.selectOverlayLayerIds.add(cutLayerId);
+            overlay.add(cutLayerId);
         }
 
         toolStore.pointer.status = toolStore.expected;
@@ -131,7 +133,7 @@ export const usePixelService = defineStore('pixelService', () => {
         toolStore.pointer.id = null;
         toolStore.pointer.start = null;
         toolStore.visited.clear();
-        toolStore.selectOverlayLayerIds.clear();
+        overlay.clear();
         cutLayerId = null;
     }
 

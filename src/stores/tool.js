@@ -12,8 +12,6 @@ export const useToolStore = defineStore('tool', {
             start: null,
             id: null,
         },
-        hoverLayerId: null,
-        selectOverlayLayerIds: new Set(),
         visited: new Set(),
     }),
     getters: {
