@@ -4,8 +4,8 @@ import { MAX_POINTER_WINDOW } from '@/constants';
 export const useViewportEventStore = defineStore('viewportEvent', {
     state: () => ({
         pointer: { recent: null },
-        wheel: null,
         keyboard: { recent: null },
+        wheel: null,
     }),
     actions: {
         addPointerDown(event) {
@@ -35,6 +35,19 @@ export const useViewportEventStore = defineStore('viewportEvent', {
             }
             this.pointer.recent = event.pointerId;
         },
+        setKeyDown(event) {
+            if (this.keyboard[event.key]) this.keyboard[event.key].down = event;
+            else this.keyboard[event.key] = { down: event, up: null };
+            this.keyboard.recent = event.key;
+        },
+        setKeyUp(event) {
+            if (this.keyboard[event.key]) this.keyboard[event.key].up = event;
+            else this.keyboard[event.key] = { down: null, up: event };
+            this.keyboard.recent = event.key;
+        },
+        setWheel(event) {
+            this.wheel = event;
+        },
         pruneOldPointers() {
             const entries = Object.entries(this.pointer).filter(([id]) => id !== 'recent');
             if (entries.length <= MAX_POINTER_WINDOW) return;
@@ -43,21 +56,6 @@ export const useViewportEventStore = defineStore('viewportEvent', {
             for (let i = MAX_POINTER_WINDOW; i < entries.length; i++) {
                 delete this.pointer[entries[i][0]];
             }
-        },
-        setWheel(event) {
-            this.wheel = event;
-        },
-        setKeyDown(event) {
-            if (!event) return;
-            const key = event.key;
-            this.keyboard[key] = { down: event };
-            this.keyboard.recent = key;
-        },
-        setKeyUp(event) {
-            if (!event) return;
-            const key = event.key;
-            this.keyboard[key] = { ...(this.keyboard[key] || {}), up: event };
-            this.keyboard.recent = key;
         },
     },
 });
