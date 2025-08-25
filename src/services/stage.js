@@ -2,12 +2,12 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { useStore } from '../stores';
 import { useOverlayService } from './overlay';
-import { keyToCoord, getPixelUnion, pixelsToUnionPath, calcMarquee } from '../utils';
+import { keyToCoord, calcMarquee } from '../utils';
 import { CURSOR_CONFIG, SVG_NAMESPACE, CHECKERBOARD_CONFIG, MIN_SCALE_RATIO } from '@/constants';
 
 export const useStageService = defineStore('stageService', () => {
     // stores
-    const { stage: stageStore, tool: toolStore, layers } = useStore();
+    const { stage: stageStore, tool: toolStore } = useStore();
     const overlay = useOverlayService();
     // stage element reference
     const element = ref(null);
@@ -15,13 +15,6 @@ export const useStageService = defineStore('stageService', () => {
     function setElement(el) {
         element.value = el;
     }
-
-    // --- Overlay Paths ---
-    const selectOverlayPath = computed(() => {
-        if (!overlay.selectOverlayLayerIds.size) return '';
-        const pixelUnion = getPixelUnion(layers.getProperties([...overlay.selectOverlayLayerIds]));
-        return pixelsToUnionPath(pixelUnion);
-    });
 
     // --- Canvas Utilities ---
     function recalcMinScale(viewportEl) {
@@ -127,12 +120,14 @@ export const useStageService = defineStore('stageService', () => {
         const shape = toolStore.shape;
 
         if (tool === 'select') {
-            const isRemoving = toolStore.shiftHeld && layers.isSelected(overlay.hoverLayerId);
+            const mode = toolStore.pointer.status === 'idle'
+                ? overlay.helper.mode
+                : (toolStore.pointer.status === 'remove' ? 'remove' : 'add');
             if (shape === 'stroke') {
-                return isRemoving ? CURSOR_CONFIG.REMOVE_STROKE : CURSOR_CONFIG.ADD_STROKE;
+                return mode === 'remove' ? CURSOR_CONFIG.REMOVE_STROKE : CURSOR_CONFIG.ADD_STROKE;
             }
             if (shape === 'rect') {
-                return isRemoving ? CURSOR_CONFIG.REMOVE_RECT : CURSOR_CONFIG.ADD_RECT;
+                return mode === 'remove' ? CURSOR_CONFIG.REMOVE_RECT : CURSOR_CONFIG.ADD_RECT;
             }
         }
         if (tool === 'draw' && shape === 'stroke') return CURSOR_CONFIG.DRAW_STROKE;

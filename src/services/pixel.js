@@ -26,7 +26,9 @@ export const usePixelService = defineStore('pixelService', () => {
                 color: sourceProps.color,
                 visible: sourceProps.visible,
             }, sourceId);
-            overlay.add(cutLayerId);
+            overlay.helper.clear();
+            overlay.helper.add(cutLayerId);
+            overlay.helper.mode = 'add';
         }
 
         toolStore.pointer.status = toolStore.expected;
@@ -125,7 +127,8 @@ export const usePixelService = defineStore('pixelService', () => {
         toolStore.pointer.id = null;
         toolStore.pointer.start = null;
         toolStore.visited.clear();
-        overlay.clear();
+        overlay.helper.clear();
+        overlay.helper.mode = 'add';
         cutLayerId = null;
     }
 

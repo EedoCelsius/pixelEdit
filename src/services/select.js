@@ -11,6 +11,17 @@ export const useSelectService = defineStore('selectService', () => {
     const layerPanel = useLayerPanelService();
     const { tool: toolStore, layers, output } = useStore();
 
+    const addByMode = (id) => {
+        const mode = toolStore.pointer.status;
+        if (mode === 'remove') {
+            if (layers.isSelected(id)) overlay.helper.add(id);
+        } else if (mode === 'add') {
+            if (!layers.isSelected(id)) overlay.helper.add(id);
+        } else {
+            overlay.helper.add(id);
+        }
+    };
+
     function toolStart(event) {
         if (event.button !== 0) return;
         const coord = stage.clientToCoord(event);
@@ -27,22 +38,21 @@ export const useSelectService = defineStore('selectService', () => {
 
         toolStore.pointer.status = mode;
         toolStore.pointer.start = { x: event.clientX, y: event.clientY };
+        overlay.helper.mode = mode === 'remove' ? 'remove' : 'add';
 
         try {
             event.target.setPointerCapture?.(event.pointerId);
             toolStore.pointer.id = event.pointerId;
         } catch {}
 
+        overlay.helper.clear();
         if (toolStore.shape === 'rect') {
             // rectangle interactions tracked directly in components
         } else {
             toolStore.visited.clear();
             toolStore.visited.add(coordToKey(coord));
-
             const id = layers.topVisibleIdAt(coord);
-            if (id !== null) {
-                overlay.addByMode(id);
-            }
+            if (id !== null) addByMode(id);
         }
     }
 
@@ -56,7 +66,8 @@ export const useSelectService = defineStore('selectService', () => {
                 const id = layers.topVisibleIdAt(coord);
                 if (id !== null) intersectedIds.add(id);
             }
-            overlay.setFromIntersected(intersectedIds);
+            overlay.helper.clear();
+            intersectedIds.forEach(addByMode);
         } else {
             const coord = stage.clientToCoord(event);
             if (!coord) {
@@ -69,7 +80,7 @@ export const useSelectService = defineStore('selectService', () => {
             toolStore.visited.add(k);
             const id = layers.topVisibleIdAt(coord);
             if (id !== null) {
-                overlay.addByMode(id);
+                addByMode(id);
             }
         }
     }
@@ -135,10 +146,10 @@ export const useSelectService = defineStore('selectService', () => {
     function reset() {
         toolStore.pointer.status = 'idle';
         toolStore.pointer.id = null;
-        toolStore.pointer.start = null;
-        toolStore.visited.clear();
-        overlay.clearHover();
-        overlay.clear();
+       toolStore.pointer.start = null;
+       toolStore.visited.clear();
+        overlay.helper.clear();
+        overlay.helper.mode = 'add';
     }
 
     return { toolStart, toolMove, toolFinish, cancel };
