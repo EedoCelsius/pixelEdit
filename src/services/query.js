@@ -41,6 +41,32 @@ export const useQueryService = defineStore('queryService', () => {
         return order[idx - 1] ?? null;
     }
 
+    function byEmpty() {
+        return layers.order.filter(id => layers.getProperty(id, 'pixels').length === 0);
+    }
+
+    function byPixelCount(pixelCount) {
+        return layers.order.filter(
+            layerId => layers.getProperty(layerId, 'pixels').length === pixelCount
+        );
+    }
+
+    function byColor(color) {
+        return layers.order.filter(
+            layerId => layers.getProperty(layerId, 'color') === color
+        );
+    }
+
+    function byDisconnected() {
+        return layers.order.filter(layerId => layers.disconnectedCountOf(layerId) > 1);
+    }
+
+    function byDisconnectedCount(disconnectedCount) {
+        return layers.order.filter(
+            layerId => layers.disconnectedCountOf(layerId) === disconnectedCount
+        );
+    }
+
     return {
         uppermostId,
         lowermostId,
@@ -48,6 +74,11 @@ export const useQueryService = defineStore('queryService', () => {
         lowermostIdOf,
         aboveId,
         belowId,
+        byEmpty,
+        byPixelCount,
+        byColor,
+        byDisconnected,
+        byDisconnectedCount,
     };
 });
 

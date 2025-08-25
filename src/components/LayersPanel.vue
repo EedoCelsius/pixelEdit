@@ -61,8 +61,14 @@ const icons = reactive(blockIcons);
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
 
+
   function onThumbnailClick(id) {
-      layerSvc.selectByColor(id);
+      const color = layers.getProperty(id, 'color');
+      const ids = query.byColor(color);
+      if (ids.length) {
+          layers.replaceSelection(ids);
+          layerPanel.clearRange();
+      }
       layerPanel.setScrollRule({
           type: "follow",
           target: id
@@ -70,7 +76,14 @@ const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern
   }
 
   function onPixelCountClick(id) {
-      layerSvc.selectByPixelCount(id);
+      const count = layers.getProperty(id, 'pixels').length;
+      const ids = count === 0 ? [id] : query.byPixelCount(count);
+      if (ids.length <= 1) {
+          layerPanel.setRange(id, id);
+      } else {
+          layers.replaceSelection(ids);
+          layerPanel.clearRange();
+      }
       layerPanel.setScrollRule({
           type: "follow",
           target: id
@@ -78,7 +91,11 @@ const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern
   }
 
   function onDisconnectedClick(id) {
-      layerSvc.selectDisconnectedLayers(id);
+      const ids = query.byDisconnected();
+      if (ids.length) {
+          layers.replaceSelection(ids);
+          layerPanel.clearRange();
+      }
       layerPanel.setScrollRule({
           type: "follow",
           target: id
@@ -86,7 +103,14 @@ const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern
   }
 
   function onDisconnectedCountClick(id) {
-      layerSvc.selectByDisconnectedCount(id);
+      const count = layers.disconnectedCountOf(id);
+      const ids = count <= 1 ? [id] : query.byDisconnectedCount(count);
+      if (ids.length <= 1) {
+          layerPanel.setRange(id, id);
+      } else {
+          layers.replaceSelection(ids);
+          layerPanel.clearRange();
+      }
       layerPanel.setScrollRule({
           type: "follow",
           target: id
