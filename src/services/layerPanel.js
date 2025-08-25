@@ -21,16 +21,18 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         try {
             fn();
         } finally {
-            setTimeout(() => {
-                internal = false;
-            });
+            internal = false;
         }
     }
 
-    watch(() => layers.selectedIds, () => {
-        if (internal) return;
-        clearRange();
-    });
+    watch(
+        () => layers.selectedIds,
+        () => {
+            if (internal) return;
+            clearRange();
+        },
+        { flush: 'sync' }
+    );
 
     function setRange(anchorId = null, tailId = null) {
         markInternal(() => {
