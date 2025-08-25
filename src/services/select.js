@@ -3,17 +3,16 @@ import { useStageService } from './stage';
 import { useOverlayService } from './overlay';
 import { useLayerPanelService } from './layerPanel';
 import { useStore } from '../stores';
-import { useToolService } from './tool';
-import { coordToKey } from '../utils';
+import { useStageToolService } from './stageTool';
 
 export const useSelectService = defineStore('selectService', () => {
     const stage = useStageService();
     const overlay = useOverlayService();
     const layerPanel = useLayerPanelService();
-    const { layers, output, stageEvent: stageEvents } = useStore();
+    const { layers, stageEvent: stageEvents } = useStore();
 
     const addByMode = (id) => {
-        const tool = useToolService();
+        const tool = useStageToolService();
         const mode = tool.pointer.status;
         if (mode === 'remove') {
             if (layers.isSelected(id)) overlay.helper.add(id);
@@ -24,42 +23,18 @@ export const useSelectService = defineStore('selectService', () => {
         }
     };
 
-    function start(event) {
-        const tool = useToolService();
-        if (event.button !== 0) return;
-        const coord = stage.clientToCoord(event);
-        if (!coord) return;
-
-        const startId = layers.topVisibleIdAt(coord);
-        const mode = !event.shiftKey
-            ? 'select'
-            : layers.isSelected(startId)
-                ? 'remove'
-                : 'add';
-
-        output.setRollbackPoint();
-
-        tool.pointer.status = mode;
-        overlay.helper.mode = mode === 'remove' ? 'remove' : 'add';
-
-        try {
-            event.target.setPointerCapture?.(event.pointerId);
-            tool.pointer.id = event.pointerId;
-        } catch {}
-
+    function start(coord, startId) {
+        const tool = useStageToolService();
         overlay.helper.clear();
         if (tool.shape === 'rect') {
             // rectangle interactions tracked directly in components
         } else {
-            tool.visited.clear();
-            tool.visited.add(coordToKey(coord));
-            const id = layers.topVisibleIdAt(coord);
-            if (id !== null) addByMode(id);
+            if (startId !== null) addByMode(startId);
         }
     }
 
     function move(event) {
-        const tool = useToolService();
+        const tool = useStageToolService();
         if (tool.pointer.status === 'idle') return;
 
         if (tool.shape === 'rect') {
@@ -76,11 +51,6 @@ export const useSelectService = defineStore('selectService', () => {
             if (!coord) {
                 return;
             }
-            const k = coordToKey(coord);
-            if (tool.visited.has(k)) {
-                return;
-            }
-            tool.visited.add(k);
             const id = layers.topVisibleIdAt(coord);
             if (id !== null) {
                 addByMode(id);
@@ -89,7 +59,7 @@ export const useSelectService = defineStore('selectService', () => {
     }
 
     function finish(event) {
-        const tool = useToolService();
+        const tool = useStageToolService();
         if (tool.pointer.status === 'idle') return;
 
         const mode = tool.pointer.status;
@@ -132,30 +102,9 @@ export const useSelectService = defineStore('selectService', () => {
                 layers.clearSelection();
             }
         }
-
-        try {
-            event.target?.releasePointerCapture?.(tool.pointer.id);
-        } catch {}
-
-        output.commit();
-        reset();
     }
 
-    function cancel() {
-        const tool = useToolService();
-        if (tool.pointer.status === 'idle') return;
-        output.rollbackPending();
-        reset();
-    }
-
-    function reset() {
-        const tool = useToolService();
-        tool.pointer.status = 'idle';
-        tool.pointer.id = null;
-        tool.visited.clear();
-        overlay.helper.clear();
-        overlay.helper.mode = 'add';
-    }
+    function cancel() {}
 
     const tools = { select: { start, move, finish } };
 

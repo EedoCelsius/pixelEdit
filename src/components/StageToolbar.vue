@@ -6,14 +6,14 @@
 
       <!-- Shape toggle -->
       <div class="inline-flex rounded-md overflow-hidden border border-white/15">
-        <button @click="toolService.setShape('stroke')"
+        <button @click="stageToolService.setShape('stroke')"
                 :title="'Stroke'"
-                :class="`p-1 ${toolService.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+                :class="`p-1 ${stageToolService.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
           <img :src="stageIcons.stroke" alt="Stroke" class="w-4 h-4">
         </button>
-        <button @click="toolService.setShape('rect')"
+        <button @click="stageToolService.setShape('rect')"
                 :title="'Rect'"
-                :class="`p-1 ${toolService.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+                :class="`p-1 ${stageToolService.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
           <img :src="stageIcons.rect" alt="Rect" class="w-4 h-4">
         </button>
       </div>
@@ -21,9 +21,9 @@
       <!-- Tool Toggles -->
       <div class="inline-flex rounded-md overflow-hidden border border-white/15">
         <button v-for="tool in selectables" :key="tool.type"
-                @click="toolService.setPrepared(tool.type)"
+                @click="stageToolService.setPrepared(tool.type)"
                 :title="tool.name"
-                :class="`p-1 ${toolService.active === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+                :class="`p-1 ${stageToolService.active === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
           <img :src="tool.icon" :alt="tool.name" class="w-4 h-4">
         </button>
       </div>
@@ -47,13 +47,13 @@ import { CTRL_TAP_THRESHOLD_MS, SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS } 
 import stageIcons from '../image/stage_toolbar';
 
 const { stage: stageStore, layers, output, stageEvent: stageEvents } = useStore();
-const { tool: toolService } = useService();
+const { stageTool: stageToolService } = useService();
 
 const selectables = ref(SINGLE_SELECTION_TOOLS);
 watch(() => layers.selectionCount, (size) => {
   selectables.value = size === 1 ? SINGLE_SELECTION_TOOLS : MULTI_SELECTION_TOOLS;
-  if (!selectables.value.some(tool => tool.type === toolService.prepared)) {
-    toolService.setPrepared(size === 1 ? 'draw' : 'select');
+  if (!selectables.value.some(tool => tool.type === stageToolService.prepared)) {
+    stageToolService.setPrepared(size === 1 ? 'draw' : 'select');
   }
 }, { immediate: true });
 
@@ -70,11 +70,11 @@ function ctrlKeyDown() {
 }
 function ctrlKeyUp() {
   if (performance.now() - ctrlKeyDownTimestamp < CTRL_TAP_THRESHOLD_MS) {
-    const t = toolService.prepared;
+    const t = stageToolService.prepared;
     if (t === 'draw' || t === 'erase') {
-      toolService.setPrepared(t === 'draw' ? 'erase' : 'draw');
+      stageToolService.setPrepared(t === 'draw' ? 'erase' : 'draw');
     } else if (t === 'select' || t === 'globalErase') {
-      toolService.setPrepared(t === 'select' ? 'globalErase' : 'select');
+      stageToolService.setPrepared(t === 'select' ? 'globalErase' : 'select');
     }
   }
   stageEvents.setCtrlHeld(false);

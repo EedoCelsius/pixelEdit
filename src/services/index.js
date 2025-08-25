@@ -5,7 +5,7 @@ import { usePixelService } from './pixel';
 import { useQueryService } from './query';
 import { useSelectService } from './select';
 import { useStageService } from './stage';
-import { useToolService } from './tool';
+import { useStageToolService } from './stageTool';
 import { useViewportService } from './viewport';
 
 export {
@@ -16,7 +16,7 @@ export {
     useQueryService,
     useSelectService,
     useStageService,
-    useToolService,
+    useStageToolService,
     useViewportService
 };
 
@@ -28,6 +28,6 @@ export const useService = () => ({
     query: useQueryService(),
     select: useSelectService(),
     stage: useStageService(),
-    tool: useToolService(),
+    stageTool: useStageToolService(),
     viewport: useViewportService()
 });

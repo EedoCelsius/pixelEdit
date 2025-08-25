@@ -6,11 +6,11 @@ import { useSelectService } from './select';
 import { usePixelService } from './pixel';
 import { useStageService } from './stage';
 import { useViewportService } from './viewport';
-import { calcMarquee, keyToCoord, rgbaCssU32, rgbaCssObj } from '../utils';
+import { calcMarquee, rgbaCssU32, rgbaCssObj } from '../utils';
 import { CURSOR_CONFIG } from '@/constants';
 
-export const useToolService = defineStore('toolService', () => {
-    const { stage: stageStore, layers, input, stageEvent: stageEvents } = useStore();
+export const useStageToolService = defineStore('stageToolService', () => {
+    const { stage: stageStore, layers, input, stageEvent: stageEvents, output } = useStore();
     const overlay = useOverlayService();
     const selectSvc = useSelectService();
     const pixelSvc = usePixelService();
@@ -20,7 +20,6 @@ export const useToolService = defineStore('toolService', () => {
     const prepared = ref('draw');
     const shape = ref('stroke');
     const pointer = reactive({ status: 'idle', id: null });
-    const visited = reactive(new Set());
     const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
 
     const active = computed(() => {
@@ -104,7 +103,8 @@ export const useToolService = defineStore('toolService', () => {
                     for (let xx = x; xx < x + w; xx++) pixels.push([xx, yy]);
             }
         } else {
-            visited.forEach(key => pixels.push(keyToCoord(key)));
+            const coord = stageSvc.clientToCoord(event);
+            if (coord) pixels.push(coord);
         }
         return pixels;
     }
@@ -136,10 +136,31 @@ export const useToolService = defineStore('toolService', () => {
     });
 
     watch(() => stageEvents.lastPointerDown, (e) => {
-        if (!e || e.pointerType === 'touch') return;
+        if (!e || e.pointerType === 'touch' || e.button !== 0) return;
+        const coord = stageSvc.clientToCoord(e);
+        if (!coord) return;
+
+        output.setRollbackPoint();
+        try {
+            e.target.setPointerCapture?.(e.pointerId);
+            pointer.id = e.pointerId;
+        } catch {}
+
+        if (isSelect.value) {
+            const startId = layers.topVisibleIdAt(coord);
+            const mode = !e.shiftKey
+                ? 'select'
+                : layers.isSelected(startId)
+                    ? 'remove'
+                    : 'add';
+            pointer.status = mode;
+            overlay.helper.mode = mode === 'remove' ? 'remove' : 'add';
+            selectSvc.tools.select.start(coord, startId);
+        } else {
+            pointer.status = active.value;
+            pixelSvc.tools[active.value].start(e);
+        }
         updateMarquee(e);
-        if (isSelect.value) selectSvc.tools.select.start(e);
-        else pixelSvc.tools[active.value].start(e);
     });
 
     watch(() => stageEvents.pointer.move, (e) => {
@@ -154,12 +175,19 @@ export const useToolService = defineStore('toolService', () => {
         if (!e || e.pointerType === 'touch') return;
         updateMarquee(e);
         if (e.type === 'pointercancel') {
-            if (isSelect.value) selectSvc.cancel(e);
-            else pixelSvc.cancel(e);
+            if (isSelect.value) selectSvc.cancel();
+            else pixelSvc.cancel();
+            output.rollbackPending();
         } else {
             if (isSelect.value) selectSvc.tools.select.finish(e);
             else pixelSvc.tools[active.value].finish(e);
+            output.commit();
         }
+        try { e.target?.releasePointerCapture?.(pointer.id); } catch {}
+        pointer.status = 'idle';
+        pointer.id = null;
+        overlay.helper.clear();
+        overlay.helper.mode = 'add';
     });
 
     watch(() => stageEvents.wheel, (e) => {
@@ -171,7 +199,6 @@ export const useToolService = defineStore('toolService', () => {
         prepared,
         shape,
         pointer,
-        visited,
         marquee,
         active,
         isDraw,
