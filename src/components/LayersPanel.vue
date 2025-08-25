@@ -187,9 +187,9 @@ function toggleLock(id) {
 function deleteLayer(id) {
     output.setRollbackPoint();
     const targets = layers.isSelected(id) ? layers.selectedIds : [id];
-    const belowId = query.belowId(query.lowermostIdOf(targets));
+    const belowId = query.below(query.lowermost(targets));
     layers.deleteLayers(targets);
-    const newSelectId = layers.has(belowId) ? belowId : query.lowermostId;
+    const newSelectId = layers.has(belowId) ? belowId : query.lowermost();
     layerPanel.setRange(newSelectId, newSelectId);
     if (newSelectId) {
         layerPanel.setScrollRule({

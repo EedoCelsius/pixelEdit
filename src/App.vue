@@ -100,9 +100,9 @@ function onKeydown(event) {
       event.preventDefault();
       if (!layers.selectionExists) return;
       output.setRollbackPoint();
-      const belowId = query.belowId(query.lowermostIdOf(layers.selectedIds));
+      const belowId = query.below(query.lowermost(layers.selectedIds));
       layerSvc.deleteSelected();
-      const newSelect = layers.has(belowId) ? belowId : query.lowermostId;
+      const newSelect = layers.has(belowId) ? belowId : query.lowermost();
       layerPanel.setRange(newSelect, newSelect);
       layerPanel.setScrollRule({ type: "follow", target: newSelect });
       output.commit();
