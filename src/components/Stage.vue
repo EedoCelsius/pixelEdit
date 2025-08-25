@@ -86,21 +86,22 @@ const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
 const offset = viewport.offset;
 
     const updateHover = (event) => {
-        const pixel = stageService.clientToPixel(event);
-        if (!pixel) {
+        const coord = stageService.clientToCoord(event);
+        if (!coord) {
             stageStore.updatePixelInfo('-');
             overlay.clearHover();
             return;
         }
+        const [px, py] = coord;
         if (stageStore.display === 'original' && input.isLoaded) {
-            const colorObject = input.readPixel(pixel.x, pixel.y);
-            stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssObj(colorObject)}`);
+            const colorObject = input.readPixel(coord);
+            stageStore.updatePixelInfo(`[${px},${py}] ${rgbaCssObj(colorObject)}`);
         } else {
-            const colorU32 = layers.compositeColorAt(pixel.x, pixel.y);
-            stageStore.updatePixelInfo(`[${pixel.x},${pixel.y}] ${rgbaCssU32(colorU32)}`);
+            const colorU32 = layers.compositeColorAt(coord);
+            stageStore.updatePixelInfo(`[${px},${py}] ${rgbaCssU32(colorU32)}`);
         }
         if (toolStore.isSelect) {
-            overlay.setHover(layers.topVisibleIdAt(pixel.x, pixel.y));
+            overlay.setHover(layers.topVisibleIdAt(coord));
         } else {
             overlay.clearHover();
         }

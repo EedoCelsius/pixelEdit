@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, reactive, ref } from 'vue';
 import { useStore } from '../stores';
-import { pixelsToUnionPath, getPixelUnionSet } from '../utils';
+import { pixelsToUnionPath, getPixelUnion } from '../utils';
 
 export const useOverlayService = defineStore('overlayService', () => {
     const { tool: toolStore, layers } = useStore();
@@ -11,8 +11,8 @@ export const useOverlayService = defineStore('overlayService', () => {
 
     const selectOverlayPath = computed(() => {
         if (!selectOverlayLayerIds.size) return '';
-        const pixelUnionSet = getPixelUnionSet(layers.getProperties([...selectOverlayLayerIds]));
-        return pixelsToUnionPath(pixelUnionSet);
+        const pixelUnion = getPixelUnion(layers.getProperties([...selectOverlayLayerIds]));
+        return pixelsToUnionPath(pixelUnion);
     });
 
     const hoverOverlayPath = computed(() => {

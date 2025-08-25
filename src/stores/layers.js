@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { readonly, reactive } from 'vue';
-import { coordsToKey, keyToCoords, pixelsToUnionPath, randColorU32, groupConnectedPixels } from '../utils';
+import { coordToKey, keyToCoord, pixelsToUnionPath, randColorU32, groupConnectedPixels } from '../utils';
 
 export const useLayerStore = defineStore('layers', {
     state: () => ({
@@ -20,8 +20,8 @@ export const useLayerStore = defineStore('layers', {
         idsBottomToTop: (state) => readonly(state._order),
         idsTopToBottom: (state) => readonly([...state._order].reverse()),
         indexOfLayer: (state) => (id) => state._order.indexOf(id),
-        pathOf: (state) => (id) => pixelsToUnionPath(state._pixels[id]),
-        disconnectedCountOf: (state) => (id) => groupConnectedPixels(state._pixels[id]).length,
+        pathOf: (state) => (id) => pixelsToUnionPath([...state._pixels[id]].map(keyToCoord)),
+        disconnectedCountOf: (state) => (id) => groupConnectedPixels([...state._pixels[id]].map(keyToCoord)).length,
         getProperty: (state) => (id, prop) => {
             switch (prop) {
                 case 'name':
@@ -33,7 +33,7 @@ export const useLayerStore = defineStore('layers', {
                 case 'locked':
                     return !!state._locked[id];
                 case 'pixels':
-                    return [...state._pixels[id]].map(keyToCoords);
+                    return [...state._pixels[id]].map(keyToCoord);
                 default:
                     return undefined;
             }
@@ -45,7 +45,7 @@ export const useLayerStore = defineStore('layers', {
                 color: (state._color[id] >>> 0),
                 visible: !!state._visible[id],
                 locked: !!state._locked[id],
-                pixels: [...state._pixels[id]].map(keyToCoords)
+                pixels: [...state._pixels[id]].map(keyToCoord)
             });
             return (ids = []) => {
                 if (Array.isArray(ids)) return ids.map(propsOf);
@@ -56,8 +56,8 @@ export const useLayerStore = defineStore('layers', {
         selectionCount: (state) => state._selection.size,
         selectionExists: (state) => state._selection.size > 0,
         isSelected: (state) => (id) => state._selection.has(id),
-        compositeColorAt: (state) => (x, y) => {
-            const key = coordsToKey(x, y);
+        compositeColorAt: (state) => (coord) => {
+            const key = coordToKey(coord);
             for (let i = state._order.length - 1; i >= 0; i--) {
                 const id = state._order[i];
                 if (!state._visible[id]) continue;
@@ -66,8 +66,8 @@ export const useLayerStore = defineStore('layers', {
             }
             return 0x00000000 >>> 0;
         },
-        topVisibleIdAt: (state) => (x, y) => {
-            const key = coordsToKey(x, y);
+        topVisibleIdAt: (state) => (coord) => {
+            const key = coordToKey(coord);
             for (let i = state._order.length - 1; i >= 0; i--) {
                 const id = state._order[i];
                 if (!state._visible[id]) continue;
@@ -90,7 +90,7 @@ export const useLayerStore = defineStore('layers', {
             this._visible[id] = layerProperties.visible ?? true;
             this._locked[id] = layerProperties.locked ?? false;
             this._color[id] = (layerProperties.color ?? randColorU32()) >>> 0;
-            const keyedPixels = layerProperties.pixels ? layerProperties.pixels.map(p => coordsToKey(p[0], p[1])) : [];
+            const keyedPixels = layerProperties.pixels ? layerProperties.pixels.map(coordToKey) : [];
             this._pixels[id] = reactive(new Set(keyedPixels));
             if (above === null) {
                 this._order.push(id);
@@ -108,7 +108,7 @@ export const useLayerStore = defineStore('layers', {
             if (props.visible !== undefined) this._visible[id] = !!props.visible;
             if (props.locked !== undefined) this._locked[id] = !!props.locked;
             if (props.pixels !== undefined) {
-                const keyedPixels = props.pixels.map(p => coordsToKey(p[0], p[1]));
+                const keyedPixels = props.pixels.map(coordToKey);
                 this._pixels[id] = reactive(new Set(keyedPixels));
             }
         },
@@ -122,15 +122,15 @@ export const useLayerStore = defineStore('layers', {
         },
         addPixels(id, pixels) {
             const set = this._pixels[id];
-            for (const [x, y] of pixels) set.add(coordsToKey(x, y));
+            for (const coord of pixels) set.add(coordToKey(coord));
         },
         removePixels(id, pixels) {
             const set = this._pixels[id];
-            for (const [x, y] of pixels) set.delete(coordsToKey(x, y));
+            for (const coord of pixels) set.delete(coordToKey(coord));
         },
-        togglePixel(id, x, y) {
+        togglePixel(id, coord) {
             const set = this._pixels[id];
-            const key = coordsToKey(x, y);
+            const key = coordToKey(coord);
             if (set.has(key)) set.delete(key);
             else set.add(key);
         },
@@ -192,7 +192,7 @@ export const useLayerStore = defineStore('layers', {
                     visible: !!this._visible[id],
                     locked: !!this._locked[id],
                     color: (this._color[id] >>> 0),
-                    pixels: [...this._pixels[id]].map(key => keyToCoords(key))
+                    pixels: [...this._pixels[id]].map(key => keyToCoord(key))
                 }])),
                 selection: [...this._selection]
             };
@@ -216,7 +216,7 @@ export const useLayerStore = defineStore('layers', {
                 this._visible[id] = !!info.visible;
                 this._locked[id] = !!info.locked;
                 this._color[id] = (info.color ?? randColorU32()) >>> 0;
-                const keyedPixels = info.pixels ? info.pixels.map(p => coordsToKey(p[0], p[1])) : [];
+                const keyedPixels = info.pixels ? info.pixels.map(coordToKey) : [];
                 this._pixels[id] = reactive(new Set(keyedPixels));
                 this._order.push(id);
             }

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { useStore } from '../stores';
 import { useLayerPanelService } from './layerPanel';
 import { useQueryService } from './query';
-import { keyToCoords, buildOutline, findPixelComponents, getPixelUnionSet, averageColorU32 } from '../utils';
+import { buildOutline, findPixelComponents, getPixelUnion, averageColorU32 } from '../utils';
 
 export const useLayerService = defineStore('layerService', () => {
     const { layers } = useStore();
@@ -40,13 +40,12 @@ export const useLayerService = defineStore('layerService', () => {
 
     function mergeSelected() {
         if (layers.selectionCount < 2) return;
-        const pixelUnionSet = getPixelUnionSet(layers.getProperties(layers.selectedIds));
+        const pixelUnion = getPixelUnion(layers.getProperties(layers.selectedIds));
 
         const colors = [];
-        if (pixelUnionSet.size) {
-            for (const pixelKey of pixelUnionSet) {
-                const [x, y] = keyToCoords(pixelKey);
-                colors.push(layers.compositeColorAt(x, y));
+        if (pixelUnion.length) {
+            for (const coord of pixelUnion) {
+                colors.push(layers.compositeColorAt(coord));
             }
         } else {
             for (const id of layers.selectedIds) {
@@ -57,7 +56,7 @@ export const useLayerService = defineStore('layerService', () => {
 
         const anchorName = layers.getProperty(layerPanel.anchorId, 'name') || 'Merged';
         const newLayerId = layers.createLayer({ name: `Merged ${anchorName}`, color: colorU32 });
-        const newPixels = [...pixelUnionSet].map(keyToCoords);
+        const newPixels = pixelUnion;
         if (newPixels.length) layers.addPixels(newLayerId, newPixels);
         layers.reorderLayers([newLayerId], query.lowermost(layers.selectedIds), true);
         deleteSelected();
@@ -83,8 +82,8 @@ export const useLayerService = defineStore('layerService', () => {
 
     function selectionPath() {
         if (!layers.selectionCount) return '';
-        const pixelUnionSet = getPixelUnionSet(layers.getProperties(layers.selectedIds));
-        const groups = buildOutline(pixelUnionSet);
+        const pixelUnion = getPixelUnion(layers.getProperties(layers.selectedIds));
+        const groups = buildOutline(pixelUnion);
         const pathData = [];
         for (const group of groups)
             for (const [[x0, y0], [x1, y1]] of group)
