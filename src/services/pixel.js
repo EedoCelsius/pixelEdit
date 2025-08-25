@@ -14,7 +14,8 @@ export const usePixelService = defineStore('pixelService', () => {
     function startDraw() {
         const tool = useStageToolService();
         if (tool.shape !== 'rect') {
-            const event = viewportEvents.pointer[tool.pointer.id]?.down;
+            if (!viewportEvents.isDragging(tool.pointer.id)) return;
+            const event = viewportEvents.getEvent('pointerdown', tool.pointer.id);
             if (!event) return;
             const pixels = tool.getPixelsFromInteraction('down');
             addPixelsToSelection(pixels);
@@ -23,9 +24,8 @@ export const usePixelService = defineStore('pixelService', () => {
 
     function moveDraw() {
         const tool = useStageToolService();
-        if (tool.pointer.status !== 'draw' || tool.shape === 'rect') return;
-        const event = viewportEvents.pointer[tool.pointer.id]?.move;
-        if (!event) return;
+        if (tool.pointer.status !== 'draw' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
+        const event = viewportEvents.getEvent('pointermove', tool.pointer.id);
         const coord = stage.clientToCoord(event);
         if (!coord) return;
         addPixelsToSelection([coord]);
@@ -35,7 +35,7 @@ export const usePixelService = defineStore('pixelService', () => {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'draw') return;
         if (tool.shape === 'rect') {
-            const event = viewportEvents.pointer[tool.pointer.id]?.up;
+            const event = viewportEvents.getEvent('pointerup', tool.pointer.id);
             if (!event) return;
             const pixels = tool.getPixelsFromInteraction('up');
             if (pixels.length > 0) addPixelsToSelection(pixels);
@@ -45,7 +45,8 @@ export const usePixelService = defineStore('pixelService', () => {
     function startErase() {
         const tool = useStageToolService();
         if (tool.shape !== 'rect') {
-            const event = viewportEvents.pointer[tool.pointer.id]?.down;
+            if (!viewportEvents.isDragging(tool.pointer.id)) return;
+            const event = viewportEvents.getEvent('pointerdown', tool.pointer.id);
             if (!event) return;
             const pixels = tool.getPixelsFromInteraction('down');
             removePixelsFromSelection(pixels);
@@ -54,9 +55,8 @@ export const usePixelService = defineStore('pixelService', () => {
 
     function moveErase() {
         const tool = useStageToolService();
-        if (tool.pointer.status !== 'erase' || tool.shape === 'rect') return;
-        const event = viewportEvents.pointer[tool.pointer.id]?.move;
-        if (!event) return;
+        if (tool.pointer.status !== 'erase' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
+        const event = viewportEvents.getEvent('pointermove', tool.pointer.id);
         const coord = stage.clientToCoord(event);
         if (!coord) return;
         removePixelsFromSelection([coord]);
@@ -66,7 +66,7 @@ export const usePixelService = defineStore('pixelService', () => {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'erase') return;
         if (tool.shape === 'rect') {
-            const event = viewportEvents.pointer[tool.pointer.id]?.up;
+            const event = viewportEvents.getEvent('pointerup', tool.pointer.id);
             if (!event) return;
             const pixels = tool.getPixelsFromInteraction('up');
             if (pixels.length > 0) removePixelsFromSelection(pixels);
@@ -76,7 +76,8 @@ export const usePixelService = defineStore('pixelService', () => {
     function startGlobalErase() {
         const tool = useStageToolService();
         if (tool.shape !== 'rect') {
-            const event = viewportEvents.pointer[tool.pointer.id]?.down;
+            if (!viewportEvents.isDragging(tool.pointer.id)) return;
+            const event = viewportEvents.getEvent('pointerdown', tool.pointer.id);
             if (!event) return;
             const pixels = tool.getPixelsFromInteraction('down');
             if (layers.selectionExists) removePixelsFromSelected(pixels);
@@ -86,9 +87,8 @@ export const usePixelService = defineStore('pixelService', () => {
 
     function moveGlobalErase() {
         const tool = useStageToolService();
-        if (tool.pointer.status !== 'globalErase' || tool.shape === 'rect') return;
-        const event = viewportEvents.pointer[tool.pointer.id]?.move;
-        if (!event) return;
+        if (tool.pointer.status !== 'globalErase' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
+        const event = viewportEvents.getEvent('pointermove', tool.pointer.id);
         const coord = stage.clientToCoord(event);
         if (!coord) return;
         if (layers.selectionExists) removePixelsFromSelected([coord]);
@@ -99,7 +99,7 @@ export const usePixelService = defineStore('pixelService', () => {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'globalErase') return;
         if (tool.shape === 'rect') {
-            const event = viewportEvents.pointer[tool.pointer.id]?.up;
+            const event = viewportEvents.getEvent('pointerup', tool.pointer.id);
             if (!event) return;
             const pixels = tool.getPixelsFromInteraction('up');
             if (pixels.length > 0) {
@@ -124,7 +124,8 @@ export const usePixelService = defineStore('pixelService', () => {
         overlay.helper.mode = 'add';
 
         if (tool.shape !== 'rect') {
-            const event = viewportEvents.pointer[tool.pointer.id]?.down;
+            if (!viewportEvents.isDragging(tool.pointer.id)) return;
+            const event = viewportEvents.getEvent('pointerdown', tool.pointer.id);
             if (!event) return;
             const pixels = tool.getPixelsFromInteraction('down');
             cutPixelsFromSelection(pixels);
@@ -133,9 +134,8 @@ export const usePixelService = defineStore('pixelService', () => {
 
     function moveCut() {
         const tool = useStageToolService();
-        if (tool.pointer.status !== 'cut' || tool.shape === 'rect') return;
-        const event = viewportEvents.pointer[tool.pointer.id]?.move;
-        if (!event) return;
+        if (tool.pointer.status !== 'cut' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
+        const event = viewportEvents.getEvent('pointermove', tool.pointer.id);
         const coord = stage.clientToCoord(event);
         if (!coord) return;
         cutPixelsFromSelection([coord]);
@@ -145,7 +145,7 @@ export const usePixelService = defineStore('pixelService', () => {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'cut') return;
         if (tool.shape === 'rect') {
-            const event = viewportEvents.pointer[tool.pointer.id]?.up;
+            const event = viewportEvents.getEvent('pointerup', tool.pointer.id);
             if (!event) return;
             const pixels = tool.getPixelsFromInteraction('up');
             if (pixels.length > 0) cutPixelsFromSelection(pixels);

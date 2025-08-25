@@ -22,11 +22,6 @@ export const useStageToolService = defineStore('stageToolService', () => {
     const pointer = reactive({ status: 'idle', id: null });
     const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
 
-    const isKeyDown = (key) => {
-        const entry = viewportEvents.keyboard[key];
-        return !!entry && (!entry.up || entry.down?.timeStamp > entry.up.timeStamp);
-    };
-
     const active = computed(() => {
         if (pointer.status !== 'idle') {
             const status = pointer.status;
@@ -35,9 +30,9 @@ export const useStageToolService = defineStore('stageToolService', () => {
                 : status;
         }
         let tool = prepared.value;
-        if (isKeyDown('Shift')) {
+        if (viewportEvents.isPressed('Shift')) {
             tool = 'select';
-        } else if (isKeyDown('Control') || isKeyDown('Meta')) {
+        } else if (viewportEvents.isPressed('Control') || viewportEvents.isPressed('Meta')) {
             if (tool === 'draw') tool = 'erase';
             else if (tool === 'erase') tool = 'draw';
             else if (tool === 'select') tool = 'globalErase';
@@ -81,7 +76,7 @@ export const useStageToolService = defineStore('stageToolService', () => {
             const id = layers.topVisibleIdAt(coord);
             overlay.helper.clear();
             overlay.helper.add(id);
-            overlay.helper.mode = (id != null && isKeyDown('Shift') && layers.isSelected(id)) ? 'remove' : 'add';
+            overlay.helper.mode = (id != null && viewportEvents.isPressed('Shift') && layers.isSelected(id)) ? 'remove' : 'add';
         } else {
             overlay.helper.clear();
             overlay.helper.mode = 'add';
@@ -89,21 +84,21 @@ export const useStageToolService = defineStore('stageToolService', () => {
     };
 
     const updateMarquee = (e) => {
-        const startEvent = viewportEvents.pointer[pointer.id]?.down;
-        if (shape.value !== 'rect' || pointer.status === 'idle' || !startEvent || !e) {
+        if (shape.value !== 'rect' || pointer.status === 'idle' || !viewportEvents.isDragging(pointer.id) || !e) {
             Object.assign(marquee, { visible: false, x: 0, y: 0, w: 0, h: 0 });
             return;
         }
+        const startEvent = viewportEvents.getEvent('pointerdown', pointer.id);
         const start = { x: startEvent.clientX, y: startEvent.clientY };
         Object.assign(marquee, calcMarquee(start, { x: e.clientX, y: e.clientY }, stageStore.canvas));
     };
 
     function getPixelsFromInteraction(type) {
-        const event = viewportEvents.pointer[pointer.id]?.[type];
+        const event = viewportEvents.getEvent('pointer' + type, pointer.id);
         const pixels = [];
         if (!event) return pixels;
         if (shape.value === 'rect') {
-            const startEvent = viewportEvents.pointer[pointer.id]?.down;
+            const startEvent = viewportEvents.getEvent('pointerdown', pointer.id);
             const start = startEvent ? { x: startEvent.clientX, y: startEvent.clientY } : null;
             const { visible, x, y, w, h } = start ? calcMarquee(start, { x: event.clientX, y: event.clientY }, stageStore.canvas) : { visible: false, x:0, y:0, w:0, h:0 };
             if (!visible || w === 0 || h === 0) {
@@ -146,38 +141,41 @@ export const useStageToolService = defineStore('stageToolService', () => {
         return 'default';
     });
 
-    watch(() => {
-        const id = viewportEvents.pointer.recent;
-        return id != null ? viewportEvents.pointer[id]?.down : null;
-    }, (e) => {
-        if (!e || e.pointerType === 'touch' || e.button !== 0) return;
-        const coord = stageSvc.clientToCoord(e);
-        if (!coord) return;
+    watch(
+        () => viewportEvents.recent.pointer.down,
+        (events) => {
+            for (const e of events) {
+                if (!e || e.pointerType === 'touch' || e.button !== 0) continue;
+                const coord = stageSvc.clientToCoord(e);
+                if (!coord) continue;
 
-        output.setRollbackPoint();
-        try {
-            e.target.setPointerCapture?.(e.pointerId);
-            pointer.id = e.pointerId;
-        } catch {}
+                output.setRollbackPoint();
+                try {
+                    e.target.setPointerCapture?.(e.pointerId);
+                    pointer.id = e.pointerId;
+                } catch {}
 
-        if (isSelect.value) {
-            const startId = layers.topVisibleIdAt(coord);
-            const mode = !isKeyDown('Shift')
-                ? 'select'
-                : layers.isSelected(startId)
-                    ? 'remove'
-                    : 'add';
-            pointer.status = mode;
-            overlay.helper.mode = mode === 'remove' ? 'remove' : 'add';
-            selectSvc.tools.select.start(coord, startId);
-        } else {
-            pointer.status = active.value;
-            pixelSvc.tools[active.value].start();
-        }
-        updateMarquee(e);
-    });
+                if (isSelect.value) {
+                    const startId = layers.topVisibleIdAt(coord);
+                    const mode = !viewportEvents.isPressed('Shift')
+                        ? 'select'
+                        : layers.isSelected(startId)
+                            ? 'remove'
+                            : 'add';
+                    pointer.status = mode;
+                    overlay.helper.mode = mode === 'remove' ? 'remove' : 'add';
+                    selectSvc.tools.select.start(coord, startId);
+                } else {
+                    pointer.status = active.value;
+                    pixelSvc.tools[active.value].start();
+                }
+                updateMarquee(e);
+            }
+        },
+        { deep: true }
+    );
 
-    watch(() => pointer.id && viewportEvents.pointer[pointer.id]?.move, (e) => {
+    watch(() => pointer.id && viewportEvents.getEvent('pointermove', pointer.id), (e) => {
         if (!e || e.pointerType === 'touch') return;
         updateHover(e);
         updateMarquee(e);
@@ -185,7 +183,7 @@ export const useStageToolService = defineStore('stageToolService', () => {
         else pixelSvc.tools[active.value].move();
     });
 
-    watch(() => pointer.id && viewportEvents.pointer[pointer.id]?.up, (e) => {
+    watch(() => pointer.id && viewportEvents.getEvent('pointerup', pointer.id), (e) => {
         if (!e || e.pointerType === 'touch') return;
         updateMarquee(e);
         if (e.type === 'pointercancel') {

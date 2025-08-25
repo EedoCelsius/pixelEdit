@@ -93,34 +93,43 @@ export const useViewportService = defineStore('viewportService', () => {
     stageStore.setCanvasPosition(left + offset.x, top + offset.y);
   }
 
-  watch(() => {
-    const id = viewportEvents.pointer.recent;
-    return id != null ? viewportEvents.pointer[id]?.down : null;
-  }, (e) => {
-    if (!e || e.pointerType !== 'touch') return;
-    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    lastTouchDistance = 0;
-  });
+  watch(
+    () => viewportEvents.recent.pointer.down,
+    (events) => {
+      for (const e of events) {
+        if (e.pointerType !== 'touch') continue;
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        lastTouchDistance = 0;
+      }
+    },
+    { deep: true }
+  );
 
-  watch(() => {
-    const id = viewportEvents.pointer.recent;
-    return id != null ? viewportEvents.pointer[id]?.move : null;
-  }, (e) => {
-    if (!e || e.pointerType !== 'touch') return;
-    touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (touches.size === 2) handlePinch();
-  });
+  watch(
+    () => viewportEvents.recent.pointer.move,
+    (events) => {
+      for (const e of events) {
+        if (e.pointerType !== 'touch') continue;
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (touches.size === 2) handlePinch();
+      }
+    },
+    { deep: true }
+  );
 
-  watch(() => {
-    const id = viewportEvents.pointer.recent;
-    return id != null ? viewportEvents.pointer[id]?.up : null;
-  }, (e) => {
-    if (!e || e.pointerType !== 'touch') return;
-    touches.delete(e.pointerId);
-    lastTouchDistance = 0;
-  });
+  watch(
+    () => viewportEvents.recent.pointer.up,
+    (events) => {
+      for (const e of events) {
+        if (e.pointerType !== 'touch') continue;
+        touches.delete(e.pointerId);
+        lastTouchDistance = 0;
+      }
+    },
+    { deep: true }
+  );
 
-  watch(() => viewportEvents.wheel, (e) => {
+  watch(() => viewportEvents.getEvent('wheel'), (e) => {
     if (e) handleWheel(e);
   });
 

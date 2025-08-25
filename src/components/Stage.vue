@@ -87,7 +87,7 @@ const offset = viewport.offset;
 
 const onViewportPointerDown = (e) => {
   if (e.pointerType === 'touch') e.preventDefault();
-  viewportEvents.addPointerDown(e);
+  viewportEvents.setPointerDown(e);
 };
 
 const onViewportPointerMove = (e) => {
@@ -103,7 +103,7 @@ const onViewportPointerCancel = (e) => {
 };
 
 const onPointerDown = (e) => {
-  viewportEvents.addPointerDown(e);
+  viewportEvents.setPointerDown(e);
 };
 
 const onPointerMove = (e) => {
