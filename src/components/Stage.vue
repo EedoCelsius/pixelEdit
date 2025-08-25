@@ -39,8 +39,8 @@
       </svg>
       <!-- 오버레이 (선택, 추가, 제거, 마퀴) -->
       <svg class="absolute top-0 left-0 pointer-events-none block rounded-lg" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" style="image-rendering:pixelated">
-          <!-- 1. 기본 선택 윤곽 (하늘색) -->
-          <path id="selectionOutline"
+          <!-- Selection overlay (sky blue) -->
+          <path id="selectionOverlay"
                 v-if="layers.selectionExists"
                 :d="selectionPath"
                 :fill="OVERLAY_CONFIG.SELECTED.FILL_COLOR"
@@ -58,7 +58,7 @@
                 :stroke-width="OVERLAY_CONFIG.MARQUEE.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
                 shape-rendering="crispEdges" />
 
-        <!-- 3. 선택/호버 오버레이 -->
+        <!-- Helper overlay -->
         <path v-if="toolStore.isSelect || toolStore.pointer.status === 'cut'"
               :d="helperOverlay.path"
               :fill="helperOverlay.FILL_COLOR"
@@ -79,7 +79,7 @@ import { rgbaCssU32, rgbaCssObj, calcMarquee } from '../utils';
 import { OVERLAY_CONFIG, GRID_STROKE_COLOR } from '@/constants';
 
 const { stage: stageStore, tool: toolStore, layers, input, stageEvent: stageEvents } = useStore();
-const { stage: stageService, overlay, layers: layerSvc, select: selectSvc, pixel: pixelSvc, viewport } = useService();
+const { stage: stageService, overlay, select: selectSvc, pixel: pixelSvc, viewport } = useService();
 const viewportEl = ref(null);
 const stageEl = ref(null);
 const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
@@ -89,7 +89,8 @@ const offset = viewport.offset;
         const coord = stageService.clientToCoord(event);
         if (!coord) {
             stageStore.updatePixelInfo('-');
-            overlay.clearHover();
+            overlay.helper.clear();
+            overlay.helper.mode = 'add';
             return;
         }
         const [px, py] = coord;
@@ -100,10 +101,18 @@ const offset = viewport.offset;
             const colorU32 = layers.compositeColorAt(coord);
             stageStore.updatePixelInfo(`[${px},${py}] ${rgbaCssU32(colorU32)}`);
         }
+        if (toolStore.pointer.status !== 'idle') {
+            overlay.helper.mode = toolStore.pointer.status === 'remove' ? 'remove' : 'add';
+            return;
+        }
         if (toolStore.isSelect) {
-            overlay.setHover(layers.topVisibleIdAt(coord));
+            const id = layers.topVisibleIdAt(coord);
+            overlay.helper.clear();
+            overlay.helper.add(id);
+            overlay.helper.mode = (id != null && toolStore.shiftHeld && layers.isSelected(id)) ? 'remove' : 'add';
         } else {
-            overlay.clearHover();
+            overlay.helper.clear();
+            overlay.helper.mode = 'add';
         }
     };
 
@@ -138,7 +147,8 @@ const onPointerCancel = (e) => {
 
     const onPointerLeave = (e) => {
         if (e.pointerType === 'touch') return;
-        overlay.clearHover();
+        overlay.helper.clear();
+        overlay.helper.mode = 'add';
         stageStore.updatePixelInfo('-');
     };
 
@@ -178,29 +188,23 @@ watch(() => stageEvents.wheel, (e) => {
   viewport.onWheel(e);
 });
 
-const selectionPath = computed(() => layerSvc.selectionPath());
+const selectionPath = computed(() => overlay.selection.path);
 const helperOverlay = computed(() => {
-    let path;
-    let style;
+    const path = overlay.helper.path;
+    if (!path) return { path }; // no style when empty
 
-    if (toolStore.pointer.status !== 'idle') {
-        path = overlay.selectOverlayPath;
-        style = toolStore.pointer.status === 'remove'
-            ? OVERLAY_CONFIG.REMOVE
-            : OVERLAY_CONFIG.ADD;
-    } else {
-        path = overlay.hoverOverlayPath;
-        if (overlay.hoverLayerId) {
-            const isRemoving = toolStore.shiftHeld && layers.isSelected(overlay.hoverLayerId);
-            style = isRemoving ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
-        }
-    }
+    const mode = toolStore.pointer.status === 'remove'
+        ? 'remove'
+        : toolStore.pointer.status === 'idle'
+            ? overlay.helper.mode
+            : 'add';
+    const style = mode === 'remove' ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
 
     return {
         path,
-        FILL_COLOR: style?.FILL_COLOR,
-        STROKE_COLOR: style?.STROKE_COLOR,
-        STROKE_WIDTH_SCALE: style?.STROKE_WIDTH_SCALE,
+        FILL_COLOR: style.FILL_COLOR,
+        STROKE_COLOR: style.STROKE_COLOR,
+        STROKE_WIDTH_SCALE: style.STROKE_WIDTH_SCALE,
     };
 });
 
