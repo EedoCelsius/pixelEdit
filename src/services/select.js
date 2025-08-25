@@ -5,7 +5,7 @@ import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useLayerStore } from '../stores/layers';
 import { useOutputStore } from '../stores/output';
-import { useLayerPanelStore } from '../stores/layerPanel';
+import { useLayerPanelService } from './layerPanel';
 import { coordsToKey, calcMarquee } from '../utils';
 
 export const useSelectService = defineStore('selectService', () => {
@@ -15,7 +15,7 @@ export const useSelectService = defineStore('selectService', () => {
     const toolStore = useToolStore();
     const layers = useLayerStore();
     const output = useOutputStore();
-    const layerPanel = useLayerPanelStore();
+    const layerPanel = useLayerPanelService();
 
     function toolStart(event) {
         if (event.button !== 0) return;
@@ -130,9 +130,8 @@ export const useSelectService = defineStore('selectService', () => {
                     layerPanel.clearRange();
                 }
             } else if (mode === 'select' || !mode) {
-                layers.clearSelection();
-                layerPanel.clearRange();
-            }
+                    layers.clearSelection();
+                }
         }
 
         try {

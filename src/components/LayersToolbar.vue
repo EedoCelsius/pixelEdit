@@ -22,14 +22,14 @@
 import { useLayerStore } from '../stores/layers';
 import { useLayerService } from '../services/layers';
 import { useOutputStore } from '../stores/output';
-import { useLayerPanelStore } from '../stores/layerPanel';
+import { useLayerPanelService } from '../services/layerPanel';
 import { computed } from 'vue';
 import { useQueryService } from '../services/query';
 
 const layers = useLayerStore();
 const layerSvc = useLayerService();
 const output = useOutputStore();
-const layerPanel = useLayerPanelStore();
+const layerPanel = useLayerPanelService();
 const query = useQueryService();
 
 const hasEmptyLayers = computed(() => layers.order.some(id => layers.pixelCountOf(id) === 0));
@@ -55,8 +55,7 @@ const onCopy = () => {
     output.setRollbackPoint();
     const ids = layerSvc.copySelected();
     layers.replaceSelection(ids);
-    if (ids?.[0] != null) layerPanel.setRange(ids[0], ids[0]);
-    else layerPanel.clearRange();
+    layerPanel.clearRange();
     output.commit();
 };
 const onSelectEmpty = () => {

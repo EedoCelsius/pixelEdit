@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia';
 import { useLayerStore } from '../stores/layers';
-import { useLayerPanelStore } from '../stores/layerPanel';
+import { useLayerPanelService } from './layerPanel';
 import { useQueryService } from './query';
 import { keyToCoords, buildOutline, findPixelComponents, getPixelUnionSet, averageColorU32 } from '../utils';
 
 export const useLayerService = defineStore('layerService', () => {
     const layers = useLayerStore();
-    const layerPanel = useLayerPanelStore();
+    const layerPanel = useLayerPanelService();
     const query = useQueryService();
 
     function forEachSelected(fn) {
@@ -102,7 +102,7 @@ export const useLayerService = defineStore('layerService', () => {
         const ids = layers.order.filter(layerId => layers.pixelCountOf(layerId) === 0);
         if (ids.length) {
             layers.replaceSelection(ids);
-            layerPanel.setRange(ids[0], ids[0]);
+            layerPanel.clearRange();
         }
     }
 
@@ -137,14 +137,14 @@ export const useLayerService = defineStore('layerService', () => {
         layers._order = orderWithoutNew;
 
         layers.replaceSelection(newIds);
-        layerPanel.setRange(newIds[0], newIds[0]);
+        layerPanel.setRange(newIds[0], newIds[newIds.length - 1]);
     }
 
     function selectDisconnectedLayers(id) {
         const idsToSelect = layers.order.filter(layerId => layers.disconnectedCountOf(layerId) > 1);
         if (idsToSelect.length) {
             layers.replaceSelection(idsToSelect);
-            layerPanel.setRange(id, id);
+            layerPanel.clearRange();
         }
     }
 
@@ -159,7 +159,7 @@ export const useLayerService = defineStore('layerService', () => {
         const idsToSelect = layers.order.filter(layerId => layers.disconnectedCountOf(layerId) === targetCount);
         if (idsToSelect.length) {
             layers.replaceSelection(idsToSelect);
-            layerPanel.setRange(id, id);
+            layerPanel.clearRange();
         }
     }
 
@@ -174,7 +174,7 @@ export const useLayerService = defineStore('layerService', () => {
         const idsToSelect = layers.order.filter(layerId => layers.pixelCountOf(layerId) === targetCount);
         if (idsToSelect.length) {
             layers.replaceSelection(idsToSelect);
-            layerPanel.setRange(id, id);
+            layerPanel.clearRange();
         }
     }
 
@@ -185,7 +185,7 @@ export const useLayerService = defineStore('layerService', () => {
         const idsToSelect = layers.order.filter(layerId => layers.colorOf(layerId) === targetColor);
         if (idsToSelect.length) {
             layers.replaceSelection(idsToSelect);
-            layerPanel.setRange(id, id);
+            layerPanel.clearRange();
         }
     }
 
