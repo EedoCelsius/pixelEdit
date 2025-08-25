@@ -3,15 +3,13 @@ import { useLayerStore } from './layers';
 import { useOutputStore } from './output';
 import { useStageStore } from './stage';
 import { useStageEventStore } from './stageEvent';
-import { useToolStore } from './tool';
 
 export {
     useInputStore,
     useLayerStore,
     useOutputStore,
     useStageStore,
-    useStageEventStore,
-    useToolStore
+    useStageEventStore
 };
 
 export const useStore = () => ({
@@ -19,6 +17,5 @@ export const useStore = () => ({
     layers: useLayerStore(),
     output: useOutputStore(),
     stage: useStageStore(),
-    stageEvent: useStageEventStore(),
-    tool: useToolStore()
+    stageEvent: useStageEventStore()
 });
