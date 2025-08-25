@@ -55,8 +55,7 @@ const onCopy = () => {
     output.setRollbackPoint();
     const ids = layerSvc.copySelected();
     layers.replaceSelection(ids);
-    if (ids?.[0] != null) layerPanel.setRange(ids[0], ids[0]);
-    else layerPanel.clearRange();
+    layerPanel.clearRange();
     output.commit();
 };
 const onSelectEmpty = () => {
