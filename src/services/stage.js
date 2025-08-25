@@ -5,7 +5,7 @@ import { useToolStore } from '../stores/tool';
 import { useLayerStore } from '../stores/layers';
 import { useOverlayService } from './overlay';
 import { keyToCoords, getPixelUnionSet, pixelsToUnionPath, calcMarquee } from '../utils';
-import { CURSOR_CONFIG } from '../constants';
+import { CURSOR_CONFIG, SVG_NAMESPACE, CHECKERBOARD_CONFIG, MIN_SCALE_RATIO } from '@/constants';
 
 export const useStageService = defineStore('stageService', () => {
     // stores
@@ -41,55 +41,50 @@ export const useStageService = defineStore('stageService', () => {
             height / Math.max(1, stageStore.canvas.height)
         );
         stageStore.setContainScale(containScale);
-        const minScale = Math.max(1, containScale * 0.5);
+        const minScale = Math.max(1, containScale * MIN_SCALE_RATIO);
         stageStore.setMinScale(minScale);
     }
-    
-    const patternId = ref('chk');
-    const colorA = ref('#0a1f33');
-    const colorB = ref('#0c2742');
-    const checkerRepeat = ref(1);
+    const { PATTERN_ID, COLOR_A, COLOR_B, REPEAT } = CHECKERBOARD_CONFIG;
 
     function ensureCheckerboardPattern(target = document.body) {
-        const id = patternId.value;
+        const id = PATTERN_ID;
         if (document.getElementById(id)) return id;
-        const svgNamespace = 'http://www.w3.org/2000/svg';
-        const svg = document.createElementNS(svgNamespace, 'svg');
+        const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
         svg.setAttribute('width', '0');
         svg.setAttribute('height', '0');
         svg.style.position = 'absolute';
         svg.style.left = '-9999px';
-        const defs = document.createElementNS(svgNamespace, 'defs');
-        const pattern = document.createElementNS(svgNamespace, 'pattern');
+        const defs = document.createElementNS(SVG_NAMESPACE, 'defs');
+        const pattern = document.createElementNS(SVG_NAMESPACE, 'pattern');
         pattern.setAttribute('id', id);
-        const repeatSize = checkerRepeat.value
+        const repeatSize = REPEAT;
         pattern.setAttribute('width', String(repeatSize));
         pattern.setAttribute('height', String(repeatSize));
         pattern.setAttribute('patternUnits', 'userSpaceOnUse');
-        const r00 = document.createElementNS(svgNamespace, 'rect');
+        const r00 = document.createElementNS(SVG_NAMESPACE, 'rect');
         r00.setAttribute('x', '0');
         r00.setAttribute('y', '0');
         r00.setAttribute('width', String(repeatSize / 2));
         r00.setAttribute('height', String(repeatSize / 2));
-        r00.setAttribute('fill', colorA.value);
-        const r11 = document.createElementNS(svgNamespace, 'rect');
+        r00.setAttribute('fill', COLOR_A);
+        const r11 = document.createElementNS(SVG_NAMESPACE, 'rect');
         r11.setAttribute('x', String(repeatSize / 2));
         r11.setAttribute('y', String(repeatSize / 2));
         r11.setAttribute('width', String(repeatSize / 2));
         r11.setAttribute('height', String(repeatSize / 2));
-        r11.setAttribute('fill', colorA.value);
-        const r10 = document.createElementNS(svgNamespace, 'rect');
+        r11.setAttribute('fill', COLOR_A);
+        const r10 = document.createElementNS(SVG_NAMESPACE, 'rect');
         r10.setAttribute('x', String(repeatSize / 2));
         r10.setAttribute('y', '0');
         r10.setAttribute('width', String(repeatSize / 2));
         r10.setAttribute('height', String(repeatSize / 2));
-        r10.setAttribute('fill', colorB.value);
-        const r01 = document.createElementNS(svgNamespace, 'rect');
+        r10.setAttribute('fill', COLOR_B);
+        const r01 = document.createElementNS(SVG_NAMESPACE, 'rect');
         r01.setAttribute('x', '0');
         r01.setAttribute('y', String(repeatSize / 2));
         r01.setAttribute('width', String(repeatSize / 2));
         r01.setAttribute('height', String(repeatSize / 2));
-        r01.setAttribute('fill', colorB.value);
+        r01.setAttribute('fill', COLOR_B);
         pattern.appendChild(r00);
         pattern.appendChild(r11);
         pattern.appendChild(r10);

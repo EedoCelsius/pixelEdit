@@ -40,11 +40,12 @@
   </template>
 
 <script setup>
-import { reactive, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useLayerStore } from '../stores/layers';
 import { useOutputStore } from '../stores/output';
+import { CTRL_TAP_THRESHOLD_MS, SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 
 const stageStore = useStageStore();
@@ -52,19 +53,10 @@ const toolStore = useToolStore();
 const layers = useLayerStore();
 const output = useOutputStore();
 
-const selectables = reactive([]);
+const selectables = ref(SINGLE_SELECTION_TOOLS);
 watch(() => layers.selectionCount, (size) => {
-  selectables.splice(0, selectables.length, ...(size === 1
-    ? [
-        { type: 'draw', name: 'Draw', icon: stageIcons.draw },
-        { type: 'erase', name: 'Erase', icon: stageIcons.erase },
-        { type: 'cut', name: 'Cut', icon: stageIcons.cut }
-      ]
-    : [
-        { type: 'select', name: 'Select', icon: stageIcons.select },
-        { type: 'globalErase', name: 'Global Erase', icon: stageIcons.globalErase }
-      ]));
-  if (!selectables.some(tool => tool.type === toolStore.static)) {
+  selectables.value = size === 1 ? SINGLE_SELECTION_TOOLS : MULTI_SELECTION_TOOLS;
+  if (!selectables.value.some(tool => tool.type === toolStore.static)) {
     toolStore.setStatic(size === 1 ? 'draw' : 'select');
   }
 }, { immediate: true });
@@ -74,7 +66,6 @@ const redo = () => output.redo();
 
 // Keyboard handlers
 let ctrlKeyDownTimestamp = 0;
-const KEY_TAP_MS = 200;
 function ctrlKeyDown() {
   if (!toolStore.ctrlHeld) {
     ctrlKeyDownTimestamp = performance.now();
@@ -82,7 +73,7 @@ function ctrlKeyDown() {
   }
 }
 function ctrlKeyUp() {
-  if (performance.now() - ctrlKeyDownTimestamp < KEY_TAP_MS) {
+  if (performance.now() - ctrlKeyDownTimestamp < CTRL_TAP_THRESHOLD_MS) {
     const t = toolStore.static;
     if (t === 'draw' || t === 'erase') {
       toolStore.setStatic(t === 'draw' ? 'erase' : 'draw');
