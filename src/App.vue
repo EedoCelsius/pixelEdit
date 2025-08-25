@@ -40,6 +40,7 @@ import { useLayerPanelStore } from './stores/layerPanel';
 import { useLayerService } from './services/layers';
 import { useSelectService } from './services/select';
 import { useOutputStore } from './stores/output';
+import { useQueryService } from './services/query';
 
 import StageToolbar from './components/StageToolbar.vue';
 import Stage from './components/Stage.vue';
@@ -57,6 +58,7 @@ const layerSvc = useLayerService();
 const selectSvc = useSelectService();
 const output = useOutputStore();
 const stageToolbar = ref(null);
+const query = useQueryService();
 
 // Width control between display and layers
 const container = ref(null);
@@ -104,11 +106,11 @@ function onKeydown(event) {
       if (!layers.exists) return;
       if (shift && !ctrl) {
         if (!layers.selectionExists) return;
-        const newTail = layers.aboveId(layerPanel.tailId) ?? layers.uppermostId;
+        const newTail = query.aboveId(layerPanel.tailId) ?? query.uppermostId;
         selectSvc.selectRange(layerPanel.anchorId, newTail);
         layerPanel.setScrollRule({ type: 'follow-up', target: newTail });
       } else if (!ctrl) {
-        const nextId = layers.aboveId(layerPanel.anchorId) ?? layerPanel.anchorId;
+        const nextId = query.aboveId(layerPanel.anchorId) ?? layerPanel.anchorId;
         layerPanel.setRange(nextId, nextId);
         layerPanel.setScrollRule({ type: 'follow-up', target: nextId });
       }
@@ -118,11 +120,11 @@ function onKeydown(event) {
       if (!layers.exists) return;
       if (shift && !ctrl) {
         if (!layers.selectionExists) return;
-        const newTail = layers.belowId(layerPanel.tailId) ?? layers.lowermostId;
+        const newTail = query.belowId(layerPanel.tailId) ?? query.lowermostId;
         selectSvc.selectRange(layerPanel.anchorId, newTail);
         layerPanel.setScrollRule({ type: 'follow-down', target: newTail });
       } else if (!ctrl) {
-        const nextId = layers.belowId(layerPanel.anchorId) ?? layerPanel.anchorId;
+        const nextId = query.belowId(layerPanel.anchorId) ?? layerPanel.anchorId;
         layerPanel.setRange(nextId, nextId);
         layerPanel.setScrollRule({ type: 'follow-down', target: nextId });
       }
@@ -132,9 +134,9 @@ function onKeydown(event) {
       event.preventDefault();
       if (!layers.selectionExists) return;
       output.setRollbackPoint();
-      const belowId = layers.belowId(layers.lowermostIdOf(layers.selectedIds));
+      const belowId = query.belowId(query.lowermostIdOf(layers.selectedIds));
       layerSvc.deleteSelected();
-      const newSelect = layers.has(belowId) ? belowId : layers.lowermostId;
+      const newSelect = layers.has(belowId) ? belowId : query.lowermostId;
       layerPanel.setRange(newSelect, newSelect);
       layerPanel.setScrollRule({ type: "follow", target: newSelect });
       output.commit();
@@ -163,9 +165,9 @@ function onKeydown(event) {
   if (ctrl) {
     if (key === 'a') {
       event.preventDefault();
-      const anchor = layers.uppermostId, tail = layers.lowermostId;
-      layers.replaceSelection(layers.order);
-      layerPanel.setRange(anchor, tail);
+        const anchor = query.uppermostId, tail = query.lowermostId;
+        layers.replaceSelection(layers.order);
+        layerPanel.setRange(anchor, tail);
     } else if (key === 'z' && !shift) {
       event.preventDefault();
       output.undo();

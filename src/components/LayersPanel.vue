@@ -39,7 +39,7 @@
         </div>
         </div>
     </div>
-    <div v-show="layers.idsTopToBottom.length===0" class="text-xs text-slate-400/80 py-6 text-center">(레이어가 없습니다)</div>
+      <div v-show="layers.idsTopToBottom.length===0" class="text-xs text-slate-400/80 py-6 text-center">(레이어가 없습니다)</div>
   </div>
 </template>
 
@@ -52,6 +52,7 @@ import { useLayerPanelStore } from '../stores/layerPanel';
 import { useLayerService } from '../services/layers';
 import { useSelectService } from '../services/select';
 import { useOutputStore } from '../stores/output';
+import { useQueryService } from '../services/query';
 import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, coordsToKey, clamp } from '../utils';
 
 const stageStore = useStageStore();
@@ -61,6 +62,7 @@ const layerPanel = useLayerPanelStore();
 const layerSvc = useLayerService();
 const selectSvc = useSelectService();
 const output = useOutputStore();
+const query = useQueryService();
 
 const dragging = ref(false);
 const dragId = ref(null);
@@ -193,9 +195,9 @@ function toggleLock(id) {
 function deleteLayer(id) {
     output.setRollbackPoint();
     const targets = layers.isSelected(id) ? layers.selectedIds : [id];
-    const belowId = layers.belowId(layers.lowermostIdOf(targets));
+    const belowId = query.belowId(query.lowermostIdOf(targets));
     layers.deleteLayers(targets);
-    const newSelectId = layers.has(belowId) ? belowId : layers.lowermostId;
+    const newSelectId = layers.has(belowId) ? belowId : query.lowermostId;
     layerPanel.setRange(newSelectId, newSelectId);
     if (newSelectId) {
         layerPanel.setScrollRule({

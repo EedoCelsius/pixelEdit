@@ -5,7 +5,7 @@
       <svg v-show="stageStore.display!=='result'" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-44 h-44 rounded-md border border-white/15">
         <rect x="0" y="0" :width="stageStore.canvas.width" :height="stageStore.canvas.height" :fill="patternUrl"/>
         <g>
-          <path v-for="id in layers.idsBottomToTop" :key="'pix-'+id" :d="layers.pathOf(id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(layers.colorOf(id))" :visibility="layers.visibilityOf(id)?'visible':'hidden'"></path>
+            <path v-for="id in layers.idsBottomToTop" :key="'pix-'+id" :d="layers.pathOf(id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(layers.colorOf(id))" :visibility="layers.visibilityOf(id)?'visible':'hidden'"></path>
         </g>
       </svg>
       <!-- 원본 -->

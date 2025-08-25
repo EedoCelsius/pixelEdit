@@ -24,18 +24,20 @@ import { useLayerService } from '../services/layers';
 import { useOutputStore } from '../stores/output';
 import { useLayerPanelStore } from '../stores/layerPanel';
 import { computed } from 'vue';
+import { useQueryService } from '../services/query';
 
 const layers = useLayerStore();
 const layerSvc = useLayerService();
 const output = useOutputStore();
 const layerPanel = useLayerPanelStore();
+const query = useQueryService();
 
 const hasEmptyLayers = computed(() => layers.order.some(id => layers.pixelCountOf(id) === 0));
 const canSplit = computed(() => layers.selectedIds.some(id => layers.disconnectedCountOf(id) > 1));
 
 const onAdd = () => {
     output.setRollbackPoint();
-    const above = layers.selectionCount ? layers.uppermostIdOf(layers.selectedIds) : null;
+    const above = layers.selectionCount ? query.uppermostIdOf(layers.selectedIds) : null;
     const id = layers.createLayer({});
     if (above !== null) {
         layers.reorderLayers([id], above, false);
