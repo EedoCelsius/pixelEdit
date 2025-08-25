@@ -8,6 +8,33 @@ export const useViewportEventStore = defineStore('viewportEvent', {
         keyboard: { recent: null },
     }),
     actions: {
+        addPointerDown(event) {
+            if (this.pointer[event.pointerId])
+                this.pointer[event.pointerId].down = event;
+            else {
+                this.pointer[event.pointerId] = { down: event, move: null, up: null };
+                this.pruneOldPointers();
+            }
+            this.pointer.recent = event.pointerId;
+        },
+        setPointerMove(event) {
+            if (this.pointer[event.pointerId])
+                this.pointer[event.pointerId].move = event;
+            else {
+                this.pointer[event.pointerId] = { down: null, move: event, up: null };
+                this.pruneOldPointers();
+            }
+            this.pointer.recent = event.pointerId;
+        },
+        setPointerUp(event) {
+            if (this.pointer[event.pointerId])
+                this.pointer[event.pointerId].up = event;
+            else {
+                this.pointer[event.pointerId] = { down: null, move: null, up: event };
+                this.pruneOldPointers();
+            }
+            this.pointer.recent = event.pointerId;
+        },
         pruneOldPointers() {
             const entries = Object.entries(this.pointer).filter(([id]) => id !== 'recent');
             if (entries.length <= MAX_POINTER_WINDOW) return;
@@ -16,26 +43,6 @@ export const useViewportEventStore = defineStore('viewportEvent', {
             for (let i = MAX_POINTER_WINDOW; i < entries.length; i++) {
                 delete this.pointer[entries[i][0]];
             }
-        },
-        addPointerDown(event) {
-            const isNew = !this.pointer[event.pointerId];
-            this.pointer[event.pointerId] = { down: event, move: null, up: null };
-            this.pointer.recent = event.pointerId;
-            if (isNew) this.pruneOldPointers();
-        },
-        setPointerMove(event) {
-            const isNew = !this.pointer[event.pointerId];
-            if (this.pointer[event.pointerId]) this.pointer[event.pointerId].move = event;
-            else this.pointer[event.pointerId] = { down: null, move: event, up: null };
-            this.pointer.recent = event.pointerId;
-            if (isNew) this.pruneOldPointers();
-        },
-        setPointerUp(event) {
-            const isNew = !this.pointer[event.pointerId];
-            if (this.pointer[event.pointerId]) this.pointer[event.pointerId].up = event;
-            else this.pointer[event.pointerId] = { down: null, move: null, up: event };
-            this.pointer.recent = event.pointerId;
-            if (isNew) this.pruneOldPointers();
         },
         setWheel(event) {
             this.wheel = event;
