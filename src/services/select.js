@@ -36,8 +36,8 @@ export const useSelectService = defineStore('selectService', () => {
     function move() {
         const tool = useStageToolService();
         if (tool.pointer.status === 'idle') return;
-        const event = viewportEvents.pointer[tool.pointer.id]?.move;
-        if (!event) return;
+        if (!viewportEvents.isDragging(tool.pointer.id)) return;
+        const event = viewportEvents.getEvent('pointermove', tool.pointer.id);
 
         if (tool.shape === 'rect') {
             const pixels = tool.getPixelsFromInteraction('move');
@@ -65,11 +65,11 @@ export const useSelectService = defineStore('selectService', () => {
         if (tool.pointer.status === 'idle') return;
 
         const mode = tool.pointer.status;
-        const event = viewportEvents.pointer[tool.pointer.id]?.up;
+        const event = viewportEvents.getEvent('pointerup', tool.pointer.id);
         if (!event) return;
 
         const coord = stage.clientToCoord(event);
-            const startEvent = viewportEvents.pointer[tool.pointer.id]?.down;
+            const startEvent = viewportEvents.getEvent('pointerdown', tool.pointer.id);
             const dx = startEvent ? Math.abs(event.clientX - startEvent.clientX) : 0;
             const dy = startEvent ? Math.abs(event.clientY - startEvent.clientY) : 0;
         const isClick = dx <= 4 && dy <= 4;
