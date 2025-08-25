@@ -4,7 +4,7 @@ import { useStageStore } from '../stores/stage';
 import { useToolStore } from '../stores/tool';
 import { useLayerStore } from '../stores/layers';
 import { useOverlayService } from './overlay';
-import { keyToCoords, clamp, getPixelUnionSet, pixelsToUnionPath } from '../utils';
+import { keyToCoords, getPixelUnionSet, pixelsToUnionPath, calcMarquee } from '../utils';
 import { CURSOR_CONFIG } from '../constants';
 
 export const useStageService = defineStore('stageService', () => {
@@ -112,25 +112,17 @@ export const useStageService = defineStore('stageService', () => {
         const toolState = toolStore.pointer;
         let pixels = [];
         if (toolStore.shape === 'rect') {
-            const left = Math.min(toolState.start.x, event.clientX) - stageStore.canvas.x;
-            const top = Math.min(toolState.start.y, event.clientY) - stageStore.canvas.y;
-            const right = Math.max(toolState.start.x, event.clientX) - stageStore.canvas.x;
-            const bottom = Math.max(toolState.start.y, event.clientY) - stageStore.canvas.y;
-            const minX = Math.floor(left / stageStore.canvas.scale),
-                maxX = Math.floor((right - 1) / stageStore.canvas.scale);
-            const minY = Math.floor(top / stageStore.canvas.scale),
-                maxY = Math.floor((bottom - 1) / stageStore.canvas.scale);
-
-            if (minX > maxX || minY > maxY) {
+            const { visible, x, y, w, h } = calcMarquee(
+                toolState.start,
+                { x: event.clientX, y: event.clientY },
+                stageStore.canvas
+            );
+            if (!visible || w === 0 || h === 0) {
                 const p = clientToPixel(event);
                 if (p) pixels.push([p.x, p.y]);
             } else {
-                const minx = clamp(minX, 0, stageStore.canvas.width - 1),
-                    maxx = clamp(maxX, 0, stageStore.canvas.width - 1);
-                const miny = clamp(minY, 0, stageStore.canvas.height - 1),
-                    maxy = clamp(maxY, 0, stageStore.canvas.height - 1);
-                for (let yy = miny; yy <= maxy; yy++)
-                    for (let xx = minx; xx <= maxx; xx++) pixels.push([xx, yy]);
+                for (let yy = y; yy < y + h; yy++)
+                    for (let xx = x; xx < x + w; xx++) pixels.push([xx, yy]);
             }
         } else {
             toolStore.visited.forEach(key => pixels.push(keyToCoords(key)));
