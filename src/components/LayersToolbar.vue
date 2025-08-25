@@ -33,7 +33,7 @@ const output = useOutputStore();
 const layerPanel = useLayerPanelService();
 const query = useQueryService();
 
-const hasEmptyLayers = computed(() => layers.order.some(id => layers.pixelCountOf(id) === 0));
+const hasEmptyLayers = computed(() => layers.order.some(id => (layers.getProperty(id, 'pixels')?.size ?? 0) === 0));
 const canSplit = computed(() => layers.selectedIds.some(id => layers.disconnectedCountOf(id) > 1));
 
 const onAdd = () => {
