@@ -9,7 +9,7 @@
          :style="{
            width: stageStore.pixelWidth+'px',
            height: stageStore.pixelHeight+'px',
-           cursor: toolService.cursor,
+           cursor: stageToolService.cursor,
            transform: `translate(${offset.x}px, ${offset.y}px)`
          }"
          @pointerdown="onPointerDown"
@@ -59,7 +59,7 @@
                 shape-rendering="crispEdges" />
 
         <!-- Helper overlay -->
-        <path v-if="toolService.isSelect || toolService.pointer.status === 'cut'"
+        <path v-if="stageToolService.isSelect || stageToolService.pointer.status === 'cut'"
               :d="helperOverlay.path"
               :fill="helperOverlay.FILL_COLOR"
               :stroke="helperOverlay.STROKE_COLOR"
@@ -79,10 +79,10 @@ import { OVERLAY_CONFIG, GRID_STROKE_COLOR } from '@/constants';
 import { rgbaCssU32 } from '../utils';
 
 const { stage: stageStore, layers, stageEvent: stageEvents } = useStore();
-const { stage: stageService, overlay, tool: toolService, viewport } = useService();
+const { stage: stageService, overlay, stageTool: stageToolService, viewport } = useService();
 const viewportEl = ref(null);
 const stageEl = ref(null);
-const marquee = toolService.marquee;
+const marquee = stageToolService.marquee;
 const offset = viewport.offset;
 
     const onViewportPointerDown = viewport.onViewportPointerDown;
@@ -122,9 +122,9 @@ const helperOverlay = computed(() => {
     const path = overlay.helper.path;
     if (!path) return { path }; // no style when empty
 
-    const mode = toolService.pointer.status === 'remove'
+    const mode = stageToolService.pointer.status === 'remove'
         ? 'remove'
-        : toolService.pointer.status === 'idle'
+        : stageToolService.pointer.status === 'idle'
             ? overlay.helper.mode
             : 'add';
     const style = mode === 'remove' ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;

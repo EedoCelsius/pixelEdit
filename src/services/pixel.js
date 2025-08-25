@@ -2,38 +2,19 @@ import { defineStore } from 'pinia';
 import { useStageService } from './stage';
 import { useOverlayService } from './overlay';
 import { useStore } from '../stores';
+import { useStageToolService } from './stageTool';
 import { useToolService } from './tool';
 import { coordToKey } from '../utils';
 
 export const usePixelService = defineStore('pixelService', () => {
     const stage = useStageService();
     const overlay = useOverlayService();
-    const { layers, output } = useStore();
+    const { layers } = useStore();
     let cutLayerId = null;
 
-    function begin(event, status, tool) {
-        if (event.button !== 0) return null;
-        const coord = stage.clientToCoord(event);
-        if (!coord) return null;
-
-        output.setRollbackPoint();
-
-        tool.pointer.status = status;
-        try {
-            event.target.setPointerCapture?.(event.pointerId);
-            tool.pointer.id = event.pointerId;
-        } catch {}
-
-        if (tool.shape !== 'rect') {
-            tool.visited.clear();
-            tool.visited.add(coordToKey(coord));
-        }
-        return coord;
-    }
-
     function startDraw(event) {
-        const tool = useToolService();
-        const coord = begin(event, 'draw', tool);
+        const tool = useStageToolService();
+        const coord = tool.begin(event, 'draw');
         if (!coord) return;
         if (tool.shape !== 'rect') {
             const pixels = tool.getPixelsFromInteraction(event);
@@ -42,33 +23,27 @@ export const usePixelService = defineStore('pixelService', () => {
     }
 
     function moveDraw(event) {
-        const tool = useToolService();
+        const tool = useStageToolService();
         if (tool.pointer.status !== 'draw' || tool.shape === 'rect') return;
         const coord = stage.clientToCoord(event);
         if (!coord) return;
-        const k = coordToKey(coord);
-        if (tool.visited.has(k)) return;
-        tool.visited.add(k);
         addPixelsToSelection([coord]);
     }
 
     function finishDraw(event) {
-        const tool = useToolService();
+        const tool = useStageToolService();
         if (tool.pointer.status !== 'draw') return;
         if (tool.shape === 'rect') {
             const pixels = tool.getPixelsFromInteraction(event);
             if (pixels.length > 0) addPixelsToSelection(pixels);
         }
-        try {
-            event.target?.releasePointerCapture?.(tool.pointer.id);
-        } catch {}
-        output.commit();
-        reset();
+        const common = useToolService();
+        common.finish(event);
     }
 
     function startErase(event) {
-        const tool = useToolService();
-        const coord = begin(event, 'erase', tool);
+        const tool = useStageToolService();
+        const coord = tool.begin(event, 'erase');
         if (!coord) return;
         if (tool.shape !== 'rect') {
             const pixels = tool.getPixelsFromInteraction(event);
@@ -77,33 +52,27 @@ export const usePixelService = defineStore('pixelService', () => {
     }
 
     function moveErase(event) {
-        const tool = useToolService();
+        const tool = useStageToolService();
         if (tool.pointer.status !== 'erase' || tool.shape === 'rect') return;
         const coord = stage.clientToCoord(event);
         if (!coord) return;
-        const k = coordToKey(coord);
-        if (tool.visited.has(k)) return;
-        tool.visited.add(k);
         removePixelsFromSelection([coord]);
     }
 
     function finishErase(event) {
-        const tool = useToolService();
+        const tool = useStageToolService();
         if (tool.pointer.status !== 'erase') return;
         if (tool.shape === 'rect') {
             const pixels = tool.getPixelsFromInteraction(event);
             if (pixels.length > 0) removePixelsFromSelection(pixels);
         }
-        try {
-            event.target?.releasePointerCapture?.(tool.pointer.id);
-        } catch {}
-        output.commit();
-        reset();
+        const common = useToolService();
+        common.finish(event);
     }
 
     function startGlobalErase(event) {
-        const tool = useToolService();
-        const coord = begin(event, 'globalErase', tool);
+        const tool = useStageToolService();
+        const coord = tool.begin(event, 'globalErase');
         if (!coord) return;
         if (tool.shape !== 'rect') {
             const pixels = tool.getPixelsFromInteraction(event);
@@ -113,19 +82,16 @@ export const usePixelService = defineStore('pixelService', () => {
     }
 
     function moveGlobalErase(event) {
-        const tool = useToolService();
+        const tool = useStageToolService();
         if (tool.pointer.status !== 'globalErase' || tool.shape === 'rect') return;
         const coord = stage.clientToCoord(event);
         if (!coord) return;
-        const k = coordToKey(coord);
-        if (tool.visited.has(k)) return;
-        tool.visited.add(k);
         if (layers.selectionExists) removePixelsFromSelected([coord]);
         else removePixelsFromAll([coord]);
     }
 
     function finishGlobalErase(event) {
-        const tool = useToolService();
+        const tool = useStageToolService();
         if (tool.pointer.status !== 'globalErase') return;
         if (tool.shape === 'rect') {
             const pixels = tool.getPixelsFromInteraction(event);
@@ -134,21 +100,14 @@ export const usePixelService = defineStore('pixelService', () => {
                 else removePixelsFromAll(pixels);
             }
         }
-        try {
-            event.target?.releasePointerCapture?.(tool.pointer.id);
-        } catch {}
-        output.commit();
-        reset();
+        const common = useToolService();
+        common.finish(event);
     }
 
     function startCut(event) {
-        const tool = useToolService();
-        if (event.button !== 0) return;
-        const coord = stage.clientToCoord(event);
+        const tool = useStageToolService();
+        const coord = tool.begin(event, 'cut');
         if (!coord) return;
-
-        output.setRollbackPoint();
-
         if (layers.selectionCount !== 1) return;
         const sourceId = layers.selectedIds[0];
         const sourceProps = layers.getProperties(sourceId);
@@ -161,33 +120,22 @@ export const usePixelService = defineStore('pixelService', () => {
         overlay.helper.add(cutLayerId);
         overlay.helper.mode = 'add';
 
-        tool.pointer.status = 'cut';
-        try {
-            event.target.setPointerCapture?.(event.pointerId);
-            tool.pointer.id = event.pointerId;
-        } catch {}
-
         if (tool.shape !== 'rect') {
-            tool.visited.clear();
-            tool.visited.add(coordToKey(coord));
             const pixels = tool.getPixelsFromInteraction(event);
             cutPixelsFromSelection(pixels);
         }
     }
 
     function moveCut(event) {
-        const tool = useToolService();
+        const tool = useStageToolService();
         if (tool.pointer.status !== 'cut' || tool.shape === 'rect') return;
         const coord = stage.clientToCoord(event);
         if (!coord) return;
-        const k = coordToKey(coord);
-        if (tool.visited.has(k)) return;
-        tool.visited.add(k);
         cutPixelsFromSelection([coord]);
     }
 
     function finishCut(event) {
-        const tool = useToolService();
+        const tool = useStageToolService();
         if (tool.pointer.status !== 'cut') return;
         if (tool.shape === 'rect') {
             const pixels = tool.getPixelsFromInteraction(event);
@@ -199,27 +147,19 @@ export const usePixelService = defineStore('pixelService', () => {
             else
                 layers.deleteLayers([cutLayerId]);
         }
-        try {
-            event.target?.releasePointerCapture?.(tool.pointer.id);
-        } catch {}
-        output.commit();
-        reset();
+        const common = useToolService();
+        common.finish(event);
     }
 
-    function cancel() {
-        const tool = useToolService();
-        if (tool.pointer.status === 'idle') return;
-        output.rollbackPending();
-        reset();
+    function cancel(event) {
+        const common = useToolService();
+        common.cancel();
+        cutLayerId = null;
     }
 
     function reset() {
-        const tool = useToolService();
-        tool.pointer.status = 'idle';
-        tool.pointer.id = null;
-        tool.visited.clear();
-        overlay.helper.clear();
-        overlay.helper.mode = 'add';
+        const common = useToolService();
+        common.reset();
         cutLayerId = null;
     }
 
