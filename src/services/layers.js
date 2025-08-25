@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia';
 import { useLayerStore } from '../stores/layers';
-import { useLayerPanelStore } from '../stores/layerPanel';
+import { useLayerPanelService } from './layerPanel';
 import { useQueryService } from './query';
 import { keyToCoords, buildOutline, findPixelComponents, getPixelUnionSet } from '../utils';
 
 export const useLayerService = defineStore('layerService', () => {
     const layers = useLayerStore();
-    const layerPanel = useLayerPanelStore();
+    const layerPanel = useLayerPanelService();
     const query = useQueryService();
 
     function forEachSelected(fn) {

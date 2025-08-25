@@ -36,9 +36,8 @@ import { useInputStore } from './stores/input';
 import { useStageStore } from './stores/stage';
 import { useStageService } from './services/stage';
 import { useLayerStore } from './stores/layers';
-import { useLayerPanelStore } from './stores/layerPanel';
+import { useLayerPanelService } from './services/layerPanel';
 import { useLayerService } from './services/layers';
-import { useSelectService } from './services/select';
 import { useOutputStore } from './stores/output';
 import { useQueryService } from './services/query';
 
@@ -53,9 +52,8 @@ const input = useInputStore();
 const stageStore = useStageStore();
 const stageService = useStageService();
 const layers = useLayerStore();
-const layerPanel = useLayerPanelStore();
+const layerPanel = useLayerPanelService();
 const layerSvc = useLayerService();
-const selectSvc = useSelectService();
 const output = useOutputStore();
 const stageToolbar = ref(null);
 const query = useQueryService();
@@ -103,31 +101,11 @@ function onKeydown(event) {
       return stageToolbar.value?.shiftKeyDown();
     case 'ArrowUp':
       event.preventDefault();
-      if (!layers.exists) return;
-      if (shift && !ctrl) {
-        if (!layers.selectionExists) return;
-        const newTail = query.aboveId(layerPanel.tailId) ?? query.uppermostId;
-        selectSvc.selectRange(layerPanel.anchorId, newTail);
-        layerPanel.setScrollRule({ type: 'follow-up', target: newTail });
-      } else if (!ctrl) {
-        const nextId = query.aboveId(layerPanel.anchorId) ?? layerPanel.anchorId;
-        layerPanel.setRange(nextId, nextId);
-        layerPanel.setScrollRule({ type: 'follow-up', target: nextId });
-      }
+      layerPanel.onArrowUp(shift, ctrl);
       return;
     case 'ArrowDown':
       event.preventDefault();
-      if (!layers.exists) return;
-      if (shift && !ctrl) {
-        if (!layers.selectionExists) return;
-        const newTail = query.belowId(layerPanel.tailId) ?? query.lowermostId;
-        selectSvc.selectRange(layerPanel.anchorId, newTail);
-        layerPanel.setScrollRule({ type: 'follow-down', target: newTail });
-      } else if (!ctrl) {
-        const nextId = query.belowId(layerPanel.anchorId) ?? layerPanel.anchorId;
-        layerPanel.setRange(nextId, nextId);
-        layerPanel.setScrollRule({ type: 'follow-down', target: nextId });
-      }
+      layerPanel.onArrowDown(shift, ctrl);
       return;
     case 'Delete':
     case 'Backspace':
@@ -157,17 +135,14 @@ function onKeydown(event) {
         output.rollbackPending();
         return;
       }
-      layers.clearSelection();
-      layerPanel.clearRange();
+      layerPanel.clearSelection();
       return;
   }
-  
+
   if (ctrl) {
     if (key === 'a') {
       event.preventDefault();
-        const anchor = query.uppermostId, tail = query.lowermostId;
-        layers.replaceSelection(layers.order);
-        layerPanel.setRange(anchor, tail);
+      layerPanel.selectAll();
     } else if (key === 'z' && !shift) {
       event.preventDefault();
       output.undo();

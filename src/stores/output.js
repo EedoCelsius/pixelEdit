@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { useLayerStore } from './layers';
-import { useLayerPanelStore } from './layerPanel';
+import { useLayerPanelService } from '../services/layerPanel';
 import { useInputStore } from './input';
 
 export const useOutputStore = defineStore('output', {
@@ -18,7 +18,7 @@ export const useOutputStore = defineStore('output', {
     actions: {
         _apply(snapshot) {
             const layers = useLayerStore();
-            const layerPanel = useLayerPanelStore();
+            const layerPanel = useLayerPanelService();
             const parsed = JSON.parse(snapshot);
             layers.applySerialized(parsed.layersState);
             layerPanel.applySerialized(parsed.layerPanelState);
@@ -48,7 +48,7 @@ export const useOutputStore = defineStore('output', {
         },
         currentSnap() {
             const layers = useLayerStore();
-            const layerPanel = useLayerPanelStore();
+            const layerPanel = useLayerPanelService();
             return JSON.stringify({
                 layersState: layers.serialize(),
                 layerPanelState: layerPanel.serialize()

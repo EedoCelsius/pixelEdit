@@ -4,7 +4,7 @@ import { useOverlayService } from './overlay';
 import { useToolStore } from '../stores/tool';
 import { useLayerStore } from '../stores/layers';
 import { useLayerService } from './layers';
-import { useLayerPanelStore } from '../stores/layerPanel';
+import { useLayerPanelService } from './layerPanel';
 import { useOutputStore } from '../stores/output';
 import { coordsToKey } from '../utils';
 
@@ -14,7 +14,7 @@ export const usePixelService = defineStore('pixelService', () => {
     const toolStore = useToolStore();
     const layers = useLayerStore();
     const layerSvc = useLayerService();
-    const layerPanel = useLayerPanelStore();
+    const layerPanel = useLayerPanelService();
     const output = useOutputStore();
     let cutLayerId = null;
 
