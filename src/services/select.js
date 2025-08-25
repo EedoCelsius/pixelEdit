@@ -3,16 +3,18 @@ import { useStageService } from './stage';
 import { useOverlayService } from './overlay';
 import { useLayerPanelService } from './layerPanel';
 import { useStore } from '../stores';
+import { useToolService } from './tool';
 import { coordToKey } from '../utils';
 
 export const useSelectService = defineStore('selectService', () => {
     const stage = useStageService();
     const overlay = useOverlayService();
     const layerPanel = useLayerPanelService();
-    const { tool: toolStore, layers, output } = useStore();
+    const { layers, output, stageEvent: stageEvents } = useStore();
 
     const addByMode = (id) => {
-        const mode = toolStore.pointer.status;
+        const tool = useToolService();
+        const mode = tool.pointer.status;
         if (mode === 'remove') {
             if (layers.isSelected(id)) overlay.helper.add(id);
         } else if (mode === 'add') {
@@ -22,7 +24,8 @@ export const useSelectService = defineStore('selectService', () => {
         }
     };
 
-    function toolStart(event) {
+    function start(event) {
+        const tool = useToolService();
         if (event.button !== 0) return;
         const coord = stage.clientToCoord(event);
         if (!coord) return;
@@ -36,31 +39,31 @@ export const useSelectService = defineStore('selectService', () => {
 
         output.setRollbackPoint();
 
-        toolStore.pointer.status = mode;
-        toolStore.pointer.start = { x: event.clientX, y: event.clientY };
+        tool.pointer.status = mode;
         overlay.helper.mode = mode === 'remove' ? 'remove' : 'add';
 
         try {
             event.target.setPointerCapture?.(event.pointerId);
-            toolStore.pointer.id = event.pointerId;
+            tool.pointer.id = event.pointerId;
         } catch {}
 
         overlay.helper.clear();
-        if (toolStore.shape === 'rect') {
+        if (tool.shape === 'rect') {
             // rectangle interactions tracked directly in components
         } else {
-            toolStore.visited.clear();
-            toolStore.visited.add(coordToKey(coord));
+            tool.visited.clear();
+            tool.visited.add(coordToKey(coord));
             const id = layers.topVisibleIdAt(coord);
             if (id !== null) addByMode(id);
         }
     }
 
-    function toolMove(event) {
-        if (toolStore.pointer.status === 'idle') return;
+    function move(event) {
+        const tool = useToolService();
+        if (tool.pointer.status === 'idle') return;
 
-        if (toolStore.shape === 'rect') {
-            const pixels = stage.getPixelsFromInteraction(event);
+        if (tool.shape === 'rect') {
+            const pixels = tool.getPixelsFromInteraction(event);
             const intersectedIds = new Set();
             for (const coord of pixels) {
                 const id = layers.topVisibleIdAt(coord);
@@ -74,10 +77,10 @@ export const useSelectService = defineStore('selectService', () => {
                 return;
             }
             const k = coordToKey(coord);
-            if (toolStore.visited.has(k)) {
+            if (tool.visited.has(k)) {
                 return;
             }
-            toolStore.visited.add(k);
+            tool.visited.add(k);
             const id = layers.topVisibleIdAt(coord);
             if (id !== null) {
                 addByMode(id);
@@ -85,13 +88,14 @@ export const useSelectService = defineStore('selectService', () => {
         }
     }
 
-    function toolFinish(event) {
-        if (toolStore.pointer.status === 'idle') return;
+    function finish(event) {
+        const tool = useToolService();
+        if (tool.pointer.status === 'idle') return;
 
-        const mode = toolStore.pointer.status;
+        const mode = tool.pointer.status;
 
         const coord = stage.clientToCoord(event);
-        const start = toolStore.pointer.start;
+        const start = stageEvents.pointer.start;
         const dx = start ? Math.abs(event.clientX - start.x) : 0;
         const dy = start ? Math.abs(event.clientY - start.y) : 0;
         const isClick = dx <= 4 && dy <= 4;
@@ -106,7 +110,7 @@ export const useSelectService = defineStore('selectService', () => {
                 layerPanel.setScrollRule({ type: 'follow', target: id });
             }
         } else {
-            const pixels = stage.getPixelsFromInteraction(event);
+            const pixels = tool.getPixelsFromInteraction(event);
             if (pixels.length > 0) {
                 const intersectedIds = new Set();
                 for (const coord of pixels) {
@@ -130,7 +134,7 @@ export const useSelectService = defineStore('selectService', () => {
         }
 
         try {
-            event.target?.releasePointerCapture?.(toolStore.pointer.id);
+            event.target?.releasePointerCapture?.(tool.pointer.id);
         } catch {}
 
         output.commit();
@@ -138,19 +142,22 @@ export const useSelectService = defineStore('selectService', () => {
     }
 
     function cancel() {
-        if (toolStore.pointer.status === 'idle') return;
+        const tool = useToolService();
+        if (tool.pointer.status === 'idle') return;
         output.rollbackPending();
         reset();
     }
 
     function reset() {
-        toolStore.pointer.status = 'idle';
-        toolStore.pointer.id = null;
-       toolStore.pointer.start = null;
-       toolStore.visited.clear();
+        const tool = useToolService();
+        tool.pointer.status = 'idle';
+        tool.pointer.id = null;
+        tool.visited.clear();
         overlay.helper.clear();
         overlay.helper.mode = 'add';
     }
 
-    return { toolStart, toolMove, toolFinish, cancel };
+    const tools = { select: { start, move, finish } };
+
+    return { tools, cancel };
 });

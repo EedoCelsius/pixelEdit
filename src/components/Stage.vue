@@ -9,7 +9,7 @@
          :style="{
            width: stageStore.pixelWidth+'px',
            height: stageStore.pixelHeight+'px',
-           cursor: stageService.cursor,
+           cursor: toolService.cursor,
            transform: `translate(${offset.x}px, ${offset.y}px)`
          }"
          @pointerdown="onPointerDown"
@@ -59,7 +59,7 @@
                 shape-rendering="crispEdges" />
 
         <!-- Helper overlay -->
-        <path v-if="toolStore.isSelect || toolStore.pointer.status === 'cut'"
+        <path v-if="toolService.isSelect || toolService.pointer.status === 'cut'"
               :d="helperOverlay.path"
               :fill="helperOverlay.FILL_COLOR"
               :stroke="helperOverlay.STROKE_COLOR"
@@ -72,61 +72,22 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
-import { rgbaCssU32, rgbaCssObj, calcMarquee } from '../utils';
 import { OVERLAY_CONFIG, GRID_STROKE_COLOR } from '@/constants';
+import { rgbaCssU32 } from '../utils';
 
-const { stage: stageStore, tool: toolStore, layers, input, stageEvent: stageEvents } = useStore();
-const { stage: stageService, overlay, select: selectSvc, pixel: pixelSvc, viewport } = useService();
+const { stage: stageStore, layers, stageEvent: stageEvents } = useStore();
+const { stage: stageService, overlay, tool: toolService, viewport } = useService();
 const viewportEl = ref(null);
 const stageEl = ref(null);
-const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
+const marquee = toolService.marquee;
 const offset = viewport.offset;
 
-    const updateHover = (event) => {
-        const coord = stageService.clientToCoord(event);
-        if (!coord) {
-            stageStore.updatePixelInfo('-');
-            overlay.helper.clear();
-            overlay.helper.mode = 'add';
-            return;
-        }
-        const [px, py] = coord;
-        if (stageStore.display === 'original' && input.isLoaded) {
-            const colorObject = input.readPixel(coord);
-            stageStore.updatePixelInfo(`[${px},${py}] ${rgbaCssObj(colorObject)}`);
-        } else {
-            const colorU32 = layers.compositeColorAt(coord);
-            stageStore.updatePixelInfo(`[${px},${py}] ${rgbaCssU32(colorU32)}`);
-        }
-        if (toolStore.pointer.status !== 'idle') {
-            overlay.helper.mode = toolStore.pointer.status === 'remove' ? 'remove' : 'add';
-            return;
-        }
-        if (toolStore.isSelect) {
-            const id = layers.topVisibleIdAt(coord);
-            overlay.helper.clear();
-            overlay.helper.add(id);
-            overlay.helper.mode = (id != null && toolStore.shiftHeld && layers.isSelected(id)) ? 'remove' : 'add';
-        } else {
-            overlay.helper.clear();
-            overlay.helper.mode = 'add';
-        }
-    };
-
-const updateMarquee = (e) => {
-    if (toolStore.shape !== 'rect' || toolStore.pointer.status === 'idle' || !toolStore.pointer.start || !e) {
-        Object.assign(marquee, { visible: false, x: 0, y: 0, w: 0, h: 0 });
-        return;
-    }
-    Object.assign(marquee, calcMarquee(toolStore.pointer.start, { x: e.clientX, y: e.clientY }, stageStore.canvas));
-};
-  
-const onViewportPointerDown = viewport.onViewportPointerDown;
-const onViewportPointerMove = viewport.onViewportPointerMove;
-const onViewportPointerUp = viewport.onViewportPointerUp;
+    const onViewportPointerDown = viewport.onViewportPointerDown;
+    const onViewportPointerMove = viewport.onViewportPointerMove;
+    const onViewportPointerUp = viewport.onViewportPointerUp;
 const onViewportPointerCancel = viewport.onViewportPointerCancel;
 
 const onPointerDown = (e) => {
@@ -156,46 +117,14 @@ const onWheel = (e) => {
   stageEvents.setWheel(e);
 };
 
-watch(() => stageEvents.lastPointerDown, (e) => {
-  if (!e || e.pointerType === 'touch') return;
-  updateMarquee(e);
-  if (toolStore.isSelect) selectSvc.toolStart(e);
-  else pixelSvc.toolStart(e);
-});
-
-watch(() => stageEvents.pointer.move, (e) => {
-  if (!e || e.pointerType === 'touch') return;
-  updateHover(e);
-  updateMarquee(e);
-  if (toolStore.isSelect) selectSvc.toolMove(e);
-  else pixelSvc.toolMove(e);
-});
-
-watch(() => stageEvents.pointer.up, (e) => {
-  if (!e || e.pointerType === 'touch') return;
-  updateMarquee(e);
-  if (e.type === 'pointercancel') {
-    if (toolStore.isSelect) selectSvc.cancel(e);
-    else pixelSvc.cancel(e);
-  } else {
-    if (toolStore.isSelect) selectSvc.toolFinish(e);
-    else pixelSvc.toolFinish(e);
-  }
-});
-
-watch(() => stageEvents.wheel, (e) => {
-  if (!e) return;
-  viewport.onWheel(e);
-});
-
 const selectionPath = computed(() => overlay.selection.path);
 const helperOverlay = computed(() => {
     const path = overlay.helper.path;
     if (!path) return { path }; // no style when empty
 
-    const mode = toolStore.pointer.status === 'remove'
+    const mode = toolService.pointer.status === 'remove'
         ? 'remove'
-        : toolStore.pointer.status === 'idle'
+        : toolService.pointer.status === 'idle'
             ? overlay.helper.mode
             : 'add';
     const style = mode === 'remove' ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;

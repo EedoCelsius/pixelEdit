@@ -1,14 +1,11 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { useStore } from '../stores';
-import { useOverlayService } from './overlay';
-import { keyToCoord, calcMarquee } from '../utils';
-import { CURSOR_CONFIG, SVG_NAMESPACE, CHECKERBOARD_CONFIG, MIN_SCALE_RATIO } from '@/constants';
+import { SVG_NAMESPACE, CHECKERBOARD_CONFIG, MIN_SCALE_RATIO } from '@/constants';
 
 export const useStageService = defineStore('stageService', () => {
     // stores
-    const { stage: stageStore, tool: toolStore } = useStore();
-    const overlay = useOverlayService();
+    const { stage: stageStore } = useStore();
     // stage element reference
     const element = ref(null);
 
@@ -92,64 +89,12 @@ export const useStageService = defineStore('stageService', () => {
     }
 
 
-    function getPixelsFromInteraction(event) {
-        const toolState = toolStore.pointer;
-        let pixels = [];
-        if (toolStore.shape === 'rect') {
-            const { visible, x, y, w, h } = calcMarquee(
-                toolState.start,
-                { x: event.clientX, y: event.clientY },
-                stageStore.canvas
-            );
-            if (!visible || w === 0 || h === 0) {
-                const coord = clientToCoord(event);
-                if (coord) pixels.push(coord);
-            } else {
-                for (let yy = y; yy < y + h; yy++)
-                    for (let xx = x; xx < x + w; xx++) pixels.push([xx, yy]);
-            }
-        } else {
-            toolStore.visited.forEach(key => pixels.push(keyToCoord(key)));
-        }
-        return pixels;
-    }
-
-
-    const cursor = computed(() => {
-        const tool = toolStore.expected;
-        const shape = toolStore.shape;
-
-        if (tool === 'select') {
-            const mode = toolStore.pointer.status === 'idle'
-                ? overlay.helper.mode
-                : (toolStore.pointer.status === 'remove' ? 'remove' : 'add');
-            if (shape === 'stroke') {
-                return mode === 'remove' ? CURSOR_CONFIG.REMOVE_STROKE : CURSOR_CONFIG.ADD_STROKE;
-            }
-            if (shape === 'rect') {
-                return mode === 'remove' ? CURSOR_CONFIG.REMOVE_RECT : CURSOR_CONFIG.ADD_RECT;
-            }
-        }
-        if (tool === 'draw' && shape === 'stroke') return CURSOR_CONFIG.DRAW_STROKE;
-        if (tool === 'draw' && shape === 'rect') return CURSOR_CONFIG.DRAW_RECT;
-        if (tool === 'erase' && shape === 'stroke') return CURSOR_CONFIG.ERASE_STROKE;
-        if (tool === 'erase' && shape === 'rect') return CURSOR_CONFIG.ERASE_RECT;
-        if (tool === 'globalErase' && shape === 'stroke') return CURSOR_CONFIG.GLOBAL_ERASE_STROKE;
-        if (tool === 'globalErase' && shape === 'rect') return CURSOR_CONFIG.GLOBAL_ERASE_RECT;
-        if (tool === 'cut' && shape === 'stroke') return CURSOR_CONFIG.CUT_STROKE;
-        if (tool === 'cut' && shape === 'rect') return CURSOR_CONFIG.CUT_RECT;
-        return 'default';
-    });
-
     return {
         element,
         setElement,
-        // interaction state
-        cursor,
         // methods
         recalcMinScale,
         clientToCoord,
-        getPixelsFromInteraction,
         // utils for components
         ensureCheckerboardPattern,
     };
