@@ -1,5 +1,5 @@
 import { useLayerPanelService } from './layerPanel';
-import { useLayerService } from './layers';
+import { useLayerToolService } from './layerTool';
 import { useOverlayService } from './overlay';
 import { usePixelService } from './pixel';
 import { useQueryService } from './query';
@@ -10,7 +10,7 @@ import { useViewportService } from './viewport';
 
 export {
     useLayerPanelService,
-    useLayerService,
+    useLayerToolService,
     useOverlayService,
     usePixelService,
     useQueryService,
@@ -22,7 +22,7 @@ export {
 
 export const useService = () => ({
     layerPanel: useLayerPanelService(),
-    layers: useLayerService(),
+    layerTool: useLayerToolService(),
     overlay: useOverlayService(),
     pixel: usePixelService(),
     query: useQueryService(),

@@ -42,7 +42,7 @@
           <!-- Selection overlay (sky blue) -->
           <path id="selectionOverlay"
                 v-if="layers.selectionExists"
-                :d="selectionPath"
+                :d="overlay.selection.path"
                 :fill="OVERLAY_CONFIG.SELECTED.FILL_COLOR"
                 :stroke="OVERLAY_CONFIG.SELECTED.STROKE_COLOR"
                 :stroke-width="OVERLAY_CONFIG.SELECTED.STROKE_WIDTH_SCALE / Math.max(1, stageStore.canvas.scale)"
@@ -117,7 +117,6 @@ const onWheel = (e) => {
   stageEvents.setWheel(e);
 };
 
-const selectionPath = computed(() => overlay.selection.path);
 const helperOverlay = computed(() => {
     const path = overlay.helper.path;
     if (!path) return { path }; // no style when empty
