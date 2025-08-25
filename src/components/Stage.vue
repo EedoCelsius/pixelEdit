@@ -32,7 +32,7 @@
       </svg>
       <!-- 그리드 -->
       <svg class="absolute top-0 left-0 pointer-events-none block rounded-lg" :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" :style="{ width: stageStore.pixelWidth+'px', height: stageStore.pixelHeight+'px' }" style="image-rendering:pixelated">
-        <g :stroke="'rgba(0,0,0,.18)'" :stroke-width="1/Math.max(1,stageStore.canvas.scale)">
+        <g :stroke="GRID_STROKE_COLOR" :stroke-width="1/Math.max(1,stageStore.canvas.scale)">
           <path v-for="x in (stageStore.canvas.width+1)" :key="'gx'+x" :d="'M '+(x-1)+' 0 V '+stageStore.canvas.height"></path>
           <path v-for="y in (stageStore.canvas.height+1)" :key="'gy'+y" :d="'M 0 '+(y-1)+' H '+stageStore.canvas.width"></path>
         </g>
@@ -85,7 +85,7 @@ import { usePixelService } from '../services/pixel';
 import { useStageEventStore } from '../stores/stageEvent';
 import { useViewportService } from '../services/viewport';
 import { rgbaCssU32, rgbaCssObj, calcMarquee } from '../utils';
-import { OVERLAY_CONFIG } from '../constants';
+import { OVERLAY_CONFIG, GRID_STROKE_COLOR } from '@/constants';
 
 const stageStore = useStageStore();
 const toolStore = useToolStore();

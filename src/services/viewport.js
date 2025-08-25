@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { reactive, ref } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { clamp } from '../utils';
+import { WHEEL_ZOOM_IN_FACTOR, WHEEL_ZOOM_OUT_FACTOR, POSITION_LERP_EXPONENT } from '@/constants';
 
 export const useViewportService = defineStore('viewportService', () => {
   const stageStore = useStageStore();
@@ -51,7 +52,7 @@ export const useViewportService = defineStore('viewportService', () => {
       const px = e.clientX - rect.left;
       const py = e.clientY - rect.top;
       const oldScale = stageStore.canvas.scale;
-      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      const factor = e.deltaY < 0 ? WHEEL_ZOOM_IN_FACTOR : WHEEL_ZOOM_OUT_FACTOR;
       const newScale = oldScale * factor;
       const clamped = Math.max(stageStore.canvas.minScale, newScale);
       const ratio = clamped / oldScale;
@@ -101,7 +102,7 @@ export const useViewportService = defineStore('viewportService', () => {
       offset.x = targetX;
       offset.y = targetY;
     } else {
-      const strength = (stageStore.canvas.minScale / stageStore.canvas.scale) ** 2;
+      const strength = (stageStore.canvas.minScale / stageStore.canvas.scale) ** POSITION_LERP_EXPONENT;
       offset.x += (targetX - offset.x) * strength;
       offset.y += (targetY - offset.y) * strength;
     }
