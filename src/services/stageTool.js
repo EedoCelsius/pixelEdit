@@ -35,9 +35,9 @@ export const useStageToolService = defineStore('stageToolService', () => {
                 : status;
         }
         let tool = prepared.value;
-        if (isKeyDown('shift')) {
+        if (isKeyDown('Shift')) {
             tool = 'select';
-        } else if (isKeyDown('ctrl')) {
+        } else if (isKeyDown('Control') || isKeyDown('Meta')) {
             if (tool === 'draw') tool = 'erase';
             else if (tool === 'erase') tool = 'draw';
             else if (tool === 'select') tool = 'globalErase';
@@ -81,7 +81,7 @@ export const useStageToolService = defineStore('stageToolService', () => {
             const id = layers.topVisibleIdAt(coord);
             overlay.helper.clear();
             overlay.helper.add(id);
-            overlay.helper.mode = (id != null && isKeyDown('shift') && layers.isSelected(id)) ? 'remove' : 'add';
+            overlay.helper.mode = (id != null && isKeyDown('Shift') && layers.isSelected(id)) ? 'remove' : 'add';
         } else {
             overlay.helper.clear();
             overlay.helper.mode = 'add';
@@ -162,7 +162,7 @@ export const useStageToolService = defineStore('stageToolService', () => {
 
         if (isSelect.value) {
             const startId = layers.topVisibleIdAt(coord);
-            const mode = !isKeyDown('shift')
+            const mode = !isKeyDown('Shift')
                 ? 'select'
                 : layers.isSelected(startId)
                     ? 'remove'

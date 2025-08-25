@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia';
-
-const pointerIds = [];
+import { MAX_POINTER_WINDOW } from '@/constants';
 
 export const useViewportEventStore = defineStore('viewportEvent', {
     state: () => ({
@@ -10,42 +9,54 @@ export const useViewportEventStore = defineStore('viewportEvent', {
     }),
     actions: {
         addPointerDown(event) {
-            this.pointer[event.pointerId] = { down: event, move: null, up: null };
-            this.pointer.recent = event.pointerId;
-            pointerIds.push(event.pointerId);
-            if (pointerIds.length > 10) {
-                const removeId = pointerIds.shift();
-                delete this.pointer[removeId];
+            if (this.pointer[event.pointerId])
+                this.pointer[event.pointerId].down = event;
+            else {
+                this.pointer[event.pointerId] = { down: event, move: null, up: null };
+                this.pruneOldPointers();
             }
+            this.pointer.recent = event.pointerId;
         },
         setPointerMove(event) {
-            const p = this.pointer[event.pointerId];
-            if (p) p.move = event;
-            else this.pointer[event.pointerId] = { down: null, move: event, up: null };
+            if (this.pointer[event.pointerId])
+                this.pointer[event.pointerId].move = event;
+            else {
+                this.pointer[event.pointerId] = { down: null, move: event, up: null };
+                this.pruneOldPointers();
+            }
             this.pointer.recent = event.pointerId;
         },
         setPointerUp(event) {
-            const p = this.pointer[event.pointerId];
-            if (p) p.up = event;
-            else this.pointer[event.pointerId] = { down: null, move: null, up: event };
+            if (this.pointer[event.pointerId])
+                this.pointer[event.pointerId].up = event;
+            else {
+                this.pointer[event.pointerId] = { down: null, move: null, up: event };
+                this.pruneOldPointers();
+            }
             this.pointer.recent = event.pointerId;
+        },
+        pruneOldPointers() {
+            const entries = Object.entries(this.pointer).filter(([id]) => id !== 'recent');
+            if (entries.length <= MAX_POINTER_WINDOW) return;
+            const getLatest = (p) => Math.max(p.down?.timeStamp || 0, p.move?.timeStamp || 0, p.up?.timeStamp || 0);
+            entries.sort(([, a], [, b]) => getLatest(b) - getLatest(a));
+            for (let i = MAX_POINTER_WINDOW; i < entries.length; i++) {
+                delete this.pointer[entries[i][0]];
+            }
         },
         setWheel(event) {
             this.wheel = event;
         },
-        setKey(event) {
+        setKeyDown(event) {
             if (!event) return;
-            const key =
-                event.key === 'Shift'
-                    ? 'shift'
-                    : event.key === 'Control' || event.key === 'Meta'
-                        ? 'ctrl'
-                        : event.key;
-            if (event.type === 'keydown') {
-                this.keyboard[key] = { down: event };
-            } else if (event.type === 'keyup') {
-                this.keyboard[key] = { ...(this.keyboard[key] || {}), up: event };
-            }
+            const key = event.key;
+            this.keyboard[key] = { down: event };
+            this.keyboard.recent = key;
+        },
+        setKeyUp(event) {
+            if (!event) return;
+            const key = event.key;
+            this.keyboard[key] = { ...(this.keyboard[key] || {}), up: event };
             this.keyboard.recent = key;
         },
     },

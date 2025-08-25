@@ -43,7 +43,7 @@
 import { ref, watch } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
-import { CTRL_TAP_THRESHOLD_MS, SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS } from '@/constants';
+import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 
 const { stage: stageStore, layers, output, viewportEvent: viewportEvents } = useStore();
@@ -62,29 +62,34 @@ const redo = () => output.redo();
 
 // Keyboard handlers
 const isCtrlDown = () => {
-  const entry = viewportEvents.keyboard.ctrl;
-  return entry && (!entry.up || entry.down.timeStamp > entry.up.timeStamp);
+  const ctrl = viewportEvents.keyboard['Control'];
+  const meta = viewportEvents.keyboard['Meta'];
+  const check = (entry) => entry && (!entry.up || entry.down?.timeStamp > entry.up.timeStamp);
+  return check(ctrl) || check(meta);
 };
 function ctrlKeyDown(e) {
-  if (!isCtrlDown()) {
-    viewportEvents.setKey(e);
-  }
+  viewportEvents.setKeyDown(e);
 }
 function ctrlKeyUp(e) {
-  const down = viewportEvents.keyboard.ctrl?.down;
-  const upEvent = e || { key: 'Control', type: 'keyup', timeStamp: performance.now() };
-  if (down && upEvent.timeStamp - down.timeStamp < CTRL_TAP_THRESHOLD_MS) {
-    const t = stageToolService.prepared;
-    if (t === 'draw' || t === 'erase') {
-      stageToolService.setPrepared(t === 'draw' ? 'erase' : 'draw');
-    } else if (t === 'select' || t === 'globalErase') {
-      stageToolService.setPrepared(t === 'select' ? 'globalErase' : 'select');
+  if (e) {
+    const down = viewportEvents.keyboard[e.key]?.down;
+    if (down && !down.repeat) {
+      const t = stageToolService.prepared;
+      if (t === 'draw' || t === 'erase') {
+        stageToolService.setPrepared(t === 'draw' ? 'erase' : 'draw');
+      } else if (t === 'select' || t === 'globalErase') {
+        stageToolService.setPrepared(t === 'select' ? 'globalErase' : 'select');
+      }
     }
+    viewportEvents.setKeyUp(e);
+  } else {
+    const ts = performance.now();
+    viewportEvents.setKeyUp({ key: 'Control', type: 'keyup', timeStamp: ts });
+    viewportEvents.setKeyUp({ key: 'Meta', type: 'keyup', timeStamp: ts });
   }
-  viewportEvents.setKey(upEvent);
 }
-function shiftKeyDown(e) { viewportEvents.setKey(e); }
-function shiftKeyUp(e) { viewportEvents.setKey(e || { key: 'Shift', type: 'keyup', timeStamp: performance.now() }); }
+function shiftKeyDown(e) { viewportEvents.setKeyDown(e); }
+function shiftKeyUp(e) { viewportEvents.setKeyUp(e || { key: 'Shift', type: 'keyup', timeStamp: performance.now() }); }
 
 defineExpose({ ctrlKeyDown, ctrlKeyUp, shiftKeyDown, shiftKeyUp });
 </script>
