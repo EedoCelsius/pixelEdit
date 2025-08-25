@@ -329,7 +329,7 @@ function onNameKey(id, event) {
 
 function handleGlobalPointerDown(event) {
     const target = event.target;
-    const stageEl = document.getElementById('stage');
+    const stageEl = stageService.element;
     const isStage = stageEl && stageEl.contains(target);
     const isLayers = listElement.value && listElement.value.contains(target);
     const isButton = !!target.closest('button');

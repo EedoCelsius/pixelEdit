@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { reactive } from 'vue';
+import { reactive, ref } from 'vue';
 import { useStageStore } from '../stores/stage';
 import { clamp } from '../utils';
 
@@ -7,40 +7,47 @@ export const useViewportService = defineStore('viewportService', () => {
   const stageStore = useStageStore();
   const offset = reactive({ x: 0, y: 0 });
   const touches = new Map();
+  const element = ref(null);
   let lastTouchDistance = 0;
 
-  function onContainerPointerDown(e) {
+  function setElement(el) {
+    element.value = el;
+  }
+
+  function onViewportPointerDown(e) {
     if (e.pointerType !== 'touch') return;
     e.preventDefault();
     touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
     lastTouchDistance = 0;
   }
 
-  function onContainerPointerMove(e, container) {
+  function onViewportPointerMove(e) {
     if (e.pointerType !== 'touch') return;
     touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (touches.size === 2) handlePinch(container);
+    if (touches.size === 2) handlePinch();
   }
 
-  function onContainerPointerUp(e) {
+  function onViewportPointerUp(e) {
     if (e.pointerType !== 'touch') return;
     touches.delete(e.pointerId);
     lastTouchDistance = 0;
   }
 
-  function onContainerPointerCancel(e) {
+  function onViewportPointerCancel(e) {
     if (e.pointerType !== 'touch') return;
     touches.delete(e.pointerId);
     lastTouchDistance = 0;
   }
 
-  function onWheel(e, container) {
+  function onWheel(e) {
+    const viewportEl = element.value;
+    if (!viewportEl) return;
     if (!e.ctrlKey) {
       offset.x -= e.deltaX;
       offset.y -= e.deltaY;
     } else {
       if (e.deltaY === 0) return;
-      const rect = container.getBoundingClientRect();
+      const rect = viewportEl.getBoundingClientRect();
       const px = e.clientX - rect.left;
       const py = e.clientY - rect.top;
       const oldScale = stageStore.canvas.scale;
@@ -51,13 +58,15 @@ export const useViewportService = defineStore('viewportService', () => {
       offset.x = px - ratio * (px - offset.x);
       offset.y = py - ratio * (py - offset.y);
       stageStore.setScale(clamped);
-      if (newScale < oldScale) positionStage(false, container);
+      if (newScale < oldScale) positionStage(false);
     }
-    updateCanvasPosition(container);
+    updateCanvasPosition();
   }
 
-  function handlePinch(container) {
-    const rect = container.getBoundingClientRect();
+  function handlePinch() {
+    const viewportEl = element.value;
+    if (!viewportEl) return;
+    const rect = viewportEl.getBoundingClientRect();
     const [t1, t2] = Array.from(touches.values());
     const cx = (t1.x + t2.x) / 2 - rect.left;
     const cy = (t1.y + t2.y) / 2 - rect.top;
@@ -74,14 +83,16 @@ export const useViewportService = defineStore('viewportService', () => {
     offset.y = cy - ratio * (cy - offset.y);
     stageStore.setScale(clamped);
     lastTouchDistance = dist;
-    if (newScale < oldScale) positionStage(false, container);
-    updateCanvasPosition(container);
+    if (newScale < oldScale) positionStage(false);
+    updateCanvasPosition();
   }
 
-  function positionStage(center = false, container) {
-    const style = getComputedStyle(container);
-    const width = container.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-    const height = container.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+  function positionStage(center = false) {
+    const viewportEl = element.value;
+    if (!viewportEl) return;
+    const style = getComputedStyle(viewportEl);
+    const width = viewportEl.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const height = viewportEl.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
     const maxX = width - stageStore.pixelWidth;
     const maxY = height - stageStore.pixelHeight;
     const targetX = maxX >= 0 ? maxX / 2 : clamp(offset.x, maxX, 0);
@@ -96,20 +107,24 @@ export const useViewportService = defineStore('viewportService', () => {
     }
   }
 
-  function updateCanvasPosition(container) {
-    const rect = container.getBoundingClientRect();
-    const style = getComputedStyle(container);
+  function updateCanvasPosition() {
+    const viewportEl = element.value;
+    if (!viewportEl) return;
+    const rect = viewportEl.getBoundingClientRect();
+    const style = getComputedStyle(viewportEl);
     const left = rect.left + parseFloat(style.paddingLeft);
     const top = rect.top + parseFloat(style.paddingTop);
     stageStore.setCanvasPosition(left + offset.x, top + offset.y);
   }
 
   return {
+    element,
+    setElement,
     offset,
-    onContainerPointerDown,
-    onContainerPointerMove,
-    onContainerPointerUp,
-    onContainerPointerCancel,
+    onViewportPointerDown,
+    onViewportPointerMove,
+    onViewportPointerUp,
+    onViewportPointerCancel,
     onWheel,
     positionStage,
     updateCanvasPosition,

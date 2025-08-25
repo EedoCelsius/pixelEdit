@@ -13,16 +13,29 @@ export const useStageService = defineStore('stageService', () => {
     const toolStore = useToolStore();
     const layers = useLayerStore();
     const overlay = useOverlayService();
+    // stage element reference
+    const element = ref(null);
+
+    function setElement(el) {
+        element.value = el;
+    }
+
+    // --- Overlay Paths ---
+    const selectOverlayPath = computed(() => {
+        if (!overlay.selectOverlayLayerIds.size) return '';
+        const pixelUnionSet = getPixelUnionSet(layers.getLayers(overlay.selectOverlayLayerIds));
+        return pixelsToUnionPath(pixelUnionSet);
+    });
 
     // --- Canvas Utilities ---
-    function recalcMinScale(container) {
-        const style = getComputedStyle(container);
+    function recalcMinScale(viewportEl) {
+        const style = getComputedStyle(viewportEl);
         const paddingLeft = parseFloat(style.paddingLeft) || 0;
         const paddingRight = parseFloat(style.paddingRight) || 0;
         const paddingTop = parseFloat(style.paddingTop) || 0;
         const paddingBottom = parseFloat(style.paddingBottom) || 0;
-        const width = (container.clientWidth || 0) - paddingLeft - paddingRight;
-        const height = (container.clientHeight || 0) - paddingTop - paddingBottom;
+        const width = (viewportEl.clientWidth || 0) - paddingLeft - paddingRight;
+        const height = (viewportEl.clientHeight || 0) - paddingTop - paddingBottom;
         const containScale = Math.min(
             width / Math.max(1, stageStore.canvas.width),
             height / Math.max(1, stageStore.canvas.height)
@@ -151,6 +164,8 @@ export const useStageService = defineStore('stageService', () => {
     });
 
     return {
+        element,
+        setElement,
         // interaction state
         cursor,
         // methods

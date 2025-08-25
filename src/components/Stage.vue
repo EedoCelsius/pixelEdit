@@ -1,10 +1,10 @@
 <template>
-  <div ref="containerEl" class="relative flex-1 min-h-0 p-2 overflow-hidden touch-none"
+  <div ref="viewportEl" class="relative flex-1 min-h-0 p-2 overflow-hidden touch-none"
        @wheel.prevent="onWheel"
-       @pointerdown="onContainerPointerDown"
-       @pointermove="onContainerPointerMove"
-       @pointerup="onContainerPointerUp"
-       @pointercancel="onContainerPointerCancel">
+       @pointerdown="onViewportPointerDown"
+       @pointermove="onViewportPointerMove"
+       @pointerup="onViewportPointerUp"
+       @pointercancel="onViewportPointerCancel">
     <div id="stage" ref="stageEl" class="absolute rounded-lg shadow-inner ring-1 ring-white/10 select-none touch-none"
          :style="{
            width: stageStore.pixelWidth+'px',
@@ -98,7 +98,7 @@ const input = useInputStore();
 const selectSvc = useSelectService();
 const pixelSvc = usePixelService();
 const viewport = useViewportService();
-const containerEl = ref(null);
+const viewportEl = ref(null);
 const stageEl = ref(null);
 const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
 const offset = viewport.offset;
@@ -132,10 +132,10 @@ const updateMarquee = (e) => {
     Object.assign(marquee, calcMarquee(toolStore.pointer.start, { x: e.clientX, y: e.clientY }, stageStore.canvas));
 };
   
-const onContainerPointerDown = viewport.onContainerPointerDown;
-const onContainerPointerMove = (e) => viewport.onContainerPointerMove(e, containerEl.value);
-const onContainerPointerUp = viewport.onContainerPointerUp;
-const onContainerPointerCancel = viewport.onContainerPointerCancel;
+const onViewportPointerDown = viewport.onViewportPointerDown;
+const onViewportPointerMove = viewport.onViewportPointerMove;
+const onViewportPointerUp = viewport.onViewportPointerUp;
+const onViewportPointerCancel = viewport.onViewportPointerCancel;
 
 const onPointerDown = (e) => {
   stageEvents.addPointerDown(e);
@@ -192,7 +192,7 @@ watch(() => stageEvents.pointer.up, (e) => {
 
 watch(() => stageEvents.wheel, (e) => {
   if (!e) return;
-  viewport.onWheel(e, containerEl.value);
+  viewport.onWheel(e);
 });
 
 const selectionPath = computed(() => layerSvc.selectionPath());
@@ -223,8 +223,8 @@ const helperOverlay = computed(() => {
 
 const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
 
-const positionStage = (center = false) => viewport.positionStage(center, containerEl.value);
-const updateCanvasPosition = () => viewport.updateCanvasPosition(containerEl.value);
+const positionStage = (center = false) => viewport.positionStage(center);
+const updateCanvasPosition = () => viewport.updateCanvasPosition();
 
 let prevOffsetWidth = 0;
 let prevOffsetHeight = 0;
@@ -232,7 +232,7 @@ let prevClientWidth = 0;
 let prevClientHeight = 0;
 
 const onDomResize = () => {
-    const el = containerEl.value;
+    const el = viewport.element;
     const { offsetWidth, offsetHeight, clientWidth, clientHeight } = el;
     const sizeChanged = offsetWidth !== prevOffsetWidth || offsetHeight !== prevOffsetHeight;
     const scrollChanged = !sizeChanged && (clientWidth !== prevClientWidth || clientHeight !== prevClientHeight);
@@ -248,7 +248,7 @@ const onDomResize = () => {
 };
 
 const onImageLoad = () => {
-    stageService.recalcMinScale(containerEl.value);
+    stageService.recalcMinScale(viewport.element);
     stageStore.setScale(stageStore.canvas.containScale);
     positionStage(true);
     updateCanvasPosition();
@@ -256,8 +256,10 @@ const onImageLoad = () => {
 
 const resizeObserver = new ResizeObserver(onDomResize);
 onMounted(() => {
+    viewport.setElement(viewportEl.value);
+    stageService.setElement(stageEl.value);
     requestAnimationFrame(onDomResize);
-    resizeObserver.observe(containerEl.value);
+    resizeObserver.observe(viewport.element);
 });
 onUnmounted(resizeObserver.disconnect);
 </script>
