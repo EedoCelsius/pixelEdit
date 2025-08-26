@@ -56,7 +56,7 @@
                 shape-rendering="crispEdges" />
 
         <!-- Helper overlay -->
-        <path v-if="helperOverlay.path"
+        <path v-if="stageToolService.isSelect || stageToolService.pointer.status === 'cut'"
               :d="helperOverlay.path"
               :fill="helperOverlay.FILL_COLOR"
               :stroke="helperOverlay.STROKE_COLOR"
@@ -83,11 +83,8 @@ const stage = viewportStore.stage;
 
 const onStagePointerLeave = (e) => {
     if (e.pointerType === 'touch') return;
-    if (stageToolService.pointer.status !== 'idle') return;
     overlay.helper.clear();
     overlay.helper.mode = 'add';
-    stageToolService.previewPixels = [];
-    stageToolService.affectedPixels = [];
     viewportStore.updatePixelInfo('-');
 };
 
@@ -95,8 +92,7 @@ const helperOverlay = computed(() => {
     const path = overlay.helper.path;
     if (!path) return { path }; // no style when empty
 
-    const removingStatuses = ['remove', 'erase', 'globalErase'];
-    const mode = removingStatuses.includes(stageToolService.pointer.status)
+    const mode = stageToolService.pointer.status === 'remove'
         ? 'remove'
         : stageToolService.pointer.status === 'idle'
             ? overlay.helper.mode

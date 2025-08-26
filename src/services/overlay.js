@@ -21,12 +21,7 @@ export const useOverlayService = defineStore('overlayService', () => {
             const pixels = layers.getProperty(id, 'pixels') || [];
             for (const coord of pixels) pixelKeys.add(coordToKey(coord));
         }
-        function setPixels(coords) {
-            pixelKeys.clear();
-            if (!coords || !coords.length) return;
-            for (const coord of coords) pixelKeys.add(coordToKey(coord));
-        }
-        return { pixels: pixelKeys, path, clear, add, setPixels };
+        return { pixels: pixelKeys, path, clear, add };
     }
 
     const selection = createOverlayState();
