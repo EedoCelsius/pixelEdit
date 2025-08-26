@@ -5,7 +5,7 @@ import { useOverlayService } from './overlay';
 import { useSelectService } from './select';
 import { usePixelService } from './pixel';
 import { useViewportService } from './viewport';
-import { calcMarquee, rgbaCssU32, rgbaCssObj, coordToKey } from '../utils';
+import { calcMarquee, rgbaCssU32, rgbaCssObj } from '../utils';
 import { CURSOR_CONFIG } from '@/constants';
 
 export const useStageToolService = defineStore('stageToolService', () => {
@@ -19,8 +19,6 @@ export const useStageToolService = defineStore('stageToolService', () => {
     const shape = ref('stroke');
     const pointer = reactive({ status: 'idle', id: null });
     const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
-    const previewPixels = ref([]);
-    const affectedPixels = ref([]);
 
     const active = computed(() => {
         if (pointer.status !== 'idle') {
@@ -51,37 +49,6 @@ export const useStageToolService = defineStore('stageToolService', () => {
 
     function setPrepared(t) { prepared.value = t; }
     function setShape(s) { shape.value = s === 'rect' ? 'rect' : 'stroke'; }
-
-    function resetPreview() {
-        previewPixels.value = [];
-    }
-
-    function setPreview(pixels) {
-        if (!pixels || !pixels.length) {
-            overlay.helper.setPixels([]);
-            previewPixels.value = [];
-            return;
-        }
-        if (shape.value === 'stroke') {
-            const set = new Set(previewPixels.value.map(coordToKey));
-            for (const coord of pixels) {
-                const key = coordToKey(coord);
-                if (!set.has(key)) {
-                    set.add(key);
-                    previewPixels.value.push(coord);
-                }
-            }
-        } else {
-            previewPixels.value = pixels.slice();
-        }
-        overlay.helper.setPixels(previewPixels.value);
-    }
-
-    function finalizePreview() {
-        affectedPixels.value = previewPixels.value.slice();
-        overlay.helper.setPixels(affectedPixels.value);
-        resetPreview();
-    }
 
     const updateHover = (event) => {
         const coord = viewportStore.clientToCoord(event);
@@ -181,6 +148,7 @@ export const useStageToolService = defineStore('stageToolService', () => {
                 e.target.setPointerCapture?.(e.pointerId);
                 pointer.id = e.pointerId;
             } catch {}
+
             if (isSelect.value) {
                 const startId = layers.topVisibleIdAt(coord);
                 const mode = !viewportEvents.isPressed('Shift')
@@ -189,20 +157,13 @@ export const useStageToolService = defineStore('stageToolService', () => {
                         ? 'remove'
                         : 'add';
                 pointer.status = mode;
-            } else {
-                pointer.status = active.value;
-            }
-            overlay.helper.mode = (pointer.status === 'erase' || pointer.status === 'globalErase' || pointer.status === 'remove') ? 'remove' : 'add';
-            resetPreview();
-            affectedPixels.value = [];
-            setPreview(getPixelsFromInteraction('down'));
-            updateMarquee(e);
-            if (isSelect.value) {
-                const startId = layers.topVisibleIdAt(coord);
+                overlay.helper.mode = mode === 'remove' ? 'remove' : 'add';
                 selectSvc.tools.select.start(coord, startId);
             } else {
+                pointer.status = active.value;
                 pixelSvc.tools[active.value].start();
             }
+            updateMarquee(e);
         }
     });
 
@@ -211,7 +172,6 @@ export const useStageToolService = defineStore('stageToolService', () => {
         if (!e || !viewportEvents.isDragging(pointer.id) || viewportEvents.pinchIds) return;
         updateHover(e);
         updateMarquee(e);
-        setPreview(getPixelsFromInteraction('move'));
         if (isSelect.value) selectSvc.tools.select.move();
         else pixelSvc.tools[active.value].move();
     });
@@ -221,16 +181,10 @@ export const useStageToolService = defineStore('stageToolService', () => {
         if (!e || viewportEvents.isDragging(pointer.id) || viewportEvents.pinchIds) return;
         updateMarquee(e);
         if (e.type === 'pointercancel') {
-            resetPreview();
-            affectedPixels.value = [];
-            overlay.helper.clear();
-            overlay.helper.mode = 'add';
             if (isSelect.value) selectSvc.cancel();
             else pixelSvc.cancel();
             output.rollbackPending();
         } else {
-            setPreview(getPixelsFromInteraction('up'));
-            finalizePreview();
             if (isSelect.value) selectSvc.tools.select.finish();
             else pixelSvc.tools[active.value].finish();
             output.commit();
@@ -238,15 +192,13 @@ export const useStageToolService = defineStore('stageToolService', () => {
         try { e.target?.releasePointerCapture?.(pointer.id); } catch {}
         pointer.status = 'idle';
         pointer.id = null;
+        overlay.helper.clear();
+        overlay.helper.mode = 'add';
     });
 
     watch(() => viewportEvents.pinchIds, (ids) => {
         if (!ids || pointer.status === 'idle') return;
         updateMarquee(null);
-        resetPreview();
-        affectedPixels.value = [];
-        overlay.helper.clear();
-        overlay.helper.mode = 'add';
         if (isSelect.value) selectSvc.cancel();
         else pixelSvc.cancel();
         output.rollbackPending();
@@ -254,6 +206,8 @@ export const useStageToolService = defineStore('stageToolService', () => {
         try { startEvent?.target?.releasePointerCapture?.(pointer.id); } catch {}
         pointer.status = 'idle';
         pointer.id = null;
+        overlay.helper.clear();
+        overlay.helper.mode = 'add';
     });
 
     return {
@@ -273,9 +227,5 @@ export const useStageToolService = defineStore('stageToolService', () => {
         setShape,
         cursor,
         getPixelsFromInteraction,
-        previewPixels,
-        affectedPixels,
-        setPreview,
-        finalizePreview,
     };
 });

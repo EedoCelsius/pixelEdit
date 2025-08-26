@@ -1,49 +1,116 @@
 import { defineStore } from 'pinia';
+import { useOverlayService } from './overlay';
 import { useStore } from '../stores';
 import { useStageToolService } from './stageTool';
+import { useViewportService } from './viewport';
 import { coordToKey } from '../utils';
 
 export const usePixelService = defineStore('pixelService', () => {
-    const { layers } = useStore();
+    const overlay = useOverlayService();
+    const { layers, viewportEvent: viewportEvents, viewport: viewportStore } = useStore();
+    const viewport = useViewportService();
     let cutLayerId = null;
 
-    function startDraw() {}
+    function startDraw() {
+        const tool = useStageToolService();
+        if (tool.shape !== 'rect') {
+            if (!viewportEvents.isDragging(tool.pointer.id)) return;
+            const event = viewportEvents.get('pointerdown', tool.pointer.id);
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('down');
+            addPixelsToSelection(pixels);
+        }
+    }
 
-    function moveDraw() {}
+    function moveDraw() {
+        const tool = useStageToolService();
+        if (tool.pointer.status !== 'draw' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
+        const event = viewportEvents.get('pointermove', tool.pointer.id);
+        const coord = viewportStore.clientToCoord(event);
+        if (!coord) return;
+        addPixelsToSelection([coord]);
+    }
 
     function finishDraw() {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'draw') return;
-        const pixels = tool.affectedPixels;
-        if (pixels.length > 0) addPixelsToSelection(pixels);
+        if (tool.shape === 'rect') {
+            const event = viewportEvents.get('pointerup', tool.pointer.id);
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('up');
+            if (pixels.length > 0) addPixelsToSelection(pixels);
+        }
     }
 
-    function startErase() {}
+    function startErase() {
+        const tool = useStageToolService();
+        if (tool.shape !== 'rect') {
+            if (!viewportEvents.isDragging(tool.pointer.id)) return;
+            const event = viewportEvents.get('pointerdown', tool.pointer.id);
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('down');
+            removePixelsFromSelection(pixels);
+        }
+    }
 
-    function moveErase() {}
+    function moveErase() {
+        const tool = useStageToolService();
+        if (tool.pointer.status !== 'erase' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
+        const event = viewportEvents.get('pointermove', tool.pointer.id);
+        const coord = viewportStore.clientToCoord(event);
+        if (!coord) return;
+        removePixelsFromSelection([coord]);
+    }
 
     function finishErase() {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'erase') return;
-        const pixels = tool.affectedPixels;
-        if (pixels.length > 0) removePixelsFromSelection(pixels);
+        if (tool.shape === 'rect') {
+            const event = viewportEvents.get('pointerup', tool.pointer.id);
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('up');
+            if (pixels.length > 0) removePixelsFromSelection(pixels);
+        }
     }
 
-    function startGlobalErase() {}
-
-    function moveGlobalErase() {}
-
-    function finishGlobalErase() {
+    function startGlobalErase() {
         const tool = useStageToolService();
-        if (tool.pointer.status !== 'globalErase') return;
-        const pixels = tool.affectedPixels;
-        if (pixels.length > 0) {
+        if (tool.shape !== 'rect') {
+            if (!viewportEvents.isDragging(tool.pointer.id)) return;
+            const event = viewportEvents.get('pointerdown', tool.pointer.id);
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('down');
             if (layers.selectionExists) removePixelsFromSelected(pixels);
             else removePixelsFromAll(pixels);
         }
     }
 
+    function moveGlobalErase() {
+        const tool = useStageToolService();
+        if (tool.pointer.status !== 'globalErase' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
+        const event = viewportEvents.get('pointermove', tool.pointer.id);
+        const coord = viewportStore.clientToCoord(event);
+        if (!coord) return;
+        if (layers.selectionExists) removePixelsFromSelected([coord]);
+        else removePixelsFromAll([coord]);
+    }
+
+    function finishGlobalErase() {
+        const tool = useStageToolService();
+        if (tool.pointer.status !== 'globalErase') return;
+        if (tool.shape === 'rect') {
+            const event = viewportEvents.get('pointerup', tool.pointer.id);
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('up');
+            if (pixels.length > 0) {
+                if (layers.selectionExists) removePixelsFromSelected(pixels);
+                else removePixelsFromAll(pixels);
+            }
+        }
+    }
+
     function startCut() {
+        const tool = useStageToolService();
         if (layers.selectionCount !== 1) return;
         const sourceId = layers.selectedIds[0];
         const sourceProps = layers.getProperties(sourceId);
@@ -52,15 +119,37 @@ export const usePixelService = defineStore('pixelService', () => {
             color: sourceProps.color,
             visible: sourceProps.visible,
         }, sourceId);
+        overlay.helper.clear();
+        overlay.helper.add(cutLayerId);
+        overlay.helper.mode = 'add';
+
+        if (tool.shape !== 'rect') {
+            if (!viewportEvents.isDragging(tool.pointer.id)) return;
+            const event = viewportEvents.get('pointerdown', tool.pointer.id);
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('down');
+            cutPixelsFromSelection(pixels);
+        }
     }
 
-    function moveCut() {}
+    function moveCut() {
+        const tool = useStageToolService();
+        if (tool.pointer.status !== 'cut' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
+        const event = viewportEvents.get('pointermove', tool.pointer.id);
+        const coord = viewportStore.clientToCoord(event);
+        if (!coord) return;
+        cutPixelsFromSelection([coord]);
+    }
 
     function finishCut() {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'cut') return;
-        const pixels = tool.affectedPixels;
-        if (pixels.length > 0) cutPixelsFromSelection(pixels);
+        if (tool.shape === 'rect') {
+            const event = viewportEvents.get('pointerup', tool.pointer.id);
+            if (!event) return;
+            const pixels = tool.getPixelsFromInteraction('up');
+            if (pixels.length > 0) cutPixelsFromSelection(pixels);
+        }
         if (cutLayerId != null) {
             if (layers.getProperty(cutLayerId, 'pixels').length)
                 layers.replaceSelection([cutLayerId]);
@@ -98,6 +187,8 @@ export const usePixelService = defineStore('pixelService', () => {
         if (!pixelsToMove.length) return;
         layers.removePixels(sourceId, pixelsToMove);
         layers.addPixels(cutLayerId, pixelsToMove);
+        overlay.helper.clear();
+        overlay.helper.add(cutLayerId);
     }
 
     function togglePointInSelection(coord) {
