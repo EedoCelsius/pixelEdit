@@ -141,50 +141,48 @@ export const useStageToolService = defineStore('stageToolService', () => {
         return 'default';
     });
 
-    watch(
-        () => viewportEvents.recent.pointer.down,
-        (events) => {
-            for (const e of events) {
-                if (!e || e.pointerType === 'touch' || e.button !== 0) continue;
-                const coord = stageSvc.clientToCoord(e);
-                if (!coord) continue;
+    watch(() => viewportEvents.recent.pointer.down, (events) => {
+        for (const e of events) {
+            if (!e || e.button !== 0) continue;
+            const coord = stageSvc.clientToCoord(e);
+            if (!coord) continue;
 
-                output.setRollbackPoint();
-                try {
-                    e.target.setPointerCapture?.(e.pointerId);
-                    pointer.id = e.pointerId;
-                } catch {}
+            output.setRollbackPoint();
+            try {
+                e.target.setPointerCapture?.(e.pointerId);
+                pointer.id = e.pointerId;
+            } catch {}
 
-                if (isSelect.value) {
-                    const startId = layers.topVisibleIdAt(coord);
-                    const mode = !viewportEvents.isPressed('Shift')
-                        ? 'select'
-                        : layers.isSelected(startId)
-                            ? 'remove'
-                            : 'add';
-                    pointer.status = mode;
-                    overlay.helper.mode = mode === 'remove' ? 'remove' : 'add';
-                    selectSvc.tools.select.start(coord, startId);
-                } else {
-                    pointer.status = active.value;
-                    pixelSvc.tools[active.value].start();
-                }
-                updateMarquee(e);
+            if (isSelect.value) {
+                const startId = layers.topVisibleIdAt(coord);
+                const mode = !viewportEvents.isPressed('Shift')
+                    ? 'select'
+                    : layers.isSelected(startId)
+                        ? 'remove'
+                        : 'add';
+                pointer.status = mode;
+                overlay.helper.mode = mode === 'remove' ? 'remove' : 'add';
+                selectSvc.tools.select.start(coord, startId);
+            } else {
+                pointer.status = active.value;
+                pixelSvc.tools[active.value].start();
             }
-        },
-        { deep: true }
-    );
+            updateMarquee(e);
+        }
+    });
 
-    watch(() => pointer.id && viewportEvents.getEvent('pointermove', pointer.id), (e) => {
-        if (!e || e.pointerType === 'touch') return;
+    watch(() => viewportEvents.recent.pointer.move, () => {
+        const e = viewportEvents.getEvent('pointermove', pointer.id);
+        if (!e || !viewportEvents.isDragging(pointer.id)) return;
         updateHover(e);
         updateMarquee(e);
         if (isSelect.value) selectSvc.tools.select.move();
         else pixelSvc.tools[active.value].move();
     });
 
-    watch(() => pointer.id && viewportEvents.getEvent('pointerup', pointer.id), (e) => {
-        if (!e || e.pointerType === 'touch') return;
+    watch(() => viewportEvents.recent.pointer.up, () => {
+        const e = viewportEvents.getEvent('pointerup', pointer.id);
+        if (!e || viewportEvents.isDragging(pointer.id)) return;
         updateMarquee(e);
         if (e.type === 'pointercancel') {
             if (isSelect.value) selectSvc.cancel();
