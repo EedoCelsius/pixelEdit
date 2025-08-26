@@ -9,7 +9,7 @@
         </g>
       </svg>
       <!-- 원본 -->
-        <img v-show="viewportStore.display!=='original'" class="w-44 h-44 object-contain rounded-md border border-white/15" :src="viewportStore.imageSrc" alt="source image" style="image-rendering:pixelated"/>
+        <img v-show="viewportStore.display!=='original'" class="w-44 h-44 object-contain rounded-md border border-white/15" :src="viewportStore.imageSrc" alt="source image"/>
     </div>
     <div class="flex-1 min-w-0 flex flex-col gap-2">
       <div class="flex gap-2 items-center">
@@ -50,3 +50,9 @@ function selectAll() {
 }
 onMounted(() => generate());
 </script>
+
+<style scoped>
+img {
+  image-rendering: pixelated;
+}
+</style>

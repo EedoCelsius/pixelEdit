@@ -16,26 +16,26 @@
          @pointerleave="onStagePointerLeave"
          @contextmenu.prevent>
       <!-- 체커보드 -->
-      <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" style="image-rendering:pixelated">
+      <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
         <rect x="0" y="0" :width="stage.width" :height="stage.height" :fill="patternUrl"/>
       </svg>
       <!-- 원본 -->
-      <img v-show="viewportStore.display==='original'" class="absolute w-full h-full top-0 left-0 pointer-events-none block" :src="viewportStore.imageSrc" alt="source image" style="image-rendering:pixelated" @load="onImageLoad" />
+      <img v-show="viewportStore.display==='original'" class="absolute w-full h-full top-0 left-0 pointer-events-none block" :src="viewportStore.imageSrc" alt="source image" @load="onImageLoad" />
       <!-- 결과 레이어 -->
-      <svg v-show="viewportStore.display==='result'" class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" style="image-rendering:pixelated">
+      <svg v-show="viewportStore.display==='result'" class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
         <g>
             <path v-for="props in layers.getProperties(layers.idsBottomToTop)" :key="'pix-'+props.id" :d="layers.pathOf(props.id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(props.color)" :visibility="props.visible?'visible':'hidden'"></path>
         </g>
       </svg>
       <!-- 그리드 -->
-      <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" style="image-rendering:pixelated">
+      <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
         <g :stroke="GRID_STROKE_COLOR" :stroke-width="1/Math.max(1,stage.scale)">
           <path v-for="x in (stage.width+1)" :key="'gx'+x" :d="'M '+(x-1)+' 0 V '+stage.height"></path>
           <path v-for="y in (stage.height+1)" :key="'gy'+y" :d="'M 0 '+(y-1)+' H '+stage.width"></path>
         </g>
       </svg>
       <!-- 오버레이 (선택, 추가, 제거, 마퀴) -->
-      <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" style="image-rendering:pixelated">
+      <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
           <!-- Selection overlay (sky blue) -->
           <path id="selectionOverlay"
                 v-if="layers.selectionExists"
@@ -143,3 +143,10 @@ onMounted(() => {
 });
 onUnmounted(resizeObserver.disconnect);
 </script>
+
+<style scoped>
+#stage img,
+#stage svg {
+  image-rendering: pixelated;
+}
+</style>

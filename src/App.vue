@@ -199,25 +199,6 @@ onUnmounted(() => {
 /* Global styles from pixel.html */
 [v-cloak]{display:none}
 
-/* 레이어 재정렬 표시 */
-.insert-before{box-shadow:inset 0 3px 0 0 rgba(56,189,248,.7)}
-.insert-after{box-shadow:inset 0 -3px 0 0 rgba(56,189,248,.7)}
-
-/* 선택 강조 */
-.layer.selected{
-  outline:2px solid rgba(56,189,248,.70);
-  background:linear-gradient(180deg,rgba(56,189,248,.12),rgba(56,189,248,.05));
-  border-color:rgba(56,189,248,.35)
-}
-.layer.selected.anchor{
-  outline:3px solid rgba(56,189,248,.95);
-  background:linear-gradient(180deg,rgba(56,189,248,.18),rgba(56,189,248,.07));
-  border-color:rgba(56,189,248,.6)
-}
-
-/* 드래그/이름편집 UX */
-.layers.dragging,.layers .layer.dragging{cursor:grabbing!important}
-
 /* Scrollbar styling */
 *{
   scrollbar-width:thin;
