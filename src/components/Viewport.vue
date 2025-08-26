@@ -1,10 +1,10 @@
 <template>
   <div ref="viewportEl" class="relative flex-1 min-h-0 p-2 overflow-hidden touch-none"
-       @wheel.prevent="onWheel"
-       @pointerdown="onPointerDown"
-       @pointermove="onPointerMove"
-       @pointerup="onPointerUp"
-       @pointercancel="onPointerCancel">
+       @wheel.prevent="viewportEvents.setWheel"
+       @pointerdown="viewportEvents.setPointerDown"
+       @pointermove="viewportEvents.setPointerMove"
+       @pointerup="viewportEvents.setPointerUp"
+       @pointercancel="viewportEvents.setPointerUp">
     <div id="stage" class="absolute shadow-inner select-none touch-none"
          :style="{
            width: stage.width+'px',
@@ -13,7 +13,7 @@
            transform: `translate(${stage.offset.x}px, ${stage.offset.y}px) scale(${stage.scale})`,
            transformOrigin: 'top left'
          }"
-         @pointerleave="onPointerLeave"
+         @pointerleave="onStagePointerLeave"
          @contextmenu.prevent>
       <!-- 체커보드 -->
       <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" style="image-rendering:pixelated">
@@ -81,32 +81,11 @@ const viewportEl = ref(null);
 const marquee = stageToolService.marquee;
 const stage = viewportStore.stage;
 
-const onPointerDown = (e) => {
-  if (e.pointerType === 'touch') e.preventDefault();
-  viewportEvents.setPointerDown(e);
-};
-
-const onPointerMove = (e) => {
-  viewportEvents.setPointerMove(e);
-};
-
-const onPointerUp = (e) => {
-  viewportEvents.setPointerUp(e);
-};
-
-const onPointerCancel = (e) => {
-  viewportEvents.setPointerUp(e);
-};
-
-    const onPointerLeave = (e) => {
-        if (e.pointerType === 'touch') return;
-        overlay.helper.clear();
-        overlay.helper.mode = 'add';
-        viewportStore.updatePixelInfo('-');
-    };
-
-const onWheel = (e) => {
-  viewportEvents.setWheel(e);
+const onStagePointerLeave = (e) => {
+    if (e.pointerType === 'touch') return;
+    overlay.helper.clear();
+    overlay.helper.mode = 'add';
+    viewportStore.updatePixelInfo('-');
 };
 
 const helperOverlay = computed(() => {
@@ -135,7 +114,7 @@ let prevOffsetHeight = 0;
 let prevClientWidth = 0;
 let prevClientHeight = 0;
 
-const onDomResize = () => {
+const onElementResize = () => {
     const el = viewport.element;
     const { offsetWidth, offsetHeight, clientWidth, clientHeight } = el;
     const sizeChanged = offsetWidth !== prevOffsetWidth || offsetHeight !== prevOffsetHeight;
@@ -156,10 +135,10 @@ const onImageLoad = () => {
     viewport.interpolatePosition(false);
 };
 
-const resizeObserver = new ResizeObserver(onDomResize);
+const resizeObserver = new ResizeObserver(onElementResize);
 onMounted(() => {
     viewport.setElement(viewportEl.value);
-    requestAnimationFrame(onDomResize);
+    requestAnimationFrame(onElementResize);
     resizeObserver.observe(viewport.element);
 });
 onUnmounted(resizeObserver.disconnect);
