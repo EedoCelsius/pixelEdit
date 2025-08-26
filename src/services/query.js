@@ -1,42 +1,33 @@
 import { defineStore } from 'pinia';
-import { computed } from 'vue';
 import { useStore } from '../stores';
 
 export const useQueryService = defineStore('queryService', () => {
     const { layers } = useStore();
 
-    const uppermostId = computed(() => {
+    function uppermost(ids) {
         const order = layers.idsBottomToTop;
-        return order[order.length - 1] ?? null;
-    });
-    const lowermostId = computed(() => layers.idsBottomToTop[0] ?? null);
-
-    function uppermostIdOf(ids) {
+        if (ids == null) {
+            return order[order.length - 1] ?? null;
+        }
         const idSet = new Set(ids);
         if (!idSet.size) return null;
-        const order = layers.idsBottomToTop;
         const index = Math.max(
             ...order.map((id, idx) => (idSet.has(id) ? idx : -1))
         );
         return index >= 0 ? order[index] : null;
     }
 
-    function lowermostIdOf(ids) {
+    function lowermost(ids) {
+        const order = layers.idsBottomToTop;
+        if (ids == null) {
+            return order[0] ?? null;
+        }
         const idSet = new Set(ids);
         if (!idSet.size) return null;
-        const order = layers.idsBottomToTop;
         const index = Math.min(
             ...order.map((id, idx) => (idSet.has(id) ? idx : Infinity))
         );
         return isFinite(index) ? order[index] : null;
-    }
-
-    function uppermost(ids) {
-        return ids == null ? uppermostId.value : uppermostIdOf(ids);
-    }
-
-    function lowermost(ids) {
-        return ids == null ? lowermostId.value : lowermostIdOf(ids);
     }
 
     function above(id) {
