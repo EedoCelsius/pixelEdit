@@ -23,6 +23,18 @@ export const useViewportEventStore = defineStore('viewportEvent', {
         keyboard: (state) => readonly(state._keyboard),
         wheel: (state) => readonly(state._wheel),
         recent: (state) => readonly(state._recent),
+        pinchIds: (state) => {
+            const active = [];
+            for (const [id, p] of Object.entries(state._pointer)) {
+                if (
+                    p.down?.pointerType === 'touch' &&
+                    (!p.up || p.down.timeStamp > p.up.timeStamp)
+                ) {
+                    active.push(Number(id));
+                }
+            }
+            return active.length >= 2 ? active : null;
+        },
         isPressed: (state) => (key) => {
             const entry = state._keyboard[key];
             return !!entry && !!entry.down && (!entry.up || entry.down.timeStamp > entry.up.timeStamp);
@@ -30,6 +42,24 @@ export const useViewportEventStore = defineStore('viewportEvent', {
         isDragging: (state) => (id) => {
             const entry = state._pointer[id];
             return !!entry && !!entry.down && (!entry.up || entry.down.timeStamp > entry.up.timeStamp);
+        },
+        get: (state) => (type, idOrKey) => {
+            switch (type) {
+                case 'pointerdown':
+                    return state._pointer[idOrKey]?.down;
+                case 'pointermove':
+                    return state._pointer[idOrKey]?.move;
+                case 'pointerup':
+                    return state._pointer[idOrKey]?.up;
+                case 'keydown':
+                    return state._keyboard[idOrKey]?.down;
+                case 'keyup':
+                    return state._keyboard[idOrKey]?.up;
+                case 'wheel':
+                    return state._wheel;
+                default:
+                    return null;
+            }
         },
     },
     actions: {
@@ -72,24 +102,6 @@ export const useViewportEventStore = defineStore('viewportEvent', {
         },
         setWheel(event) {
             this._wheel = event;
-        },
-        getEvent(type, idOrKey) {
-            switch (type) {
-                case 'pointerdown':
-                    return this._pointer[idOrKey]?.down;
-                case 'pointermove':
-                    return this._pointer[idOrKey]?.move;
-                case 'pointerup':
-                    return this._pointer[idOrKey]?.up;
-                case 'keydown':
-                    return this._keyboard[idOrKey]?.down;
-                case 'keyup':
-                    return this._keyboard[idOrKey]?.up;
-                case 'wheel':
-                    return this._wheel;
-                default:
-                    return null;
-            }
         },
         _pushRecent(category, type, event) {
             if (this._recentTicks[category][type] !== this._tick) {

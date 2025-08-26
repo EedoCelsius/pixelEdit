@@ -6,7 +6,6 @@ import { WHEEL_ZOOM_IN_FACTOR, WHEEL_ZOOM_OUT_FACTOR, POSITION_LERP_EXPONENT } f
 
 export const useViewportService = defineStore('viewportService', () => {
   const { viewport: viewportStore, viewportEvent: viewportEvents } = useStore();
-  const touches = new Map();
   let lastTouchDistance = 0;
 
   const element = computed(() => viewportStore.element);
@@ -40,25 +39,24 @@ export const useViewportService = defineStore('viewportService', () => {
 
   function handlePinch() {
     const viewportEl = viewportStore.element;
-    if (!viewportEl) return;
     const rect = viewportEl.getBoundingClientRect();
-    const [t1, t2] = Array.from(touches.values());
-    const cx = (t1.x + t2.x) / 2 - rect.left;
-    const cy = (t1.y + t2.y) / 2 - rect.top;
-    const dist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
-    if (!lastTouchDistance) {
-      lastTouchDistance = dist;
-      return;
+    const [id1, id2] = viewportEvents.pinchIds;
+    const e1 = viewportEvents.get('pointermove', id1) || viewportEvents.get('pointerdown', id1);
+    const e2 = viewportEvents.get('pointermove', id2) || viewportEvents.get('pointerdown', id2);
+    const cx = (e1.clientX + e2.clientX) / 2 - rect.left;
+    const cy = (e1.clientY + e2.clientY) / 2 - rect.top;
+    const dist = Math.hypot(e2.clientX - e1.clientX, e2.clientY - e1.clientY);
+    if (lastTouchDistance) {
+      const oldScale = viewportStore.stage.scale;
+      const newScale = oldScale * (dist / lastTouchDistance);
+      const clamped = Math.max(viewportStore.stage.minScale, newScale);
+      const ratio = clamped / oldScale;
+      viewportStore.stage.offset.x = cx - ratio * (cx - viewportStore.stage.offset.x);
+      viewportStore.stage.offset.y = cy - ratio * (cy - viewportStore.stage.offset.y);
+      viewportStore.setScale(clamped);
+      if (newScale < oldScale) interpolatePosition(true);
     }
-    const oldScale = viewportStore.stage.scale;
-    const newScale = oldScale * (dist / lastTouchDistance);
-    const clamped = Math.max(viewportStore.stage.minScale, newScale);
-    const ratio = clamped / oldScale;
-    viewportStore.stage.offset.x = cx - ratio * (cx - viewportStore.stage.offset.x);
-    viewportStore.stage.offset.y = cy - ratio * (cy - viewportStore.stage.offset.y);
-    viewportStore.setScale(clamped);
     lastTouchDistance = dist;
-    if (newScale < oldScale) interpolatePosition(true);
   }
 
   function interpolatePosition(soft = true) {
@@ -79,42 +77,21 @@ export const useViewportService = defineStore('viewportService', () => {
   }
 
   watch(
-    () => viewportEvents.recent.pointer.down,
-    (events) => {
-      for (const e of events) {
-        if (e.pointerType !== 'touch') continue;
-        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        lastTouchDistance = 0;
-      }
-    },
-    { deep: true }
-  );
-
-  watch(
     () => viewportEvents.recent.pointer.move,
-    (events) => {
-      for (const e of events) {
-        if (e.pointerType !== 'touch') continue;
-        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (touches.size === 2) handlePinch();
-      }
+    () => {
+      if (viewportEvents.pinchIds) handlePinch();
     },
     { deep: true }
   );
 
   watch(
-    () => viewportEvents.recent.pointer.up,
-    (events) => {
-      for (const e of events) {
-        if (e.pointerType !== 'touch') continue;
-        touches.delete(e.pointerId);
-        lastTouchDistance = 0;
-      }
-    },
-    { deep: true }
+    () => viewportEvents.pinchIds,
+    () => {
+      lastTouchDistance = 0;
+    }
   );
 
-  watch(() => viewportEvents.getEvent('wheel'), (e) => {
+  watch(() => viewportEvents.get('wheel'), (e) => {
     if (e) handleWheel(e);
   });
 

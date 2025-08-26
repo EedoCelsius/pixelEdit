@@ -63,8 +63,8 @@ const redo = () => output.redo();
 // Keyboard handlers
 const isCtrlDown = () => {
   const check = (key) => {
-    const down = viewportEvents.getEvent('keydown', key);
-    const up = viewportEvents.getEvent('keyup', key);
+    const down = viewportEvents.get('keydown', key);
+    const up = viewportEvents.get('keyup', key);
     return !!down && (!up || down.timeStamp > up.timeStamp);
   };
   return check('Control') || check('Meta');
@@ -74,7 +74,7 @@ function ctrlKeyDown(e) {
 }
 function ctrlKeyUp(e) {
   if (e) {
-    const down = viewportEvents.getEvent('keydown', e.key);
+    const down = viewportEvents.get('keydown', e.key);
     if (down && !down.repeat) {
       const t = stageToolService.prepared;
       if (t === 'draw' || t === 'erase') {
