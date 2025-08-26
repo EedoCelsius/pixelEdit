@@ -150,8 +150,6 @@ const helperOverlay = computed(() => {
 
 const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
 
-const interpolatePosition = (center = false) => viewport.interpolatePosition(center);
-
 let prevOffsetWidth = 0;
 let prevOffsetHeight = 0;
 let prevClientWidth = 0;
@@ -169,13 +167,13 @@ const onDomResize = () => {
     if (scrollChanged) return;
     viewportStore.recalcScales();
     viewportStore.setScale(viewportStore.stage.containScale);
-    interpolatePosition(false);
+    viewport.interpolatePosition(false);
 };
 
 const onImageLoad = () => {
     viewportStore.recalcScales();
     viewportStore.setScale(viewportStore.stage.containScale);
-    interpolatePosition(false);
+    viewport.interpolatePosition(false);
 };
 
 const resizeObserver = new ResizeObserver(onDomResize);
