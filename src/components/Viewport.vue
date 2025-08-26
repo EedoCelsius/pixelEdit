@@ -56,7 +56,7 @@
                 shape-rendering="crispEdges" />
 
         <!-- Helper overlay -->
-        <path v-if="toolSelectionService.isSelect || toolSelectionService.pointer.status === 'cut'"
+        <path v-if="toolSelectionService.active === 'select' || toolSelectionService.pointer.status === 'cut'"
               :d="helperOverlay.path"
               :fill="helperOverlay.FILL_COLOR"
               :stroke="helperOverlay.STROKE_COLOR"

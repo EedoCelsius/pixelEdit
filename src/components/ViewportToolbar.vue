@@ -43,11 +43,13 @@
 import { ref, watch } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
-import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS } from '@/constants';
+import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS, TOOL_MODIFIERS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 
 const { viewport: viewportStore, layers, output, viewportEvent: viewportEvents } = useStore();
 const { toolSelection: toolSelectionService } = useService();
+
+const ctrlToggleMap = TOOL_MODIFIERS.find(m => m.key === 'Control')?.map || {};
 
 const selectables = ref(SINGLE_SELECTION_TOOLS);
 watch(() => layers.selectionCount, (size) => {
@@ -77,11 +79,8 @@ function ctrlKeyUp(e) {
     const down = viewportEvents.get('keydown', e.key);
     if (down && !down.repeat) {
       const t = toolSelectionService.prepared;
-      if (t === 'draw' || t === 'erase') {
-        toolSelectionService.setPrepared(t === 'draw' ? 'erase' : 'draw');
-      } else if (t === 'select' || t === 'globalErase') {
-        toolSelectionService.setPrepared(t === 'select' ? 'globalErase' : 'select');
-      }
+      const toggle = ctrlToggleMap[t];
+      if (toggle) toolSelectionService.setPrepared(toggle);
     }
     viewportEvents.setKeyUp(e);
   } else {
