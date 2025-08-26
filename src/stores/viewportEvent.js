@@ -93,7 +93,7 @@ export const useViewportEventStore = defineStore('viewportEvent', {
         },
         _pushRecent(category, type, event) {
             if (this._recentTicks[category][type] !== this._tick) {
-                this._recent[category][type].length = 0;
+                this._recent[category][type] = [];
                 this._recentTicks[category][type] = this._tick;
             }
             this._recent[category][type].push(event);
