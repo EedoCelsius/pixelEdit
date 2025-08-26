@@ -1,6 +1,6 @@
 <template>
     <div class="flex items-center gap-2 p-2 flex-wrap">
-      <button @click="stageStore.toggleView" class="inline-flex items-center px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">{{ stageStore.toggleLabel }}</button>
+      <button @click="viewportStore.toggleView" class="inline-flex items-center px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">{{ viewportStore.toggleLabel }}</button>
 
       <div class="h-4 w-px bg-white/10 mx-1"></div>
 
@@ -46,7 +46,7 @@ import { useService } from '../services';
 import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 
-const { stage: stageStore, layers, output, viewportEvent: viewportEvents } = useStore();
+const { viewport: viewportStore, layers, output, viewportEvent: viewportEvents } = useStore();
 const { stageTool: stageToolService } = useService();
 
 const selectables = ref(SINGLE_SELECTION_TOOLS);

@@ -6,9 +6,9 @@
         :style="displayStyle"
       >
         <h2 class="m-0 px-3 py-2 text-xs uppercase tracking-wide text-slate-300/90 border-b border-white/10">Display</h2>
-        <stage-toolbar ref="stageToolbar" class="border-b border-white/10"></stage-toolbar>
-        <Stage class="flex-1 min-h-0"></Stage>
-        <stage-info class="border-t border-white/10"></stage-info>
+        <viewport-toolbar ref="viewportToolbar" class="border-b border-white/10"></viewport-toolbar>
+        <Viewport class="flex-1 min-h-0"></Viewport>
+        <viewport-info class="border-t border-white/10"></viewport-info>
       </section>
 
       <!-- 드래그 핸들 -->
@@ -35,16 +35,15 @@ import { onMounted, ref, computed, onUnmounted } from 'vue';
 import { useStore } from './stores';
 import { useService } from './services';
 
-import Stage from './components/Stage.vue';
-import StageInfo from './components/StageInfo.vue';
+import Viewport from './components/Viewport.vue';
+import ViewportInfo from './components/ViewportInfo.vue';
 import LayersToolbar from './components/LayersToolbar.vue';
 import LayersPanel from './components/LayersPanel.vue';
 import ExportPanel from './components/ExportPanel.vue';
-
-import StageToolbar from './components/StageToolbar.vue';
-const { input, stage: stageStore, layers, output } = useStore();
-const { stage: stageService, layerPanel, query } = useService();
-const stageToolbar = ref(null);
+import ViewportToolbar from './components/ViewportToolbar.vue';
+const { input, viewport: viewportStore, layers, output } = useStore();
+const { layerPanel, query } = useService();
+const viewportToolbar = ref(null);
 
 // Width control between display and layers
 const container = ref(null);
@@ -84,9 +83,9 @@ function onKeydown(event) {
   switch (event.key) {
     case 'Control':
     case 'Meta':
-      return stageToolbar.value?.ctrlKeyDown(event);
+      return viewportToolbar.value?.ctrlKeyDown(event);
     case 'Shift':
-      return stageToolbar.value?.shiftKeyDown(event);
+      return viewportToolbar.value?.shiftKeyDown(event);
     case 'ArrowUp':
       event.preventDefault();
       layerPanel.onArrowUp(shift, ctrl);
@@ -147,9 +146,9 @@ function onKeyup(event) {
   switch (event.key) {
     case 'Control':
     case 'Meta':
-      return stageToolbar.value?.ctrlKeyUp(event);
+      return viewportToolbar.value?.ctrlKeyUp(event);
     case 'Shift':
-      return stageToolbar.value?.shiftKeyUp(event);
+      return viewportToolbar.value?.shiftKeyUp(event);
   }
 }
 
@@ -158,10 +157,10 @@ onMounted(async () => {
     await input.loadFromQuery();
   } catch {}
   if (!input.isLoaded) {
-    stageStore.setSize(21, 18);
+    viewportStore.setSize(21, 18);
   } else {
-    stageStore.setSize(input.width, input.height);
-    stageStore.setImage(input.src || '');
+    viewportStore.setSize(input.width, input.height);
+    viewportStore.setImage(input.src || '');
   }
 
   const autoSegments = input.isLoaded ? input.segment(40) : [];
@@ -183,8 +182,8 @@ onMounted(async () => {
   window.addEventListener('keydown', onKeydown);
   window.addEventListener('keyup', onKeyup);
   window.addEventListener('blur', () => {
-    stageToolbar.value?.ctrlKeyUp();
-    stageToolbar.value?.shiftKeyUp();
+    viewportToolbar.value?.ctrlKeyUp();
+    viewportToolbar.value?.shiftKeyUp();
   });
   window.addEventListener('mousemove', onDrag);
   window.addEventListener('mouseup', stopDrag);

@@ -1,15 +1,15 @@
 import { defineStore } from 'pinia';
-import { useStageService } from './stage';
 import { useOverlayService } from './overlay';
 import { useLayerPanelService } from './layerPanel';
 import { useStore } from '../stores';
 import { useStageToolService } from './stageTool';
+import { useViewportService } from './viewport';
 
 export const useSelectService = defineStore('selectService', () => {
-    const stage = useStageService();
     const overlay = useOverlayService();
     const layerPanel = useLayerPanelService();
-    const { layers, viewportEvent: viewportEvents } = useStore();
+    const { layers, viewportEvent: viewportEvents, viewport: viewportStore } = useStore();
+    const viewport = useViewportService();
 
     const addByMode = (id) => {
         const tool = useStageToolService();
@@ -49,7 +49,7 @@ export const useSelectService = defineStore('selectService', () => {
             overlay.helper.clear();
             intersectedIds.forEach(addByMode);
         } else {
-            const coord = stage.clientToCoord(event);
+            const coord = viewportStore.clientToCoord(event);
             if (!coord) {
                 return;
             }
@@ -68,7 +68,7 @@ export const useSelectService = defineStore('selectService', () => {
         const event = viewportEvents.getEvent('pointerup', tool.pointer.id);
         if (!event) return;
 
-        const coord = stage.clientToCoord(event);
+        const coord = viewportStore.clientToCoord(event);
             const startEvent = viewportEvents.getEvent('pointerdown', tool.pointer.id);
             const dx = startEvent ? Math.abs(event.clientX - startEvent.clientX) : 0;
             const dy = startEvent ? Math.abs(event.clientY - startEvent.clientY) : 0;
