@@ -4,7 +4,6 @@ import { useOverlayService } from './overlay';
 import { usePixelService } from './pixel';
 import { useQueryService } from './query';
 import { useSelectService } from './select';
-import { useStageService } from './stage';
 import { useStageToolService } from './stageTool';
 import { useViewportService } from './viewport';
 
@@ -15,7 +14,6 @@ export {
     usePixelService,
     useQueryService,
     useSelectService,
-    useStageService,
     useStageToolService,
     useViewportService
 };
@@ -27,7 +25,6 @@ export const useService = () => ({
     pixel: usePixelService(),
     query: useQueryService(),
     select: useSelectService(),
-    stage: useStageService(),
     stageTool: useStageToolService(),
     viewport: useViewportService()
 });

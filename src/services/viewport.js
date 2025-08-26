@@ -1,46 +1,45 @@
 import { defineStore } from 'pinia';
-import { reactive, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useStore } from '../stores';
 import { clamp } from '../utils';
 import { WHEEL_ZOOM_IN_FACTOR, WHEEL_ZOOM_OUT_FACTOR, POSITION_LERP_EXPONENT } from '@/constants';
 
 export const useViewportService = defineStore('viewportService', () => {
-  const { stage: stageStore, viewportEvent: viewportEvents } = useStore();
-  const offset = reactive({ x: 0, y: 0 });
+  const { viewport: viewportStore, viewportEvent: viewportEvents } = useStore();
   const touches = new Map();
-  const element = ref(null);
   let lastTouchDistance = 0;
 
+  const element = computed(() => viewportStore.element);
+
   function setElement(el) {
-    element.value = el;
+    viewportStore.setElement(el);
   }
 
   function handleWheel(e) {
-    const viewportEl = element.value;
+    const viewportEl = viewportStore.element;
     if (!viewportEl) return;
     if (!e.ctrlKey) {
-      offset.x -= e.deltaX;
-      offset.y -= e.deltaY;
+      viewportStore.stage.offset.x -= e.deltaX;
+      viewportStore.stage.offset.y -= e.deltaY;
     } else {
       if (e.deltaY === 0) return;
       const rect = viewportEl.getBoundingClientRect();
       const px = e.clientX - rect.left;
       const py = e.clientY - rect.top;
-      const oldScale = stageStore.canvas.scale;
+      const oldScale = viewportStore.stage.scale;
       const factor = e.deltaY < 0 ? WHEEL_ZOOM_IN_FACTOR : WHEEL_ZOOM_OUT_FACTOR;
       const newScale = oldScale * factor;
-      const clamped = Math.max(stageStore.canvas.minScale, newScale);
+      const clamped = Math.max(viewportStore.stage.minScale, newScale);
       const ratio = clamped / oldScale;
-      offset.x = px - ratio * (px - offset.x);
-      offset.y = py - ratio * (py - offset.y);
-      stageStore.setScale(clamped);
-      if (newScale < oldScale) positionStage(false);
+      viewportStore.stage.offset.x = px - ratio * (px - viewportStore.stage.offset.x);
+      viewportStore.stage.offset.y = py - ratio * (py - viewportStore.stage.offset.y);
+      viewportStore.setScale(clamped);
+      if (newScale < oldScale) interpolatePosition(true);
     }
-    updateCanvasPosition();
   }
 
   function handlePinch() {
-    const viewportEl = element.value;
+    const viewportEl = viewportStore.element;
     if (!viewportEl) return;
     const rect = viewportEl.getBoundingClientRect();
     const [t1, t2] = Array.from(touches.values());
@@ -51,46 +50,32 @@ export const useViewportService = defineStore('viewportService', () => {
       lastTouchDistance = dist;
       return;
     }
-    const oldScale = stageStore.canvas.scale;
+    const oldScale = viewportStore.stage.scale;
     const newScale = oldScale * (dist / lastTouchDistance);
-    const clamped = Math.max(stageStore.canvas.minScale, newScale);
+    const clamped = Math.max(viewportStore.stage.minScale, newScale);
     const ratio = clamped / oldScale;
-    offset.x = cx - ratio * (cx - offset.x);
-    offset.y = cy - ratio * (cy - offset.y);
-    stageStore.setScale(clamped);
+    viewportStore.stage.offset.x = cx - ratio * (cx - viewportStore.stage.offset.x);
+    viewportStore.stage.offset.y = cy - ratio * (cy - viewportStore.stage.offset.y);
+    viewportStore.setScale(clamped);
     lastTouchDistance = dist;
-    if (newScale < oldScale) positionStage(false);
-    updateCanvasPosition();
+    if (newScale < oldScale) interpolatePosition(true);
   }
 
-  function positionStage(center = false) {
-    const viewportEl = element.value;
+  function interpolatePosition(soft = true) {
+    const viewportEl = viewportStore.element;
     if (!viewportEl) return;
     const style = getComputedStyle(viewportEl);
     const width = viewportEl.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
     const height = viewportEl.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-    const maxX = width - stageStore.pixelWidth;
-    const maxY = height - stageStore.pixelHeight;
-    const targetX = maxX >= 0 ? maxX / 2 : clamp(offset.x, maxX, 0);
-    const targetY = maxY >= 0 ? maxY / 2 : clamp(offset.y, maxY, 0);
-    if (center) {
-      offset.x = targetX;
-      offset.y = targetY;
-    } else {
-      const strength = (stageStore.canvas.minScale / stageStore.canvas.scale) ** POSITION_LERP_EXPONENT;
-      offset.x += (targetX - offset.x) * strength;
-      offset.y += (targetY - offset.y) * strength;
-    }
-  }
-
-  function updateCanvasPosition() {
-    const viewportEl = element.value;
-    if (!viewportEl) return;
-    const rect = viewportEl.getBoundingClientRect();
-    const style = getComputedStyle(viewportEl);
-    const left = rect.left + parseFloat(style.paddingLeft);
-    const top = rect.top + parseFloat(style.paddingTop);
-    stageStore.setCanvasPosition(left + offset.x, top + offset.y);
+    const scaledWidth = viewportStore.stage.width * viewportStore.stage.scale;
+    const scaledHeight = viewportStore.stage.height * viewportStore.stage.scale;
+    const maxX = width - scaledWidth;
+    const maxY = height - scaledHeight;
+    const targetX = maxX >= 0 ? maxX / 2 : clamp(viewportStore.stage.offset.x, maxX, 0);
+    const targetY = maxY >= 0 ? maxY / 2 : clamp(viewportStore.stage.offset.y, maxY, 0);
+    const strength = soft ? (viewportStore.stage.minScale / viewportStore.stage.scale) ** POSITION_LERP_EXPONENT : 1;
+    viewportStore.stage.offset.x += (targetX - viewportStore.stage.offset.x) * strength;
+    viewportStore.stage.offset.y += (targetY - viewportStore.stage.offset.y) * strength;
   }
 
   watch(
@@ -136,8 +121,6 @@ export const useViewportService = defineStore('viewportService', () => {
   return {
     element,
     setElement,
-    offset,
-    positionStage,
-    updateCanvasPosition,
+    interpolatePosition,
   };
 });

@@ -4,17 +4,15 @@ import { useStore } from '../stores';
 import { useOverlayService } from './overlay';
 import { useSelectService } from './select';
 import { usePixelService } from './pixel';
-import { useStageService } from './stage';
 import { useViewportService } from './viewport';
 import { calcMarquee, rgbaCssU32, rgbaCssObj } from '../utils';
 import { CURSOR_CONFIG } from '@/constants';
 
 export const useStageToolService = defineStore('stageToolService', () => {
-    const { stage: stageStore, layers, input, viewportEvent: viewportEvents, output } = useStore();
+    const { viewport: viewportStore, layers, input, viewportEvent: viewportEvents, output } = useStore();
     const overlay = useOverlayService();
     const selectSvc = useSelectService();
     const pixelSvc = usePixelService();
-    const stageSvc = useStageService();
     const viewport = useViewportService();
 
     const prepared = ref('draw');
@@ -53,20 +51,20 @@ export const useStageToolService = defineStore('stageToolService', () => {
     function setShape(s) { shape.value = s === 'rect' ? 'rect' : 'stroke'; }
 
     const updateHover = (event) => {
-        const coord = stageSvc.clientToCoord(event);
+        const coord = viewportStore.clientToCoord(event);
         if (!coord) {
-            stageStore.updatePixelInfo('-');
+            viewportStore.updatePixelInfo('-');
             overlay.helper.clear();
             overlay.helper.mode = 'add';
             return;
         }
         const [px, py] = coord;
-        if (stageStore.display === 'original' && input.isLoaded) {
+        if (viewportStore.display === 'original' && input.isLoaded) {
             const colorObject = input.readPixel(coord);
-            stageStore.updatePixelInfo(`[${px},${py}] ${rgbaCssObj(colorObject)}`);
+            viewportStore.updatePixelInfo(`[${px},${py}] ${rgbaCssObj(colorObject)}`);
         } else {
             const colorU32 = layers.compositeColorAt(coord);
-            stageStore.updatePixelInfo(`[${px},${py}] ${rgbaCssU32(colorU32)}`);
+            viewportStore.updatePixelInfo(`[${px},${py}] ${rgbaCssU32(colorU32)}`);
         }
         if (pointer.status !== 'idle') {
             overlay.helper.mode = pointer.status === 'remove' ? 'remove' : 'add';
@@ -89,8 +87,7 @@ export const useStageToolService = defineStore('stageToolService', () => {
             return;
         }
         const startEvent = viewportEvents.getEvent('pointerdown', pointer.id);
-        const start = { x: startEvent.clientX, y: startEvent.clientY };
-        Object.assign(marquee, calcMarquee(start, { x: e.clientX, y: e.clientY }, stageStore.canvas));
+        Object.assign(marquee, calcMarquee(startEvent, e, viewportStore, viewport.element));
     };
 
     function getPixelsFromInteraction(type) {
@@ -99,17 +96,16 @@ export const useStageToolService = defineStore('stageToolService', () => {
         if (!event) return pixels;
         if (shape.value === 'rect') {
             const startEvent = viewportEvents.getEvent('pointerdown', pointer.id);
-            const start = startEvent ? { x: startEvent.clientX, y: startEvent.clientY } : null;
-            const { visible, x, y, w, h } = start ? calcMarquee(start, { x: event.clientX, y: event.clientY }, stageStore.canvas) : { visible: false, x:0, y:0, w:0, h:0 };
+            const { visible, x, y, w, h } = startEvent ? calcMarquee(startEvent, event, viewportStore, viewport.element) : { visible: false, x:0, y:0, w:0, h:0 };
             if (!visible || w === 0 || h === 0) {
-                const coord = stageSvc.clientToCoord(event);
+                const coord = viewportStore.clientToCoord(event);
                 if (coord) pixels.push(coord);
             } else {
                 for (let yy = y; yy < y + h; yy++)
                     for (let xx = x; xx < x + w; xx++) pixels.push([xx, yy]);
             }
         } else {
-            const coord = stageSvc.clientToCoord(event);
+            const coord = viewportStore.clientToCoord(event);
             if (coord) pixels.push(coord);
         }
         return pixels;
@@ -144,7 +140,7 @@ export const useStageToolService = defineStore('stageToolService', () => {
     watch(() => viewportEvents.recent.pointer.down, (events) => {
         for (const e of events) {
             if (!e || e.button !== 0) continue;
-            const coord = stageSvc.clientToCoord(e);
+            const coord = viewportStore.clientToCoord(e);
             if (!coord) continue;
 
             output.setRollbackPoint();

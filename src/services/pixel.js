@@ -1,14 +1,14 @@
 import { defineStore } from 'pinia';
-import { useStageService } from './stage';
 import { useOverlayService } from './overlay';
 import { useStore } from '../stores';
 import { useStageToolService } from './stageTool';
+import { useViewportService } from './viewport';
 import { coordToKey } from '../utils';
 
 export const usePixelService = defineStore('pixelService', () => {
-    const stage = useStageService();
     const overlay = useOverlayService();
-    const { layers, viewportEvent: viewportEvents } = useStore();
+    const { layers, viewportEvent: viewportEvents, viewport: viewportStore } = useStore();
+    const viewport = useViewportService();
     let cutLayerId = null;
 
     function startDraw() {
@@ -26,7 +26,7 @@ export const usePixelService = defineStore('pixelService', () => {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'draw' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
         const event = viewportEvents.getEvent('pointermove', tool.pointer.id);
-        const coord = stage.clientToCoord(event);
+        const coord = viewportStore.clientToCoord(event);
         if (!coord) return;
         addPixelsToSelection([coord]);
     }
@@ -57,7 +57,7 @@ export const usePixelService = defineStore('pixelService', () => {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'erase' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
         const event = viewportEvents.getEvent('pointermove', tool.pointer.id);
-        const coord = stage.clientToCoord(event);
+        const coord = viewportStore.clientToCoord(event);
         if (!coord) return;
         removePixelsFromSelection([coord]);
     }
@@ -89,7 +89,7 @@ export const usePixelService = defineStore('pixelService', () => {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'globalErase' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
         const event = viewportEvents.getEvent('pointermove', tool.pointer.id);
-        const coord = stage.clientToCoord(event);
+        const coord = viewportStore.clientToCoord(event);
         if (!coord) return;
         if (layers.selectionExists) removePixelsFromSelected([coord]);
         else removePixelsFromAll([coord]);
@@ -136,7 +136,7 @@ export const usePixelService = defineStore('pixelService', () => {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'cut' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
         const event = viewportEvents.getEvent('pointermove', tool.pointer.id);
-        const coord = stage.clientToCoord(event);
+        const coord = viewportStore.clientToCoord(event);
         if (!coord) return;
         cutPixelsFromSelection([coord]);
     }

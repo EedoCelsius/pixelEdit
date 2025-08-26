@@ -1,3 +1,5 @@
+import { SVG_NAMESPACE, CHECKERBOARD_CONFIG } from '@/constants';
+
 export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export const coordToKey = ([x, y]) => x + ',' + y;
 export const keyToCoord = (key) => key.split(',').map(n => +n);
@@ -11,20 +13,27 @@ export function getPixelUnion(props = []) {
     return [...set].map(keyToCoord);
 }
 
-export function calcMarquee(start, current, canvas) {
-    if (!start || !current) return { visible: false, x: 0, y: 0, w: 0, h: 0 };
-    const left = Math.min(start.x, current.x) - canvas.x;
-    const top = Math.min(start.y, current.y) - canvas.y;
-    const right = Math.max(start.x, current.x) - canvas.x;
-    const bottom = Math.max(start.y, current.y) - canvas.y;
-    const minX = Math.floor(left / canvas.scale),
-        maxX = Math.floor((right - 1) / canvas.scale);
-    const minY = Math.floor(top / canvas.scale),
-        maxY = Math.floor((bottom - 1) / canvas.scale);
-    const minx = clamp(minX, 0, canvas.width - 1),
-        maxx = clamp(maxX, 0, canvas.width - 1);
-    const miny = clamp(minY, 0, canvas.height - 1),
-        maxy = clamp(maxY, 0, canvas.height - 1);
+export function calcMarquee(startEvent, currentEvent, viewportStore, viewportEl) {
+    if (!startEvent || !currentEvent || !viewportEl) return { visible: false, x: 0, y: 0, w: 0, h: 0 };
+    const rect = viewportEl.getBoundingClientRect();
+    const style = getComputedStyle(viewportEl);
+    const leftBase = rect.left + parseFloat(style.paddingLeft) + viewportStore.stage.offset.x;
+    const topBase = rect.top + parseFloat(style.paddingTop) + viewportStore.stage.offset.y;
+    const scale = viewportStore.stage.scale;
+    const width = viewportStore.stage.width;
+    const height = viewportStore.stage.height;
+    const left = Math.min(startEvent.clientX, currentEvent.clientX) - leftBase;
+    const top = Math.min(startEvent.clientY, currentEvent.clientY) - topBase;
+    const right = Math.max(startEvent.clientX, currentEvent.clientX) - leftBase;
+    const bottom = Math.max(startEvent.clientY, currentEvent.clientY) - topBase;
+    const minX = Math.floor(left / scale),
+        maxX = Math.floor((right - 1) / scale);
+    const minY = Math.floor(top / scale),
+        maxY = Math.floor((bottom - 1) / scale);
+    const minx = clamp(minX, 0, width - 1),
+        maxx = clamp(maxX, 0, width - 1);
+    const miny = clamp(minY, 0, height - 1),
+        maxy = clamp(maxY, 0, height - 1);
     return {
         visible: true,
         x: minx,
@@ -32,6 +41,56 @@ export function calcMarquee(start, current, canvas) {
         w: (maxx >= minx) ? (maxx - minx + 1) : 0,
         h: (maxy >= miny) ? (maxy - miny + 1) : 0,
     };
+}
+
+export function ensureCheckerboardPattern(target = document.body) {
+    const { PATTERN_ID, COLOR_A, COLOR_B, REPEAT } = CHECKERBOARD_CONFIG;
+    const id = PATTERN_ID;
+    if (document.getElementById(id)) return id;
+    const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
+    svg.setAttribute('width', '0');
+    svg.setAttribute('height', '0');
+    svg.style.position = 'absolute';
+    svg.style.left = '-9999px';
+    const defs = document.createElementNS(SVG_NAMESPACE, 'defs');
+    const pattern = document.createElementNS(SVG_NAMESPACE, 'pattern');
+    pattern.setAttribute('id', id);
+    const repeatSize = REPEAT;
+    pattern.setAttribute('width', String(repeatSize));
+    pattern.setAttribute('height', String(repeatSize));
+    pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+    const r00 = document.createElementNS(SVG_NAMESPACE, 'rect');
+    r00.setAttribute('x', '0');
+    r00.setAttribute('y', '0');
+    r00.setAttribute('width', String(repeatSize / 2));
+    r00.setAttribute('height', String(repeatSize / 2));
+    r00.setAttribute('fill', COLOR_A);
+    const r11 = document.createElementNS(SVG_NAMESPACE, 'rect');
+    r11.setAttribute('x', String(repeatSize / 2));
+    r11.setAttribute('y', String(repeatSize / 2));
+    r11.setAttribute('width', String(repeatSize / 2));
+    r11.setAttribute('height', String(repeatSize / 2));
+    r11.setAttribute('fill', COLOR_A);
+    const r10 = document.createElementNS(SVG_NAMESPACE, 'rect');
+    r10.setAttribute('x', String(repeatSize / 2));
+    r10.setAttribute('y', '0');
+    r10.setAttribute('width', String(repeatSize / 2));
+    r10.setAttribute('height', String(repeatSize / 2));
+    r10.setAttribute('fill', COLOR_B);
+    const r01 = document.createElementNS(SVG_NAMESPACE, 'rect');
+    r01.setAttribute('x', '0');
+    r01.setAttribute('y', String(repeatSize / 2));
+    r01.setAttribute('width', String(repeatSize / 2));
+    r01.setAttribute('height', String(repeatSize / 2));
+    r01.setAttribute('fill', COLOR_B);
+    pattern.appendChild(r00);
+    pattern.appendChild(r11);
+    pattern.appendChild(r10);
+    pattern.appendChild(r01);
+    defs.appendChild(pattern);
+    svg.appendChild(defs);
+    target.appendChild(svg);
+    return id;
 }
 
 // --- color helpers (32-bit unsigned RGBA packed as 0xAABBGGRR) ---

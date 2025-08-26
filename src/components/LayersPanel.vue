@@ -3,8 +3,8 @@
     <div v-for="props in layers.getProperties(layers.idsTopToBottom)" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="props.id" :data-id="props.id" :class="{ selected: layers.isSelected(props.id), anchor: layerPanel.anchorId===props.id, dragging: dragId===props.id }" draggable="true" @click="layerPanel.onLayerClick(props.id,$event)" @dragstart="onDragStart(props.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(props.id,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(props.id,$event)">
       <!-- 썸네일 -->
       <div @click.stop="onThumbnailClick(props.id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
-        <svg :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
-          <rect x="0" y="0" :width="stageStore.canvas.width" :height="stageStore.canvas.height" :fill="patternUrl"/>
+        <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
+          <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
           <path :d="layers.pathOf(props.id)" :fill="rgbaCssU32(props.color)" :opacity="props.visible?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
         </svg>
       </div>
@@ -46,13 +46,13 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useStore } from '../stores';
-import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, clamp } from '../utils';
+import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, clamp, ensureCheckerboardPattern } from '../utils';
 import blockIcons from '../image/layer_block';
 
 import { useService } from '../services';
 
-const { stage: stageStore, layers, output } = useStore();
-const { stage: stageService, layerPanel, query } = useService();
+const { viewport: viewportStore, layers, output } = useStore();
+const { layerPanel, query, viewport } = useService();
 
 const dragging = ref(false);
 const dragId = ref(null);
@@ -60,7 +60,7 @@ const editingId = ref(null);
 const listElement = ref(null);
 const icons = reactive(blockIcons);
 
-const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
+const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
 
 
   function onThumbnailClick(id) {
@@ -341,13 +341,13 @@ function onNameKey(id, event) {
 
 function handleGlobalPointerDown(event) {
     const target = event.target;
-    const stageEl = stageService.element;
+    const stageEl = viewport.element;
     const isStage = stageEl && stageEl.contains(target);
     const isLayers = listElement.value && listElement.value.contains(target);
     const isButton = !!target.closest('button');
     if (isStage || isLayers || isButton) return;
-      layers.clearSelection();
-  }
+    layers.clearSelection();
+}
 
 onMounted(() => {
     window.addEventListener('pointerdown', handleGlobalPointerDown, {
@@ -360,5 +360,3 @@ onUnmounted(() => {
     });
 });
 </script>
-const { stage: stageStore, layers, output } = useStore();
-const { stage: stageService, layerPanel, query } = useService();
