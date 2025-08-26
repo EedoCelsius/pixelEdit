@@ -86,16 +86,16 @@ export const useStageToolService = defineStore('stageToolService', () => {
             Object.assign(marquee, { visible: false, x: 0, y: 0, w: 0, h: 0 });
             return;
         }
-        const startEvent = viewportEvents.getEvent('pointerdown', pointer.id);
+        const startEvent = viewportEvents.get('pointerdown', pointer.id);
         Object.assign(marquee, calcMarquee(startEvent, e, viewportStore, viewport.element));
     };
 
     function getPixelsFromInteraction(type) {
-        const event = viewportEvents.getEvent('pointer' + type, pointer.id);
+        const event = viewportEvents.get('pointer' + type, pointer.id);
         const pixels = [];
         if (!event) return pixels;
         if (shape.value === 'rect') {
-            const startEvent = viewportEvents.getEvent('pointerdown', pointer.id);
+            const startEvent = viewportEvents.get('pointerdown', pointer.id);
             const { visible, x, y, w, h } = startEvent ? calcMarquee(startEvent, event, viewportStore, viewport.element) : { visible: false, x:0, y:0, w:0, h:0 };
             if (!visible || w === 0 || h === 0) {
                 const coord = viewportStore.clientToCoord(event);
@@ -139,7 +139,7 @@ export const useStageToolService = defineStore('stageToolService', () => {
 
     watch(() => viewportEvents.recent.pointer.down, (events) => {
         for (const e of events) {
-            if (!e || e.button !== 0) continue;
+            if (!e || e.button !== 0 || viewportEvents.pinchIds) continue;
             const coord = viewportStore.clientToCoord(e);
             if (!coord) continue;
 
@@ -168,8 +168,8 @@ export const useStageToolService = defineStore('stageToolService', () => {
     });
 
     watch(() => viewportEvents.recent.pointer.move, () => {
-        const e = viewportEvents.getEvent('pointermove', pointer.id);
-        if (!e || !viewportEvents.isDragging(pointer.id)) return;
+        const e = viewportEvents.get('pointermove', pointer.id);
+        if (!e || !viewportEvents.isDragging(pointer.id) || viewportEvents.pinchIds) return;
         updateHover(e);
         updateMarquee(e);
         if (isSelect.value) selectSvc.tools.select.move();
@@ -177,8 +177,8 @@ export const useStageToolService = defineStore('stageToolService', () => {
     });
 
     watch(() => viewportEvents.recent.pointer.up, () => {
-        const e = viewportEvents.getEvent('pointerup', pointer.id);
-        if (!e || viewportEvents.isDragging(pointer.id)) return;
+        const e = viewportEvents.get('pointerup', pointer.id);
+        if (!e || viewportEvents.isDragging(pointer.id) || viewportEvents.pinchIds) return;
         updateMarquee(e);
         if (e.type === 'pointercancel') {
             if (isSelect.value) selectSvc.cancel();
@@ -190,6 +190,20 @@ export const useStageToolService = defineStore('stageToolService', () => {
             output.commit();
         }
         try { e.target?.releasePointerCapture?.(pointer.id); } catch {}
+        pointer.status = 'idle';
+        pointer.id = null;
+        overlay.helper.clear();
+        overlay.helper.mode = 'add';
+    });
+
+    watch(() => viewportEvents.pinchIds, (ids) => {
+        if (!ids || pointer.status === 'idle') return;
+        updateMarquee(null);
+        if (isSelect.value) selectSvc.cancel();
+        else pixelSvc.cancel();
+        output.rollbackPending();
+        const startEvent = viewportEvents.get('pointerdown', pointer.id);
+        try { startEvent?.target?.releasePointerCapture?.(pointer.id); } catch {}
         pointer.status = 'idle';
         pointer.id = null;
         overlay.helper.clear();

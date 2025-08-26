@@ -6,7 +6,6 @@ import { WHEEL_ZOOM_IN_FACTOR, WHEEL_ZOOM_OUT_FACTOR, POSITION_LERP_EXPONENT } f
 
 export const useViewportService = defineStore('viewportService', () => {
   const { viewport: viewportStore, viewportEvent: viewportEvents } = useStore();
-  const touches = new Map();
   let lastTouchDistance = 0;
 
   const element = computed(() => viewportStore.element);
@@ -42,10 +41,15 @@ export const useViewportService = defineStore('viewportService', () => {
     const viewportEl = viewportStore.element;
     if (!viewportEl) return;
     const rect = viewportEl.getBoundingClientRect();
-    const [t1, t2] = Array.from(touches.values());
-    const cx = (t1.x + t2.x) / 2 - rect.left;
-    const cy = (t1.y + t2.y) / 2 - rect.top;
-    const dist = Math.hypot(t2.x - t1.x, t2.y - t1.y);
+    const ids = viewportEvents.pinchIds;
+    if (!ids) return;
+    const [id1, id2] = ids;
+    const e1 = viewportEvents.get('pointermove', id1) || viewportEvents.get('pointerdown', id1);
+    const e2 = viewportEvents.get('pointermove', id2) || viewportEvents.get('pointerdown', id2);
+    if (!e1 || !e2) return;
+    const cx = (e1.clientX + e2.clientX) / 2 - rect.left;
+    const cy = (e1.clientY + e2.clientY) / 2 - rect.top;
+    const dist = Math.hypot(e2.clientX - e1.clientX, e2.clientY - e1.clientY);
     if (!lastTouchDistance) {
       lastTouchDistance = dist;
       return;
@@ -79,42 +83,21 @@ export const useViewportService = defineStore('viewportService', () => {
   }
 
   watch(
-    () => viewportEvents.recent.pointer.down,
-    (events) => {
-      for (const e of events) {
-        if (e.pointerType !== 'touch') continue;
-        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        lastTouchDistance = 0;
-      }
-    },
-    { deep: true }
-  );
-
-  watch(
     () => viewportEvents.recent.pointer.move,
-    (events) => {
-      for (const e of events) {
-        if (e.pointerType !== 'touch') continue;
-        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (touches.size === 2) handlePinch();
-      }
+    () => {
+      if (viewportEvents.pinchIds) handlePinch();
     },
     { deep: true }
   );
 
   watch(
-    () => viewportEvents.recent.pointer.up,
-    (events) => {
-      for (const e of events) {
-        if (e.pointerType !== 'touch') continue;
-        touches.delete(e.pointerId);
-        lastTouchDistance = 0;
-      }
-    },
-    { deep: true }
+    () => viewportEvents.pinchIds,
+    () => {
+      lastTouchDistance = 0;
+    }
   );
 
-  watch(() => viewportEvents.getEvent('wheel'), (e) => {
+  watch(() => viewportEvents.get('wheel'), (e) => {
     if (e) handleWheel(e);
   });
 

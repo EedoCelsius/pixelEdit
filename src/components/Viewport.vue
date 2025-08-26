@@ -1,10 +1,10 @@
 <template>
   <div ref="viewportEl" class="relative flex-1 min-h-0 p-2 overflow-hidden touch-none"
        @wheel.prevent="onWheel"
-       @pointerdown="onViewportPointerDown"
-       @pointermove="onViewportPointerMove"
-       @pointerup="onViewportPointerUp"
-       @pointercancel="onViewportPointerCancel">
+       @pointerdown="onPointerDown"
+       @pointermove="onPointerMove"
+       @pointerup="onPointerUp"
+       @pointercancel="onPointerCancel">
     <div id="stage" class="absolute shadow-inner select-none touch-none"
          :style="{
            width: stage.width+'px',
@@ -13,11 +13,7 @@
            transform: `translate(${stage.offset.x}px, ${stage.offset.y}px) scale(${stage.scale})`,
            transformOrigin: 'top left'
          }"
-         @pointerdown="onPointerDown"
-         @pointermove="onPointerMove"
          @pointerleave="onPointerLeave"
-         @pointerup="onPointerUp"
-         @pointercancel="onPointerCancel"
          @contextmenu.prevent>
       <!-- 체커보드 -->
       <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" style="image-rendering:pixelated">
@@ -85,24 +81,8 @@ const viewportEl = ref(null);
 const marquee = stageToolService.marquee;
 const stage = viewportStore.stage;
 
-const onViewportPointerDown = (e) => {
-  if (e.pointerType === 'touch') e.preventDefault();
-  viewportEvents.setPointerDown(e);
-};
-
-const onViewportPointerMove = (e) => {
-  viewportEvents.setPointerMove(e);
-};
-
-const onViewportPointerUp = (e) => {
-  viewportEvents.setPointerUp(e);
-};
-
-const onViewportPointerCancel = (e) => {
-  viewportEvents.setPointerUp(e);
-};
-
 const onPointerDown = (e) => {
+  if (e.pointerType === 'touch') e.preventDefault();
   viewportEvents.setPointerDown(e);
 };
 
