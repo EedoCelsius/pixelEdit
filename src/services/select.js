@@ -1,18 +1,18 @@
 import { defineStore } from 'pinia';
+import { watch } from 'vue';
 import { useOverlayService } from './overlay';
 import { useLayerPanelService } from './layerPanel';
 import { useStore } from '../stores';
 import { useStageToolService } from './stageTool';
-import { useViewportService } from './viewport';
+import { OVERLAY_CONFIG } from '@/constants';
 
 export const useSelectService = defineStore('selectService', () => {
     const overlay = useOverlayService();
     const layerPanel = useLayerPanelService();
     const { layers, viewportEvent: viewportEvents, viewport: viewportStore } = useStore();
-    const viewport = useViewportService();
+    const tool = useStageToolService();
 
     const addByMode = (id) => {
-        const tool = useStageToolService();
         const mode = tool.pointer.status;
         if (mode === 'remove') {
             if (layers.isSelected(id)) overlay.helper.add(id);
@@ -24,44 +24,25 @@ export const useSelectService = defineStore('selectService', () => {
     };
 
     function start(coord, startId) {
-        const tool = useStageToolService();
+        overlay.helper.config = tool.pointer.status === 'remove' ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
         overlay.helper.clear();
-        if (tool.shape === 'rect') {
-            // rectangle interactions tracked directly in components
-        } else {
-            if (startId !== null) addByMode(startId);
-        }
+        if (startId !== null) addByMode(startId);
     }
 
     function move() {
-        const tool = useStageToolService();
         if (tool.pointer.status === 'idle') return;
         if (!viewportEvents.isDragging(tool.pointer.id)) return;
-        const event = viewportEvents.get('pointermove', tool.pointer.id);
-
-        if (tool.shape === 'rect') {
-            const pixels = tool.getPixelsFromInteraction('move');
-            const intersectedIds = new Set();
-            for (const coord of pixels) {
-                const id = layers.topVisibleIdAt(coord);
-                if (id !== null) intersectedIds.add(id);
-            }
-            overlay.helper.clear();
-            intersectedIds.forEach(addByMode);
-        } else {
-            const coord = viewportStore.clientToCoord(event);
-            if (!coord) {
-                return;
-            }
+        const pixels = tool.previewPixels;
+        const intersectedIds = new Set();
+        for (const coord of pixels) {
             const id = layers.topVisibleIdAt(coord);
-            if (id !== null) {
-                addByMode(id);
-            }
+            if (id !== null) intersectedIds.add(id);
         }
+        overlay.helper.clear();
+        intersectedIds.forEach(addByMode);
     }
 
     function finish() {
-        const tool = useStageToolService();
         if (tool.pointer.status === 'idle') return;
 
         const mode = tool.pointer.status;
@@ -69,9 +50,9 @@ export const useSelectService = defineStore('selectService', () => {
         if (!event) return;
 
         const coord = viewportStore.clientToCoord(event);
-            const startEvent = viewportEvents.get('pointerdown', tool.pointer.id);
-            const dx = startEvent ? Math.abs(event.clientX - startEvent.clientX) : 0;
-            const dy = startEvent ? Math.abs(event.clientY - startEvent.clientY) : 0;
+        const startEvent = viewportEvents.get('pointerdown', tool.pointer.id);
+        const dx = startEvent ? Math.abs(event.clientX - startEvent.clientX) : 0;
+        const dy = startEvent ? Math.abs(event.clientY - startEvent.clientY) : 0;
         const isClick = dx <= 4 && dy <= 4;
         if (isClick && coord) {
             const id = layers.topVisibleIdAt(coord);
@@ -84,7 +65,7 @@ export const useSelectService = defineStore('selectService', () => {
                 layerPanel.setScrollRule({ type: 'follow', target: id });
             }
         } else {
-            const pixels = tool.getPixelsFromInteraction('up');
+            const pixels = tool.affectedPixels;
             if (pixels.length > 0) {
                 const intersectedIds = new Set();
                 for (const coord of pixels) {
@@ -106,11 +87,40 @@ export const useSelectService = defineStore('selectService', () => {
                 layers.clearSelection();
             }
         }
+        overlay.helper.clear();
+        overlay.helper.config = OVERLAY_CONFIG.ADD;
     }
 
-    function cancel() {}
+    function cancel() {
+        overlay.helper.clear();
+        overlay.helper.config = OVERLAY_CONFIG.ADD;
+    }
 
     const tools = { select: { start, move, finish } };
+
+    const updateHoverOverlay = () => {
+        if (!tool.isSelect) {
+            overlay.helper.clear();
+            overlay.helper.config = OVERLAY_CONFIG.ADD;
+            return;
+        }
+        if (tool.pointer.status !== 'idle') return;
+        const pixels = tool.previewPixels;
+        if (!pixels.length) {
+            overlay.helper.clear();
+            overlay.helper.config = OVERLAY_CONFIG.ADD;
+            return;
+        }
+        const coord = pixels[0];
+        const id = layers.topVisibleIdAt(coord);
+        overlay.helper.clear();
+        overlay.helper.add(id);
+        overlay.helper.config = (id != null && viewportEvents.isPressed('Shift') && layers.isSelected(id)) ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
+    };
+
+    watch(() => tool.previewPixels.slice(), updateHoverOverlay);
+    watch(() => tool.pointer.status, updateHoverOverlay);
+    watch(() => tool.isSelect, updateHoverOverlay);
 
     return { tools, cancel };
 });
