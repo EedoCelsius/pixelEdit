@@ -1,34 +1,22 @@
 import { defineStore } from 'pinia';
 import { ref, reactive, computed, watch } from 'vue';
 import { useStore } from '../stores';
-import { useOverlayService } from './overlay';
-import { useSelectService } from './select';
-import { usePixelService } from './pixel';
 import { useViewportService } from './viewport';
 import { calcMarquee, rgbaCssU32, rgbaCssObj } from '../utils';
-import { CURSOR_CONFIG, OVERLAY_CONFIG } from '@/constants';
 
-export const useStageToolService = defineStore('stageToolService', () => {
+export const useToolSelectionService = defineStore('toolSelectionService', () => {
     const { viewport: viewportStore, layers, input, viewportEvent: viewportEvents, output } = useStore();
-    const overlay = useOverlayService();
-    const selectSvc = useSelectService();
-    const pixelSvc = usePixelService();
     const viewport = useViewportService();
 
     const prepared = ref('draw');
     const shape = ref('stroke');
-    const pointer = reactive({ status: 'idle', id: null });
+    const pointer = reactive({ status: 'idle', id: null, event: null });
     const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
     const previewPixels = ref([]);
     const affectedPixels = ref([]);
 
     const active = computed(() => {
-        if (pointer.status !== 'idle') {
-            const status = pointer.status;
-            return (status === 'select' || status === 'add' || status === 'remove')
-                ? 'select'
-                : status;
-        }
+        if (pointer.status !== 'idle') return pointer.status;
         let tool = prepared.value;
         if (viewportEvents.isPressed('Shift')) {
             tool = 'select';
@@ -113,32 +101,16 @@ export const useStageToolService = defineStore('stageToolService', () => {
         return pixels;
     }
 
-    const cursor = computed(() => {
-        const tool = active.value;
-        const toolShape = shape.value;
-        const helperMode = overlay.helper.config === OVERLAY_CONFIG.REMOVE ? 'remove' : 'add';
-        const mode = pointer.status === 'idle'
-            ? helperMode
-            : (pointer.status === 'remove' ? 'remove' : 'add');
+    const cursor = reactive({ stroke: 'default', rect: 'default' });
 
-        if (tool === 'select') {
-            if (toolShape === 'stroke') {
-                return mode === 'remove' ? CURSOR_CONFIG.REMOVE_STROKE : CURSOR_CONFIG.ADD_STROKE;
-            }
-            if (toolShape === 'rect') {
-                return mode === 'remove' ? CURSOR_CONFIG.REMOVE_RECT : CURSOR_CONFIG.ADD_RECT;
-            }
-        }
-        if (tool === 'draw' && toolShape === 'stroke') return CURSOR_CONFIG.DRAW_STROKE;
-        if (tool === 'draw' && toolShape === 'rect') return CURSOR_CONFIG.DRAW_RECT;
-        if (tool === 'erase' && toolShape === 'stroke') return CURSOR_CONFIG.ERASE_STROKE;
-        if (tool === 'erase' && toolShape === 'rect') return CURSOR_CONFIG.ERASE_RECT;
-        if (tool === 'globalErase' && toolShape === 'stroke') return CURSOR_CONFIG.GLOBAL_ERASE_STROKE;
-        if (tool === 'globalErase' && toolShape === 'rect') return CURSOR_CONFIG.GLOBAL_ERASE_RECT;
-        if (tool === 'cut' && toolShape === 'stroke') return CURSOR_CONFIG.CUT_STROKE;
-        if (tool === 'cut' && toolShape === 'rect') return CURSOR_CONFIG.CUT_RECT;
-        return 'default';
-    });
+    function setCursor({ stroke, rect }) {
+        if (stroke) cursor.stroke = stroke;
+        if (rect) cursor.rect = rect;
+    }
+
+    function getCursor() {
+        return cursor[shape.value] || 'default';
+    }
 
     watch(() => viewportEvents.recent.pointer.down, (events) => {
         for (const e of events) {
@@ -153,19 +125,11 @@ export const useStageToolService = defineStore('stageToolService', () => {
             } catch {}
 
             if (isSelect.value) {
-                const startId = layers.topVisibleIdAt(coord);
-                const mode = !viewportEvents.isPressed('Shift')
-                    ? 'select'
-                    : layers.isSelected(startId)
-                        ? 'remove'
-                        : 'add';
-                pointer.status = mode;
+                pointer.status = 'select';
                 updatePixels('down');
-                selectSvc.tools.select.start(coord, startId);
             } else {
                 pointer.status = active.value;
                 updatePixels('down');
-                pixelSvc.tools[active.value].start();
             }
             updateMarquee(e);
         }
@@ -179,8 +143,6 @@ export const useStageToolService = defineStore('stageToolService', () => {
         if (!viewportEvents.isDragging(pointer.id) || viewportEvents.pinchIds) return;
         updatePixels('move');
         updateMarquee(e);
-        if (isSelect.value) selectSvc.tools.select.move();
-        else pixelSvc.tools[active.value].move();
     });
 
     watch(() => viewportEvents.recent.pointer.up, () => {
@@ -188,13 +150,10 @@ export const useStageToolService = defineStore('stageToolService', () => {
         if (!e || viewportEvents.isDragging(pointer.id) || viewportEvents.pinchIds) return;
         updatePixels('up');
         updateMarquee(e);
+        pointer.event = e.type;
         if (e.type === 'pointercancel') {
-            if (isSelect.value) selectSvc.cancel();
-            else pixelSvc.cancel();
             output.rollbackPending();
         } else {
-            if (isSelect.value) selectSvc.tools.select.finish();
-            else pixelSvc.tools[active.value].finish();
             output.commit();
         }
         try { e.target?.releasePointerCapture?.(pointer.id); } catch {}
@@ -207,8 +166,7 @@ export const useStageToolService = defineStore('stageToolService', () => {
     watch(() => viewportEvents.pinchIds, (ids) => {
         if (!ids || pointer.status === 'idle') return;
         updateMarquee(null);
-        if (isSelect.value) selectSvc.cancel();
-        else pixelSvc.cancel();
+        pointer.event = 'pinch';
         output.rollbackPending();
         const startEvent = viewportEvents.get('pointerdown', pointer.id);
         try { startEvent?.target?.releasePointerCapture?.(pointer.id); } catch {}
@@ -235,7 +193,8 @@ export const useStageToolService = defineStore('stageToolService', () => {
         isRect,
         setPrepared,
         setShape,
-        cursor,
+        setCursor,
+        getCursor,
         getPixelsFromInteraction,
     };
 });
