@@ -2,12 +2,14 @@ import { defineStore } from 'pinia';
 import { ref, reactive, computed, watch } from 'vue';
 import { useStore } from '../stores';
 import { useViewportService } from './viewport';
+import { useOverlayService } from './overlay';
 import { clamp, rgbaCssU32, rgbaCssObj } from '../utils';
-import { TOOL_MODIFIERS } from '@/constants';
+import { TOOL_MODIFIERS, OVERLAY_CONFIG } from '@/constants';
 
 export const useToolSelectionService = defineStore('toolSelectionService', () => {
     const { viewport: viewportStore, layers, input, viewportEvent: viewportEvents, output } = useStore();
     const viewport = useViewportService();
+    const overlay = useOverlayService();
 
     const prepared = ref('draw');
     const shape = ref('stroke');
@@ -179,6 +181,10 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         pointer.id = null;
         previewPixels.value = [];
         affectedPixels.value = [];
+        if (e.type === 'pointercancel') {
+            overlay.helper.clear();
+            overlay.helper.config = OVERLAY_CONFIG.ADD;
+        }
     });
 
     watch(() => viewportEvents.pinchIds, (ids) => {
@@ -192,6 +198,8 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         pointer.id = null;
         previewPixels.value = [];
         affectedPixels.value = [];
+        overlay.helper.clear();
+        overlay.helper.config = OVERLAY_CONFIG.ADD;
     });
 
     return {
