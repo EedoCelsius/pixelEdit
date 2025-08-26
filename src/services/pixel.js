@@ -2,111 +2,66 @@ import { defineStore } from 'pinia';
 import { useOverlayService } from './overlay';
 import { useStore } from '../stores';
 import { useStageToolService } from './stageTool';
-import { useViewportService } from './viewport';
 import { coordToKey } from '../utils';
+import { OVERLAY_CONFIG } from '@/constants';
 
 export const usePixelService = defineStore('pixelService', () => {
     const overlay = useOverlayService();
-    const { layers, viewportEvent: viewportEvents, viewport: viewportStore } = useStore();
-    const viewport = useViewportService();
+    const { layers } = useStore();
     let cutLayerId = null;
 
     function startDraw() {
         const tool = useStageToolService();
-        if (tool.shape !== 'rect') {
-            if (!viewportEvents.isDragging(tool.pointer.id)) return;
-            const event = viewportEvents.get('pointerdown', tool.pointer.id);
-            if (!event) return;
-            const pixels = tool.getPixelsFromInteraction('down');
-            addPixelsToSelection(pixels);
-        }
+        addPixelsToSelection(tool.affectedPixels);
     }
 
     function moveDraw() {
         const tool = useStageToolService();
-        if (tool.pointer.status !== 'draw' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
-        const event = viewportEvents.get('pointermove', tool.pointer.id);
-        const coord = viewportStore.clientToCoord(event);
-        if (!coord) return;
-        addPixelsToSelection([coord]);
+        if (tool.pointer.status !== 'draw') return;
+        addPixelsToSelection(tool.affectedPixels);
     }
 
     function finishDraw() {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'draw') return;
-        if (tool.shape === 'rect') {
-            const event = viewportEvents.get('pointerup', tool.pointer.id);
-            if (!event) return;
-            const pixels = tool.getPixelsFromInteraction('up');
-            if (pixels.length > 0) addPixelsToSelection(pixels);
-        }
+        addPixelsToSelection(tool.affectedPixels);
     }
 
     function startErase() {
         const tool = useStageToolService();
-        if (tool.shape !== 'rect') {
-            if (!viewportEvents.isDragging(tool.pointer.id)) return;
-            const event = viewportEvents.get('pointerdown', tool.pointer.id);
-            if (!event) return;
-            const pixels = tool.getPixelsFromInteraction('down');
-            removePixelsFromSelection(pixels);
-        }
+        removePixelsFromSelection(tool.affectedPixels);
     }
 
     function moveErase() {
         const tool = useStageToolService();
-        if (tool.pointer.status !== 'erase' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
-        const event = viewportEvents.get('pointermove', tool.pointer.id);
-        const coord = viewportStore.clientToCoord(event);
-        if (!coord) return;
-        removePixelsFromSelection([coord]);
+        if (tool.pointer.status !== 'erase') return;
+        removePixelsFromSelection(tool.affectedPixels);
     }
 
     function finishErase() {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'erase') return;
-        if (tool.shape === 'rect') {
-            const event = viewportEvents.get('pointerup', tool.pointer.id);
-            if (!event) return;
-            const pixels = tool.getPixelsFromInteraction('up');
-            if (pixels.length > 0) removePixelsFromSelection(pixels);
-        }
+        removePixelsFromSelection(tool.affectedPixels);
     }
 
     function startGlobalErase() {
         const tool = useStageToolService();
-        if (tool.shape !== 'rect') {
-            if (!viewportEvents.isDragging(tool.pointer.id)) return;
-            const event = viewportEvents.get('pointerdown', tool.pointer.id);
-            if (!event) return;
-            const pixels = tool.getPixelsFromInteraction('down');
-            if (layers.selectionExists) removePixelsFromSelected(pixels);
-            else removePixelsFromAll(pixels);
-        }
+        if (layers.selectionExists) removePixelsFromSelected(tool.affectedPixels);
+        else removePixelsFromAll(tool.affectedPixels);
     }
 
     function moveGlobalErase() {
         const tool = useStageToolService();
-        if (tool.pointer.status !== 'globalErase' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
-        const event = viewportEvents.get('pointermove', tool.pointer.id);
-        const coord = viewportStore.clientToCoord(event);
-        if (!coord) return;
-        if (layers.selectionExists) removePixelsFromSelected([coord]);
-        else removePixelsFromAll([coord]);
+        if (tool.pointer.status !== 'globalErase') return;
+        if (layers.selectionExists) removePixelsFromSelected(tool.affectedPixels);
+        else removePixelsFromAll(tool.affectedPixels);
     }
 
     function finishGlobalErase() {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'globalErase') return;
-        if (tool.shape === 'rect') {
-            const event = viewportEvents.get('pointerup', tool.pointer.id);
-            if (!event) return;
-            const pixels = tool.getPixelsFromInteraction('up');
-            if (pixels.length > 0) {
-                if (layers.selectionExists) removePixelsFromSelected(pixels);
-                else removePixelsFromAll(pixels);
-            }
-        }
+        if (layers.selectionExists) removePixelsFromSelected(tool.affectedPixels);
+        else removePixelsFromAll(tool.affectedPixels);
     }
 
     function startCut() {
@@ -121,35 +76,21 @@ export const usePixelService = defineStore('pixelService', () => {
         }, sourceId);
         overlay.helper.clear();
         overlay.helper.add(cutLayerId);
-        overlay.helper.mode = 'add';
+        overlay.helper.config = OVERLAY_CONFIG.ADD;
 
-        if (tool.shape !== 'rect') {
-            if (!viewportEvents.isDragging(tool.pointer.id)) return;
-            const event = viewportEvents.get('pointerdown', tool.pointer.id);
-            if (!event) return;
-            const pixels = tool.getPixelsFromInteraction('down');
-            cutPixelsFromSelection(pixels);
-        }
+        cutPixelsFromSelection(tool.affectedPixels);
     }
 
     function moveCut() {
         const tool = useStageToolService();
-        if (tool.pointer.status !== 'cut' || tool.shape === 'rect' || !viewportEvents.isDragging(tool.pointer.id)) return;
-        const event = viewportEvents.get('pointermove', tool.pointer.id);
-        const coord = viewportStore.clientToCoord(event);
-        if (!coord) return;
-        cutPixelsFromSelection([coord]);
+        if (tool.pointer.status !== 'cut') return;
+        cutPixelsFromSelection(tool.affectedPixels);
     }
 
     function finishCut() {
         const tool = useStageToolService();
         if (tool.pointer.status !== 'cut') return;
-        if (tool.shape === 'rect') {
-            const event = viewportEvents.get('pointerup', tool.pointer.id);
-            if (!event) return;
-            const pixels = tool.getPixelsFromInteraction('up');
-            if (pixels.length > 0) cutPixelsFromSelection(pixels);
-        }
+        cutPixelsFromSelection(tool.affectedPixels);
         if (cutLayerId != null) {
             if (layers.getProperty(cutLayerId, 'pixels').length)
                 layers.replaceSelection([cutLayerId]);
@@ -157,10 +98,14 @@ export const usePixelService = defineStore('pixelService', () => {
                 layers.deleteLayers([cutLayerId]);
         }
         cutLayerId = null;
+        overlay.helper.clear();
+        overlay.helper.config = OVERLAY_CONFIG.ADD;
     }
 
     function cancel() {
         cutLayerId = null;
+        overlay.helper.clear();
+        overlay.helper.config = OVERLAY_CONFIG.ADD;
     }
 
     function addPixelsToSelection(pixels) {

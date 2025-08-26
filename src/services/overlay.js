@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { computed, reactive, ref, watch } from 'vue';
 import { useStore } from '../stores';
 import { coordToKey, keyToCoord, pixelsToUnionPath } from '../utils';
+import { OVERLAY_CONFIG } from '@/constants';
 
 export const useOverlayService = defineStore('overlayService', () => {
     const { layers } = useStore();
@@ -26,7 +27,7 @@ export const useOverlayService = defineStore('overlayService', () => {
 
     const selection = createOverlayState();
     const helper = createOverlayState();
-    const helperMode = ref('add');
+    const helperConfig = ref(OVERLAY_CONFIG.ADD);
 
     function rebuildSelection() {
         selection.clear();
@@ -37,6 +38,6 @@ export const useOverlayService = defineStore('overlayService', () => {
 
     return {
         selection,
-        helper: { ...helper, mode: helperMode }
+        helper: { ...helper, config: helperConfig }
     };
 });

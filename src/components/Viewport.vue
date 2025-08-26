@@ -84,7 +84,7 @@ const stage = viewportStore.stage;
 const onStagePointerLeave = (e) => {
     if (e.pointerType === 'touch') return;
     overlay.helper.clear();
-    overlay.helper.mode = 'add';
+    overlay.helper.config = OVERLAY_CONFIG.ADD;
     viewportStore.updatePixelInfo('-');
 };
 
@@ -92,12 +92,11 @@ const helperOverlay = computed(() => {
     const path = overlay.helper.path;
     if (!path) return { path }; // no style when empty
 
-    const mode = stageToolService.pointer.status === 'remove'
-        ? 'remove'
+    const style = stageToolService.pointer.status === 'remove'
+        ? OVERLAY_CONFIG.REMOVE
         : stageToolService.pointer.status === 'idle'
-            ? overlay.helper.mode
-            : 'add';
-    const style = mode === 'remove' ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
+            ? overlay.helper.config
+            : OVERLAY_CONFIG.ADD;
 
     return {
         path,
