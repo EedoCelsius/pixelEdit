@@ -57,10 +57,8 @@ export const useQueryService = defineStore('queryService', () => {
         return layers.order.filter(id => layers.getProperty(id, 'pixels').length === 0);
     }
 
-    function byPixelCount(pixelCount) {
-        return layers.order.filter(
-            layerId => layers.getProperty(layerId, 'pixels').length === pixelCount
-        );
+    function disconnected() {
+        return layers.order.filter(layerId => layers.disconnectedCountOf(layerId) > 1);
     }
 
     function byColor(color) {
@@ -69,8 +67,10 @@ export const useQueryService = defineStore('queryService', () => {
         );
     }
 
-    function disconnected() {
-        return layers.order.filter(layerId => layers.disconnectedCountOf(layerId) > 1);
+    function byPixelCount(pixelCount) {
+        return layers.order.filter(
+            layerId => layers.getProperty(layerId, 'pixels').length === pixelCount
+        );
     }
 
     function byDisconnectedCount(disconnectedCount) {
