@@ -2,7 +2,8 @@ import { defineStore } from 'pinia';
 import { ref, reactive, computed, watch } from 'vue';
 import { useStore } from '../stores';
 import { useViewportService } from './viewport';
-import { calcMarquee, rgbaCssU32, rgbaCssObj } from '../utils';
+import { clamp, rgbaCssU32, rgbaCssObj } from '../utils';
+import { TOOL_MODIFIERS } from '@/constants';
 
 export const useToolSelectionService = defineStore('toolSelectionService', () => {
     const { viewport: viewportStore, layers, input, viewportEvent: viewportEvents, output } = useStore();
@@ -18,27 +19,49 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     const active = computed(() => {
         if (pointer.status !== 'idle') return pointer.status;
         let tool = prepared.value;
-        if (viewportEvents.isPressed('Shift')) {
-            tool = 'select';
-        } else if (viewportEvents.isPressed('Control') || viewportEvents.isPressed('Meta')) {
-            if (tool === 'draw') tool = 'erase';
-            else if (tool === 'erase') tool = 'draw';
-            else if (tool === 'select') tool = 'globalErase';
-            else if (tool === 'globalErase') tool = 'select';
+        for (const { key, map } of TOOL_MODIFIERS) {
+            if (!viewportEvents.isPressed(key)) continue;
+            tool = map[tool] ?? map.default ?? tool;
+            break;
         }
         return tool;
     });
 
-    const isDraw = computed(() => active.value === 'draw');
-    const isErase = computed(() => active.value === 'erase');
-    const isSelect = computed(() => active.value === 'select');
-    const isGlobalErase = computed(() => active.value === 'globalErase');
-    const isCut = computed(() => active.value === 'cut');
     const isStroke = computed(() => shape.value === 'stroke');
     const isRect = computed(() => shape.value === 'rect');
 
     function setPrepared(t) { prepared.value = t; }
     function setShape(s) { shape.value = s === 'rect' ? 'rect' : 'stroke'; }
+
+    function calcMarquee(startEvent, currentEvent, viewportStore, viewportEl) {
+        if (!startEvent || !currentEvent || !viewportEl) return { visible: false, x: 0, y: 0, w: 0, h: 0 };
+        const rect = viewportEl.getBoundingClientRect();
+        const style = getComputedStyle(viewportEl);
+        const leftBase = rect.left + parseFloat(style.paddingLeft) + viewportStore.stage.offset.x;
+        const topBase = rect.top + parseFloat(style.paddingTop) + viewportStore.stage.offset.y;
+        const scale = viewportStore.stage.scale;
+        const width = viewportStore.stage.width;
+        const height = viewportStore.stage.height;
+        const left = Math.min(startEvent.clientX, currentEvent.clientX) - leftBase;
+        const top = Math.min(startEvent.clientY, currentEvent.clientY) - topBase;
+        const right = Math.max(startEvent.clientX, currentEvent.clientX) - leftBase;
+        const bottom = Math.max(startEvent.clientY, currentEvent.clientY) - topBase;
+        const minX = Math.floor(left / scale),
+            maxX = Math.floor((right - 1) / scale);
+        const minY = Math.floor(top / scale),
+            maxY = Math.floor((bottom - 1) / scale);
+        const minx = clamp(minX, 0, width - 1),
+            maxx = clamp(maxX, 0, width - 1);
+        const miny = clamp(minY, 0, height - 1),
+            maxy = clamp(maxY, 0, height - 1);
+        return {
+            visible: true,
+            x: minx,
+            y: miny,
+            w: (maxx >= minx) ? (maxx - minx + 1) : 0,
+            h: (maxy >= miny) ? (maxy - miny + 1) : 0,
+        };
+    }
 
     const updateHover = (event) => {
         const coord = viewportStore.clientToCoord(event);
@@ -124,13 +147,8 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
                 pointer.id = e.pointerId;
             } catch {}
 
-            if (isSelect.value) {
-                pointer.status = 'select';
-                updatePixels('down');
-            } else {
-                pointer.status = active.value;
-                updatePixels('down');
-            }
+            pointer.status = active.value;
+            updatePixels('down');
             updateMarquee(e);
         }
     });
@@ -184,11 +202,6 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         previewPixels,
         affectedPixels,
         active,
-        isDraw,
-        isErase,
-        isSelect,
-        isGlobalErase,
-        isCut,
         isStroke,
         isRect,
         setPrepared,

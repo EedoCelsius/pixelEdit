@@ -274,7 +274,7 @@ export const useSelectService = defineStore('selectService', () => {
     });
 
     const updateHoverOverlay = () => {
-        if (!tool.isSelect) {
+        if (tool.active !== 'select') {
             overlay.helper.clear();
             overlay.helper.config = OVERLAY_CONFIG.ADD;
             return;
@@ -295,7 +295,7 @@ export const useSelectService = defineStore('selectService', () => {
 
     watch(() => tool.previewPixels.slice(), updateHoverOverlay);
     watch(() => tool.pointer.status, updateHoverOverlay);
-    watch(() => tool.isSelect, updateHoverOverlay);
+    watch(() => tool.active, updateHoverOverlay);
 
     return { cancel };
 });
