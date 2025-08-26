@@ -9,7 +9,7 @@
          :style="{
            width: stage.width+'px',
            height: stage.height+'px',
-           cursor: stageToolService.cursor,
+           cursor: toolSelectionService.getCursor(),
            transform: `translate(${stage.offset.x}px, ${stage.offset.y}px) scale(${stage.scale})`,
            transformOrigin: 'top left'
          }"
@@ -56,7 +56,7 @@
                 shape-rendering="crispEdges" />
 
         <!-- Helper overlay -->
-        <path v-if="stageToolService.isSelect || stageToolService.pointer.status === 'cut'"
+        <path v-if="toolSelectionService.isSelect || toolSelectionService.pointer.status === 'cut'"
               :d="helperOverlay.path"
               :fill="helperOverlay.FILL_COLOR"
               :stroke="helperOverlay.STROKE_COLOR"
@@ -76,9 +76,9 @@ import { OVERLAY_CONFIG, GRID_STROKE_COLOR } from '@/constants';
 import { rgbaCssU32, ensureCheckerboardPattern } from '../utils';
 
 const { viewport: viewportStore, layers, viewportEvent: viewportEvents } = useStore();
-const { overlay, stageTool: stageToolService, viewport } = useService();
+const { overlay, toolSelection: toolSelectionService, viewport } = useService();
 const viewportEl = ref(null);
-const marquee = stageToolService.marquee;
+const marquee = toolSelectionService.marquee;
 const stage = viewportStore.stage;
 
 const onStagePointerLeave = (e) => {
@@ -92,11 +92,9 @@ const helperOverlay = computed(() => {
     const path = overlay.helper.path;
     if (!path) return { path }; // no style when empty
 
-    const style = stageToolService.pointer.status === 'remove'
-        ? OVERLAY_CONFIG.REMOVE
-        : stageToolService.pointer.status === 'idle'
-            ? overlay.helper.config
-            : OVERLAY_CONFIG.ADD;
+    const style = (toolSelectionService.pointer.status === 'select' || toolSelectionService.pointer.status === 'idle')
+        ? overlay.helper.config
+        : OVERLAY_CONFIG.ADD;
 
     return {
         path,
