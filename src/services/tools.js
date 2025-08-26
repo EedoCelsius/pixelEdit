@@ -5,7 +5,7 @@ import { useOverlayService } from './overlay';
 import { useLayerPanelService } from './layerPanel';
 import { useStore } from '../stores';
 import { OVERLAY_CONFIG, CURSOR_CONFIG } from '@/constants';
-import { coordToKey } from '../utils';
+import { coordToKey, keyToCoord } from '../utils';
 
 export const useDrawToolService = defineStore('drawToolService', () => {
     const tool = useToolSelectionService();
@@ -74,11 +74,14 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
     return {};
 });
 
+
 export const useCutToolService = defineStore('cutToolService', () => {
     const tool = useToolSelectionService();
     const overlay = useOverlayService();
     const { layers } = useStore();
-    let cutLayerId = null;
+    let cutSourceId = null;
+    let cutSourceProps = null;
+    const cutCoordSet = new Set();
     watch(() => tool.active, (active) => {
         if (active === 'cut') {
             tool.setCursor({ stroke: CURSOR_CONFIG.CUT_STROKE, rect: CURSOR_CONFIG.CUT_RECT });
@@ -86,51 +89,44 @@ export const useCutToolService = defineStore('cutToolService', () => {
     }, { immediate: true });
 
     const cutPixels = (pixels) => {
-        if (layers.selectionCount !== 1 || cutLayerId == null) return;
-        const sourceId = layers.selectedIds[0];
-        const coords = layers.getProperty(sourceId, 'pixels');
+        if (cutSourceId == null) return;
+        const coords = layers.getProperty(cutSourceId, 'pixels');
         const set = new Set(coords.map(coordToKey));
-        const pixelsToMove = [];
         for (const coord of pixels) {
-            if (set.has(coordToKey(coord))) pixelsToMove.push(coord);
+            const key = coordToKey(coord);
+            if (set.has(key) && !cutCoordSet.has(key)) {
+                cutCoordSet.add(key);
+                overlay.helper.pixels.add(key);
+            }
         }
-        if (!pixelsToMove.length) return;
-        layers.removePixels(sourceId, pixelsToMove);
-        layers.addPixels(cutLayerId, pixelsToMove);
-        overlay.helper.clear();
-        overlay.helper.add(cutLayerId);
     };
 
     const startCut = () => {
         if (layers.selectionCount !== 1) return;
-        const sourceId = layers.selectedIds[0];
-        const sourceProps = layers.getProperties(sourceId);
-        cutLayerId = layers.createLayer({
-            name: `Cut of ${sourceProps.name}`,
-            color: sourceProps.color,
-            visible: sourceProps.visible,
-        }, sourceId);
+        cutSourceId = layers.selectedIds[0];
+        cutSourceProps = layers.getProperties(cutSourceId);
+        cutCoordSet.clear();
         overlay.helper.clear();
-        overlay.helper.add(cutLayerId);
         overlay.helper.config = OVERLAY_CONFIG.ADD;
         cutPixels(tool.affectedPixels);
     };
 
     const finishCut = () => {
         cutPixels(tool.affectedPixels);
-        if (cutLayerId != null && layers.has(cutLayerId)) {
-            if (layers.getProperty(cutLayerId, 'pixels').length)
-                layers.replaceSelection([cutLayerId]);
-            else
-                layers.deleteLayers([cutLayerId]);
+        if (cutCoordSet.size && cutSourceId != null) {
+            const cutCoords = Array.from(cutCoordSet).map(keyToCoord);
+            layers.removePixels(cutSourceId, cutCoords);
+            const newLayerId = layers.createLayer({
+                name: `Cut of ${cutSourceProps.name}`,
+                color: cutSourceProps.color,
+                visible: cutSourceProps.visible,
+                pixels: cutCoords,
+            }, cutSourceId);
+            layers.replaceSelection([newLayerId]);
         }
-        cutLayerId = null;
-        overlay.helper.clear();
-        overlay.helper.config = OVERLAY_CONFIG.ADD;
-    };
-
-    const cancelCut = () => {
-        cutLayerId = null;
+        cutSourceId = null;
+        cutSourceProps = null;
+        cutCoordSet.clear();
         overlay.helper.clear();
         overlay.helper.config = OVERLAY_CONFIG.ADD;
     };
@@ -139,8 +135,9 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (status === 'cut' && prev !== 'cut') {
             startCut();
         } else if (prev === 'cut' && status !== 'cut') {
-            if (tool.pointer.event === 'pointercancel' || tool.pointer.event === 'pinch') cancelCut();
-            else finishCut();
+            if (tool.pointer.event !== 'pointercancel' && tool.pointer.event !== 'pinch') {
+                finishCut();
+            }
         }
     });
 
@@ -148,8 +145,9 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (tool.pointer.status === 'cut') cutPixels(pixels);
     });
 
-    return { cancel: cancelCut };
+    return {};
 });
+
 
 export const useSelectService = defineStore('selectService', () => {
     const overlay = useOverlayService();
