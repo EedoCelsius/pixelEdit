@@ -76,9 +76,9 @@ export const useQueryService = defineStore('queryService', () => {
         above,
         below,
         empty,
-        byPixelCount,
-        byColor,
         disconnected,
+        byColor,
+        byPixelCount,
         byDisconnectedCount,
     };
 });
