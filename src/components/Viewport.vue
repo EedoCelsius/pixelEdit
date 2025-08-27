@@ -85,7 +85,7 @@ const onStagePointerLeave = (e) => {
     if (e.pointerType === 'touch') return;
     overlay.helper.clear();
     overlay.helper.config = OVERLAY_CONFIG.ADD;
-    viewportStore.updatePixelInfo('-');
+    toolSelectionService.previewPixels = [];
 };
 
 const helperOverlay = computed(() => {
