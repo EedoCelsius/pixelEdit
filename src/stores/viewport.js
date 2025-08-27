@@ -14,6 +14,8 @@ export const useViewportStore = defineStore('viewport', {
         display: 'result', // 'result' | 'original'
         imageSrc: '',
         element: null,
+        client: { left: 0, top: 0, width: 0, height: 0 },
+        padding: { left: 0, right: 0, top: 0, bottom: 0 },
     }),
     getters: {
         // Canvas dimensions
@@ -42,14 +44,22 @@ export const useViewportStore = defineStore('viewport', {
         toggleView() {
             this.display = (this.display === 'original') ? 'result' : 'original';
         },
-        recalcScales() {
+        refreshElementCache() {
+            if (!this.element) return;
+            const rect = this.element.getBoundingClientRect();
+            this.client.left = rect.left;
+            this.client.top = rect.top;
             const style = getComputedStyle(this.element);
-            const paddingLeft = parseFloat(style.paddingLeft) || 0;
-            const paddingRight = parseFloat(style.paddingRight) || 0;
-            const paddingTop = parseFloat(style.paddingTop) || 0;
-            const paddingBottom = parseFloat(style.paddingBottom) || 0;
-            const width = (this.element.clientWidth || 0) - paddingLeft - paddingRight;
-            const height = (this.element.clientHeight || 0) - paddingTop - paddingBottom;
+            this.padding.left = parseFloat(style.paddingLeft) || 0;
+            this.padding.right = parseFloat(style.paddingRight) || 0;
+            this.padding.top = parseFloat(style.paddingTop) || 0;
+            this.padding.bottom = parseFloat(style.paddingBottom) || 0;
+            this.client.width = (this.element.clientWidth || 0) - this.padding.left - this.padding.right;
+            this.client.height = (this.element.clientHeight || 0) - this.padding.top - this.padding.bottom;
+        },
+        recalcScales() {
+            const width = this.client.width;
+            const height = this.client.height;
             const containScale = Math.min(
                 width / Math.max(1, this.stage.width),
                 height / Math.max(1, this.stage.height)
@@ -62,10 +72,8 @@ export const useViewportStore = defineStore('viewport', {
             }
         },
         clientToCoord(event) {
-            const rect = this.element.getBoundingClientRect();
-            const style = getComputedStyle(this.element);
-            const left = rect.left + parseFloat(style.paddingLeft) + this.stage.offset.x;
-            const top = rect.top + parseFloat(style.paddingTop) + this.stage.offset.y;
+            const left = this.client.left + this.padding.left + this.stage.offset.x;
+            const top = this.client.top + this.padding.top + this.stage.offset.y;
             const x = Math.floor((event.clientX - left) / this.stage.scale);
             const y = Math.floor((event.clientY - top) / this.stage.scale);
             if (x < 0 || y < 0 || x >= this.stage.width || y >= this.stage.height) return null;

@@ -40,10 +40,8 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         if (!startCoord) return [];
         let currentCoord = viewportStore.clientToCoord(marquee.tailEvent);
         if (!currentCoord) {
-            const rect = viewportStore.element.getBoundingClientRect();
-            const style = getComputedStyle(viewportStore.element);
-            const left = rect.left + parseFloat(style.paddingLeft) + viewportStore.stage.offset.x;
-            const top = rect.top + parseFloat(style.paddingTop) + viewportStore.stage.offset.y;
+            const left = viewportStore.client.left + viewportStore.padding.left + viewportStore.stage.offset.x;
+            const top = viewportStore.client.top + viewportStore.padding.top + viewportStore.stage.offset.y;
             let x = Math.floor((marquee.tailEvent.clientX - left) / viewportStore.stage.scale);
             let y = Math.floor((marquee.tailEvent.clientY - top) / viewportStore.stage.scale);
             x = Math.min(Math.max(x, 0), viewportStore.stage.width - 1);
@@ -97,9 +95,9 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         if (shape.value === 'rect') {
             const previousTailCoord = viewportStore.clientToCoord(marquee.tailEvent);
             const currentCoord = viewportStore.clientToCoord(e);
+            marquee.tailEvent = e;
             if (previousTailCoord[0] !== currentCoord[0] || previousTailCoord[1] !== currentCoord[1])
                 previewPixels.value = getPixelsInsideMarquee();
-            marquee.tailEvent = e;
         }
         else if (shape.value === 'stroke') {
             const pixel = viewportStore.clientToCoord(e);

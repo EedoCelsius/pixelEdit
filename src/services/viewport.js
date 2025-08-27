@@ -17,14 +17,13 @@ export const useViewportService = defineStore('viewportService', () => {
   function handleWheel(e) {
     const viewportEl = viewportStore.element;
     if (!viewportEl) return;
-    if (!e.ctrlKey) {
+      if (!e.ctrlKey) {
       viewportStore.stage.offset.x -= e.deltaX;
       viewportStore.stage.offset.y -= e.deltaY;
     } else {
       if (e.deltaY === 0) return;
-      const rect = viewportEl.getBoundingClientRect();
-      const px = e.clientX - rect.left;
-      const py = e.clientY - rect.top;
+      const px = e.clientX - viewportStore.client.left;
+      const py = e.clientY - viewportStore.client.top;
       const oldScale = viewportStore.stage.scale;
       const factor = e.deltaY < 0 ? WHEEL_ZOOM_IN_FACTOR : WHEEL_ZOOM_OUT_FACTOR;
       const newScale = oldScale * factor;
@@ -39,12 +38,11 @@ export const useViewportService = defineStore('viewportService', () => {
 
   function handlePinch() {
     const viewportEl = viewportStore.element;
-    const rect = viewportEl.getBoundingClientRect();
     const [id1, id2] = viewportEvents.pinchIds;
     const e1 = viewportEvents.get('pointermove', id1) || viewportEvents.get('pointerdown', id1);
     const e2 = viewportEvents.get('pointermove', id2) || viewportEvents.get('pointerdown', id2);
-    const cx = (e1.clientX + e2.clientX) / 2 - rect.left;
-    const cy = (e1.clientY + e2.clientY) / 2 - rect.top;
+    const cx = (e1.clientX + e2.clientX) / 2 - viewportStore.client.left;
+    const cy = (e1.clientY + e2.clientY) / 2 - viewportStore.client.top;
     const dist = Math.hypot(e2.clientX - e1.clientX, e2.clientY - e1.clientY);
     if (lastTouchDistance) {
       const oldScale = viewportStore.stage.scale;
@@ -62,9 +60,8 @@ export const useViewportService = defineStore('viewportService', () => {
   function interpolatePosition(soft = true) {
     const viewportEl = viewportStore.element;
     if (!viewportEl) return;
-    const style = getComputedStyle(viewportEl);
-    const width = viewportEl.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-    const height = viewportEl.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    const width = viewportStore.client.width;
+    const height = viewportStore.client.height;
     const scaledWidth = viewportStore.stage.width * viewportStore.stage.scale;
     const scaledHeight = viewportStore.stage.height * viewportStore.stage.scale;
     const maxX = width - scaledWidth;
