@@ -79,12 +79,11 @@ import { rgbaCssU32, ensureCheckerboardPattern } from '../utils';
 const { viewport: viewportStore, layers, viewportEvent: viewportEvents } = useStore();
 const { overlay, toolSelection: toolSelectionService, viewport } = useService();
 const viewportEl = ref(null);
-const marquee = toolSelectionService.marquee;
 const stage = viewportStore.stage;
 
-const viewportSize = reactive({ width: 0, height: 0 });
-const viewportViewBox = computed(() => `0 0 ${viewportSize.width} ${viewportSize.height}`);
+const viewportViewBox = computed(() => `0 0 ${viewportStore.client.width} ${viewportStore.client.height}`);
 const marqueeRect = computed(() => {
+    const marquee = toolSelectionService.marquee;
     if (!marquee.visible || !marquee.anchorEvent || !marquee.tailEvent)
         return { x: 0, y: 0, w: 0, h: 0 };
     const left = viewportStore.client.left + viewportStore.padding.left;
@@ -116,24 +115,8 @@ const helperOverlay = computed(() => {
 
 const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
 
-let prevOffsetWidth = 0;
-let prevOffsetHeight = 0;
-let prevClientWidth = 0;
-let prevClientHeight = 0;
-
 const onElementResize = () => {
-    const el = viewport.element;
-    const { offsetWidth, offsetHeight, clientWidth, clientHeight } = el;
-    const sizeChanged = offsetWidth !== prevOffsetWidth || offsetHeight !== prevOffsetHeight;
-    const scrollChanged = !sizeChanged && (clientWidth !== prevClientWidth || clientHeight !== prevClientHeight);
-    prevOffsetWidth = offsetWidth;
-    prevOffsetHeight = offsetHeight;
-    prevClientWidth = clientWidth;
-    prevClientHeight = clientHeight;
-    if (scrollChanged) return;
     viewportStore.refreshElementCache();
-    viewportSize.width = viewportStore.client.width;
-    viewportSize.height = viewportStore.client.height;
     viewportStore.recalcScales();
     viewportStore.setScale(stage.containScale);
     viewport.interpolatePosition(false);
