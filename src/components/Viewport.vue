@@ -13,7 +13,6 @@
            transform: `translate(${stage.offset.x}px, ${stage.offset.y}px) scale(${stage.scale})`,
            transformOrigin: 'top left'
          }"
-         @pointerleave="onStagePointerLeave"
          @contextmenu.prevent>
       <!-- 체커보드 -->
       <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
@@ -80,13 +79,6 @@ const { overlay, toolSelection: toolSelectionService, viewport } = useService();
 const viewportEl = ref(null);
 const marquee = toolSelectionService.marquee;
 const stage = viewportStore.stage;
-
-const onStagePointerLeave = (e) => {
-    if (e.pointerType === 'touch') return;
-    overlay.helper.clear();
-    overlay.helper.config = OVERLAY_CONFIG.ADD;
-    toolSelectionService.previewPixels = [];
-};
 
 const helperOverlay = computed(() => {
     const path = overlay.helper.path;
