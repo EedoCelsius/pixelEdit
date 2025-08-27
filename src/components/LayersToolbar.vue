@@ -3,6 +3,9 @@
         <button @click="onAdd" title="Add layer" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
           <img :src="toolbarIcons.add" alt="Add layer" class="w-4 h-4">
         </button>
+        <button @click="onGroup" :disabled="!layers.selectionExists" title="Group layers" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
+          <img :src="toolbarIcons.group" alt="Group layers" class="w-4 h-4">
+        </button>
         <button @click="onCopy" :disabled="!layers.selectionExists" title="Copy layer" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
           <img :src="toolbarIcons.copy" alt="Copy layer" class="w-4 h-4">
         </button>
@@ -24,7 +27,7 @@ import { useService } from '../services';
 import { computed } from 'vue';
 import toolbarIcons from '../image/layer_toolbar';
 
-const { layers, output } = useStore();
+const { layers, layerGroups, output } = useStore();
 const { layerTool: layerSvc, layerPanel, query } = useService();
 
 const hasEmptyLayers = computed(() => layers.order.some(id => layers.getProperty(id, 'pixels').length === 0));
@@ -63,6 +66,13 @@ const onSelectEmpty = () => {
 const onSplit = () => {
     output.setRollbackPoint();
     layerSvc.splitLayer(layerPanel.anchorId);
+    output.commit();
+};
+const onGroup = () => {
+    if (!layers.selectionExists) return;
+    output.setRollbackPoint();
+    const id = layerGroups.createGroup({});
+    layerGroups.addLayers(id, layers.selectedIds);
     output.commit();
 };
 </script>
