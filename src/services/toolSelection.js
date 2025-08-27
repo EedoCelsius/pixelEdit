@@ -2,35 +2,34 @@ import { defineStore } from 'pinia';
 import { ref, reactive, computed, watch } from 'vue';
 import { useStore } from '../stores';
 import { useOverlayService } from './overlay';
-import { TOOL_MODIFIERS, OVERLAY_CONFIG } from '@/constants';
 
 export const useToolSelectionService = defineStore('toolSelectionService', () => {
     const { viewport: viewportStore, viewportEvent: viewportEvents, output } = useStore();
     const overlay = useOverlayService();
 
-    const prepared = ref('draw');
-    const shape = ref('stroke');
-    const marquee = reactive({ visible: false, anchorEvent: null, tailEvent: null });
+    const active = ref(false)
+    const prepared = ref(null);
+    const shape = ref(null);
     const cursor = reactive({ stroke: 'default', rect: 'default' });
+    const hoverPixel = ref(null);
+    const dragPixel = ref(null);
     const previewPixels = ref([]);
     const affectedPixels = ref([]);
-    let pointer;
-
-    const active = computed(() => {
-        let tool = prepared.value;
-        for (const { key, map } of TOOL_MODIFIERS) {
-            if (!viewportEvents.isPressed(key)) continue;
-            tool = map[tool] ?? map.default ?? tool;
-            break;
-        }
-        return tool;
-    });
+    const marquee = reactive({ visible: false, anchorEvent: null, tailEvent: null });
+    let pointer = null, nextTool = null, nextShape = null;
 
     const isStroke = computed(() => shape.value === 'stroke');
     const isRect = computed(() => shape.value === 'rect');
 
-    function setPrepared(t) { prepared.value = t; }
-    function setShape(s) { shape.value = s === 'rect' ? 'rect' : 'stroke'; }
+    function setPrepared(t) {
+        console.log(t)
+        if (active.value) nextTool = t;
+        else prepared.value = t;
+    }
+    function setShape(s) {
+        if (active.value) nextShape = s;
+        else shape.value = s;
+    }
     function setCursor({ stroke, rect }) { cursor.stroke = stroke; cursor.rect = rect; }
     function getCursor() { return cursor[shape.value] || 'default'; }
 
@@ -61,7 +60,8 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
             const pixel = viewportStore.clientToCoord(e);
             if (pixel) previewPixels.value = [pixel];
 
-            pointer = e.pointerId;
+            active.value = true;
+            pointer = e.pointerId, nextTool = prepared.value, nextShape = shape.value;
             if (shape.value === 'rect') {
                 marquee.visible = true;
                 marquee.anchorEvent = e;
@@ -73,10 +73,8 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
 
     watch(() => viewportEvents.recent.pointer.move, (moves) => {
         if (!pointer) {
-            const e = moves[0];
-            const pixel = viewportStore.clientToCoord(e);
-            if (pixel) previewPixels.value = [pixel];
-            else previewPixels.value = [];
+            const pixel = viewportStore.clientToCoord(moves[0]);
+            if (hoverPixel.value?.[0] !== pixel?.[0] || hoverPixel.value?.[1] !== pixel?.[1]) hoverPixel.value = pixel;
             return;
         }
         if (!moves.find(e => e.pointerId === pointer)) return;
@@ -84,17 +82,20 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         const e = viewportEvents.get('pointermove', pointer);
         if (!e || viewportEvents.pinchIds) return;
         
-        if (shape.value === 'rect') {
+        const pixel = viewportStore.clientToCoord(e);
+        if (hoverPixel.value !== null) hoverPixel.value = null;
+        if (dragPixel.value?.[0] !== pixel?.[0] || dragPixel.value?.[1] !== pixel?.[1]) dragPixel.value = pixel;
+
+        if (shape.value === 'stroke') {
+            if (!pixel || previewPixels.value.find(p => p[0] === pixel[0] && p[1] === pixel[1])) return;
+            previewPixels.value = [...previewPixels.value, pixel];
+        }
+        else if (shape.value === 'rect') {
             const previousTailCoord = viewportStore.clientToCoord(marquee.tailEvent, { allowViewport: true });
             const currentCoord = viewportStore.clientToCoord(e, { allowViewport: true });
             marquee.tailEvent = e;
             if (previousTailCoord[0] !== currentCoord[0] || previousTailCoord[1] !== currentCoord[1])
                 previewPixels.value = getPixelsInsideMarquee();
-        }
-        else if (shape.value === 'stroke') {
-            const pixel = viewportStore.clientToCoord(e);
-            if (!pixel) return;
-            if (!previewPixels.value.find(p => p[0] === pixel[0] && p[1] === pixel[1])) previewPixels.value = [...previewPixels.value, pixel];
         }
     });
 
@@ -104,6 +105,9 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         const e = viewportEvents.get('pointerup', pointer);
         if (!e || viewportEvents.pinchIds) return;
         
+        const pixel = viewportStore.clientToCoord(e);
+        if (dragPixel.value !== null) dragPixel.value = null;
+        if (hoverPixel.value?.[0] !== pixel?.[0] || hoverPixel.value?.[1] !== pixel?.[1]) hoverPixel.value = pixel;
         if (previewPixels.value.length) {
             affectedPixels.value = previewPixels.value;
             previewPixels.value = [];
@@ -112,8 +116,11 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         output.commit();
         try { e.target.releasePointerCapture?.(pointer); } catch {}
 
-        marquee.visible = false;
+        active.value = false;
         pointer = null;
+        if (prepared.value !== nextTool) prepared.value = nextTool;
+        if (shape.value !== nextShape) shape.value = nextShape;
+        marquee.visible = false;
     });
 
     watch(() => [ viewportEvents.pinchIds, viewportEvents.recent.pointer.cancel ], ([pinches, cancels]) => {
@@ -122,18 +129,22 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         const startEvent = viewportEvents.get('pointerdown', pointer);
         try { startEvent?.target?.releasePointerCapture?.(pointer); } catch {}
         
-        marquee.visible = false;
+        active.value = false;
         pointer = null;
+        if (prepared.value !== nextTool) prepared.value = nextTool;
+        if (shape.value !== nextShape) shape.value = nextShape;
+        marquee.visible = false;
         previewPixels.value = [];
         affectedPixels.value = [];
         overlay.helper.clear();
-        overlay.helper.config = OVERLAY_CONFIG.ADD;
     });
 
     return {
         prepared,
         shape,
         marquee,
+        hoverPixel,
+        dragPixel,
         previewPixels,
         affectedPixels,
         active,

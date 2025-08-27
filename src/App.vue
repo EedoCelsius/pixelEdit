@@ -183,10 +183,6 @@ onMounted(async () => {
 
   window.addEventListener('keydown', onKeydown);
   window.addEventListener('keyup', onKeyup);
-  window.addEventListener('blur', () => {
-    viewportToolbar.value?.ctrlKeyUp();
-    viewportToolbar.value?.shiftKeyUp();
-  });
   window.addEventListener('mousemove', onDrag);
   window.addEventListener('mouseup', stopDrag);
 });

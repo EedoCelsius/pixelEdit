@@ -13,4 +13,7 @@ export const CURSOR_CONFIG = {
     GLOBAL_ERASE_RECT: `url("${cursorIcons.globalEraseRect}") 0 0, crosshair`,
     CUT_STROKE: `url("${cursorIcons.cutStroke}") 0 16, crosshair`,
     CUT_RECT: `url("${cursorIcons.cutRect}") 0 0, crosshair`,
+    TOP: `url("${cursorIcons.top}") 8 8, crosshair`,
+    LOCKED: `url("${cursorIcons.locked}") 8 8, not-allowed`,
+    NOT_ALLOWED: 'not-allowed',
 };

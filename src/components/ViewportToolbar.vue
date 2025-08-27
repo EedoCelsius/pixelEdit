@@ -23,17 +23,17 @@
         <button v-for="tool in selectables" :key="tool.type"
                 @click="toolSelectionService.setPrepared(tool.type)"
                 :title="tool.name"
-                :class="`p-1 ${toolSelectionService.active === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+                :class="`p-1 ${toolSelectionService.prepared === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
           <img :src="tool.icon" :alt="tool.name" class="w-4 h-4">
         </button>
       </div>
 
       <div class="flex-1"></div>
 
-      <button @click="undo" title="Undo" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
+      <button @click="output.undo" title="Undo" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
         <img :src="stageIcons.undo" alt="Undo" class="w-4 h-4">
       </button>
-      <button @click="redo" title="Redo" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
+      <button @click="output.redo" title="Redo" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
         <img :src="stageIcons.redo" alt="Redo" class="w-4 h-4">
       </button>
     </div>
@@ -49,48 +49,59 @@ import stageIcons from '../image/stage_toolbar';
 const { viewport: viewportStore, layers, output, viewportEvent: viewportEvents } = useStore();
 const { toolSelection: toolSelectionService } = useService();
 
-const ctrlToggleMap = TOOL_MODIFIERS.find(m => m.key === 'Control')?.map || {};
+let previousTool = null;
+const selectables = ref(MULTI_SELECTION_TOOLS);
+toolSelectionService.setPrepared('select');
+toolSelectionService.setShape('stroke');
 
-const selectables = ref(SINGLE_SELECTION_TOOLS);
-watch(() => layers.selectionCount, (size) => {
-  selectables.value = size === 1 ? SINGLE_SELECTION_TOOLS : MULTI_SELECTION_TOOLS;
-  if (!selectables.value.some(tool => tool.type === toolSelectionService.prepared)) {
-    toolSelectionService.setPrepared(size === 1 ? 'draw' : 'select');
-  }
-}, { immediate: true });
-
-const undo = () => output.undo();
-const redo = () => output.redo();
+watch(() => viewportEvents.recent.keyboard.down, (downs) => {
+    for (const e of downs) {
+        const map = TOOL_MODIFIERS[e.key]
+        if (!map || e.repeat) continue;
+        const change = map[toolSelectionService.prepared] ?? map.default
+        if (change) {
+            previousTool = toolSelectionService.prepared;
+            toolSelectionService.setPrepared(change);
+            break;
+        }
+    }
+});
+watch(() => viewportEvents.recent.keyboard.up, (ups) => {
+    for (const e of ups) {
+        if (e.key === 'Shift') {
+            if (toolSelectionService.prepared !== previousTool) {
+                toolSelectionService.setPrepared(previousTool);
+                break;
+            }
+        }
+        if (e.key === 'Control' || e.key === 'Meta') {
+            const down = viewportEvents.get("keydown", e.key);
+            if (!down || !down.repeat) continue;
+            if (toolSelectionService.prepared !== previousTool) {
+                toolSelectionService.setPrepared(previousTool);
+                break;
+            }
+        }
+    }
+});
+watch(() => layers.selectionCount, (size, prev) => {
+    if (size === 1) {
+        selectables.value = SINGLE_SELECTION_TOOLS;
+        toolSelectionService.setPrepared('draw');
+        previousTool = 'draw';
+    }
+    else if (prev === 1) {
+        selectables.value = MULTI_SELECTION_TOOLS;
+        toolSelectionService.setPrepared('select');
+        previousTool = 'select';
+    }
+});
 
 // Keyboard handlers
-const isCtrlDown = () => {
-  const check = (key) => {
-    const down = viewportEvents.get('keydown', key);
-    const up = viewportEvents.get('keyup', key);
-    return !!down && (!up || down.timeStamp > up.timeStamp);
-  };
-  return check('Control') || check('Meta');
-};
-function ctrlKeyDown(e) {
-  viewportEvents.setKeyDown(e);
-}
-function ctrlKeyUp(e) {
-  if (e) {
-    const down = viewportEvents.get('keydown', e.key);
-    if (down && !down.repeat) {
-      const t = toolSelectionService.prepared;
-      const toggle = ctrlToggleMap[t];
-      if (toggle) toolSelectionService.setPrepared(toggle);
-    }
-    viewportEvents.setKeyUp(e);
-  } else {
-    const ts = performance.now();
-    viewportEvents.setKeyUp({ key: 'Control', type: 'keyup', timeStamp: ts });
-    viewportEvents.setKeyUp({ key: 'Meta', type: 'keyup', timeStamp: ts });
-  }
-}
+function ctrlKeyDown(e) { viewportEvents.setKeyDown(e); }
+function ctrlKeyUp(e) { viewportEvents.setKeyUp(e); }
 function shiftKeyDown(e) { viewportEvents.setKeyDown(e); }
-function shiftKeyUp(e) { viewportEvents.setKeyUp(e || { key: 'Shift', type: 'keyup', timeStamp: performance.now() }); }
+function shiftKeyUp(e) { viewportEvents.setKeyUp(e); }
 
 defineExpose({ ctrlKeyDown, ctrlKeyUp, shiftKeyDown, shiftKeyUp });
 </script>

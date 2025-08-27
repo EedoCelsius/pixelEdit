@@ -7,6 +7,7 @@ import erase from './erase.svg';
 import cut from './cut.svg';
 import select from './select.svg';
 import globalErase from './global_erase.svg';
+import top from './top.svg';
 
 export default {
   stroke,
@@ -17,5 +18,6 @@ export default {
   erase,
   cut,
   select,
-  globalErase
+  globalErase,
+  top
 };
