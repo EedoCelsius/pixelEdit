@@ -29,7 +29,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         const newLayerId = layers.createLayer({ name: `Merged ${anchorName}`, color: colorU32 });
         const newPixels = pixelUnion;
         if (newPixels.length) layers.addPixels(newLayerId, newPixels);
-        layers.reorderLayers([newLayerId], query.lowermost(layers.selectedIds), true);
+        layers.reorderNodes([newLayerId], query.lowermost(layers.selectedIds), true);
         const ids = layers.selectedIds;
         layers.deleteLayers(ids);
         layers.removeFromSelection(ids);

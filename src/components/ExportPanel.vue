@@ -4,9 +4,7 @@
       <!-- 결과 -->
       <svg v-show="viewportStore.display!=='result'" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-44 h-44 rounded-md border border-white/15">
         <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
-        <g>
-            <path v-for="props in layers.getProperties(layers.idsBottomToTop)" :key="'pix-'+props.id" :d="layers.pathOf(props.id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(props.color)" :visibility="props.visibility?'visible':'hidden'"></path>
-        </g>
+        <LayerSvg :nodes="layers.tree" />
       </svg>
       <!-- 원본 -->
         <img v-show="viewportStore.display!=='original'" class="w-44 h-44 object-contain rounded-md border border-white/15" :src="viewportStore.imageSrc" alt="source image"/>
@@ -23,7 +21,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick, h, defineComponent } from 'vue';
 import { useStore } from '../stores';
 import { rgbaCssU32, ensureCheckerboardPattern } from '../utils';
 
@@ -32,6 +30,28 @@ const text = ref('');
 const textareaElement = ref(null);
 
 const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
+
+const LayerSvg = defineComponent({
+    name: 'LayerSvg',
+    props: { nodes: { type: Array, required: true } },
+    setup(props) {
+        return () => props.nodes.map(node => {
+            if (node.type === 'group') {
+                return h('g', { key: 'g'+node.id, visibility: node.visibility?'visible':'hidden' }, [
+                    h(LayerSvg, { nodes: node.children })
+                ]);
+            }
+            return h('path', {
+                key: 'p'+node.id,
+                d: layers.pathOf(node.id),
+                fill: rgbaCssU32(node.color),
+                visibility: node.visibility?'visible':'hidden',
+                'fill-rule': 'evenodd',
+                'shape-rendering': 'crispEdges'
+            });
+        });
+    }
+});
 
 function generate() {
     text.value = output.exportToJSON();
