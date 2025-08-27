@@ -1,5 +1,5 @@
 <template>
-  <div ref="viewport" class="relative flex-1 min-h-0 p-2 overflow-hidden touch-none"
+  <div ref="viewportEl" class="relative flex-1 min-h-0 p-2 overflow-hidden touch-none"
        :style="{ cursor: toolSelectionService.getCursor() }"
        @wheel.prevent="viewportEvents.setWheel"
        @pointerdown="viewportEvents.setPointerDown"
@@ -78,7 +78,7 @@ import { rgbaCssU32, ensureCheckerboardPattern } from '../utils';
 
 const { viewport: viewportStore, layers, viewportEvent: viewportEvents } = useStore();
 const { overlay, toolSelection: toolSelectionService, viewport } = useService();
-const viewportEl = useTemplateRef('viewport');
+const viewportEl = useTemplateRef('viewportEl');
 const stage = viewportStore.stage;
 
 const viewportViewBox = computed(() => `0 0 ${viewportStore.content.width} ${viewportStore.content.height}`);
@@ -124,7 +124,7 @@ const onImageLoad = () => {
 
 const resizeObserver = new ResizeObserver(viewportStore.recalcContentSize);
 onMounted(() => {
-    viewport.setElement(viewportEl);
+    viewport.setElement(viewportEl.value);
     resizeObserver.observe(viewport.element);
 });
 onUnmounted(resizeObserver.disconnect);
