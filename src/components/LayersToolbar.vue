@@ -24,7 +24,7 @@ import { useService } from '../services';
 import { computed } from 'vue';
 import toolbarIcons from '../image/layer_toolbar';
 
-const { layers, layerGroups, output } = useStore();
+const { layers, output } = useStore();
 const { layerTool: layerSvc, layerPanel, query } = useService();
 
 const hasEmptyLayers = computed(() => layers.order.some(id => layers.getProperty(id, 'pixels').length === 0));
@@ -34,7 +34,6 @@ const onAdd = () => {
     output.setRollbackPoint();
     const above = layers.selectionCount ? query.uppermost(layers.selectedIds) : null;
     const id = layers.createLayer({});
-    layerGroups.addLayer(id);
     if (above !== null) {
         layers.reorderLayers([id], above, false);
     }
@@ -44,14 +43,12 @@ const onAdd = () => {
 const onMerge = () => {
     output.setRollbackPoint();
     const id = layerSvc.mergeSelected();
-    layerGroups.initFromLayers();
     layerPanel.setRange(id, id);
     output.commit();
 };
 const onCopy = () => {
     output.setRollbackPoint();
     const ids = layerSvc.copySelected();
-    ids.forEach(id => layerGroups.addLayer(id));
     layers.replaceSelection(ids);
     layerPanel.clearRange();
     output.commit();
@@ -66,7 +63,6 @@ const onSelectEmpty = () => {
 const onSplit = () => {
     output.setRollbackPoint();
     layerSvc.splitLayer(layerPanel.anchorId);
-    layerGroups.initFromLayers();
     output.commit();
 };
 </script>
