@@ -18,8 +18,9 @@ export const useViewportService = defineStore('viewportService', () => {
     const viewportEl = viewportStore.element;
     if (!viewportEl) return;
       if (!e.ctrlKey) {
-      viewportStore.stage.offset.x -= e.deltaX;
-      viewportStore.stage.offset.y -= e.deltaY;
+      const x = viewportStore.stage.offset.x - e.deltaX;
+      const y = viewportStore.stage.offset.y - e.deltaY;
+      viewportStore.setOffset(x, y);
     } else {
       if (e.deltaY === 0) return;
       const px = e.clientX - viewportStore.content.left;
@@ -29,8 +30,9 @@ export const useViewportService = defineStore('viewportService', () => {
       const newScale = oldScale * factor;
       const clamped = Math.max(viewportStore.stage.minScale, newScale);
       const ratio = clamped / oldScale;
-      viewportStore.stage.offset.x = px - ratio * (px - viewportStore.stage.offset.x);
-      viewportStore.stage.offset.y = py - ratio * (py - viewportStore.stage.offset.y);
+      const x = px - ratio * (px - viewportStore.stage.offset.x);
+      const y = py - ratio * (py - viewportStore.stage.offset.y);
+      viewportStore.setOffset(x, y);
       viewportStore.setScale(clamped);
       if (newScale < oldScale) interpolatePosition(true);
     }
@@ -49,8 +51,9 @@ export const useViewportService = defineStore('viewportService', () => {
       const newScale = oldScale * (dist / lastTouchDistance);
       const clamped = Math.max(viewportStore.stage.minScale, newScale);
       const ratio = clamped / oldScale;
-      viewportStore.stage.offset.x = cx - ratio * (cx - viewportStore.stage.offset.x);
-      viewportStore.stage.offset.y = cy - ratio * (cy - viewportStore.stage.offset.y);
+      const x = cx - ratio * (cx - viewportStore.stage.offset.x);
+      const y = cy - ratio * (cy - viewportStore.stage.offset.y);
+      viewportStore.setOffset(x, y);
       viewportStore.setScale(clamped);
       if (newScale < oldScale) interpolatePosition(true);
     }
@@ -69,8 +72,9 @@ export const useViewportService = defineStore('viewportService', () => {
     const targetX = maxX >= 0 ? maxX / 2 : clamp(viewportStore.stage.offset.x, maxX, 0);
     const targetY = maxY >= 0 ? maxY / 2 : clamp(viewportStore.stage.offset.y, maxY, 0);
     const strength = soft ? (viewportStore.stage.minScale / viewportStore.stage.scale) ** POSITION_LERP_EXPONENT : 1;
-    viewportStore.stage.offset.x += (targetX - viewportStore.stage.offset.x) * strength;
-    viewportStore.stage.offset.y += (targetY - viewportStore.stage.offset.y) * strength;
+    const x = viewportStore.stage.offset.x + (targetX - viewportStore.stage.offset.x) * strength;
+    const y = viewportStore.stage.offset.y + (targetY - viewportStore.stage.offset.y) * strength;
+    viewportStore.setOffset(x, y);
   }
 
   watch(

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { readonly } from 'vue';
 import { MIN_SCALE_RATIO } from '@/constants';
 
 export const useViewportStore = defineStore('viewport', {
@@ -24,14 +25,14 @@ export const useViewportStore = defineStore('viewport', {
             ));
             const minScale = Math.max(1, containScale * MIN_SCALE_RATIO);
             const scale = Math.max(state._stage.scale, minScale);
-            return {
+            return readonly(Object.freeze({
                 width: state._stage.width,
                 height: state._stage.height,
                 scale,
-                offset: state._stage.offset,
+                offset: Object.freeze({ x: state._stage.offset.x, y: state._stage.offset.y }),
                 minScale,
                 containScale,
-            };
+            }));
         },
         display: (state) => state._display,
         imageSrc: (state) => state._imageSrc,
