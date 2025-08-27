@@ -49,10 +49,19 @@ import stageIcons from '../image/stage_toolbar';
 const { viewport: viewportStore, layers, output, viewportEvent: viewportEvents } = useStore();
 const { toolSelection: toolSelectionService } = useService();
 
-let previousTool = null;
+let modifiedTool = null;
+let lastSingleTool = 'draw';
+let lastMultiTool = 'select';
 const selectables = ref(MULTI_SELECTION_TOOLS);
-toolSelectionService.setPrepared('select');
+toolSelectionService.setPrepared(lastMultiTool);
 toolSelectionService.setShape('stroke');
+
+watch(() => toolSelectionService.prepared, (tool) => {
+    if (layers.selectionCount === 1)
+        lastSingleTool = tool;
+    else
+        lastMultiTool = tool;
+});
 
 watch(() => viewportEvents.recent.keyboard.down, (downs) => {
     for (const e of downs) {
@@ -60,7 +69,7 @@ watch(() => viewportEvents.recent.keyboard.down, (downs) => {
         if (!map || e.repeat) continue;
         const change = map[toolSelectionService.prepared] ?? map.default
         if (change) {
-            previousTool = toolSelectionService.prepared;
+            modifiedTool = toolSelectionService.prepared;
             toolSelectionService.setPrepared(change);
             break;
         }
@@ -68,32 +77,25 @@ watch(() => viewportEvents.recent.keyboard.down, (downs) => {
 });
 watch(() => viewportEvents.recent.keyboard.up, (ups) => {
     for (const e of ups) {
-        if (e.key === 'Shift') {
-            if (toolSelectionService.prepared !== previousTool) {
-                toolSelectionService.setPrepared(previousTool);
-                break;
-            }
-        }
-        if (e.key === 'Control' || e.key === 'Meta') {
+        if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Meta') {
             const down = viewportEvents.get("keydown", e.key);
-            if (!down || !down.repeat) continue;
-            if (toolSelectionService.prepared !== previousTool) {
-                toolSelectionService.setPrepared(previousTool);
-                break;
+            if ((e.key === 'Shift' || down?.repeat) && modifiedTool !== null && toolSelectionService.prepared !== modifiedTool) {
+                toolSelectionService.setPrepared(modifiedTool);
             }
+            modifiedTool = null;
         }
     }
 });
 watch(() => layers.selectionCount, (size, prev) => {
     if (size === 1) {
         selectables.value = SINGLE_SELECTION_TOOLS;
-        toolSelectionService.setPrepared('draw');
-        previousTool = 'draw';
+        toolSelectionService.setPrepared(lastSingleTool);
+        modifiedTool = lastSingleTool;
     }
     else if (prev === 1) {
         selectables.value = MULTI_SELECTION_TOOLS;
-        toolSelectionService.setPrepared('select');
-        previousTool = 'select';
+        toolSelectionService.setPrepared(lastMultiTool);
+        modifiedTool = lastMultiTool;
     }
 });
 
