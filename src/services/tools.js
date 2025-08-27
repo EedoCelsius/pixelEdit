@@ -133,10 +133,12 @@ export const useSelectService = defineStore('selectService', () => {
     const { layers, viewportEvent: viewportEvents } = useStore();
     const tool = useToolSelectionService();
     let mode = 'select';
-
+    watch(() => tool.active, (active) => {
+        if (active !== 'select') return
+        tool.setCursor({ stroke: CURSOR_CONFIG.ADD_STROKE, rect: CURSOR_CONFIG.ADD_RECT });
+    });
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.active !== 'select') return;
-
         const intersectedIds = [];
         for (const coord of pixels) {
             const id = layers.topVisibleIdAt(coord);
@@ -157,7 +159,6 @@ export const useSelectService = defineStore('selectService', () => {
                 tool.setCursor({ stroke: CURSOR_CONFIG.ADD_STROKE, rect: CURSOR_CONFIG.ADD_RECT });
             }
         }
-
         const highlightIds = [];
         intersectedIds.forEach(id => {
             if (mode === 'remove' && !layers.isSelected(id)) return;
@@ -166,7 +167,6 @@ export const useSelectService = defineStore('selectService', () => {
         });
         overlay.helper.setLayers(highlightIds);
     });
-
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.active !== 'select') return;
         if (pixels.length > 0) {
@@ -175,7 +175,6 @@ export const useSelectService = defineStore('selectService', () => {
                 const id = layers.topVisibleIdAt(coord);
                 if (id !== null) intersectedIds.add(id);
             }
-
             const currentSelection = new Set(mode === 'select' ? [] : layers.selectedIds);
             if (mode === 'add') {
                 intersectedIds.forEach(id => currentSelection.add(id));
