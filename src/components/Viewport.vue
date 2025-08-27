@@ -22,9 +22,7 @@
       <img v-show="viewportStore.display==='original'" class="absolute w-full h-full top-0 left-0 pointer-events-none block" :src="viewportStore.imageSrc" alt="source image" @load="onImageLoad" />
       <!-- 결과 레이어 -->
       <svg v-show="viewportStore.display==='result'" class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
-        <g>
-            <path v-for="props in layers.getProperties(layers.idsBottomToTop)" :key="'pix-'+props.id" :d="layers.pathOf(props.id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(props.color)" :visibility="props.visibility?'visible':'hidden'"></path>
-        </g>
+        <RenderGroup :nodes="layers.tree" />
       </svg>
       <!-- 그리드 -->
       <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
@@ -70,7 +68,7 @@
 </template>
 
 <script setup>
-import { useTemplateRef, computed, onMounted, onUnmounted } from 'vue';
+import { useTemplateRef, computed, onMounted, onUnmounted, defineComponent, h } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
 import { OVERLAY_CONFIG, GRID_STROKE_COLOR } from '@/constants';
@@ -80,6 +78,31 @@ const { viewport: viewportStore, layers, viewportEvent: viewportEvents } = useSt
 const { overlay, toolSelection: toolSelectionService, viewport } = useService();
 const viewportEl = useTemplateRef('viewportEl');
 const stage = viewportStore.stage;
+
+const RenderGroup = defineComponent({
+  name: 'RenderGroup',
+  props: { nodes: { type: Array, required: true } },
+  setup(props) {
+    return () => props.nodes.map(node => {
+      const type = layers.getProperty(node.id, 'type');
+      const visible = layers.getProperty(node.id, 'visibility');
+      if (type === 'group') {
+        return h('g', { key: 'g-' + node.id, visibility: visible ? 'visible' : 'hidden' }, [
+          h(RenderGroup, { nodes: node.children })
+        ]);
+      }
+      const color = layers.getProperty(node.id, 'color');
+      return h('path', {
+        key: 'pix-' + node.id,
+        d: layers.pathOf(node.id),
+        fill: rgbaCssU32(color),
+        visibility: visible ? 'visible' : 'hidden',
+        fillRule: 'evenodd',
+        shapeRendering: 'crispEdges'
+      });
+    });
+  }
+});
 
 const viewportViewBox = computed(() => `0 0 ${viewportStore.content.width} ${viewportStore.content.height}`);
 const marqueeRect = computed(() => {
