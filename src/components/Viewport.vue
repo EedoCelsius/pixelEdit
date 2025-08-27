@@ -79,15 +79,18 @@ import { rgbaCssU32, ensureCheckerboardPattern } from '../utils';
 const { viewport: viewportStore, layers, viewportEvent: viewportEvents } = useStore();
 const { overlay, toolSelection: toolSelectionService, viewport } = useService();
 const viewportEl = ref(null);
-const stage = viewportStore.stage;
+const stage = computed(() => viewportStore.stage);
 
-const viewportViewBox = computed(() => `0 0 ${viewportStore.client.width} ${viewportStore.client.height}`);
+const viewportViewBox = computed(() => {
+    const content = viewportStore.content;
+    return `0 0 ${content.width} ${content.height}`;
+});
 const marqueeRect = computed(() => {
     const marquee = toolSelectionService.marquee;
     if (!marquee.visible || !marquee.anchorEvent || !marquee.tailEvent)
         return { x: 0, y: 0, w: 0, h: 0 };
-    const left = viewportStore.client.left + viewportStore.padding.left;
-    const top = viewportStore.client.top + viewportStore.padding.top;
+    const left = viewportStore.content.left;
+    const top = viewportStore.content.top;
     const ax = marquee.anchorEvent.clientX - left;
     const ay = marquee.anchorEvent.clientY - top;
     const tx = marquee.tailEvent.clientX - left;
@@ -117,15 +120,12 @@ const helperOverlay = computed(() => {
 const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
 
 const onElementResize = () => {
-    viewportStore.refreshElementCache();
-    viewportStore.recalcScales();
-    viewportStore.setScale(stage.containScale);
+    viewportStore.setScale(stage.value.containScale);
     viewport.interpolatePosition(false);
 };
 
 const onImageLoad = () => {
-    viewportStore.recalcScales();
-    viewportStore.setScale(stage.containScale);
+    viewportStore.setScale(stage.value.containScale);
     viewport.interpolatePosition(false);
 };
 
