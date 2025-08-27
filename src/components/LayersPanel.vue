@@ -5,7 +5,7 @@
       <div @click.stop="onThumbnailClick(props.id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
         <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
           <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
-          <path :d="layers.pathOf(props.id)" :fill="rgbaCssU32(props.color)" :opacity="props.visible?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+          <path :d="layers.pathOf(props.id)" :fill="rgbaCssU32(props.color)" :opacity="props.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
         </svg>
       </div>
       <!-- 색상 -->
@@ -29,7 +29,7 @@
       <!-- 액션 -->
       <div class="flex gap-1 justify-end">
         <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
-          <img :src="(props.visible?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(props.id)" />
+          <img :src="(props.visibility?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(props.id)" />
         </div>
         <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="잠금/해제">
           <img :src="(props.locked?icons.lock:icons.unlock)" alt="lock/unlock" class="w-4 h-4 cursor-pointer" @error="icons.lock=icons.unlock=''" @click.stop="toggleLock(props.id)" />
@@ -179,9 +179,9 @@ function onColorChange() {
 function toggleVisibility(id) {
     output.setRollbackPoint();
     if (layers.isSelected(id)) {
-        const value = !layers.getProperty(id, 'visible');
+        const value = !layers.getProperty(id, 'visibility');
         for (const sid of layers.selectedIds) {
-            layers.updateProperties(sid, { visible: value });
+            layers.updateProperties(sid, { visibility: value });
         }
     } else {
         layers.toggleVisibility(id);
