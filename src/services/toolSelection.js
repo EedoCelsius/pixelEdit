@@ -34,24 +34,6 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     function setCursor({ stroke, rect }) { cursor.stroke = stroke; cursor.rect = rect; }
     function getCursor() { return cursor[shape.value] || 'default'; }
 
-    function updateMarquee(currentEvent) {
-        if (
-            shape.value !== 'rect' ||
-            !pointer ||
-            !viewportEvents.isDragging(pointer) ||
-            !currentEvent
-        ) {
-            marquee.visible = false;
-            marquee.anchorEvent = null;
-            marquee.tailEvent = null;
-        }
-        else {
-            const startEvent = viewportEvents.get('pointerdown', pointer);
-            marquee.visible = true;
-            marquee.anchorEvent = startEvent;
-            marquee.tailEvent = currentEvent;
-        }
-    }
     function getPixelsInsideMarquee() {
         if (!marquee.anchorEvent || !marquee.tailEvent) return [];
         const startCoord = viewportStore.clientToCoord(marquee.anchorEvent);
@@ -82,7 +64,6 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     watch(() => viewportEvents.recent.pointer.down, (downs) => {
         for (const e of downs) {
             if (e.button !== 0 || viewportEvents.pinchIds) continue;
-            updateMarquee();
 
             output.setRollbackPoint();
             try { e.target.setPointerCapture?.(e.pointerId); } catch {}
@@ -91,8 +72,12 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
             if (pixel) previewPixels.value = [pixel];
 
             pointer = e.pointerId;
-            updateMarquee(e);
-            continue;
+            if (shape.value === 'rect') {
+                marquee.visible = true;
+                marquee.anchorEvent = e;
+                marquee.tailEvent = e;
+            }
+            break;
         }
     });
 
@@ -108,10 +93,13 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
 
         const e = viewportEvents.get('pointermove', pointer);
         if (!e || viewportEvents.pinchIds) return;
-        updateMarquee(e);
         
         if (shape.value === 'rect') {
-            previewPixels.value = getPixelsInsideMarquee();
+            const previousTailCoord = viewportStore.clientToCoord(marquee.tailEvent);
+            const currentCoord = viewportStore.clientToCoord(e);
+            if (previousTailCoord[0] !== currentCoord[0] || previousTailCoord[1] !== currentCoord[1])
+                previewPixels.value = getPixelsInsideMarquee();
+            marquee.tailEvent = e;
         }
         else if (shape.value === 'stroke') {
             const pixel = viewportStore.clientToCoord(e);
@@ -125,13 +113,14 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         
         const e = viewportEvents.get('pointerup', pointer);
         if (!e || viewportEvents.pinchIds) return;
-        updateMarquee(e);
+        
         affectedPixels.value = previewPixels.value;
         previewPixels.value = [];
 
         output.commit();
         try { e.target.releasePointerCapture?.(pointer); } catch {}
 
+        marquee.visible = false;
         pointer = null;
     });
 
@@ -140,8 +129,9 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         output.rollbackPending();
         const startEvent = viewportEvents.get('pointerdown', pointer);
         try { startEvent?.target?.releasePointerCapture?.(pointer); } catch {}
+        
+        marquee.visible = false;
         pointer = null;
-        updateMarquee();
         previewPixels.value = [];
         affectedPixels.value = [];
         overlay.helper.clear();
