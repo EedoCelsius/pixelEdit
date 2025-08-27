@@ -158,6 +158,10 @@ export const useLayerStore = defineStore('layers', {
             keptIds.splice(targetIndex, 0, ...selectionInStack);
             this._order = keptIds;
         },
+        /** Replace entire layer order */
+        setOrder(order = []) {
+            this._order = order.slice();
+        },
         deleteEmptyLayers() {
             const emptyIds = this._order.filter(id => {
                 const set = this._pixels[id];
