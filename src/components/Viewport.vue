@@ -87,10 +87,8 @@ const viewportViewBox = computed(() => `0 0 ${viewportSize.width} ${viewportSize
 const marqueeRect = computed(() => {
     if (!marquee.visible || !marquee.anchorEvent || !marquee.tailEvent)
         return { x: 0, y: 0, w: 0, h: 0 };
-    const rect = viewportStore.element.getBoundingClientRect();
-    const style = getComputedStyle(viewportStore.element);
-    const left = rect.left + (parseFloat(style.paddingLeft) || 0);
-    const top = rect.top + (parseFloat(style.paddingTop) || 0);
+    const left = viewportStore.client.left + viewportStore.padding.left;
+    const top = viewportStore.client.top + viewportStore.padding.top;
     const ax = marquee.anchorEvent.clientX - left;
     const ay = marquee.anchorEvent.clientY - top;
     const tx = marquee.tailEvent.clientX - left;
@@ -133,13 +131,9 @@ const onElementResize = () => {
     prevClientWidth = clientWidth;
     prevClientHeight = clientHeight;
     if (scrollChanged) return;
-    const style = getComputedStyle(el);
-    const paddingLeft = parseFloat(style.paddingLeft) || 0;
-    const paddingRight = parseFloat(style.paddingRight) || 0;
-    const paddingTop = parseFloat(style.paddingTop) || 0;
-    const paddingBottom = parseFloat(style.paddingBottom) || 0;
-    viewportSize.width = (clientWidth || 0) - paddingLeft - paddingRight;
-    viewportSize.height = (clientHeight || 0) - paddingTop - paddingBottom;
+    viewportStore.refreshElementCache();
+    viewportSize.width = viewportStore.client.width;
+    viewportSize.height = viewportStore.client.height;
     viewportStore.recalcScales();
     viewportStore.setScale(stage.containScale);
     viewport.interpolatePosition(false);

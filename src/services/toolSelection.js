@@ -40,10 +40,8 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         if (!startCoord) return [];
         let currentCoord = viewportStore.clientToCoord(marquee.tailEvent);
         if (!currentCoord) {
-            const rect = viewportStore.element.getBoundingClientRect();
-            const style = getComputedStyle(viewportStore.element);
-            const left = rect.left + parseFloat(style.paddingLeft) + viewportStore.stage.offset.x;
-            const top = rect.top + parseFloat(style.paddingTop) + viewportStore.stage.offset.y;
+            const left = viewportStore.client.left + viewportStore.padding.left + viewportStore.stage.offset.x;
+            const top = viewportStore.client.top + viewportStore.padding.top + viewportStore.stage.offset.y;
             let x = Math.floor((marquee.tailEvent.clientX - left) / viewportStore.stage.scale);
             let y = Math.floor((marquee.tailEvent.clientY - top) / viewportStore.stage.scale);
             x = Math.min(Math.max(x, 0), viewportStore.stage.width - 1);
