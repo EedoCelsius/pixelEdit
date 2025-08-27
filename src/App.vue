@@ -179,7 +179,7 @@ onMounted(async () => {
     layers.createLayer({});
   }
 
-  layerPanel.setScrollRule({ type: "follow", target: layers.order[0] });
+  layerPanel.setScrollRule({ type: "follow", target: layers.order[layers.order.length - 1] });
 
   window.addEventListener('keydown', onKeydown);
   window.addEventListener('keyup', onKeyup);
