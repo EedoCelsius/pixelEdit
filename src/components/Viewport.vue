@@ -118,7 +118,7 @@ const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.bod
 
 const onImageLoad = () => {
     viewportStore.recalcContentSize();
-    viewportStore.setScale(stage.containScale);
+    viewportStore.setScale(stage.minScale);
     viewport.centerPosition();
 };
 
