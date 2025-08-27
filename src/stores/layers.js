@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { readonly, reactive } from 'vue';
 import { coordToKey, keyToCoord, pixelsToUnionPath, randColorU32, groupConnectedPixels } from '../utils';
+import { useLayerGroupStore } from './layerGroups';
 
 export const useLayerStore = defineStore('layers', {
     state: () => ({
@@ -98,6 +99,10 @@ export const useLayerStore = defineStore('layers', {
                 const idx = this.indexOfLayer(above);
                 (idx < 0) ? this._order.push(id) : this._order.splice(idx + 1, 0, id);
             }
+            try {
+                const groups = useLayerGroupStore();
+                groups.addToGroup(groups.rootId, id);
+            } catch {}
             return id;
         },
         /** Update properties of a layer */
@@ -145,6 +150,18 @@ export const useLayerStore = defineStore('layers', {
                 delete this._locked[id];
                 delete this._pixels[id];
             }
+            try {
+                const groups = useLayerGroupStore();
+                for (const id of ids) {
+                    const parentId = groups._parent[id];
+                    if (parentId) {
+                        const arr = groups._groups[parentId].children;
+                        const idx = arr.indexOf(id);
+                        if (idx >= 0) arr.splice(idx, 1);
+                        delete groups._parent[id];
+                    }
+                }
+            } catch {}
         },
         /** Reorder selected ids as a block relative to targetId. */
         reorderLayers(ids, targetId, placeBelow = true) {
@@ -157,6 +174,18 @@ export const useLayerStore = defineStore('layers', {
             const selectionInStack = this._order.filter(id => selectionSet.has(id));
             keptIds.splice(targetIndex, 0, ...selectionInStack);
             this._order = keptIds;
+            try {
+                const groups = useLayerGroupStore();
+                const parentId = groups._parent[ids[0]];
+                if (parentId) {
+                    const parentChildren = groups._groups[parentId].children.filter(id => !selectionSet.has(id));
+                    let idx = parentChildren.indexOf(targetId);
+                    if (idx < 0) idx = parentChildren.length;
+                    if (!placeBelow) idx = idx + 1;
+                    parentChildren.splice(idx, 0, ...selectionInStack);
+                    groups._groups[parentId].children = parentChildren;
+                }
+            } catch {}
         },
         deleteEmptyLayers() {
             const emptyIds = this._order.filter(id => {

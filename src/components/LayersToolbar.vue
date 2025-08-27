@@ -9,6 +9,9 @@
         <button @click="onMerge" :disabled="layers.selectionCount < 2" title="Merge layers" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
           <img :src="toolbarIcons.merge" alt="Merge layers" class="w-4 h-4">
         </button>
+        <button @click="onGroup" title="Group layers" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
+          <img :src="toolbarIcons.group" alt="Group layers" class="w-4 h-4">
+        </button>
         <button @click="onSplit" :disabled="!canSplit" title="Split disconnected" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
           <img :src="toolbarIcons.split" alt="Split disconnected" class="w-4 h-4">
         </button>
@@ -24,7 +27,7 @@ import { useService } from '../services';
 import { computed } from 'vue';
 import toolbarIcons from '../image/layer_toolbar';
 
-const { layers, output } = useStore();
+const { layers, output, layerGroups } = useStore();
 const { layerTool: layerSvc, layerPanel, query } = useService();
 
 const hasEmptyLayers = computed(() => layers.order.some(id => layers.getProperty(id, 'pixels').length === 0));
@@ -51,6 +54,15 @@ const onCopy = () => {
     const ids = layerSvc.copySelected();
     layers.replaceSelection(ids);
     layerPanel.clearRange();
+    output.commit();
+};
+const onGroup = () => {
+    output.setRollbackPoint();
+    if (layers.selectionExists) {
+        layerGroups.groupSelection(layers.selectedIds);
+    } else {
+        layerGroups.createGroup({});
+    }
     output.commit();
 };
 const onSelectEmpty = () => {
