@@ -79,11 +79,10 @@ import { rgbaCssU32, ensureCheckerboardPattern } from '../utils';
 const { viewport: viewportStore, layers, viewportEvent: viewportEvents } = useStore();
 const { overlay, toolSelection: toolSelectionService, viewport } = useService();
 const viewportEl = ref(null);
-const stage = computed(() => viewportStore.stage);
+const stage = viewportStore.stage;
 
 const viewportViewBox = computed(() => {
-    const content = viewportStore.content;
-    return `0 0 ${content.width} ${content.height}`;
+    return `0 0 ${viewportStore.content.width} ${viewportStore.content.height}`;
 });
 const marqueeRect = computed(() => {
     const marquee = toolSelectionService.marquee;
