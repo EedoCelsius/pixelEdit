@@ -2,11 +2,10 @@ import { defineStore } from 'pinia';
 import { ref, reactive, computed, watch } from 'vue';
 import { useStore } from '../stores';
 import { useOverlayService } from './overlay';
-import { rgbaCssU32, rgbaCssObj } from '../utils';
 import { TOOL_MODIFIERS, OVERLAY_CONFIG } from '@/constants';
 
 export const useToolSelectionService = defineStore('toolSelectionService', () => {
-    const { viewport: viewportStore, layers, input, viewportEvent: viewportEvents, output } = useStore();
+    const { viewport: viewportStore, viewportEvent: viewportEvents, output } = useStore();
     const overlay = useOverlayService();
 
     const prepared = ref('draw');
@@ -37,18 +36,29 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     function getCursor() { return cursor[shape.value] || 'default'; }
 
     function updateMarquee(currentEvent) {
-        let props
+        let props;
         if (shape.value !== 'rect' || pointer.status === 'idle' || !viewportEvents.isDragging(pointer.id)) {
             props = { visible: false, x: 0, y: 0, w: 0, h: 0 };
         }
         else {
             const startEvent = viewportEvents.get('pointerdown', pointer.id);
             const startCoord = viewportStore.clientToCoord(startEvent);
-            const currentCoord = viewportStore.clientToCoord(currentEvent);
-            const minX = Math.min(startCoord.x, currentCoord.x);
-            const maxX = Math.max(startCoord.x, currentCoord.x);
-            const minY = Math.min(startCoord.y, currentCoord.y);
-            const maxY = Math.max(startCoord.y, currentCoord.y);
+            let currentCoord = viewportStore.clientToCoord(currentEvent);
+            if (!currentCoord) {
+                const rect = viewportStore.element.getBoundingClientRect();
+                const style = getComputedStyle(viewportStore.element);
+                const left = rect.left + parseFloat(style.paddingLeft) + viewportStore.stage.offset.x;
+                const top = rect.top + parseFloat(style.paddingTop) + viewportStore.stage.offset.y;
+                let x = Math.floor((currentEvent.clientX - left) / viewportStore.stage.scale);
+                let y = Math.floor((currentEvent.clientY - top) / viewportStore.stage.scale);
+                x = Math.min(Math.max(x, 0), viewportStore.stage.width - 1);
+                y = Math.min(Math.max(y, 0), viewportStore.stage.height - 1);
+                currentCoord = [x, y];
+            }
+            const minX = Math.min(startCoord[0], currentCoord[0]);
+            const maxX = Math.max(startCoord[0], currentCoord[0]);
+            const minY = Math.min(startCoord[1], currentCoord[1]);
+            const maxY = Math.max(startCoord[1], currentCoord[1]);
             props = {
                 visible: true,
                 x: minX,
@@ -66,24 +76,6 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         return pixels;
     }
 
-    const updateHover = (event) => {
-        const coord = viewportStore.clientToCoord(event);
-        if (pointer.status === 'idle') {
-            previewPixels.value = coord ? [coord] : [];
-        }
-        if (!coord) {
-            viewportStore.updatePixelInfo('-');
-            return;
-        }
-        const [px, py] = coord;
-        if (viewportStore.display === 'original' && input.isLoaded) {
-            const colorObject = input.readPixel(coord);
-            viewportStore.updatePixelInfo(`[${px},${py}] ${rgbaCssObj(colorObject)}`);
-        } else {
-            const colorU32 = layers.compositeColorAt(coord);
-            viewportStore.updatePixelInfo(`[${px},${py}] ${rgbaCssU32(colorU32)}`);
-        }
-    };
 
     watch(() => viewportEvents.recent.pointer.down, (downs) => {
         for (const e of downs) {

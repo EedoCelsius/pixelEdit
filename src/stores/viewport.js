@@ -13,7 +13,6 @@ export const useViewportStore = defineStore('viewport', {
         },
         display: 'result', // 'result' | 'original'
         imageSrc: '',
-        pixelInfo: '-',
         element: null,
     }),
     getters: {
@@ -42,9 +41,6 @@ export const useViewportStore = defineStore('viewport', {
         },
         toggleView() {
             this.display = (this.display === 'original') ? 'result' : 'original';
-        },
-        updatePixelInfo(text) {
-            this.pixelInfo = text;
         },
         recalcScales() {
             const style = getComputedStyle(this.element);
