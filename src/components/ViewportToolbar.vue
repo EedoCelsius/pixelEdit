@@ -50,8 +50,10 @@ const { viewport: viewportStore, layers, output, viewportEvent: viewportEvents }
 const { toolSelection: toolSelectionService } = useService();
 
 let previousTool = null;
+let lastSingleTool = 'draw';
+let lastMultiTool = 'select';
 const selectables = ref(MULTI_SELECTION_TOOLS);
-toolSelectionService.setPrepared('select');
+toolSelectionService.setPrepared(lastMultiTool);
 toolSelectionService.setShape('stroke');
 
 watch(() => viewportEvents.recent.keyboard.down, (downs) => {
@@ -86,14 +88,18 @@ watch(() => viewportEvents.recent.keyboard.up, (ups) => {
 });
 watch(() => layers.selectionCount, (size, prev) => {
     if (size === 1) {
+        if (prev !== 1) lastMultiTool = toolSelectionService.prepared;
         selectables.value = SINGLE_SELECTION_TOOLS;
-        toolSelectionService.setPrepared('draw');
-        previousTool = 'draw';
+        const tool = lastSingleTool;
+        toolSelectionService.setPrepared(tool);
+        previousTool = tool;
     }
     else if (prev === 1) {
+        lastSingleTool = toolSelectionService.prepared;
         selectables.value = MULTI_SELECTION_TOOLS;
-        toolSelectionService.setPrepared('select');
-        previousTool = 'select';
+        const tool = lastMultiTool;
+        toolSelectionService.setPrepared(tool);
+        previousTool = tool;
     }
 });
 
