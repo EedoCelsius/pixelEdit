@@ -58,9 +58,9 @@
         <rect id="marqueeRect"
               :x="marqueeRect.x"
               :y="marqueeRect.y"
-              :width="marqueeRect.w"
-              :height="marqueeRect.h"
-              :visibility="marquee.visible ? 'visible' : 'hidden'"
+              :width="marqueeRect.width"
+              :height="marqueeRect.height"
+              :visibility="marqueeRect.visibility"
               :fill="OVERLAY_CONFIG.MARQUEE.FILL_COLOR"
               :stroke="OVERLAY_CONFIG.MARQUEE.STROKE_COLOR"
               :stroke-width="OVERLAY_CONFIG.MARQUEE.STROKE_WIDTH_SCALE"
@@ -95,8 +95,9 @@ const marqueeRect = computed(() => {
     return {
         x: Math.min(ax, tx),
         y: Math.min(ay, ty),
-        w: Math.abs(tx - ax),
-        h: Math.abs(ty - ay),
+        width: Math.abs(tx - ax),
+        height: Math.abs(ty - ay),
+        visibility: marquee.visible ? 'visible' : 'hidden'
     };
 });
 
