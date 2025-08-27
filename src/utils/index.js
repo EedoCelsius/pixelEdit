@@ -1,53 +1,82 @@
+import { SVG_NAMESPACE, CHECKERBOARD_CONFIG } from '@/constants';
+
 export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-export const coordsToKey = (x, y) => x + "," + y;
-export const keyToCoords = (key) => key.split(",").map(n => +n);
+export const coordToKey = ([x, y]) => x + ',' + y;
+export const keyToCoord = (key) => key.split(',').map(n => +n);
 
-export function getPixelUnionSet(layers) {
-    const pixelUnionSet = new Set();
-    if (!layers) return pixelUnionSet;
-    for (const layer of layers) {
-        layer.forEachPixel((x, y) => pixelUnionSet.add(coordsToKey(x, y)));
-    }
-    return pixelUnionSet;
+export function getPixelUnion(props = []) {
+    const set = new Set();
+    const layers = Array.isArray(props) ? props : [props];
+    for (const layer of layers)
+        for (const coord of layer.pixels)
+            set.add(coordToKey(coord));
+    return [...set].map(keyToCoord);
 }
 
-export function calcMarquee(start, current, canvas) {
-    if (!start || !current) return { visible: false, x: 0, y: 0, w: 0, h: 0 };
-    const left = Math.min(start.x, current.x) - canvas.x;
-    const top = Math.min(start.y, current.y) - canvas.y;
-    const right = Math.max(start.x, current.x) - canvas.x;
-    const bottom = Math.max(start.y, current.y) - canvas.y;
-    const minX = Math.floor(left / canvas.scale),
-        maxX = Math.floor((right - 1) / canvas.scale);
-    const minY = Math.floor(top / canvas.scale),
-        maxY = Math.floor((bottom - 1) / canvas.scale);
-    const minx = clamp(minX, 0, canvas.width - 1),
-        maxx = clamp(maxX, 0, canvas.width - 1);
-    const miny = clamp(minY, 0, canvas.height - 1),
-        maxy = clamp(maxY, 0, canvas.height - 1);
-    return {
-        visible: true,
-        x: minx,
-        y: miny,
-        w: (maxx >= minx) ? (maxx - minx + 1) : 0,
-        h: (maxy >= miny) ? (maxy - miny + 1) : 0,
-    };
+export function ensureCheckerboardPattern(target = document.body) {
+    const { PATTERN_ID, COLOR_A, COLOR_B, REPEAT } = CHECKERBOARD_CONFIG;
+    const id = PATTERN_ID;
+    if (document.getElementById(id)) return id;
+    const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
+    svg.setAttribute('width', '0');
+    svg.setAttribute('height', '0');
+    svg.style.position = 'absolute';
+    svg.style.left = '-9999px';
+    const defs = document.createElementNS(SVG_NAMESPACE, 'defs');
+    const pattern = document.createElementNS(SVG_NAMESPACE, 'pattern');
+    pattern.setAttribute('id', id);
+    const repeatSize = REPEAT;
+    pattern.setAttribute('width', String(repeatSize));
+    pattern.setAttribute('height', String(repeatSize));
+    pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+    const r00 = document.createElementNS(SVG_NAMESPACE, 'rect');
+    r00.setAttribute('x', '0');
+    r00.setAttribute('y', '0');
+    r00.setAttribute('width', String(repeatSize / 2));
+    r00.setAttribute('height', String(repeatSize / 2));
+    r00.setAttribute('fill', COLOR_A);
+    const r11 = document.createElementNS(SVG_NAMESPACE, 'rect');
+    r11.setAttribute('x', String(repeatSize / 2));
+    r11.setAttribute('y', String(repeatSize / 2));
+    r11.setAttribute('width', String(repeatSize / 2));
+    r11.setAttribute('height', String(repeatSize / 2));
+    r11.setAttribute('fill', COLOR_A);
+    const r10 = document.createElementNS(SVG_NAMESPACE, 'rect');
+    r10.setAttribute('x', String(repeatSize / 2));
+    r10.setAttribute('y', '0');
+    r10.setAttribute('width', String(repeatSize / 2));
+    r10.setAttribute('height', String(repeatSize / 2));
+    r10.setAttribute('fill', COLOR_B);
+    const r01 = document.createElementNS(SVG_NAMESPACE, 'rect');
+    r01.setAttribute('x', '0');
+    r01.setAttribute('y', String(repeatSize / 2));
+    r01.setAttribute('width', String(repeatSize / 2));
+    r01.setAttribute('height', String(repeatSize / 2));
+    r01.setAttribute('fill', COLOR_B);
+    pattern.appendChild(r00);
+    pattern.appendChild(r11);
+    pattern.appendChild(r10);
+    pattern.appendChild(r01);
+    defs.appendChild(pattern);
+    svg.appendChild(defs);
+    target.appendChild(svg);
+    return id;
 }
 
-// --- color helpers (32-bit unsigned RGBA packed as 0xRRGGBBAA) ---
+// --- color helpers (32-bit unsigned RGBA packed as 0xAABBGGRR) ---
 export const packRGBA = (color) => {
     const r = clamp((+color.r || 0), 0, 255),
         g = clamp((+color.g || 0), 0, 255),
         b = clamp((+color.b || 0), 0, 255);
     const alphaRaw = (color.a == null ? 255 : +color.a);
     const a = alphaRaw <= 1 ? Math.round(alphaRaw * 255) : Math.round(alphaRaw);
-    return (((r & 255) << 24) | ((g & 255) << 16) | ((b & 255) << 8) | ((a & 255) | 0)) >>> 0;
+    return ((r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | ((a & 255) << 24)) >>> 0;
 };
 export const unpackRGBA = (packedColor) => ({
-    r: (packedColor >>> 24) & 255,
-    g: (packedColor >>> 16) & 255,
-    b: (packedColor >>> 8) & 255,
-    a: (packedColor >>> 0) & 255
+    r: (packedColor >>> 0) & 255,
+    g: (packedColor >>> 8) & 255,
+    b: (packedColor >>> 16) & 255,
+    a: (packedColor >>> 24) & 255
 });
 export const rgbaCssU32 = (packedColor) => {
     const {
@@ -65,6 +94,24 @@ export const randColorU32 = () => packRGBA({
     b: Math.floor(50 + Math.random() * 180),
     a: 255
 });
+
+export function averageColorU32(colors = []) {
+    if (!colors.length) return 0;
+    let r = 0, g = 0, b = 0, a = 0;
+    for (const c of colors) {
+        r += (c >>> 0) & 255;
+        g += (c >>> 8) & 255;
+        b += (c >>> 16) & 255;
+        a += (c >>> 24) & 255;
+    }
+    const count = colors.length;
+    return packRGBA({
+        r: Math.round(r / count),
+        g: Math.round(g / count),
+        b: Math.round(b / count),
+        a: Math.round(a / count)
+    });
+}
 
 // simplified hex helpers
 export function hexToRgbaU32(hexString) {
@@ -140,8 +187,9 @@ export function rgbaToHexU32(packedColor) {
     return '#' + [r, g, b].map(value => value.toString(16).padStart(2, '0')).join('');
 }
 
-export function groupConnectedPixels(pixelSet) {
-    if (!pixelSet || !pixelSet.size) return [];
+export function groupConnectedPixels(pixels) {
+    if (!pixels || !pixels.length) return [];
+    const pixelSet = new Set(pixels.map(coordToKey));
     const neighbors = [
         [1, 0],
         [-1, 0],
@@ -152,51 +200,38 @@ export function groupConnectedPixels(pixelSet) {
     const components = [];
     for (const startPixelKey of pixelSet) {
         if (seen.has(startPixelKey)) continue;
-        const componentKeys = [];
+        const component = [];
         const queue = [startPixelKey];
         seen.add(startPixelKey);
         while (queue.length) {
             const currentPixelKey = queue.pop();
-            componentKeys.push(currentPixelKey);
-            const [x, y] = keyToCoords(currentPixelKey);
+            component.push(keyToCoord(currentPixelKey));
+            const [x, y] = keyToCoord(currentPixelKey);
             for (const [dx, dy] of neighbors) {
-                const neighborKey = coordsToKey(x + dx, y + dy);
+                const neighborKey = coordToKey([x + dx, y + dy]);
                 if (pixelSet.has(neighborKey) && !seen.has(neighborKey)) {
                     seen.add(neighborKey);
                     queue.push(neighborKey);
                 }
             }
         }
-        components.push(componentKeys);
+        components.push(component);
     }
     return components;
 }
 
 export function buildOutline(pixels) {
-    const pixelSet = new Set(pixels);
+    const pixelSet = new Set(pixels.map(coordToKey));
     if (!pixelSet.size) return [];
     const paths = [];
-    const components = groupConnectedPixels(pixelSet);
-    for (const componentKeys of components) {
+    const components = groupConnectedPixels(pixels);
+    for (const component of components) {
         const edges = [];
-        for (const pixelKey of componentKeys) {
-            const [x, y] = keyToCoords(pixelKey);
-            if (!pixelSet.has(coordsToKey(x, y - 1))) edges.push([
-                [x, y],
-                [x + 1, y]
-            ]);
-            if (!pixelSet.has(coordsToKey(x + 1, y))) edges.push([
-                [x + 1, y],
-                [x + 1, y + 1]
-            ]);
-            if (!pixelSet.has(coordsToKey(x, y + 1))) edges.push([
-                [x, y + 1],
-                [x + 1, y + 1]
-            ]);
-            if (!pixelSet.has(coordsToKey(x - 1, y))) edges.push([
-                [x, y],
-                [x, y + 1]
-            ]);
+        for (const [x, y] of component) {
+            if (!pixelSet.has(coordToKey([x, y - 1]))) edges.push([[x, y], [x + 1, y]]);
+            if (!pixelSet.has(coordToKey([x + 1, y]))) edges.push([[x + 1, y], [x + 1, y + 1]]);
+            if (!pixelSet.has(coordToKey([x, y + 1]))) edges.push([[x, y + 1], [x + 1, y + 1]]);
+            if (!pixelSet.has(coordToKey([x - 1, y]))) edges.push([[x, y], [x, y + 1]]);
         }
         paths.push(edges);
     }
@@ -262,7 +297,7 @@ export function edgesToLoops(edges) {
 }
 
 export function pixelsToUnionPath(pixels) {
-    if (!pixels || !pixels.size) return '';
+    if (!pixels || !pixels.length) return '';
     const groups = buildOutline(pixels);
     const parts = [];
     for (const segments of groups) {
@@ -282,8 +317,5 @@ export function pixelsToUnionPath(pixels) {
 }
 
 export function findPixelComponents(pixels) {
-    const pixelSet = new Set(pixels.map(p => typeof p === 'string' ? p : coordsToKey(p[0], p[1])));
-    if (!pixelSet.size) return [];
-    const components = groupConnectedPixels(pixelSet);
-    return components.map(component => component.map(key => keyToCoords(key)));
+    return groupConnectedPixels(pixels);
 }

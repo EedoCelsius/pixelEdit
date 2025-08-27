@@ -1,66 +1,68 @@
 <template>
     <div class="flex items-center gap-2 p-2 flex-wrap">
-      <button @click="onAdd" title="Add layer" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
-        <img :src="'image/layer_toolbar/add.svg'" alt="Add layer" class="w-4 h-4">
-      </button>
-      <button @click="onCopy" :disabled="!selection.exists" title="Copy layer" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
-        <img :src="'image/layer_toolbar/copy.svg'" alt="Copy layer" class="w-4 h-4">
-      </button>
-      <button @click="onMerge" :disabled="selection.count < 2" title="Merge layers" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
-        <img :src="'image/layer_toolbar/merge.svg'" alt="Merge layers" class="w-4 h-4">
-      </button>
-      <button @click="onSplit" :disabled="!canSplit" title="Split disconnected" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
-        <img :src="'image/layer_toolbar/split.svg'" alt="Split disconnected" class="w-4 h-4">
-      </button>
-      <button @click="onSelectEmpty" :disabled="!hasEmptyLayers" title="Select empty layers" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
-        <img :src="'image/layer_toolbar/empty.svg'" alt="Select empty layers" class="w-4 h-4">
-      </button>
+        <button @click="onAdd" title="Add layer" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
+          <img :src="toolbarIcons.add" alt="Add layer" class="w-4 h-4">
+        </button>
+        <button @click="onCopy" :disabled="!layers.selectionExists" title="Copy layer" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
+          <img :src="toolbarIcons.copy" alt="Copy layer" class="w-4 h-4">
+        </button>
+        <button @click="onMerge" :disabled="layers.selectionCount < 2" title="Merge layers" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
+          <img :src="toolbarIcons.merge" alt="Merge layers" class="w-4 h-4">
+        </button>
+        <button @click="onSplit" :disabled="!canSplit" title="Split disconnected" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
+          <img :src="toolbarIcons.split" alt="Split disconnected" class="w-4 h-4">
+        </button>
+        <button @click="onSelectEmpty" :disabled="!hasEmptyLayers" title="Select empty layers" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
+          <img :src="toolbarIcons.empty" alt="Select empty layers" class="w-4 h-4">
+        </button>
     </div>
 </template>
 
 <script setup>
-import { useLayerStore } from '../stores/layers';
-import { useLayerService } from '../services/layers';
-import { useOutputStore } from '../stores/output';
-import { useSelectionStore } from '../stores/selection';
+import { useStore } from '../stores';
+import { useService } from '../services';
 import { computed } from 'vue';
+import toolbarIcons from '../image/layer_toolbar';
 
-const layers = useLayerStore();
-const layerSvc = useLayerService();
-const output = useOutputStore();
-const selection = useSelectionStore();
+const { layers, output } = useStore();
+const { layerTool: layerSvc, layerPanel, query } = useService();
 
-const hasEmptyLayers = computed(() => layers.order.some(id => layers.pixelCountOf(id) === 0));
-const canSplit = computed(() => selection.ids.some(id => layers.disconnectedCountOf(id) > 1));
+const hasEmptyLayers = computed(() => layers.order.some(id => layers.getProperty(id, 'pixels').length === 0));
+const canSplit = computed(() => layers.selectedIds.some(id => layers.disconnectedCountOf(id) > 1));
 
 const onAdd = () => {
     output.setRollbackPoint();
-    const above = selection.count ? layers.uppermostIdOf(selection.ids) : null;
+    const above = layers.selectionCount ? query.uppermost(layers.selectedIds) : null;
     const id = layers.createLayer({});
     if (above !== null) {
         layers.reorderLayers([id], above, false);
     }
-    selection.selectOne(id);
+    layerPanel.setRange(id, id);
     output.commit();
 };
 const onMerge = () => {
     output.setRollbackPoint();
     const id = layerSvc.mergeSelected();
-    selection.selectOne(id);
+    layerPanel.setRange(id, id);
     output.commit();
 };
 const onCopy = () => {
     output.setRollbackPoint();
     const ids = layerSvc.copySelected();
-    selection.replace(ids, ids?.[0] ?? null, null);
+    layers.replaceSelection(ids);
+    layerPanel.clearRange();
     output.commit();
 };
 const onSelectEmpty = () => {
-    layerSvc.selectEmptyLayers();
+    const ids = query.empty();
+    if (ids.length) {
+        layers.replaceSelection(ids);
+        layerPanel.clearRange();
+    }
 };
-  const onSplit = () => {
-      output.setRollbackPoint();
-      layerSvc.splitLayer(selection.anchorId);
-      output.commit();
-  };
+const onSplit = () => {
+    output.setRollbackPoint();
+    layerSvc.splitLayer(layerPanel.anchorId);
+    output.commit();
+};
 </script>

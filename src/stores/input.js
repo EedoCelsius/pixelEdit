@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { packRGBA } from '../utils';
+import { packRGBA, averageColorU32 } from '../utils';
 
 export const useInputStore = defineStore('input', {
     state: () => ({
@@ -47,21 +47,22 @@ export const useInputStore = defineStore('input', {
         async loadFromQuery() {
             await this.load(new URL(location.href).searchParams.get('pixel'));
         },
-        isWithin(x, y) {
+        isWithin([x, y]) {
             return x >= 0 && y >= 0 && x < this._width && y < this._height;
         },
-        _offset(x, y) {
+        _offset([x, y]) {
             return ((y * this._width) + x) * 4;
         },
-        readPixel(x, y) {
-            if (!this.isLoaded || !this.isWithin(x, y)) return {
+        readPixel(coord) {
+            const [x, y] = coord;
+            if (!this.isLoaded || !this.isWithin(coord)) return {
                 r: 0,
                 g: 0,
                 b: 0,
                 a: 0
             };
             const data = this._buffer;
-            const i = this._offset(x, y);
+            const i = this._offset(coord);
             return {
                 r: data[i],
                 g: data[i + 1],
@@ -69,9 +70,9 @@ export const useInputStore = defineStore('input', {
                 a: data[i + 3]
             };
         },
-        writePixel(x, y, { r = 0, g = 0, b = 0, a = 255 } = {}) {
-            if (!this.isLoaded || !this.isWithin(x, y)) return;
-            const i = this._offset(x, y);
+        writePixel(coord, { r = 0, g = 0, b = 0, a = 255 } = {}) {
+            if (!this.isLoaded || !this.isWithin(coord)) return;
+            const i = this._offset(coord);
             this._buffer[i] = r;
             this._buffer[i + 1] = g;
             this._buffer[i + 2] = b;
@@ -82,11 +83,10 @@ export const useInputStore = defineStore('input', {
         },
         segment(tolerance = 32) {
             if (!this.isLoaded) return [];
-            const width = this._width,
-                height = this._height,
-                data = this._buffer;
+            const width = this.width,
+                height = this.height,
+                data = this.buffer;
             const visited = new Uint8Array(width * height);
-            const getIndex = (x, y) => (y * width + x) * 4;
             const directions = [
                 [1, 0],
                 [-1, 0],
@@ -100,7 +100,7 @@ export const useInputStore = defineStore('input', {
                 for (let x = 0; x < width; x++) {
                     const flatIndex = y * width + x;
                     if (visited[flatIndex]) continue;
-                    const pixelIndex = getIndex(x, y);
+                    const pixelIndex = this._offset([x, y]);
                     const seedColor = {
                         r: data[pixelIndex],
                         g: data[pixelIndex + 1],
@@ -112,13 +112,10 @@ export const useInputStore = defineStore('input', {
                     queue.length = 0;
                     queue.push([x, y]);
                     const pixels = [];
-                    let sumR = 0,
-                        sumG = 0,
-                        sumB = 0,
-                        sumA = 0;
+                    const colors = [];
                     while (queue.length) {
                         const [cx, cy] = queue.pop();
-                        const currentIndex = getIndex(cx, cy);
+                        const currentIndex = this._offset([cx, cy]);
                         const currentR = data[currentIndex],
                             currentG = data[currentIndex + 1],
                             currentB = data[currentIndex + 2],
@@ -130,17 +127,14 @@ export const useInputStore = defineStore('input', {
                                 a: currentA
                             }, seedColor) > tolerance) continue;
                         pixels.push([cx, cy]);
-                        sumR += currentR;
-                        sumG += currentG;
-                        sumB += currentB;
-                        sumA += currentA;
+                        colors.push(packRGBA({ r: currentR, g: currentG, b: currentB, a: currentA }));
                         for (const [dx, dy] of directions) {
                             const nextX = cx + dx,
                                 nextY = cy + dy;
-                            if (nextX < 0 || nextY < 0 || nextX >= width || nextY >= height) continue;
+                            if (!this.isWithin([nextX, nextY])) continue;
                             const nextFlatIndex = nextY * width + nextX;
                             if (visited[nextFlatIndex]) continue;
-                            const nextIndex = getIndex(nextX, nextY);
+                            const nextIndex = this._offset([nextX, nextY]);
                             const nextAlpha = data[nextIndex + 3];
                             if (nextAlpha > 0 && colorDistance({
                                     r: data[nextIndex],
@@ -156,22 +150,16 @@ export const useInputStore = defineStore('input', {
                         }
                     }
                     if (pixels.length) {
-                        const averageColor = {
-                            r: Math.round(sumR / pixels.length),
-                            g: Math.round(sumG / pixels.length),
-                            b: Math.round(sumB / pixels.length),
-                            a: 255
-                        };
                         segments.push({
-                            pixels: pixels,
-                            colorU32: packRGBA(averageColor)
+                            pixels,
+                            colorU32: averageColorU32(colors)
                         });
                     }
                 }
             const quantize = u => {
-                const r = (u >>> 24) & 255,
-                    g = (u >>> 16) & 255,
-                    b = (u >>> 8) & 255;
+                const r = (u >>> 0) & 255,
+                    g = (u >>> 8) & 255,
+                    b = (u >>> 16) & 255;
                 return ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
             };
             const groupSum = new Map();

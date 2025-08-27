@@ -1,0 +1,29 @@
+import drawStroke from './draw_stroke.svg';
+import drawRect from './draw_rect.svg';
+import eraseStroke from './erase_stroke.svg';
+import eraseRect from './erase_rect.svg';
+import addStroke from './add_stroke.svg';
+import addRect from './add_rect.svg';
+import removeStroke from './remove_stroke.svg';
+import removeRect from './remove_rect.svg';
+import globalEraseStroke from './global_erase_stroke.svg';
+import globalEraseRect from './global_erase_rect.svg';
+import cutStroke from './cut_stroke.svg';
+import cutRect from './cut_rect.svg';
+import locked from './locked.svg';
+
+export default {
+  drawStroke,
+  drawRect,
+  eraseStroke,
+  eraseRect,
+  addStroke,
+  addRect,
+  removeStroke,
+  removeRect,
+  globalEraseStroke,
+  globalEraseRect,
+  cutStroke,
+  cutRect,
+  locked
+};

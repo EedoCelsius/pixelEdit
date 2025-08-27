@@ -6,9 +6,9 @@
         :style="displayStyle"
       >
         <h2 class="m-0 px-3 py-2 text-xs uppercase tracking-wide text-slate-300/90 border-b border-white/10">Display</h2>
-        <stage-toolbar ref="stageToolbar" class="border-b border-white/10"></stage-toolbar>
-        <Stage class="flex-1 min-h-0"></Stage>
-        <stage-info class="border-t border-white/10"></stage-info>
+        <viewport-toolbar ref="viewportToolbar" class="border-b border-white/10"></viewport-toolbar>
+        <Viewport class="flex-1 min-h-0"></Viewport>
+        <viewport-info class="border-t border-white/10"></viewport-info>
       </section>
 
       <!-- 드래그 핸들 -->
@@ -32,31 +32,18 @@
 
 <script setup>
 import { onMounted, ref, computed, onUnmounted } from 'vue';
-import { useInputStore } from './stores/input';
-import { useStageStore } from './stores/stage';
-import { useStageService } from './services/stage';
-import { useLayerStore } from './stores/layers';
-import { useSelectionStore } from './stores/selection';
-import { useLayerService } from './services/layers';
-import { useSelectService } from './services/select';
-import { useOutputStore } from './stores/output';
+import { useStore } from './stores';
+import { useService } from './services';
 
-import StageToolbar from './components/StageToolbar.vue';
-import Stage from './components/Stage.vue';
-import StageInfo from './components/StageInfo.vue';
+import Viewport from './components/Viewport.vue';
+import ViewportInfo from './components/ViewportInfo.vue';
 import LayersToolbar from './components/LayersToolbar.vue';
 import LayersPanel from './components/LayersPanel.vue';
 import ExportPanel from './components/ExportPanel.vue';
-
-const input = useInputStore();
-const stageStore = useStageStore();
-const stageService = useStageService();
-const layers = useLayerStore();
-const selection = useSelectionStore();
-const layerSvc = useLayerService();
-const selectSvc = useSelectService();
-const output = useOutputStore();
-const stageToolbar = ref(null);
+import ViewportToolbar from './components/ViewportToolbar.vue';
+const { input, viewport: viewportStore, layers, output } = useStore();
+const { layerPanel, query } = useService();
+const viewportToolbar = ref(null);
 
 // Width control between display and layers
 const container = ref(null);
@@ -96,52 +83,34 @@ function onKeydown(event) {
   switch (event.key) {
     case 'Control':
     case 'Meta':
-      return stageToolbar.value?.ctrlKeyDown();
+      return viewportToolbar.value?.ctrlKeyDown(event);
     case 'Shift':
-      return stageToolbar.value?.shiftKeyDown();
+      return viewportToolbar.value?.shiftKeyDown(event);
     case 'ArrowUp':
       event.preventDefault();
-      if (!layers.exists) return;
-      if (shift && !ctrl) {
-        if (!selection.exists) return;
-        const newTail = layers.aboveId(selection.tailId) ?? layers.uppermostId;
-        selectSvc.selectRange(selection.anchorId, newTail);
-        selection.setScrollRule({ type: 'follow-up', target: newTail });
-      } else if (!ctrl) {
-        const nextId = layers.aboveId(selection.anchorId) ?? selection.anchorId;
-        selection.selectOne(nextId);
-        selection.setScrollRule({ type: 'follow-up', target: nextId });
-      }
+      layerPanel.onArrowUp(shift, ctrl);
       return;
     case 'ArrowDown':
       event.preventDefault();
-      if (!layers.exists) return;
-      if (shift && !ctrl) {
-        if (!selection.exists) return;
-        const newTail = layers.belowId(selection.tailId) ?? layers.lowermostId;
-        selectSvc.selectRange(selection.anchorId, newTail);
-        selection.setScrollRule({ type: 'follow-down', target: newTail });
-      } else if (!ctrl) {
-        const nextId = layers.belowId(selection.anchorId) ?? selection.anchorId;
-        selection.selectOne(nextId);
-        selection.setScrollRule({ type: 'follow-down', target: nextId });
-      }
+      layerPanel.onArrowDown(shift, ctrl);
       return;
     case 'Delete':
     case 'Backspace':
       event.preventDefault();
-      if (!selection.exists) return;
+      if (!layers.selectionExists) return;
       output.setRollbackPoint();
-      const belowId = layers.belowId(layers.lowermostIdOf(selection.ids));
-      layerSvc.deleteSelected();
-      const newSelect = layers.has(belowId) ? belowId : layers.lowermostId;
-      selection.selectOne(newSelect);
-      selection.setScrollRule({ type: "follow", target: newSelect });
+      const belowId = query.below(query.lowermost(layers.selectedIds));
+      const ids = layers.selectedIds;
+      layers.deleteLayers(ids);
+      layers.removeFromSelection(ids);
+      const newSelect = layers.has(belowId) ? belowId : query.lowermost();
+      layerPanel.setRange(newSelect, newSelect);
+      layerPanel.setScrollRule({ type: "follow", target: newSelect });
       output.commit();
       return;
     case 'Enter':
          if (!ctrl && !shift) {
-            const anchorId = selection.anchorId;
+            const anchorId = layerPanel.anchorId;
             const row = document.querySelector(`.layer[data-id="${anchorId}"] .nameText`)
             if (row) {
                 event.preventDefault();
@@ -155,15 +124,14 @@ function onKeydown(event) {
         output.rollbackPending();
         return;
       }
-      selection.clear();
+      layers.clearSelection();
       return;
   }
-  
+
   if (ctrl) {
     if (key === 'a') {
       event.preventDefault();
-      const anchor = layers.uppermostId, tail = layers.lowermostId;
-      selection.replace(layers.order, anchor, tail);
+      layerPanel.selectAll();
     } else if (key === 'z' && !shift) {
       event.preventDefault();
       output.undo();
@@ -178,9 +146,9 @@ function onKeyup(event) {
   switch (event.key) {
     case 'Control':
     case 'Meta':
-      return stageToolbar.value?.ctrlKeyUp();
+      return viewportToolbar.value?.ctrlKeyUp(event);
     case 'Shift':
-      return stageToolbar.value?.shiftKeyUp();
+      return viewportToolbar.value?.shiftKeyUp(event);
   }
 }
 
@@ -189,10 +157,10 @@ onMounted(async () => {
     await input.loadFromQuery();
   } catch {}
   if (!input.isLoaded) {
-    stageStore.setSize(21, 18);
+    viewportStore.setSize(21, 18);
   } else {
-    stageStore.setSize(input.width, input.height);
-    stageStore.setImage(input.src || '');
+    viewportStore.setSize(input.width, input.height);
+    viewportStore.setImage(input.src || '');
   }
 
   const autoSegments = input.isLoaded ? input.segment(40) : [];
@@ -201,8 +169,8 @@ onMounted(async () => {
       const segment = autoSegments[i];
       layers.createLayer({
         name: `Auto ${i+1}`,
-        colorU32: segment.colorU32,
-        visible: true,
+        color: segment.colorU32,
+        visibility: true,
         pixels: segment.pixels
       });
     }
@@ -214,8 +182,8 @@ onMounted(async () => {
   window.addEventListener('keydown', onKeydown);
   window.addEventListener('keyup', onKeyup);
   window.addEventListener('blur', () => {
-    stageToolbar.value?.ctrlKeyUp();
-    stageToolbar.value?.shiftKeyUp();
+    viewportToolbar.value?.ctrlKeyUp();
+    viewportToolbar.value?.shiftKeyUp();
   });
   window.addEventListener('mousemove', onDrag);
   window.addEventListener('mouseup', stopDrag);
@@ -230,25 +198,6 @@ onUnmounted(() => {
 <style>
 /* Global styles from pixel.html */
 [v-cloak]{display:none}
-
-/* 레이어 재정렬 표시 */
-.insert-before{box-shadow:inset 0 3px 0 0 rgba(56,189,248,.7)}
-.insert-after{box-shadow:inset 0 -3px 0 0 rgba(56,189,248,.7)}
-
-/* 선택 강조 */
-.layer.selected{
-  outline:2px solid rgba(56,189,248,.70);
-  background:linear-gradient(180deg,rgba(56,189,248,.12),rgba(56,189,248,.05));
-  border-color:rgba(56,189,248,.35)
-}
-.layer.selected.anchor{
-  outline:3px solid rgba(56,189,248,.95);
-  background:linear-gradient(180deg,rgba(56,189,248,.18),rgba(56,189,248,.07));
-  border-color:rgba(56,189,248,.6)
-}
-
-/* 드래그/이름편집 UX */
-.layers.dragging,.layers .layer.dragging{cursor:grabbing!important}
 
 /* Scrollbar styling */
 *{

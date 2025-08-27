@@ -1,0 +1,96 @@
+<template>
+    <div class="flex items-center gap-2 p-2 flex-wrap">
+      <button @click="viewportStore.toggleView" class="inline-flex items-center px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">{{ viewportStore.toggleLabel }}</button>
+
+      <div class="h-4 w-px bg-white/10 mx-1"></div>
+
+      <!-- Shape toggle -->
+      <div class="inline-flex rounded-md overflow-hidden border border-white/15">
+        <button @click="toolSelectionService.setShape('stroke')"
+                :title="'Stroke'"
+                :class="`p-1 ${toolSelectionService.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+          <img :src="stageIcons.stroke" alt="Stroke" class="w-4 h-4">
+        </button>
+        <button @click="toolSelectionService.setShape('rect')"
+                :title="'Rect'"
+                :class="`p-1 ${toolSelectionService.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+          <img :src="stageIcons.rect" alt="Rect" class="w-4 h-4">
+        </button>
+      </div>
+
+      <!-- Tool Toggles -->
+      <div class="inline-flex rounded-md overflow-hidden border border-white/15">
+        <button v-for="tool in selectables" :key="tool.type"
+                @click="toolSelectionService.setPrepared(tool.type)"
+                :title="tool.name"
+                :class="`p-1 ${toolSelectionService.active === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+          <img :src="tool.icon" :alt="tool.name" class="w-4 h-4">
+        </button>
+      </div>
+
+      <div class="flex-1"></div>
+
+      <button @click="undo" title="Undo" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
+        <img :src="stageIcons.undo" alt="Undo" class="w-4 h-4">
+      </button>
+      <button @click="redo" title="Redo" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
+        <img :src="stageIcons.redo" alt="Redo" class="w-4 h-4">
+      </button>
+    </div>
+  </template>
+
+<script setup>
+import { ref, watch } from 'vue';
+import { useStore } from '../stores';
+import { useService } from '../services';
+import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS, TOOL_MODIFIERS } from '@/constants';
+import stageIcons from '../image/stage_toolbar';
+
+const { viewport: viewportStore, layers, output, viewportEvent: viewportEvents } = useStore();
+const { toolSelection: toolSelectionService } = useService();
+
+const ctrlToggleMap = TOOL_MODIFIERS.find(m => m.key === 'Control')?.map || {};
+
+const selectables = ref(SINGLE_SELECTION_TOOLS);
+watch(() => layers.selectionCount, (size) => {
+  selectables.value = size === 1 ? SINGLE_SELECTION_TOOLS : MULTI_SELECTION_TOOLS;
+  if (!selectables.value.some(tool => tool.type === toolSelectionService.prepared)) {
+    toolSelectionService.setPrepared(size === 1 ? 'draw' : 'select');
+  }
+}, { immediate: true });
+
+const undo = () => output.undo();
+const redo = () => output.redo();
+
+// Keyboard handlers
+const isCtrlDown = () => {
+  const check = (key) => {
+    const down = viewportEvents.get('keydown', key);
+    const up = viewportEvents.get('keyup', key);
+    return !!down && (!up || down.timeStamp > up.timeStamp);
+  };
+  return check('Control') || check('Meta');
+};
+function ctrlKeyDown(e) {
+  viewportEvents.setKeyDown(e);
+}
+function ctrlKeyUp(e) {
+  if (e) {
+    const down = viewportEvents.get('keydown', e.key);
+    if (down && !down.repeat) {
+      const t = toolSelectionService.prepared;
+      const toggle = ctrlToggleMap[t];
+      if (toggle) toolSelectionService.setPrepared(toggle);
+    }
+    viewportEvents.setKeyUp(e);
+  } else {
+    const ts = performance.now();
+    viewportEvents.setKeyUp({ key: 'Control', type: 'keyup', timeStamp: ts });
+    viewportEvents.setKeyUp({ key: 'Meta', type: 'keyup', timeStamp: ts });
+  }
+}
+function shiftKeyDown(e) { viewportEvents.setKeyDown(e); }
+function shiftKeyUp(e) { viewportEvents.setKeyUp(e || { key: 'Shift', type: 'keyup', timeStamp: performance.now() }); }
+
+defineExpose({ ctrlKeyDown, ctrlKeyUp, shiftKeyDown, shiftKeyUp });
+</script>

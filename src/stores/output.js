@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
-import { useLayerStore } from './layers';
-import { useSelectionStore } from './selection';
-import { useInputStore } from './input';
+import { useStore } from '.';
+import { useLayerPanelService } from '../services/layerPanel';
 
 export const useOutputStore = defineStore('output', {
     state: () => ({
@@ -17,11 +16,11 @@ export const useOutputStore = defineStore('output', {
     },
     actions: {
         _apply(snapshot) {
-            const layers = useLayerStore();
-            const selection = useSelectionStore();
+            const { layers } = useStore();
+            const layerPanel = useLayerPanelService();
             const parsed = JSON.parse(snapshot);
             layers.applySerialized(parsed.layersState);
-            selection.applySerialized(parsed.selectionState);
+            layerPanel.applySerialized(parsed.layerPanelState);
             this._commitVersion++; // ← Undo/Redo/롤백 시에도 썸네일 갱신
         },
         commit() {
@@ -47,11 +46,11 @@ export const useOutputStore = defineStore('output', {
             })
         },
         currentSnap() {
-            const layers = useLayerStore();
-            const selection = useSelectionStore();
+            const { layers } = useStore();
+            const layerPanel = useLayerPanelService();
             return JSON.stringify({
                 layersState: layers.serialize(),
-                selectionState: selection.serialize()
+                layerPanelState: layerPanel.serialize()
             });
         },
         setRollbackPoint(snapshot) {
@@ -82,7 +81,7 @@ export const useOutputStore = defineStore('output', {
             this._pendingRollback = null;
         },
         exportToJSON() {
-            const input = useInputStore();
+            const { input } = useStore();
             return `{
         "input": { "src": "${input.src || ''}", "size": { "w": ${input.width || 0}, "h": ${input.height || 0} } },
         "state": ${this.currentSnap()}

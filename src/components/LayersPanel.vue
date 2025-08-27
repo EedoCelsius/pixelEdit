@@ -1,126 +1,122 @@
 <template>
-  <div v-memo="[output.commitVersion, selection.ids, layers.count]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
-    <div v-for="id in layers.idsTopToBottom" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="id" :data-id="id" :class="{ selected: selection.isSelected(id), anchor: selection.anchorId===id, dragging: dragId===id }" draggable="true" @click="onLayerClick(id,$event)" @dragstart="onDragStart(id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(id,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(id,$event)">
+  <div v-memo="[output.commitVersion, layers.selectedIds, layers.count]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
+    <div v-for="props in layers.getProperties(layers.idsTopToBottom)" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="props.id" :data-id="props.id" :class="{ selected: layers.isSelected(props.id), anchor: layerPanel.anchorId===props.id, dragging: dragId===props.id }" draggable="true" @click="layerPanel.onLayerClick(props.id,$event)" @dragstart="onDragStart(props.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(props.id,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(props.id,$event)">
       <!-- 썸네일 -->
-      <div @click.stop="onThumbnailClick(id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
-        <svg :viewBox="stageStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
-          <rect x="0" y="0" :width="stageStore.canvas.width" :height="stageStore.canvas.height" :fill="patternUrl"/>
-          <path :d="layers.pathOf(id)" :fill="rgbaCssU32(layers.colorOf(id))" :opacity="layers.visibilityOf(id)?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+      <div @click.stop="onThumbnailClick(props.id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
+        <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
+          <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
+          <path :d="layers.pathOf(props.id)" :fill="rgbaCssU32(props.color)" :opacity="props.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
         </svg>
       </div>
       <!-- 색상 -->
       <div class="h-6 w-6 rounded border border-white/25 p-0 relative overflow-hidden">
-        <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :class="{ 'cursor-not-allowed': layers.lockedOf(id) }" :disabled="layers.lockedOf(id)" :value="rgbaToHexU32(layers.colorOf(id))" @pointerdown.stop @mousedown.stop @click.stop="onColorDown()" @input.stop="onColorInput(id, $event)" @change.stop="onColorChange()" title="색상 변경" />
+        <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :class="{ 'cursor-not-allowed': props.locked }" :disabled="props.locked" :value="rgbaToHexU32(props.color)" @pointerdown.stop @mousedown.stop @click.stop="onColorDown()" @input.stop="onColorInput(props.id, $event)" @change.stop="onColorChange()" title="색상 변경" />
       </div>
       <!-- 이름/픽셀 -->
       <div class="min-w-0 flex-1">
         <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
-          <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(id)" @keydown="onNameKey(id,$event)" @blur="finishRename(id,$event)">{{ layers.nameOf(id) }}</span>
+          <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(props.id)" @keydown="onNameKey(props.id,$event)" @blur="finishRename(props.id,$event)">{{ props.name }}</span>
         </div>
         <div class="text-xs text-slate-400">
-          <template v-if="layers.disconnectedCountOf(id) > 1">
-            <span class="cursor-pointer" @click.stop="onDisconnectedClick(id)">⚠️</span>
-            <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(id)">{{ layers.disconnectedCountOf(id) }} piece</span>
+          <template v-if="layers.disconnectedCountOf(props.id) > 1">
+            <span class="cursor-pointer" @click.stop="onDisconnectedClick(props.id)">⚠️</span>
+            <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(props.id)">{{ layers.disconnectedCountOf(props.id) }} piece</span>
             <span class="mx-1">|</span>
           </template>
-          <span class="cursor-pointer" @click.stop="onPixelCountClick(id)" title="같은 크기의 모든 레이어 선택">{{ layers.pixelCountOf(id) }} px</span>
+          <span class="cursor-pointer" @click.stop="onPixelCountClick(props.id)" title="같은 크기의 모든 레이어 선택">{{ props.pixels.length }} px</span>
         </div>
       </div>
       <!-- 액션 -->
       <div class="flex gap-1 justify-end">
         <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
-          <img :src="(layers.visibilityOf(id)?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(id)" />
+          <img :src="(props.visibility?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(props.id)" />
         </div>
         <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="잠금/해제">
-          <img :src="(layers.lockedOf(id)?icons.lock:icons.unlock)" alt="lock/unlock" class="w-4 h-4 cursor-pointer" @error="icons.lock=icons.unlock=''" @click.stop="toggleLock(id)" />
+          <img :src="(props.locked?icons.lock:icons.unlock)" alt="lock/unlock" class="w-4 h-4 cursor-pointer" @error="icons.lock=icons.unlock=''" @click.stop="toggleLock(props.id)" />
         </div>
         <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
-          <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(id)" />
+          <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(props.id)" />
         </div>
         </div>
     </div>
-    <div v-show="layers.idsTopToBottom.length===0" class="text-xs text-slate-400/80 py-6 text-center">(레이어가 없습니다)</div>
+      <div v-show="layers.idsTopToBottom.length===0" class="text-xs text-slate-400/80 py-6 text-center">(레이어가 없습니다)</div>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
-import { useStageStore } from '../stores/stage';
-import { useStageService } from '../services/stage';
-import { useLayerStore } from '../stores/layers';
-import { useSelectionStore } from '../stores/selection';
-import { useLayerService } from '../services/layers';
-import { useSelectService } from '../services/select';
-import { useOutputStore } from '../stores/output';
-import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, coordsToKey, clamp } from '../utils';
+import { useStore } from '../stores';
+import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, clamp, ensureCheckerboardPattern } from '../utils';
+import blockIcons from '../image/layer_block';
 
-const stageStore = useStageStore();
-const stageService = useStageService();
-const layers = useLayerStore();
-const selection = useSelectionStore();
-const layerSvc = useLayerService();
-const selectSvc = useSelectService();
-const output = useOutputStore();
+import { useService } from '../services';
+
+const { viewport: viewportStore, layers, output } = useStore();
+const { layerPanel, query, viewport } = useService();
 
 const dragging = ref(false);
 const dragId = ref(null);
 const editingId = ref(null);
 const listElement = ref(null);
-const icons = reactive({
-    show: 'image/layer_block/show.svg',
-    hide: 'image/layer_block/hide.svg',
-    lock: 'image/layer_block/locked.svg',
-    unlock: 'image/layer_block/unlocked.svg',
-    del: 'image/layer_block/delete.svg'
-});
+const icons = reactive(blockIcons);
 
-const patternUrl = computed(() => `url(#${stageService.ensureCheckerboardPattern(document.body)})`);
+const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
 
-function onLayerClick(id, event) {
-    if (event.shiftKey) {
-        selectSvc.selectRange(selection.anchorId ?? id, id);
-    } else if (event.ctrlKey || event.metaKey) {
-        selection.toggle(id);
-    } else {
-        selection.selectOne(id);
-    }
-    selection.setScrollRule({
-        type: "follow",
-        target: id
-    });
-}
 
-function onThumbnailClick(id) {
-    layerSvc.selectByColor(id);
-    selection.setScrollRule({
-        type: "follow",
-        target: id
-    });
-}
+  function onThumbnailClick(id) {
+      const color = layers.getProperty(id, 'color');
+      const ids = query.byColor(color);
+      if (ids.length) {
+          layers.replaceSelection(ids);
+          layerPanel.clearRange();
+      }
+      layerPanel.setScrollRule({
+          type: "follow",
+          target: id
+      });
+  }
 
-function onPixelCountClick(id) {
-    layerSvc.selectByPixelCount(id);
-    selection.setScrollRule({
-        type: "follow",
-        target: id
-    });
-}
+  function onPixelCountClick(id) {
+      const count = layers.getProperty(id, 'pixels').length;
+      const ids = count === 0 ? [id] : query.byPixelCount(count);
+      if (ids.length <= 1) {
+          layerPanel.setRange(id, id);
+      } else {
+          layers.replaceSelection(ids);
+          layerPanel.clearRange();
+      }
+      layerPanel.setScrollRule({
+          type: "follow",
+          target: id
+      });
+  }
 
-function onDisconnectedClick(id) {
-    layerSvc.selectDisconnectedLayers(id);
-    selection.setScrollRule({
-        type: "follow",
-        target: id
-    });
-}
+  function onDisconnectedClick(id) {
+      const ids = query.disconnected();
+      if (ids.length) {
+          layers.replaceSelection(ids);
+          layerPanel.clearRange();
+      }
+      layerPanel.setScrollRule({
+          type: "follow",
+          target: id
+      });
+  }
 
-function onDisconnectedCountClick(id) {
-    layerSvc.selectByDisconnectedCount(id);
-    selection.setScrollRule({
-        type: "follow",
-        target: id
-    });
-}
+  function onDisconnectedCountClick(id) {
+      const count = layers.disconnectedCountOf(id);
+      const ids = count <= 1 ? [id] : query.byDisconnectedCount(count);
+      if (ids.length <= 1) {
+          layerPanel.setRange(id, id);
+      } else {
+          layers.replaceSelection(ids);
+          layerPanel.clearRange();
+      }
+      layerPanel.setScrollRule({
+          type: "follow",
+          target: id
+      });
+  }
 
 function onDragStart(id, event) {
     dragging.value = true;
@@ -136,7 +132,7 @@ function onDragEnd() {
 
 function onDragOver(id, event) {
     const row = event.currentTarget;
-    if (selection.isSelected(id)) {
+    if (layers.isSelected(id)) {
         row.classList.remove('insert-before', 'insert-after');
         event.dataTransfer.dropEffect = 'none';
         return;
@@ -157,7 +153,7 @@ function onDrop(id, event) {
     const targetId = id;
     const rect = row.getBoundingClientRect();
     const placeBelow = (event.clientY - rect.top) > rect.height * 0.5;
-    layers.reorderLayers(selection.ids, targetId, placeBelow);
+    layers.reorderLayers(layers.selectedIds, targetId, placeBelow);
     output.commit();
 }
 
@@ -166,9 +162,14 @@ function onColorDown() {
 }
 
 function onColorInput(id, event) {
-    if (layers.lockedOf(id)) return;
     const colorU32 = hexToRgbaU32(event.target.value);
-    selection.isSelected(id) ? layerSvc.setColorForSelectedU32(colorU32) : layers.updateLayer(id, { colorU32 });
+    if (layers.isSelected(id)) {
+        for (const sid of layers.selectedIds) {
+            layers.updateProperties(sid, { color: colorU32 });
+        }
+    } else {
+        layers.updateProperties(id, { color: colorU32 });
+    }
 }
 
 function onColorChange() {
@@ -177,27 +178,39 @@ function onColorChange() {
 
 function toggleVisibility(id) {
     output.setRollbackPoint();
-    if (selection.isSelected(id)) layerSvc.setVisibilityForSelected(!layers.visibilityOf(id));
-    else layers.toggleVisibility(id);
+    if (layers.isSelected(id)) {
+        const value = !layers.getProperty(id, 'visibility');
+        for (const sid of layers.selectedIds) {
+            layers.updateProperties(sid, { visibility: value });
+        }
+    } else {
+        layers.toggleVisibility(id);
+    }
     output.commit();
 }
 
 function toggleLock(id) {
     output.setRollbackPoint();
-    if (selection.isSelected(id)) layerSvc.setLockedForSelected(!layers.lockedOf(id));
-    else layers.toggleLock(id);
+    if (layers.isSelected(id)) {
+        const value = !layers.getProperty(id, 'locked');
+        for (const sid of layers.selectedIds) {
+            layers.updateProperties(sid, { locked: value });
+        }
+    } else {
+        layers.toggleLock(id);
+    }
     output.commit();
 }
 
 function deleteLayer(id) {
     output.setRollbackPoint();
-    const targets = selection.isSelected(id) ? selection.ids : [id];
-    const belowId = layers.belowId(layers.lowermostIdOf(targets));
+    const targets = layers.isSelected(id) ? layers.selectedIds : [id];
+    const belowId = query.below(query.lowermost(targets));
     layers.deleteLayers(targets);
-    const newSelectId = layers.has(belowId) ? belowId : layers.lowermostId;
-    selection.selectOne(newSelectId);
+    const newSelectId = layers.has(belowId) ? belowId : query.lowermost();
+    layerPanel.setRange(newSelectId, newSelectId);
     if (newSelectId) {
-        selection.setScrollRule({
+        layerPanel.setScrollRule({
             type: "follow",
             target: newSelectId
         });
@@ -276,7 +289,7 @@ function ensureBlockVisibility({
     });
 }
 
-watch(() => selection.scrollRule, rule => nextTick(() => ensureBlockVisibility(rule)));
+  watch(() => layerPanel.scrollRule, rule => nextTick(() => ensureBlockVisibility(rule)));
 
 function startRename(id) {
     output.setRollbackPoint();
@@ -288,7 +301,7 @@ function startRename(id) {
     sel.removeAllRanges();
     sel.addRange(range);
     element.focus();
-    selection.setScrollRule({
+    layerPanel.setScrollRule({
         type: "follow",
         target: id
     });
@@ -297,24 +310,24 @@ function startRename(id) {
 function finishRename(id, event) {
     const element = document.querySelector(`.layer[data-id="${id}"] .nameText`);
     element.contentEditable = false;
-    const oldName = layers.nameOf(id);
+    const oldName = layers.getProperty(id, 'name');
     const text = event.target.innerText.trim();
     editingId.value = null;
     if (text && text !== oldName) {
-        layers.updateLayer(id, { name: text });
+        layers.updateProperties(id, { name: text });
         output.commit();
     } else {
         event.target.innerText = oldName;
         output.clearRollbackPoint();
     }
-    selection.setScrollRule({
+    layerPanel.setScrollRule({
         type: "follow",
         target: id
     });
 }
 
 function onNameKey(id, event) {
-    const name = layers.nameOf(id);
+    const name = layers.getProperty(id, 'name');
     if (event.key === 'Enter') {
         event.preventDefault();
         event.target.blur();
@@ -328,12 +341,12 @@ function onNameKey(id, event) {
 
 function handleGlobalPointerDown(event) {
     const target = event.target;
-    const stageEl = document.getElementById('stage');
+    const stageEl = viewport.element;
     const isStage = stageEl && stageEl.contains(target);
     const isLayers = listElement.value && listElement.value.contains(target);
     const isButton = !!target.closest('button');
     if (isStage || isLayers || isButton) return;
-    selection.clear();
+    layers.clearSelection();
 }
 
 onMounted(() => {
@@ -347,3 +360,24 @@ onUnmounted(() => {
     });
 });
 </script>
+
+<style scoped>
+/* 레이어 재정렬 표시 */
+.insert-before{box-shadow:inset 0 3px 0 0 rgba(56,189,248,.7)}
+.insert-after{box-shadow:inset 0 -3px 0 0 rgba(56,189,248,.7)}
+
+/* 선택 강조 */
+.layer.selected{
+  outline:2px solid rgba(56,189,248,.70);
+  background:linear-gradient(180deg,rgba(56,189,248,.12),rgba(56,189,248,.05));
+  border-color:rgba(56,189,248,.35)
+}
+.layer.selected.anchor{
+  outline:3px solid rgba(56,189,248,.95);
+  background:linear-gradient(180deg,rgba(56,189,248,.18),rgba(56,189,248,.07));
+  border-color:rgba(56,189,248,.6)
+}
+
+/* 드래그/이름편집 UX */
+.layers.dragging,.layers .layer.dragging{cursor:grabbing!important}
+</style>
