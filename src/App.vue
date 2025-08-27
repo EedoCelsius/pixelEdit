@@ -179,6 +179,8 @@ onMounted(async () => {
     layers.createLayer({});
   }
 
+  layerPanel.setScrollRule({ type: "follow", target: layers.order[0] });
+
   window.addEventListener('keydown', onKeydown);
   window.addEventListener('keyup', onKeyup);
   window.addEventListener('blur', () => {
