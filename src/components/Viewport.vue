@@ -1,5 +1,6 @@
 <template>
   <div ref="viewportEl" class="relative flex-1 min-h-0 p-2 overflow-hidden touch-none"
+       :style="{ cursor: toolSelectionService.getCursor() }"
        @wheel.prevent="viewportEvents.setWheel"
        @pointerdown="viewportEvents.setPointerDown"
        @pointermove="viewportEvents.setPointerMove"
@@ -9,7 +10,6 @@
          :style="{
            width: stage.width+'px',
            height: stage.height+'px',
-           cursor: toolSelectionService.getCursor(),
            transform: `translate(${stage.offset.x}px, ${stage.offset.y}px) scale(${stage.scale})`,
            transformOrigin: 'top left'
          }"
@@ -33,7 +33,7 @@
           <path v-for="y in (stage.height+1)" :key="'gy'+y" :d="'M 0 '+(y-1)+' H '+stage.width"></path>
         </g>
       </svg>
-      <!-- 오버레이 (선택, 추가, 제거, 마퀴) -->
+      <!-- 오버레이 (선택, 추가, 제거) -->
       <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
           <!-- Selection overlay (sky blue) -->
           <path id="selectionOverlay"
@@ -43,17 +43,6 @@
                 :stroke="OVERLAY_CONFIG.SELECTED.STROKE_COLOR"
                 :stroke-width="OVERLAY_CONFIG.SELECTED.STROKE_WIDTH_SCALE / Math.max(1, stage.scale)"
                 shape-rendering="crispEdges" />
-
-          <!-- 2. 마퀴 사각형 (노란색) -->
-          <rect id="marqueeRect"
-                :x="marquee.x" :y="marquee.y"
-                :width="marquee.w" :height="marquee.h"
-                :visibility="marquee.visible ? 'visible' : 'hidden'"
-                :fill="OVERLAY_CONFIG.MARQUEE.FILL_COLOR"
-                :stroke="OVERLAY_CONFIG.MARQUEE.STROKE_COLOR"
-                :stroke-width="OVERLAY_CONFIG.MARQUEE.STROKE_WIDTH_SCALE / Math.max(1, stage.scale)"
-                shape-rendering="crispEdges" />
-
         <!-- Helper overlay -->
         <path id="helperOverlay"
               :d="helperOverlay.path"
@@ -64,11 +53,24 @@
               shape-rendering="crispEdges" />
       </svg>
     </div>
+    <!-- Marquee overlay -->
+    <svg class="absolute top-0 left-0 w-full h-full pointer-events-none block" :viewBox="viewportViewBox" preserveAspectRatio="none">
+        <rect id="marqueeRect"
+              :x="marqueeRect.x"
+              :y="marqueeRect.y"
+              :width="marqueeRect.w"
+              :height="marqueeRect.h"
+              :visibility="marquee.visible ? 'visible' : 'hidden'"
+              :fill="OVERLAY_CONFIG.MARQUEE.FILL_COLOR"
+              :stroke="OVERLAY_CONFIG.MARQUEE.STROKE_COLOR"
+              :stroke-width="OVERLAY_CONFIG.MARQUEE.STROKE_WIDTH_SCALE"
+              shape-rendering="crispEdges" />
+    </svg>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, reactive } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
 import { OVERLAY_CONFIG, GRID_STROKE_COLOR } from '@/constants';
@@ -79,6 +81,27 @@ const { overlay, toolSelection: toolSelectionService, viewport } = useService();
 const viewportEl = ref(null);
 const marquee = toolSelectionService.marquee;
 const stage = viewportStore.stage;
+
+const viewportSize = reactive({ width: 0, height: 0 });
+const viewportViewBox = computed(() => `0 0 ${viewportSize.width} ${viewportSize.height}`);
+const marqueeRect = computed(() => {
+    if (!marquee.visible || !marquee.anchorEvent || !marquee.tailEvent)
+        return { x: 0, y: 0, w: 0, h: 0 };
+    const rect = viewportStore.element.getBoundingClientRect();
+    const style = getComputedStyle(viewportStore.element);
+    const left = rect.left + (parseFloat(style.paddingLeft) || 0);
+    const top = rect.top + (parseFloat(style.paddingTop) || 0);
+    const ax = marquee.anchorEvent.clientX - left;
+    const ay = marquee.anchorEvent.clientY - top;
+    const tx = marquee.tailEvent.clientX - left;
+    const ty = marquee.tailEvent.clientY - top;
+    return {
+        x: Math.min(ax, tx),
+        y: Math.min(ay, ty),
+        w: Math.abs(tx - ax),
+        h: Math.abs(ty - ay),
+    };
+});
 
 const helperOverlay = computed(() => {
     const path = overlay.helper.path;
@@ -110,6 +133,13 @@ const onElementResize = () => {
     prevClientWidth = clientWidth;
     prevClientHeight = clientHeight;
     if (scrollChanged) return;
+    const style = getComputedStyle(el);
+    const paddingLeft = parseFloat(style.paddingLeft) || 0;
+    const paddingRight = parseFloat(style.paddingRight) || 0;
+    const paddingTop = parseFloat(style.paddingTop) || 0;
+    const paddingBottom = parseFloat(style.paddingBottom) || 0;
+    viewportSize.width = (clientWidth || 0) - paddingLeft - paddingRight;
+    viewportSize.height = (clientHeight || 0) - paddingTop - paddingBottom;
     viewportStore.recalcScales();
     viewportStore.setScale(stage.containScale);
     viewport.interpolatePosition(false);
