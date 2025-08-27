@@ -95,9 +95,9 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         if (shape.value === 'rect') {
             const previousTailCoord = viewportStore.clientToCoord(marquee.tailEvent);
             const currentCoord = viewportStore.clientToCoord(e);
+            marquee.tailEvent = e;
             if (previousTailCoord[0] !== currentCoord[0] || previousTailCoord[1] !== currentCoord[1])
                 previewPixels.value = getPixelsInsideMarquee();
-            marquee.tailEvent = e;
         }
         else if (shape.value === 'stroke') {
             const pixel = viewportStore.clientToCoord(e);
