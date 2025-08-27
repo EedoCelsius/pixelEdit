@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { readonly, reactive } from 'vue';
 import { coordToKey, keyToCoord, pixelsToUnionPath, randColorU32, groupConnectedPixels } from '../utils';
-import { useLayerGroupStore } from './layerGroups';
 
 export const useLayerStore = defineStore('layers', {
     state: () => ({
@@ -58,26 +57,20 @@ export const useLayerStore = defineStore('layers', {
         selectionExists: (state) => state._selection.size > 0,
         isSelected: (state) => (id) => state._selection.has(id),
         compositeColorAt: (state) => (coord) => {
-            const groups = useLayerGroupStore();
             const key = coordToKey(coord);
             for (let i = state._order.length - 1; i >= 0; i--) {
                 const id = state._order[i];
                 if (!state._visibility[id]) continue;
-                const gid = groups.groupOfLayer(id);
-                if (!groups.isVisible(gid)) continue;
                 const set = state._pixels[id];
                 if (set.has(key)) return (state._color[id] >>> 0);
             }
             return 0x00000000 >>> 0;
         },
         topVisibleIdAt: (state) => (coord) => {
-            const groups = useLayerGroupStore();
             const key = coordToKey(coord);
             for (let i = state._order.length - 1; i >= 0; i--) {
                 const id = state._order[i];
                 if (!state._visibility[id]) continue;
-                const gid = groups.groupOfLayer(id);
-                if (!groups.isVisible(gid)) continue;
                 const set = state._pixels[id];
                 if (set.has(key)) return id;
             }
@@ -110,8 +103,6 @@ export const useLayerStore = defineStore('layers', {
         /** Update properties of a layer */
         updateProperties(id, props) {
             if (this._name[id] == null) return;
-            const groups = useLayerGroupStore();
-            if (groups.isLocked(groups.groupOfLayer(id))) return;
             if (props.name !== undefined) this._name[id] = props.name;
             if (props.visibility !== undefined) this._visibility[id] = !!props.visibility;
             if (props.locked !== undefined) this._locked[id] = !!props.locked;
@@ -120,34 +111,24 @@ export const useLayerStore = defineStore('layers', {
         },
         toggleVisibility(id) {
             if (this._name[id] == null) return;
-            const groups = useLayerGroupStore();
-            if (groups.isLocked(groups.groupOfLayer(id))) return;
             this._visibility[id] = !this._visibility[id];
         },
         toggleLock(id) {
             if (this._name[id] == null) return;
-            const groups = useLayerGroupStore();
-            if (groups.isLocked(groups.groupOfLayer(id))) return;
             this._locked[id] = !this._locked[id];
         },
         addPixels(id, pixels) {
             if (this._locked[id]) return;
-            const groups = useLayerGroupStore();
-            if (groups.isLocked(groups.groupOfLayer(id))) return;
             const set = this._pixels[id];
             for (const coord of pixels) set.add(coordToKey(coord));
         },
         removePixels(id, pixels) {
             if (this._locked[id]) return;
-            const groups = useLayerGroupStore();
-            if (groups.isLocked(groups.groupOfLayer(id))) return;
             const set = this._pixels[id];
             for (const coord of pixels) set.delete(coordToKey(coord));
         },
         togglePixel(id, coord) {
             if (this._locked[id]) return;
-            const groups = useLayerGroupStore();
-            if (groups.isLocked(groups.groupOfLayer(id))) return;
             const set = this._pixels[id];
             const key = coordToKey(coord);
             if (set.has(key)) set.delete(key);
@@ -155,12 +136,9 @@ export const useLayerStore = defineStore('layers', {
         },
         /** Remove layers by ids */
         deleteLayers(ids) {
-            const groups = useLayerGroupStore();
             const idSet = new Set(ids);
             this._order = this._order.filter(id => !idSet.has(id));
             for (const id of idSet) {
-                const gid = groups.groupOfLayer(id);
-                if (gid != null) groups.removeLayers(gid, [id]);
                 delete this._name[id];
                 delete this._color[id];
                 delete this._visibility[id];
@@ -179,8 +157,6 @@ export const useLayerStore = defineStore('layers', {
             const selectionInStack = this._order.filter(id => selectionSet.has(id));
             keptIds.splice(targetIndex, 0, ...selectionInStack);
             this._order = keptIds;
-            const groups = useLayerGroupStore();
-            groups.syncFromLayerOrder(this._order);
         },
         deleteEmptyLayers() {
             const emptyIds = this._order.filter(id => {
