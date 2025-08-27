@@ -170,7 +170,7 @@ onMounted(async () => {
       layers.createLayer({
         name: `Auto ${i+1}`,
         color: segment.colorU32,
-        visible: true,
+        visibility: true,
         pixels: segment.pixels
       });
     }

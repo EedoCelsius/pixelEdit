@@ -118,7 +118,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
         const newLayerId = layers.createLayer({
             name: `Cut of ${layers.getProperty(sourceId, 'name')}`,
             color: layers.getProperty(sourceId, 'color'),
-            visible: layers.getProperty(sourceId, 'visible'),
+            visibility: layers.getProperty(sourceId, 'visibility'),
             pixels: cutCoords,
         }, sourceId);
 

@@ -7,7 +7,7 @@ export const useLayerStore = defineStore('layers', {
         _order: [],
         _name: {},
         _color: {},
-        _visible: {},
+        _visibility: {},
         _locked: {},
         _pixels: {},
         _selection: new Set()
@@ -28,8 +28,8 @@ export const useLayerStore = defineStore('layers', {
                     return state._name[id];
                 case 'color':
                     return (state._color[id] >>> 0);
-                case 'visible':
-                    return !!state._visible[id];
+                case 'visibility':
+                    return !!state._visibility[id];
                 case 'locked':
                     return !!state._locked[id];
                 case 'pixels':
@@ -43,7 +43,7 @@ export const useLayerStore = defineStore('layers', {
                 id,
                 name: state._name[id],
                 color: (state._color[id] >>> 0),
-                visible: !!state._visible[id],
+                visibility: !!state._visibility[id],
                 locked: !!state._locked[id],
                 pixels: [...state._pixels[id]].map(keyToCoord)
             });
@@ -60,7 +60,7 @@ export const useLayerStore = defineStore('layers', {
             const key = coordToKey(coord);
             for (let i = state._order.length - 1; i >= 0; i--) {
                 const id = state._order[i];
-                if (!state._visible[id]) continue;
+                if (!state._visibility[id]) continue;
                 const set = state._pixels[id];
                 if (set.has(key)) return (state._color[id] >>> 0);
             }
@@ -70,7 +70,7 @@ export const useLayerStore = defineStore('layers', {
             const key = coordToKey(coord);
             for (let i = state._order.length - 1; i >= 0; i--) {
                 const id = state._order[i];
-                if (!state._visible[id]) continue;
+                if (!state._visibility[id]) continue;
                 const set = state._pixels[id];
                 if (set.has(key)) return id;
             }
@@ -87,7 +87,7 @@ export const useLayerStore = defineStore('layers', {
         createLayer(layerProperties = {}, above = null) {
             const id = this._allocId();
             this._name[id] = layerProperties.name || 'Layer';
-            this._visible[id] = layerProperties.visible ?? true;
+            this._visibility[id] = layerProperties.visibility ?? true;
             this._locked[id] = layerProperties.locked ?? false;
             this._color[id] = (layerProperties.color ?? randColorU32()) >>> 0;
             const keyedPixels = layerProperties.pixels ? layerProperties.pixels.map(coordToKey) : [];
@@ -104,14 +104,14 @@ export const useLayerStore = defineStore('layers', {
         updateProperties(id, props) {
             if (this._name[id] == null) return;
             if (props.name !== undefined) this._name[id] = props.name;
-            if (props.visible !== undefined) this._visible[id] = !!props.visible;
+            if (props.visibility !== undefined) this._visibility[id] = !!props.visibility;
             if (props.locked !== undefined) this._locked[id] = !!props.locked;
             if (!this._locked[id] && props.color !== undefined) this._color[id] = (props.color >>> 0);
             if (!this._locked[id] && props.pixels !== undefined) this._pixels[id] = new Set(props.pixels.map(coordToKey));
         },
         toggleVisibility(id) {
             if (this._name[id] == null) return;
-            this._visible[id] = !this._visible[id];
+            this._visibility[id] = !this._visibility[id];
         },
         toggleLock(id) {
             if (this._name[id] == null) return;
@@ -141,7 +141,7 @@ export const useLayerStore = defineStore('layers', {
             for (const id of idSet) {
                 delete this._name[id];
                 delete this._color[id];
-                delete this._visible[id];
+                delete this._visibility[id];
                 delete this._locked[id];
                 delete this._pixels[id];
             }
@@ -189,7 +189,7 @@ export const useLayerStore = defineStore('layers', {
                 order: this._order.slice(),
                 byId: Object.fromEntries(this._order.map(id => [id, {
                     name: this._name[id],
-                    visible: !!this._visible[id],
+                    visibility: !!this._visibility[id],
                     locked: !!this._locked[id],
                     color: (this._color[id] >>> 0),
                     pixels: [...this._pixels[id]].map(key => keyToCoord(key))
@@ -204,7 +204,7 @@ export const useLayerStore = defineStore('layers', {
             this._order = [];
             this._name = {};
             this._color = {};
-            this._visible = {};
+            this._visibility = {};
             this._locked = {};
             this._pixels = {};
             // rebuild
@@ -213,7 +213,7 @@ export const useLayerStore = defineStore('layers', {
                 const info = byId[idStr] || byId[id];
                 if (!info) continue;
                 this._name[id] = info.name || 'Layer';
-                this._visible[id] = !!info.visible;
+                this._visibility[id] = !!info.visibility;
                 this._locked[id] = !!info.locked;
                 this._color[id] = (info.color ?? randColorU32()) >>> 0;
                 const keyedPixels = info.pixels ? info.pixels.map(coordToKey) : [];

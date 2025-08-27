@@ -45,7 +45,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
             const newLayerId = layers.createLayer({
                 name: `Copy of ${layer.name}`,
                 color: layer.color,
-                visible: layer.visible,
+                visibility: layer.visibility,
                 pixels
             }, id);
             newLayerIds.push(newLayerId);
@@ -64,14 +64,14 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         const originalLayer = layers.getProperties(layerId);
         const originalName = originalLayer.name;
         const originalColor = originalLayer.color;
-        const originalVisibility = originalLayer.visible;
+        const originalVisibility = originalLayer.visibility;
         const originalIndex = layers.indexOfLayer(layerId);
 
         const newIds = components.reverse().map((componentPixels, index) => (
             layers.createLayer({
                 name: `${originalName} #${components.length - index}`,
                 color: originalColor,
-                visible: originalVisibility,
+                visibility: originalVisibility,
                 pixels: componentPixels
             })
         ));
