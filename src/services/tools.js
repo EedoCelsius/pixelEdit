@@ -4,7 +4,7 @@ import { useToolSelectionService } from './toolSelection';
 import { useOverlayService } from './overlay';
 import { useStore } from '../stores';
 import { OVERLAY_CONFIG, CURSOR_CONFIG } from '@/constants';
-import { coordToKey, keyToCoord } from '../utils';
+import { coordToKey } from '../utils';
 
 export const useDrawToolService = defineStore('drawToolService', () => {
     const tool = useToolSelectionService();
@@ -17,8 +17,7 @@ export const useDrawToolService = defineStore('drawToolService', () => {
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.active !== 'draw' || layers.selectionCount !== 1) return;
         overlay.helper.config = OVERLAY_CONFIG.ADD;
-        overlay.helper.clear();
-        pixels.forEach(p => overlay.helper.pixels.add(coordToKey(p)));
+        overlay.helper.setPixels(pixels);
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.active !== 'draw' || layers.selectionCount !== 1) return;
@@ -39,8 +38,7 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.active !== 'erase' || layers.selectionCount !== 1) return;
         overlay.helper.config = OVERLAY_CONFIG.REMOVE;
-        overlay.helper.clear();
-        pixels.forEach(p => overlay.helper.pixels.add(coordToKey(p)));
+        overlay.helper.setPixels(pixels);
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.active !== 'erase' || layers.selectionCount !== 1) return;
@@ -61,8 +59,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.active !== 'globalErase') return;
         overlay.helper.config = OVERLAY_CONFIG.REMOVE;
-        overlay.helper.clear();
-        pixels.forEach(p => overlay.helper.pixels.add(coordToKey(p)));
+        overlay.helper.setPixels(pixels);
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.active !== 'globalErase' || !pixels.length) return;
@@ -94,14 +91,13 @@ export const useCutToolService = defineStore('cutToolService', () => {
         const sourceKeys = new Set(layers.getProperty(sourceId, 'pixels').map(coordToKey));
 
         overlay.helper.config = OVERLAY_CONFIG.REMOVE;
-        overlay.helper.clear();
-
+        const previewCoords = [];
         for (const coord of pixels) {
-            const previewKey = coordToKey(coord);
-            if (sourceKeys.has(previewKey)) {
-                overlay.helper.pixels.add(previewKey);
+            if (sourceKeys.has(coordToKey(coord))) {
+                previewCoords.push(coord);
             }
         }
+        overlay.helper.setPixels(previewCoords);
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.active !== 'cut' || layers.selectionCount !== 1) return;
@@ -160,12 +156,13 @@ export const useSelectService = defineStore('selectService', () => {
             }
         }
 
-        overlay.helper.clear();
+        const highlightIds = [];
         intersectedIds.forEach(id => {
             if (mode === 'remove' && !layers.isSelected(id)) return;
             if (mode === 'add' && layers.isSelected(id)) return;
-            overlay.helper.add(id);
+            highlightIds.push(id);
         });
+        overlay.helper.setLayers(highlightIds);
     });
 
     watch(() => tool.affectedPixels, (pixels) => {

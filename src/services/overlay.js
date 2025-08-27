@@ -9,20 +9,34 @@ export const useOverlayService = defineStore('overlayService', () => {
 
     function createOverlayState() {
         const pixelKeys = reactive(new Set());
+        const pixels = computed(() => Array.from(pixelKeys).map(keyToCoord));
         const path = computed(() => {
             if (!pixelKeys.size) return '';
-            const coords = Array.from(pixelKeys).map(keyToCoord);
-            return pixelsToUnionPath(coords);
+            return pixelsToUnionPath(pixels.value);
         });
         function clear() {
             pixelKeys.clear();
         }
-        function add(id) {
-            if (id == null) return;
-            const pixels = layers.getProperty(id, 'pixels') || [];
-            for (const coord of pixels) pixelKeys.add(coordToKey(coord));
+        function addLayers(ids) {
+            if (!Array.isArray(ids)) ids = [ids];
+            for (const id of ids) {
+                if (id == null) continue;
+                const layerPixels = layers.getProperty(id, 'pixels') || [];
+                addPixels(layerPixels);
+            }
         }
-        return { pixels: pixelKeys, path, clear, add };
+        function setLayers(ids) {
+            pixelKeys.clear();
+            addLayers(ids);
+        }
+        function addPixels(coords) {
+            for (const coord of coords) pixelKeys.add(coordToKey(coord));
+        }
+        function setPixels(coords) {
+            pixelKeys.clear();
+            addPixels(coords);
+        }
+        return { pixels, path, clear, addLayers, setLayers, addPixels, setPixels };
     }
 
     const selection = createOverlayState();
@@ -30,8 +44,7 @@ export const useOverlayService = defineStore('overlayService', () => {
     const helperConfig = ref(OVERLAY_CONFIG.ADD);
 
     function rebuildSelection() {
-        selection.clear();
-        layers.selectedIds.forEach(id => selection.add(id));
+        selection.setLayers(layers.selectedIds);
     }
 
     watch(() => layers.selectedIds.slice(), rebuildSelection, { immediate: true });
