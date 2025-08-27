@@ -25,14 +25,14 @@ export const useViewportStore = defineStore('viewport', {
             ));
             const minScale = Math.max(1, containScale * MIN_SCALE_RATIO);
             const scale = Math.max(state._stage.scale, minScale);
-            return readonly(Object.freeze({
+            return readonly({
                 width: state._stage.width,
                 height: state._stage.height,
                 scale,
-                offset: Object.freeze({ x: state._stage.offset.x, y: state._stage.offset.y }),
+                offset: { x: state._stage.offset.x, y: state._stage.offset.y },
                 minScale,
                 containScale,
-            }));
+            });
         },
         display: (state) => state._display,
         imageSrc: (state) => state._imageSrc,
