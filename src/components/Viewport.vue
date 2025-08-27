@@ -1,5 +1,5 @@
 <template>
-  <div ref="viewportEl" class="relative flex-1 min-h-0 p-2 overflow-hidden touch-none"
+  <div ref="viewport" class="relative flex-1 min-h-0 p-2 overflow-hidden touch-none"
        :style="{ cursor: toolSelectionService.getCursor() }"
        @wheel.prevent="viewportEvents.setWheel"
        @pointerdown="viewportEvents.setPointerDown"
@@ -70,7 +70,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, reactive } from 'vue';
+import { useTemplateRef, computed, onMounted, onUnmounted } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
 import { OVERLAY_CONFIG, GRID_STROKE_COLOR } from '@/constants';
@@ -78,7 +78,7 @@ import { rgbaCssU32, ensureCheckerboardPattern } from '../utils';
 
 const { viewport: viewportStore, layers, viewportEvent: viewportEvents } = useStore();
 const { overlay, toolSelection: toolSelectionService, viewport } = useService();
-const viewportEl = ref(null);
+const viewportEl = useTemplateRef('viewport');
 const stage = viewportStore.stage;
 
 const viewportViewBox = computed(() => `0 0 ${viewportStore.content.width} ${viewportStore.content.height}`);
@@ -116,22 +116,15 @@ const helperOverlay = computed(() => {
 
 const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
 
-const onElementResize = () => {
-    viewportStore.recalcContentSize();
-    viewportStore.setScale(stage.containScale);
-    viewport.interpolatePosition(false);
-};
-
 const onImageLoad = () => {
     viewportStore.recalcContentSize();
     viewportStore.setScale(stage.containScale);
-    viewport.interpolatePosition(false);
+    viewport.centerPosition();
 };
 
-const resizeObserver = new ResizeObserver(onElementResize);
+const resizeObserver = new ResizeObserver(viewportStore.recalcContentSize);
 onMounted(() => {
-    viewport.setElement(viewportEl.value);
-    requestAnimationFrame(onElementResize);
+    viewport.setElement(viewportEl);
     resizeObserver.observe(viewport.element);
 });
 onUnmounted(resizeObserver.disconnect);

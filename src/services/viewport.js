@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, watch } from 'vue';
 import { useStore } from '../stores';
-import { clamp } from '../utils';
 import { WHEEL_ZOOM_IN_FACTOR, WHEEL_ZOOM_OUT_FACTOR, POSITION_LERP_EXPONENT } from '@/constants';
 
 export const useViewportService = defineStore('viewportService', () => {
@@ -60,22 +59,26 @@ export const useViewportService = defineStore('viewportService', () => {
     lastTouchDistance = dist;
   }
 
-  function interpolatePosition(soft = true) {
-    if (!viewportStore.element) return;
+  function interpolatePosition() {
+    const stage = viewportStore.stage
     const width = viewportStore.content.width;
     const height = viewportStore.content.height;
-    const scaledWidth = viewportStore.stage.width * viewportStore.stage.scale;
-    const scaledHeight = viewportStore.stage.height * viewportStore.stage.scale;
-    const maxX = width - scaledWidth;
-    const maxY = height - scaledHeight;
-    const { offset } = viewportStore.stage;
-    const targetX = maxX >= 0 ? maxX / 2 : clamp(offset.x, maxX, 0);
-    const targetY = maxY >= 0 ? maxY / 2 : clamp(offset.y, maxY, 0);
-    const strength = soft ? (viewportStore.stage.minScale / viewportStore.stage.scale) ** POSITION_LERP_EXPONENT : 1;
+    const scaledWidth = stage.width * stage.scale;
+    const scaledHeight = stage.height * stage.scale;
+    const strength = (stage.minScale / stage.scale) ** POSITION_LERP_EXPONENT;
     viewportStore.setOffset(
-      offset.x + (targetX - offset.x) * strength,
-      offset.y + (targetY - offset.y) * strength
+      stage.offset.x + ((width - scaledWidth) / 2 - stage.offset.x) * strength,
+      stage.offset.y + ((height - scaledHeight) / 2 - stage.offset.y) * strength
     );
+  }
+
+  function centerPosition() {
+    const stage = viewportStore.stage
+    const width = viewportStore.content.width;
+    const height = viewportStore.content.height;
+    const scaledWidth = stage.width * stage.scale;
+    const scaledHeight = stage.height * stage.scale;
+    viewportStore.setOffset((width - scaledWidth) / 2, (height - scaledHeight) / 2);
   }
 
   watch(
@@ -100,6 +103,6 @@ export const useViewportService = defineStore('viewportService', () => {
   return {
     element,
     setElement,
-    interpolatePosition,
+    centerPosition
   };
 });
