@@ -3,77 +3,91 @@ import { MIN_SCALE_RATIO } from '@/constants';
 
 export const useViewportStore = defineStore('viewport', {
     state: () => ({
-        stage: {
+        _stage: {
             width: 16,
             height: 16,
             scale: 16,
-            minScale: 1,
-            containScale: 1,
             offset: { x: 0, y: 0 },
         },
-        display: 'result', // 'result' | 'original'
-        imageSrc: '',
-        element: null,
-        client: { left: 0, top: 0, width: 0, height: 0 },
-        padding: { left: 0, right: 0, top: 0, bottom: 0 },
+        _display: 'result', // 'result' | 'original'
+        _imageSrc: '',
+        _element: null,
     }),
     getters: {
+        stage(state) {
+            const content = this.content;
+            const cw = content.width;
+            const ch = content.height;
+            const containScale = Math.max(1, Math.min(
+                cw / Math.max(1, state._stage.width),
+                ch / Math.max(1, state._stage.height)
+            ));
+            const minScale = Math.max(1, containScale * MIN_SCALE_RATIO);
+            const scale = Math.max(state._stage.scale, minScale);
+            return {
+                width: state._stage.width,
+                height: state._stage.height,
+                scale,
+                offset: state._stage.offset,
+                minScale,
+                containScale,
+            };
+        },
+        display: (state) => state._display,
+        imageSrc: (state) => state._imageSrc,
+        element: (state) => state._element,
+        content() {
+            const el = this.element;
+            if (!el)
+                return { top: 0, right: 0, bottom: 0, left: 0, width: 0, height: 0 };
+            const rect = el.getBoundingClientRect();
+            const style = getComputedStyle(el);
+            const padTop = parseFloat(style.paddingTop) || 0;
+            const padRight = parseFloat(style.paddingRight) || 0;
+            const padBottom = parseFloat(style.paddingBottom) || 0;
+            const padLeft = parseFloat(style.paddingLeft) || 0;
+            const top = rect.top + padTop;
+            const left = rect.left + padLeft;
+            const right = rect.right - padRight;
+            const bottom = rect.bottom - padBottom;
+            return {
+                top,
+                right,
+                bottom,
+                left,
+                width: right - left,
+                height: bottom - top,
+            };
+        },
         // Canvas dimensions
-        viewBox: (state) => `0 0 ${state.stage.width} ${state.stage.height}`,
+        viewBox: (state) => `0 0 ${state._stage.width} ${state._stage.height}`,
         // UI labels
-        toggleLabel: (state) => state.display === 'original' ? '결과' : '원본',
+        toggleLabel: (state) => state._display === 'original' ? '결과' : '원본',
     },
     actions: {
         setElement(el) {
-            this.element = el;
+            this._element = el;
         },
         setOffset(x, y) {
-            this.stage.offset.x = x;
-            this.stage.offset.y = y;
+            this._stage.offset.x = x;
+            this._stage.offset.y = y;
         },
         setSize(newWidth, newHeight) {
-            this.stage.width = Math.max(1, newWidth | 0);
-            this.stage.height = Math.max(1, newHeight | 0);
+            this._stage.width = Math.max(1, newWidth | 0);
+            this._stage.height = Math.max(1, newHeight | 0);
         },
         setImage(src) {
-            this.imageSrc = src || '';
+            this._imageSrc = src || '';
         },
         setScale(newScale) {
-            this.stage.scale = Math.max(this.stage.minScale, newScale);
+            this._stage.scale = Math.max(this.stage.minScale, newScale);
         },
         toggleView() {
-            this.display = (this.display === 'original') ? 'result' : 'original';
-        },
-        refreshElementCache() {
-            if (!this.element) return;
-            const rect = this.element.getBoundingClientRect();
-            this.client.left = rect.left;
-            this.client.top = rect.top;
-            const style = getComputedStyle(this.element);
-            this.padding.left = parseFloat(style.paddingLeft) || 0;
-            this.padding.right = parseFloat(style.paddingRight) || 0;
-            this.padding.top = parseFloat(style.paddingTop) || 0;
-            this.padding.bottom = parseFloat(style.paddingBottom) || 0;
-            this.client.width = (this.element.clientWidth || 0) - this.padding.left - this.padding.right;
-            this.client.height = (this.element.clientHeight || 0) - this.padding.top - this.padding.bottom;
-        },
-        recalcScales() {
-            const width = this.client.width;
-            const height = this.client.height;
-            const containScale = Math.min(
-                width / Math.max(1, this.stage.width),
-                height / Math.max(1, this.stage.height)
-            );
-            this.stage.containScale = Math.max(1, containScale);
-            const minScale = Math.max(1, containScale * MIN_SCALE_RATIO);
-            this.stage.minScale = Math.max(1, minScale);
-            if (this.stage.scale < this.stage.minScale) {
-                this.stage.scale = this.stage.minScale;
-            }
+            this._display = (this._display === 'original') ? 'result' : 'original';
         },
         clientToCoord(event) {
-            const left = this.client.left + this.padding.left + this.stage.offset.x;
-            const top = this.client.top + this.padding.top + this.stage.offset.y;
+            const left = this.content.left + this.stage.offset.x;
+            const top = this.content.top + this.stage.offset.y;
             const x = Math.floor((event.clientX - left) / this.stage.scale);
             const y = Math.floor((event.clientY - top) / this.stage.scale);
             if (x < 0 || y < 0 || x >= this.stage.width || y >= this.stage.height) return null;
@@ -81,3 +95,4 @@ export const useViewportStore = defineStore('viewport', {
         },
     }
 });
+
