@@ -117,12 +117,12 @@ const helperOverlay = computed(() => {
 const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
 
 const onElementResize = () => {
-    viewportStore.setScale(stage.value.containScale);
+    viewportStore.setScale(stage.containScale);
     viewport.interpolatePosition(false);
 };
 
 const onImageLoad = () => {
-    viewportStore.setScale(stage.value.containScale);
+    viewportStore.setScale(stage.containScale);
     viewport.interpolatePosition(false);
 };
 
