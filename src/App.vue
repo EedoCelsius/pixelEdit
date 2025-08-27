@@ -41,7 +41,7 @@ import LayersToolbar from './components/LayersToolbar.vue';
 import LayersPanel from './components/LayersPanel.vue';
 import ExportPanel from './components/ExportPanel.vue';
 import ViewportToolbar from './components/ViewportToolbar.vue';
-const { input, viewport: viewportStore, layers, output, layerGroups } = useStore();
+const { input, viewport: viewportStore, layers, output } = useStore();
 const { layerPanel, query } = useService();
 const viewportToolbar = ref(null);
 
@@ -178,8 +178,6 @@ onMounted(async () => {
     layers.createLayer({});
     layers.createLayer({});
   }
-
-  layerGroups.initFromLayerStore();
 
   window.addEventListener('keydown', onKeydown);
   window.addEventListener('keyup', onKeyup);
