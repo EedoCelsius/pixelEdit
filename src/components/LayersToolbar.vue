@@ -1,6 +1,5 @@
 <template>
     <div class="flex items-center gap-2 p-2 flex-wrap">
-        <button @click="onAddGroup" title="Add group" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">G</button>
         <button @click="onAdd" title="Add layer" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
           <img :src="toolbarIcons.add" alt="Add layer" class="w-4 h-4">
         </button>
@@ -36,15 +35,9 @@ const onAdd = () => {
     const above = layers.selectionCount ? query.uppermost(layers.selectedIds) : null;
     const id = layers.createLayer({});
     if (above !== null) {
-        layers.reorderNodes([id], above, false);
+        layers.reorderLayers([id], above, false);
     }
     layerPanel.setRange(id, id);
-    output.commit();
-};
-const onAddGroup = () => {
-    output.setRollbackPoint();
-    const above = layers.selectionCount ? query.uppermost(layers.selectedIds) : null;
-    layers.createGroup('Group', above, null);
     output.commit();
 };
 const onMerge = () => {
