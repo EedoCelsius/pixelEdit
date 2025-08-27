@@ -10,9 +10,7 @@ export const useLayerStore = defineStore('layers', {
         _visibility: {},
         _locked: {},
         _pixels: {},
-        _selection: new Set(),
-        _groups: {},
-        _layerGroup: {}
+        _selection: new Set()
     }),
     getters: {
         exists: (state) => state._order.length > 0,
@@ -24,9 +22,6 @@ export const useLayerStore = defineStore('layers', {
         indexOfLayer: (state) => (id) => state._order.indexOf(id),
         pathOf: (state) => (id) => pixelsToUnionPath([...state._pixels[id]].map(keyToCoord)),
         disconnectedCountOf: (state) => (id) => groupConnectedPixels([...state._pixels[id]].map(keyToCoord)).length,
-        groupOf: (state) => (id) => state._layerGroup[id] ?? null,
-        groupName: (state) => (gid) => state._groups[gid]?.name,
-        groups: (state) => readonly(state._groups),
         getProperty: (state) => (id, prop) => {
             switch (prop) {
                 case 'name':
@@ -88,11 +83,6 @@ export const useLayerStore = defineStore('layers', {
             while (this.has(id)) id++;
             return id;
         },
-        _allocGroupId() {
-            let id = Date.now();
-            while (this.has(id) || this._groups[id]) id++;
-            return id;
-        },
         /** Create a layer and insert relative to a reference id (above = on top of it). If refId null -> push on top */
         createLayer(layerProperties = {}, above = null) {
             const id = this._allocId();
@@ -144,59 +134,11 @@ export const useLayerStore = defineStore('layers', {
             if (set.has(key)) set.delete(key);
             else set.add(key);
         },
-        /** Group management */
-        createGroup(name = 'Group', layerIds = []) {
-            const gid = this._allocGroupId();
-            this._groups[gid] = { name, layers: [] };
-            this.addLayersToGroup(gid, layerIds);
-            return gid;
-        },
-        addLayersToGroup(gid, layerIds = []) {
-            const group = this._groups[gid];
-            if (!group) return;
-            for (const id of layerIds) {
-                if (!this.has(id)) continue;
-                const prev = this._layerGroup[id];
-                if (prev && this._groups[prev]) {
-                    const arr = this._groups[prev].layers;
-                    this._groups[prev].layers = arr.filter(lid => lid !== id);
-                    if (this._groups[prev].layers.length === 0) delete this._groups[prev];
-                }
-                if (!group.layers.includes(id)) group.layers.push(id);
-                this._layerGroup[id] = gid;
-            }
-        },
-        removeLayersFromGroup(layerIds = []) {
-            for (const id of layerIds) {
-                const gid = this._layerGroup[id];
-                if (!gid) continue;
-                const group = this._groups[gid];
-                if (group) {
-                    group.layers = group.layers.filter(lid => lid !== id);
-                    if (group.layers.length === 0) delete this._groups[gid];
-                }
-                delete this._layerGroup[id];
-            }
-        },
-        removeGroup(gid) {
-            const group = this._groups[gid];
-            if (!group) return;
-            this.removeLayersFromGroup(group.layers.slice());
-        },
-        toggleGroupVisibility(gid) {
-            const group = this._groups[gid];
-            if (!group) return;
-            const visible = group.layers.some(id => this._visibility[id]);
-            for (const id of group.layers) {
-                this._visibility[id] = !visible;
-            }
-        },
         /** Remove layers by ids */
         deleteLayers(ids) {
             const idSet = new Set(ids);
             this._order = this._order.filter(id => !idSet.has(id));
             for (const id of idSet) {
-                this.removeLayersFromGroup([id]);
                 delete this._name[id];
                 delete this._color[id];
                 delete this._visibility[id];
@@ -252,7 +194,6 @@ export const useLayerStore = defineStore('layers', {
                     color: (this._color[id] >>> 0),
                     pixels: [...this._pixels[id]].map(key => keyToCoord(key))
                 }])),
-                groups: Object.fromEntries(Object.entries(this._groups).map(([gid, g]) => [gid, { name: g.name, layers: g.layers.slice() }])),
                 selection: [...this._selection]
             };
         },
@@ -266,8 +207,6 @@ export const useLayerStore = defineStore('layers', {
             this._visibility = {};
             this._locked = {};
             this._pixels = {};
-            this._groups = {};
-            this._layerGroup = {};
             // rebuild
             for (const idStr of order) {
                 const id = +idStr;
@@ -280,15 +219,6 @@ export const useLayerStore = defineStore('layers', {
                 const keyedPixels = info.pixels ? info.pixels.map(coordToKey) : [];
                 this._pixels[id] = reactive(new Set(keyedPixels));
                 this._order.push(id);
-            }
-            const groups = payload?.groups || {};
-            for (const gidStr of Object.keys(groups)) {
-                const gid = +gidStr;
-                const ginfo = groups[gidStr] || groups[gid];
-                if (!ginfo) continue;
-                const layerIds = (ginfo.layers || []).filter(id => this._name[id] != null);
-                this._groups[gid] = { name: ginfo.name || 'Group', layers: layerIds.slice() };
-                for (const lid of layerIds) this._layerGroup[lid] = gid;
             }
             this._selection = new Set(payload?.selection || []);
         }
