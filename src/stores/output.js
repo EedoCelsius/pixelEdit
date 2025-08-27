@@ -16,12 +16,10 @@ export const useOutputStore = defineStore('output', {
     },
     actions: {
         _apply(snapshot) {
-            const { layers, layerGroups } = useStore();
+            const { layers } = useStore();
             const layerPanel = useLayerPanelService();
             const parsed = JSON.parse(snapshot);
-            layerGroups.applySerialized(parsed.layerGroupsState);
             layers.applySerialized(parsed.layersState);
-            layerGroups.syncFromLayerOrder(layers.order);
             layerPanel.applySerialized(parsed.layerPanelState);
             this._commitVersion++; // ← Undo/Redo/롤백 시에도 썸네일 갱신
         },
@@ -48,11 +46,10 @@ export const useOutputStore = defineStore('output', {
             })
         },
         currentSnap() {
-            const { layers, layerGroups } = useStore();
+            const { layers } = useStore();
             const layerPanel = useLayerPanelService();
             return JSON.stringify({
                 layersState: layers.serialize(),
-                layerGroupsState: layerGroups.serialize(),
                 layerPanelState: layerPanel.serialize()
             });
         },
