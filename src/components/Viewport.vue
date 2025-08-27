@@ -95,8 +95,8 @@ const marqueeRect = computed(() => {
     return {
         x: Math.min(ax, tx),
         y: Math.min(ay, ty),
-        w: Math.abs(tx - ax),
-        h: Math.abs(ty - ay),
+        width: Math.abs(tx - ax),
+        height: Math.abs(ty - ay),
         visibility: marquee.visible ? 'visible' : 'hidden'
     };
 });

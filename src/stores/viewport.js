@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { readonly } from 'vue';
+import { clamp } from '../utils';
 import { MIN_SCALE_RATIO } from '@/constants';
 
 export const useViewportStore = defineStore('viewport', {
@@ -75,12 +76,12 @@ export const useViewportStore = defineStore('viewport', {
                 this._stage.scale = this._stage.minScale;
             }
         },
-        clientToCoord(event) {
+        clientToCoord(event, { allowViewport } = {}) {
             const left = this._content.left + this._stage.offset.x;
             const top = this._content.top + this._stage.offset.y;
-            const x = Math.floor((event.clientX - left) / this._stage.scale);
-            const y = Math.floor((event.clientY - top) / this._stage.scale);
-            if (x < 0 || y < 0 || x >= this._stage.width || y >= this._stage.height) return null;
+            let x = Math.floor((event.clientX - left) / this._stage.scale);
+            let y = Math.floor((event.clientY - top) / this._stage.scale);
+            if (!allowViewport && (x < 0 || y < 0 || x >= this._stage.width || y >= this._stage.height)) return null;
             return [x, y];
         },
     }

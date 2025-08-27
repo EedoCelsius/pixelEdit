@@ -35,29 +35,21 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     function getCursor() { return cursor[shape.value] || 'default'; }
 
     function getPixelsInsideMarquee() {
-        if (!marquee.anchorEvent || !marquee.tailEvent) return [];
-        const startCoord = viewportStore.clientToCoord(marquee.anchorEvent);
-        if (!startCoord) return [];
-        let currentCoord = viewportStore.clientToCoord(marquee.tailEvent);
-        if (!currentCoord) {
-            const left = viewportStore.content.left + viewportStore.stage.offset.x;
-            const top = viewportStore.content.top + viewportStore.stage.offset.y;
-            let x = Math.floor((marquee.tailEvent.clientX - left) / viewportStore.stage.scale);
-            let y = Math.floor((marquee.tailEvent.clientY - top) / viewportStore.stage.scale);
-            x = Math.min(Math.max(x, 0), viewportStore.stage.width - 1);
-            y = Math.min(Math.max(y, 0), viewportStore.stage.height - 1);
-            currentCoord = [x, y];
-        }
-        const minX = Math.min(startCoord[0], currentCoord[0]);
-        const maxX = Math.max(startCoord[0], currentCoord[0]);
-        const minY = Math.min(startCoord[1], currentCoord[1]);
-        const maxY = Math.max(startCoord[1], currentCoord[1]);
+        const startCoord = viewportStore.clientToCoord(marquee.anchorEvent, { allowViewport: true });
+        const currentCoord = viewportStore.clientToCoord(marquee.tailEvent, { allowViewport: true });
+
+        const minX = Math.max(Math.min(startCoord[0], currentCoord[0]), 0);
+        const maxX = Math.min(Math.max(startCoord[0], currentCoord[0]), viewportStore.stage.width - 1);
+        const minY = Math.max(Math.min(startCoord[1], currentCoord[1]), 0);
+        const maxY = Math.min(Math.max(startCoord[1], currentCoord[1]), viewportStore.stage.height - 1);
+
+        if (viewportStore.stage.width - 1 < minX || viewportStore.stage.height - 1 < minY || maxX < 0 || maxY < 0) return [];
+
         const pixels = [];
         for (let yy = minY; yy <= maxY; yy++)
             for (let xx = minX; xx <= maxX; xx++) pixels.push([xx, yy]);
         return pixels;
     }
-
 
     watch(() => viewportEvents.recent.pointer.down, (downs) => {
         for (const e of downs) {
@@ -93,8 +85,8 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         if (!e || viewportEvents.pinchIds) return;
         
         if (shape.value === 'rect') {
-            const previousTailCoord = viewportStore.clientToCoord(marquee.tailEvent);
-            const currentCoord = viewportStore.clientToCoord(e);
+            const previousTailCoord = viewportStore.clientToCoord(marquee.tailEvent, { allowViewport: true });
+            const currentCoord = viewportStore.clientToCoord(e, { allowViewport: true });
             marquee.tailEvent = e;
             if (previousTailCoord[0] !== currentCoord[0] || previousTailCoord[1] !== currentCoord[1])
                 previewPixels.value = getPixelsInsideMarquee();
@@ -112,8 +104,10 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         const e = viewportEvents.get('pointerup', pointer);
         if (!e || viewportEvents.pinchIds) return;
         
-        affectedPixels.value = previewPixels.value;
-        previewPixels.value = [];
+        if (previewPixels.value.length) {
+            affectedPixels.value = previewPixels.value;
+            previewPixels.value = [];
+        }
 
         output.commit();
         try { e.target.releasePointerCapture?.(pointer); } catch {}
