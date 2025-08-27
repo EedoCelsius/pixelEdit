@@ -81,9 +81,7 @@ const { overlay, toolSelection: toolSelectionService, viewport } = useService();
 const viewportEl = ref(null);
 const stage = viewportStore.stage;
 
-const viewportViewBox = computed(() => {
-    return `0 0 ${viewportStore.content.width} ${viewportStore.content.height}`;
-});
+const viewportViewBox = computed(() => `0 0 ${viewportStore.content.width} ${viewportStore.content.height}`);
 const marqueeRect = computed(() => {
     const marquee = toolSelectionService.marquee;
     if (!marquee.visible || !marquee.anchorEvent || !marquee.tailEvent)
