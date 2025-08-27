@@ -10,14 +10,13 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
 
     const prepared = ref('draw');
     const shape = ref('stroke');
-    const pointer = reactive({ status: 'idle', id: null });
     const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
     const cursor = reactive({ stroke: 'default', rect: 'default' });
     const previewPixels = ref([]);
     const affectedPixels = ref([]);
+    let pointer;
 
     const active = computed(() => {
-        if (pointer.status !== 'idle') return pointer.status;
         let tool = prepared.value;
         for (const { key, map } of TOOL_MODIFIERS) {
             if (!viewportEvents.isPressed(key)) continue;
@@ -37,11 +36,11 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
 
     function updateMarquee(currentEvent) {
         let props;
-        if (shape.value !== 'rect' || pointer.status === 'idle' || !viewportEvents.isDragging(pointer.id)) {
+        if (shape.value !== 'rect' || !pointer || !viewportEvents.isDragging(pointer)) {
             props = { visible: false, x: 0, y: 0, w: 0, h: 0 };
         }
         else {
-            const startEvent = viewportEvents.get('pointerdown', pointer.id);
+            const startEvent = viewportEvents.get('pointerdown', pointer);
             const startCoord = viewportStore.clientToCoord(startEvent);
             let currentCoord = viewportStore.clientToCoord(currentEvent);
             if (!currentCoord) {
@@ -84,57 +83,60 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
 
             output.setRollbackPoint();
             try { e.target.setPointerCapture?.(e.pointerId); } catch {}
+            
+            const pixel = viewportStore.clientToCoord(e);
+            if (pixel) previewPixels.value = [pixel];
 
-            pointer.status = active.value;
-            pointer.id = e.pointerId;
+            pointer = e.pointerId;
+            continue;
         }
     });
 
     watch(() => viewportEvents.recent.pointer.move, (moves) => {
-        for (const e of moves) {
-            if (viewportEvents.pinchIds) continue;
-            if (e.buttons !== 1) {
-                const pixel = viewportStore.clientToCoord(e);
-                if (pixel) previewPixels.value = [pixel];
-                else previewPixels.value = [];
-                continue;
-            }
-            updateMarquee(e);
-            
-            if (shape.value === 'rect') {
-                previewPixels.value = getPixelsInsideMarquee();
-            }
-            else if (shape.value === 'stroke') {
-                const pixel = viewportStore.clientToCoord(e);
-                if (!pixel) continue;
-                if (!previewPixels.value.find(p => p[0] === pixel[0] && p[1] === pixel[1])) previewPixels.value = [...previewPixels.value, pixel];
-            }
+        if (!pointer) {
+            const e = moves[0];
+            const pixel = viewportStore.clientToCoord(e);
+            if (pixel) previewPixels.value = [pixel];
+            else previewPixels.value = [];
+            return;
+        }
+        if (!moves.find(e => e.pointerId === pointer)) return;
+
+        const e = viewportEvents.get('pointermove', pointer);
+        if (!e || viewportEvents.pinchIds) return;
+        updateMarquee(e);
+        
+        if (shape.value === 'rect') {
+            previewPixels.value = getPixelsInsideMarquee();
+        }
+        else if (shape.value === 'stroke') {
+            const pixel = viewportStore.clientToCoord(e);
+            if (!pixel) return;
+            if (!previewPixels.value.find(p => p[0] === pixel[0] && p[1] === pixel[1])) previewPixels.value = [...previewPixels.value, pixel];
         }
     });
 
     watch(() => viewportEvents.recent.pointer.up, (ups) => {
-        for (const e of ups) {
-            if (e.button !== 0 || viewportEvents.pinchIds) continue;
-            updateMarquee(e);
-            
-            affectedPixels.value = previewPixels.value;
-            previewPixels.value = [];
+        if (!pointer || !ups.find(e => e.pointerId === pointer)) return;
+        
+        const e = viewportEvents.get('pointerup', pointer);
+        if (!e || viewportEvents.pinchIds) return;
+        updateMarquee(e);
+        affectedPixels.value = previewPixels.value;
+        previewPixels.value = [];
 
-            output.commit();
-            try { e.target.releasePointerCapture?.(pointer.id); } catch {}
+        output.commit();
+        try { e.target.releasePointerCapture?.(pointer); } catch {}
 
-            pointer.status = 'idle';
-            pointer.id = null;
-        }
+        pointer = null;
     });
 
     watch(() => [ viewportEvents.pinchIds, viewportEvents.recent.pointer.cancel ], ([pinches, cancels]) => {
-        if (!pinches.includes(pointer.id) || !cancels.includes(pointer.id)) return;
+        if (!pinches.includes(pointer) || !cancels.includes(pointer)) return;
         output.rollbackPending();
-        const startEvent = viewportEvents.get('pointerdown', pointer.id);
-        try { startEvent?.target?.releasePointerCapture?.(pointer.id); } catch {}
-        pointer.status = 'idle';
-        pointer.id = null;
+        const startEvent = viewportEvents.get('pointerdown', pointer);
+        try { startEvent?.target?.releasePointerCapture?.(pointer); } catch {}
+        pointer = null;
         updateMarquee();
         previewPixels.value = [];
         affectedPixels.value = [];
@@ -145,7 +147,6 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     return {
         prepared,
         shape,
-        pointer,
         marquee,
         previewPixels,
         affectedPixels,

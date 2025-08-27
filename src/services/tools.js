@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { watch } from 'vue';
 import { useToolSelectionService } from './toolSelection';
 import { useOverlayService } from './overlay';
+import { useLayerPanelService } from './layerPanel';
 import { useStore } from '../stores';
 import { OVERLAY_CONFIG, CURSOR_CONFIG } from '@/constants';
 import { coordToKey } from '../utils';
@@ -65,11 +66,10 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         if (tool.active !== 'globalErase' || !pixels.length) return;
         const targetIds = layers.selectionExists ? layers.selectedIds : layers.order;
         for (const id of targetIds) {
-            const props = layers.getProperties(id);
-            const set = new Set(props.pixels.map(coordToKey));
+            const targetKeys = new Set(layers.getProperty(id, "pixels").map(coordToKey));
             const pixelsToRemove = [];
             for (const coord of pixels) {
-                if (set.has(coordToKey(coord))) pixelsToRemove.push(coord);
+                if (targetKeys.has(coordToKey(coord))) pixelsToRemove.push(coord);
             }
             if (pixelsToRemove.length) layers.removePixels(id, pixelsToRemove);
         }
@@ -112,6 +112,8 @@ export const useCutToolService = defineStore('cutToolService', () => {
             }
         }
 
+        if (!cutCoords.length) return;
+        
         layers.removePixels(sourceId, cutCoords);
         const newLayerId = layers.createLayer({
             name: `Cut of ${layers.getProperty(sourceId, 'name')}`,
@@ -127,6 +129,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
 
 export const useSelectService = defineStore('selectService', () => {
     const overlay = useOverlayService();
+    const layerPanel = useLayerPanelService();
     const { layers, viewportEvent: viewportEvents } = useStore();
     const tool = useToolSelectionService();
     let mode = 'select';
@@ -139,7 +142,6 @@ export const useSelectService = defineStore('selectService', () => {
             const id = layers.topVisibleIdAt(coord);
             if (id !== null) intersectedIds.push(id);
         }
-        
         if (intersectedIds.length === 1) {
             if (!viewportEvents.isPressed('Shift')) {
                 mode = 'select';
@@ -183,6 +185,7 @@ export const useSelectService = defineStore('selectService', () => {
                 intersectedIds.forEach(id => currentSelection.add(id));
             }
             layers.replaceSelection([...currentSelection]);
+            layerPanel.setScrollRule({ type: 'follow', target: layers.selectedIds[0] });
         } else if (mode === 'select') {
             layers.clearSelection();
         }
