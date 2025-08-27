@@ -58,9 +58,9 @@
         <rect id="marqueeRect"
               :x="marqueeRect.x"
               :y="marqueeRect.y"
-              :width="marqueeRect.w"
-              :height="marqueeRect.h"
-              :visibility="marquee.visible ? 'visible' : 'hidden'"
+              :width="marqueeRect.width"
+              :height="marqueeRect.height"
+              :visibility="marqueeRect.visibility"
               :fill="OVERLAY_CONFIG.MARQUEE.FILL_COLOR"
               :stroke="OVERLAY_CONFIG.MARQUEE.STROKE_COLOR"
               :stroke-width="OVERLAY_CONFIG.MARQUEE.STROKE_WIDTH_SCALE"
@@ -79,14 +79,13 @@ import { rgbaCssU32, ensureCheckerboardPattern } from '../utils';
 const { viewport: viewportStore, layers, viewportEvent: viewportEvents } = useStore();
 const { overlay, toolSelection: toolSelectionService, viewport } = useService();
 const viewportEl = ref(null);
-const marquee = toolSelectionService.marquee;
 const stage = viewportStore.stage;
 
-const viewportSize = reactive({ width: 0, height: 0 });
-const viewportViewBox = computed(() => `0 0 ${viewportSize.width} ${viewportSize.height}`);
+const viewportViewBox = computed(() => `0 0 ${viewportStore.content.width} ${viewportStore.content.height}`);
 const marqueeRect = computed(() => {
+    const marquee = toolSelectionService.marquee;
     if (!marquee.visible || !marquee.anchorEvent || !marquee.tailEvent)
-        return { x: 0, y: 0, w: 0, h: 0 };
+        return { x: 0, y: 0, width: 0, height: 0, visibility: 'hidden' };
     const left = viewportStore.content.left;
     const top = viewportStore.content.top;
     const ax = marquee.anchorEvent.clientX - left;
@@ -98,6 +97,7 @@ const marqueeRect = computed(() => {
         y: Math.min(ay, ty),
         w: Math.abs(tx - ax),
         h: Math.abs(ty - ay),
+        visibility: marquee.visible ? 'visible' : 'hidden'
     };
 });
 
@@ -116,24 +116,8 @@ const helperOverlay = computed(() => {
 
 const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
 
-let prevOffsetWidth = 0;
-let prevOffsetHeight = 0;
-let prevClientWidth = 0;
-let prevClientHeight = 0;
-
 const onElementResize = () => {
-    const el = viewport.element;
-    const { offsetWidth, offsetHeight, clientWidth, clientHeight } = el;
-    const sizeChanged = offsetWidth !== prevOffsetWidth || offsetHeight !== prevOffsetHeight;
-    const scrollChanged = !sizeChanged && (clientWidth !== prevClientWidth || clientHeight !== prevClientHeight);
-    prevOffsetWidth = offsetWidth;
-    prevOffsetHeight = offsetHeight;
-    prevClientWidth = clientWidth;
-    prevClientHeight = clientHeight;
-    if (scrollChanged) return;
     viewportStore.recalcContentSize();
-    viewportSize.width = viewportStore.content.width;
-    viewportSize.height = viewportStore.content.height;
     viewportStore.setScale(stage.containScale);
     viewport.interpolatePosition(false);
 };
