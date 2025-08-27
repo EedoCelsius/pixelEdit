@@ -10,7 +10,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
 
     const prepared = ref('draw');
     const shape = ref('stroke');
-    const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
+    const marquee = reactive({ visible: false, anchorEvent: null, tailEvent: null });
     const cursor = reactive({ stroke: 'default', rect: 'default' });
     const previewPixels = ref([]);
     const affectedPixels = ref([]);
@@ -35,43 +35,46 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     function getCursor() { return cursor[shape.value] || 'default'; }
 
     function updateMarquee(currentEvent) {
-        let props;
-        if (shape.value !== 'rect' || !pointer || !viewportEvents.isDragging(pointer)) {
-            props = { visible: false, x: 0, y: 0, w: 0, h: 0 };
+        if (
+            shape.value !== 'rect' ||
+            !pointer ||
+            !viewportEvents.isDragging(pointer) ||
+            !currentEvent
+        ) {
+            marquee.visible = false;
+            marquee.anchorEvent = null;
+            marquee.tailEvent = null;
         }
         else {
             const startEvent = viewportEvents.get('pointerdown', pointer);
-            const startCoord = viewportStore.clientToCoord(startEvent);
-            let currentCoord = viewportStore.clientToCoord(currentEvent);
-            if (!currentCoord) {
-                const rect = viewportStore.element.getBoundingClientRect();
-                const style = getComputedStyle(viewportStore.element);
-                const left = rect.left + parseFloat(style.paddingLeft) + viewportStore.stage.offset.x;
-                const top = rect.top + parseFloat(style.paddingTop) + viewportStore.stage.offset.y;
-                let x = Math.floor((currentEvent.clientX - left) / viewportStore.stage.scale);
-                let y = Math.floor((currentEvent.clientY - top) / viewportStore.stage.scale);
-                x = Math.min(Math.max(x, 0), viewportStore.stage.width - 1);
-                y = Math.min(Math.max(y, 0), viewportStore.stage.height - 1);
-                currentCoord = [x, y];
-            }
-            const minX = Math.min(startCoord[0], currentCoord[0]);
-            const maxX = Math.max(startCoord[0], currentCoord[0]);
-            const minY = Math.min(startCoord[1], currentCoord[1]);
-            const maxY = Math.max(startCoord[1], currentCoord[1]);
-            props = {
-                visible: true,
-                x: minX,
-                y: minY,
-                w: maxX - minX + 1,
-                h: maxY - minY + 1,
-            };
+            marquee.visible = true;
+            marquee.anchorEvent = startEvent;
+            marquee.tailEvent = currentEvent;
         }
-        Object.assign(marquee, props);
     }
     function getPixelsInsideMarquee() {
+        if (!marquee.anchorEvent || !marquee.tailEvent) return [];
+        const startCoord = viewportStore.clientToCoord(marquee.anchorEvent);
+        if (!startCoord) return [];
+        let currentCoord = viewportStore.clientToCoord(marquee.tailEvent);
+        if (!currentCoord) {
+            const rect = viewportStore.element.getBoundingClientRect();
+            const style = getComputedStyle(viewportStore.element);
+            const left = rect.left + parseFloat(style.paddingLeft) + viewportStore.stage.offset.x;
+            const top = rect.top + parseFloat(style.paddingTop) + viewportStore.stage.offset.y;
+            let x = Math.floor((marquee.tailEvent.clientX - left) / viewportStore.stage.scale);
+            let y = Math.floor((marquee.tailEvent.clientY - top) / viewportStore.stage.scale);
+            x = Math.min(Math.max(x, 0), viewportStore.stage.width - 1);
+            y = Math.min(Math.max(y, 0), viewportStore.stage.height - 1);
+            currentCoord = [x, y];
+        }
+        const minX = Math.min(startCoord[0], currentCoord[0]);
+        const maxX = Math.max(startCoord[0], currentCoord[0]);
+        const minY = Math.min(startCoord[1], currentCoord[1]);
+        const maxY = Math.max(startCoord[1], currentCoord[1]);
         const pixels = [];
-        for (let yy = marquee.y; yy < marquee.y + marquee.h; yy++)
-            for (let xx = marquee.x; xx < marquee.x + marquee.w; xx++) pixels.push([xx, yy]);
+        for (let yy = minY; yy <= maxY; yy++)
+            for (let xx = minX; xx <= maxX; xx++) pixels.push([xx, yy]);
         return pixels;
     }
 
@@ -79,15 +82,16 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     watch(() => viewportEvents.recent.pointer.down, (downs) => {
         for (const e of downs) {
             if (e.button !== 0 || viewportEvents.pinchIds) continue;
-            updateMarquee(e);
+            updateMarquee();
 
             output.setRollbackPoint();
             try { e.target.setPointerCapture?.(e.pointerId); } catch {}
-            
+
             const pixel = viewportStore.clientToCoord(e);
             if (pixel) previewPixels.value = [pixel];
 
             pointer = e.pointerId;
+            updateMarquee(e);
             continue;
         }
     });
@@ -132,7 +136,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     });
 
     watch(() => [ viewportEvents.pinchIds, viewportEvents.recent.pointer.cancel ], ([pinches, cancels]) => {
-        if (!pinches.includes(pointer) || !cancels.includes(pointer)) return;
+        if (!pinches?.includes(pointer) || !cancels.includes(pointer)) return;
         output.rollbackPending();
         const startEvent = viewportEvents.get('pointerdown', pointer);
         try { startEvent?.target?.releasePointerCapture?.(pointer); } catch {}
