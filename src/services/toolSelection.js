@@ -1,20 +1,19 @@
 import { defineStore } from 'pinia';
 import { ref, reactive, computed, watch } from 'vue';
 import { useStore } from '../stores';
-import { useViewportService } from './viewport';
 import { useOverlayService } from './overlay';
-import { clamp, rgbaCssU32, rgbaCssObj } from '../utils';
+import { rgbaCssU32, rgbaCssObj } from '../utils';
 import { TOOL_MODIFIERS, OVERLAY_CONFIG } from '@/constants';
 
 export const useToolSelectionService = defineStore('toolSelectionService', () => {
     const { viewport: viewportStore, layers, input, viewportEvent: viewportEvents, output } = useStore();
-    const viewport = useViewportService();
     const overlay = useOverlayService();
 
     const prepared = ref('draw');
     const shape = ref('stroke');
-    const pointer = reactive({ status: 'idle', id: null, event: null });
+    const pointer = reactive({ status: 'idle', id: null });
     const marquee = reactive({ visible: false, x: 0, y: 0, w: 0, h: 0 });
+    const cursor = reactive({ stroke: 'default', rect: 'default' });
     const previewPixels = ref([]);
     const affectedPixels = ref([]);
 
@@ -34,35 +33,37 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
 
     function setPrepared(t) { prepared.value = t; }
     function setShape(s) { shape.value = s === 'rect' ? 'rect' : 'stroke'; }
+    function setCursor({ stroke, rect }) { cursor.stroke = stroke; cursor.rect = rect; }
+    function getCursor() { return cursor[shape.value] || 'default'; }
 
-    function calcMarquee(startEvent, currentEvent, viewportStore, viewportEl) {
-        if (!startEvent || !currentEvent || !viewportEl) return { visible: false, x: 0, y: 0, w: 0, h: 0 };
-        const rect = viewportEl.getBoundingClientRect();
-        const style = getComputedStyle(viewportEl);
-        const leftBase = rect.left + parseFloat(style.paddingLeft) + viewportStore.stage.offset.x;
-        const topBase = rect.top + parseFloat(style.paddingTop) + viewportStore.stage.offset.y;
-        const scale = viewportStore.stage.scale;
-        const width = viewportStore.stage.width;
-        const height = viewportStore.stage.height;
-        const left = Math.min(startEvent.clientX, currentEvent.clientX) - leftBase;
-        const top = Math.min(startEvent.clientY, currentEvent.clientY) - topBase;
-        const right = Math.max(startEvent.clientX, currentEvent.clientX) - leftBase;
-        const bottom = Math.max(startEvent.clientY, currentEvent.clientY) - topBase;
-        const minX = Math.floor(left / scale),
-            maxX = Math.floor((right - 1) / scale);
-        const minY = Math.floor(top / scale),
-            maxY = Math.floor((bottom - 1) / scale);
-        const minx = clamp(minX, 0, width - 1),
-            maxx = clamp(maxX, 0, width - 1);
-        const miny = clamp(minY, 0, height - 1),
-            maxy = clamp(maxY, 0, height - 1);
-        return {
-            visible: true,
-            x: minx,
-            y: miny,
-            w: (maxx >= minx) ? (maxx - minx + 1) : 0,
-            h: (maxy >= miny) ? (maxy - miny + 1) : 0,
-        };
+    function updateMarquee(currentEvent) {
+        let props
+        if (shape.value !== 'rect' || pointer.status === 'idle' || !viewportEvents.isDragging(pointer.id)) {
+            props = { visible: false, x: 0, y: 0, w: 0, h: 0 };
+        }
+        else {
+            const startEvent = viewportEvents.get('pointerdown', pointer.id);
+            const startCoord = viewportStore.clientToCoord(startEvent);
+            const currentCoord = viewportStore.clientToCoord(currentEvent);
+            const minX = Math.min(startCoord.x, currentCoord.x);
+            const maxX = Math.max(startCoord.x, currentCoord.x);
+            const minY = Math.min(startCoord.y, currentCoord.y);
+            const maxY = Math.max(startCoord.y, currentCoord.y);
+            props = {
+                visible: true,
+                x: minX,
+                y: minY,
+                w: maxX - minX + 1,
+                h: maxY - minY + 1,
+            };
+        }
+        Object.assign(marquee, props);
+    }
+    function getPixelsInsideMarquee() {
+        const pixels = [];
+        for (let yy = marquee.y; yy < marquee.y + marquee.h; yy++)
+            for (let xx = marquee.x; xx < marquee.x + marquee.w; xx++) pixels.push([xx, yy]);
+        return pixels;
     }
 
     const updateHover = (event) => {
@@ -84,118 +85,65 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         }
     };
 
-    const updateMarquee = (e) => {
-        if (shape.value !== 'rect' || pointer.status === 'idle' || !viewportEvents.isDragging(pointer.id) || !e) {
-            Object.assign(marquee, { visible: false, x: 0, y: 0, w: 0, h: 0 });
-            return;
-        }
-        const startEvent = viewportEvents.get('pointerdown', pointer.id);
-        Object.assign(marquee, calcMarquee(startEvent, e, viewportStore, viewport.element));
-    };
-
-    function updatePixels(type) {
-        const pixels = getPixelsFromInteraction(type);
-        previewPixels.value = pixels;
-        if (type === 'up') {
-            affectedPixels.value = pixels;
-        } else if (shape.value === 'rect') {
-            affectedPixels.value = [];
-        } else {
-            affectedPixels.value = pixels;
-        }
-    }
-
-    function getPixelsFromInteraction(type) {
-        const event = viewportEvents.get('pointer' + type, pointer.id);
-        const pixels = [];
-        if (!event) return pixels;
-        if (shape.value === 'rect') {
-            const startEvent = viewportEvents.get('pointerdown', pointer.id);
-            const { visible, x, y, w, h } = startEvent ? calcMarquee(startEvent, event, viewportStore, viewport.element) : { visible: false, x:0, y:0, w:0, h:0 };
-            if (!visible || w === 0 || h === 0) {
-                const coord = viewportStore.clientToCoord(event);
-                if (coord) pixels.push(coord);
-            } else {
-                for (let yy = y; yy < y + h; yy++)
-                    for (let xx = x; xx < x + w; xx++) pixels.push([xx, yy]);
-            }
-        } else {
-            const coord = viewportStore.clientToCoord(event);
-            if (coord) pixels.push(coord);
-        }
-        return pixels;
-    }
-
-    const cursor = reactive({ stroke: 'default', rect: 'default' });
-
-    function setCursor({ stroke, rect }) {
-        if (stroke) cursor.stroke = stroke;
-        if (rect) cursor.rect = rect;
-    }
-
-    function getCursor() {
-        return cursor[shape.value] || 'default';
-    }
-
-    watch(() => viewportEvents.recent.pointer.down, (events) => {
-        for (const e of events) {
-            if (!e || e.button !== 0 || viewportEvents.pinchIds) continue;
-            const coord = viewportStore.clientToCoord(e);
-            if (!coord) continue;
+    watch(() => viewportEvents.recent.pointer.down, (downs) => {
+        for (const e of downs) {
+            if (e.button !== 0 || viewportEvents.pinchIds) continue;
+            updateMarquee(e);
 
             output.setRollbackPoint();
-            try {
-                e.target.setPointerCapture?.(e.pointerId);
-                pointer.id = e.pointerId;
-            } catch {}
+            try { e.target.setPointerCapture?.(e.pointerId); } catch {}
 
             pointer.status = active.value;
-            updatePixels('down');
+            pointer.id = e.pointerId;
+        }
+    });
+
+    watch(() => viewportEvents.recent.pointer.move, (moves) => {
+        for (const e of moves) {
+            if (viewportEvents.pinchIds) continue;
+            if (e.buttons !== 1) {
+                const pixel = viewportStore.clientToCoord(e);
+                if (pixel) previewPixels.value = [pixel];
+                else previewPixels.value = [];
+                continue;
+            }
             updateMarquee(e);
+            
+            if (shape.value === 'rect') {
+                previewPixels.value = getPixelsInsideMarquee();
+            }
+            else if (shape.value === 'stroke') {
+                const pixel = viewportStore.clientToCoord(e);
+                if (!pixel) continue;
+                if (!previewPixels.value.find(p => p[0] === pixel[0] && p[1] === pixel[1])) previewPixels.value = [...previewPixels.value, pixel];
+            }
         }
     });
 
-    watch(() => viewportEvents.recent.pointer.move, () => {
-        const moves = viewportEvents.recent.pointer.move;
-        const e = moves[moves.length - 1];
-        if (!e) return;
-        updateHover(e);
-        if (!viewportEvents.isDragging(pointer.id) || viewportEvents.pinchIds) return;
-        updatePixels('move');
-        updateMarquee(e);
-    });
+    watch(() => viewportEvents.recent.pointer.up, (ups) => {
+        for (const e of ups) {
+            if (e.button !== 0 || viewportEvents.pinchIds) continue;
+            updateMarquee(e);
+            
+            affectedPixels.value = previewPixels.value;
+            previewPixels.value = [];
 
-    watch(() => viewportEvents.recent.pointer.up, () => {
-        const e = viewportEvents.get('pointerup', pointer.id);
-        if (!e || viewportEvents.isDragging(pointer.id) || viewportEvents.pinchIds) return;
-        updatePixels('up');
-        updateMarquee(e);
-        pointer.event = e.type;
-        if (e.type === 'pointercancel') {
-            output.rollbackPending();
-        } else {
             output.commit();
-        }
-        try { e.target?.releasePointerCapture?.(pointer.id); } catch {}
-        pointer.status = 'idle';
-        pointer.id = null;
-        previewPixels.value = [];
-        affectedPixels.value = [];
-        if (e.type === 'pointercancel') {
-            overlay.helper.clear();
-            overlay.helper.config = OVERLAY_CONFIG.ADD;
+            try { e.target.releasePointerCapture?.(pointer.id); } catch {}
+
+            pointer.status = 'idle';
+            pointer.id = null;
         }
     });
 
-    watch(() => viewportEvents.pinchIds, (ids) => {
-        if (!ids || pointer.status === 'idle') return;
-        updateMarquee(null);
-        pointer.event = 'pinch';
+    watch(() => [ viewportEvents.pinchIds, viewportEvents.recent.pointer.cancel ], ([pinches, cancels]) => {
+        if (!pinches.includes(pointer.id) || !cancels.includes(pointer.id)) return;
         output.rollbackPending();
         const startEvent = viewportEvents.get('pointerdown', pointer.id);
         try { startEvent?.target?.releasePointerCapture?.(pointer.id); } catch {}
         pointer.status = 'idle';
         pointer.id = null;
+        updateMarquee();
         previewPixels.value = [];
         affectedPixels.value = [];
         overlay.helper.clear();
@@ -216,6 +164,5 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         setShape,
         setCursor,
         getCursor,
-        getPixelsFromInteraction,
     };
 });

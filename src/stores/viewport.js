@@ -47,15 +47,13 @@ export const useViewportStore = defineStore('viewport', {
             this.pixelInfo = text;
         },
         recalcScales() {
-            const viewportEl = this.element;
-            if (!viewportEl) return;
-            const style = getComputedStyle(viewportEl);
+            const style = getComputedStyle(this.element);
             const paddingLeft = parseFloat(style.paddingLeft) || 0;
             const paddingRight = parseFloat(style.paddingRight) || 0;
             const paddingTop = parseFloat(style.paddingTop) || 0;
             const paddingBottom = parseFloat(style.paddingBottom) || 0;
-            const width = (viewportEl.clientWidth || 0) - paddingLeft - paddingRight;
-            const height = (viewportEl.clientHeight || 0) - paddingTop - paddingBottom;
+            const width = (this.element.clientWidth || 0) - paddingLeft - paddingRight;
+            const height = (this.element.clientHeight || 0) - paddingTop - paddingBottom;
             const containScale = Math.min(
                 width / Math.max(1, this.stage.width),
                 height / Math.max(1, this.stage.height)
@@ -68,10 +66,8 @@ export const useViewportStore = defineStore('viewport', {
             }
         },
         clientToCoord(event) {
-            const viewportEl = this.element;
-            if (!viewportEl) return null;
-            const rect = viewportEl.getBoundingClientRect();
-            const style = getComputedStyle(viewportEl);
+            const rect = this.element.getBoundingClientRect();
+            const style = getComputedStyle(this.element);
             const left = rect.left + parseFloat(style.paddingLeft) + this.stage.offset.x;
             const top = rect.top + parseFloat(style.paddingTop) + this.stage.offset.y;
             const x = Math.floor((event.clientX - left) / this.stage.scale);

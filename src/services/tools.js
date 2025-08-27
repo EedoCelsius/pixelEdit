@@ -1,22 +1,27 @@
 import { defineStore } from 'pinia';
-import { watch, ref } from 'vue';
+import { watch } from 'vue';
 import { useToolSelectionService } from './toolSelection';
 import { useOverlayService } from './overlay';
-import { useLayerPanelService } from './layerPanel';
 import { useStore } from '../stores';
 import { OVERLAY_CONFIG, CURSOR_CONFIG } from '@/constants';
 import { coordToKey, keyToCoord } from '../utils';
 
 export const useDrawToolService = defineStore('drawToolService', () => {
     const tool = useToolSelectionService();
+    const overlay = useOverlayService();
     const { layers } = useStore();
     watch(() => tool.active, (active) => {
-        if (active === 'draw') {
-            tool.setCursor({ stroke: CURSOR_CONFIG.DRAW_STROKE, rect: CURSOR_CONFIG.DRAW_RECT });
-        }
-    }, { immediate: true });
-    watch(() => tool.affectedPixels.slice(), (pixels) => {
-        if (tool.pointer.status !== 'draw' || layers.selectionCount !== 1) return;
+        if (active !== 'draw') return
+        tool.setCursor({ stroke: CURSOR_CONFIG.DRAW_STROKE, rect: CURSOR_CONFIG.DRAW_RECT });
+    });
+    watch(() => tool.previewPixels, (pixels) => {
+        if (tool.active !== 'draw' || layers.selectionCount !== 1) return;
+        overlay.helper.config = OVERLAY_CONFIG.ADD;
+        overlay.helper.clear();
+        pixels.forEach(p => overlay.helper.pixels.add(coordToKey(p)));
+    });
+    watch(() => tool.affectedPixels, (pixels) => {
+        if (tool.active !== 'draw' || layers.selectionCount !== 1) return;
         const id = layers.selectedIds[0];
         layers.addPixels(id, pixels);
     });
@@ -25,14 +30,20 @@ export const useDrawToolService = defineStore('drawToolService', () => {
 
 export const useEraseToolService = defineStore('eraseToolService', () => {
     const tool = useToolSelectionService();
+    const overlay = useOverlayService();
     const { layers } = useStore();
     watch(() => tool.active, (active) => {
-        if (active === 'erase') {
-            tool.setCursor({ stroke: CURSOR_CONFIG.ERASE_STROKE, rect: CURSOR_CONFIG.ERASE_RECT });
-        }
-    }, { immediate: true });
-    watch(() => tool.affectedPixels.slice(), (pixels) => {
-        if (tool.pointer.status !== 'erase' || layers.selectionCount !== 1) return;
+        if (active !== 'erase') return
+        tool.setCursor({ stroke: CURSOR_CONFIG.ERASE_STROKE, rect: CURSOR_CONFIG.ERASE_RECT });
+    });
+    watch(() => tool.previewPixels, (pixels) => {
+        if (tool.active !== 'erase' || layers.selectionCount !== 1) return;
+        overlay.helper.config = OVERLAY_CONFIG.REMOVE;
+        overlay.helper.clear();
+        pixels.forEach(p => overlay.helper.pixels.add(coordToKey(p)));
+    });
+    watch(() => tool.affectedPixels, (pixels) => {
+        if (tool.active !== 'erase' || layers.selectionCount !== 1) return;
         const id = layers.selectedIds[0];
         layers.removePixels(id, pixels);
     });
@@ -41,259 +52,144 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
 
 export const useGlobalEraseToolService = defineStore('globalEraseToolService', () => {
     const tool = useToolSelectionService();
+    const overlay = useOverlayService();
     const { layers } = useStore();
     watch(() => tool.active, (active) => {
-        if (active === 'globalErase') {
-            tool.setCursor({ stroke: CURSOR_CONFIG.GLOBAL_ERASE_STROKE, rect: CURSOR_CONFIG.GLOBAL_ERASE_RECT });
-        }
-    }, { immediate: true });
-    watch(() => tool.affectedPixels.slice(), (pixels) => {
-        if (tool.pointer.status !== 'globalErase' || !pixels.length) return;
-        if (layers.selectionExists) {
-            for (const id of layers.selectedIds) {
-                const props = layers.getProperties(id);
-                const set = new Set(props.pixels.map(coordToKey));
-                const pixelsToRemove = [];
-                for (const coord of pixels) {
-                    if (set.has(coordToKey(coord))) pixelsToRemove.push(coord);
-                }
-                if (pixelsToRemove.length) layers.removePixels(id, pixelsToRemove);
+        if (active !== 'globalErase') return
+        tool.setCursor({ stroke: CURSOR_CONFIG.GLOBAL_ERASE_STROKE, rect: CURSOR_CONFIG.GLOBAL_ERASE_RECT });
+    });
+    watch(() => tool.previewPixels, (pixels) => {
+        if (tool.active !== 'globalErase') return;
+        overlay.helper.config = OVERLAY_CONFIG.REMOVE;
+        overlay.helper.clear();
+        pixels.forEach(p => overlay.helper.pixels.add(coordToKey(p)));
+    });
+    watch(() => tool.affectedPixels, (pixels) => {
+        if (tool.active !== 'globalErase' || !pixels.length) return;
+        const targetIds = layers.selectionExists ? layers.selectedIds : layers.order;
+        for (const id of targetIds) {
+            const props = layers.getProperties(id);
+            const set = new Set(props.pixels.map(coordToKey));
+            const pixelsToRemove = [];
+            for (const coord of pixels) {
+                if (set.has(coordToKey(coord))) pixelsToRemove.push(coord);
             }
-        } else {
-            for (const id of layers.order) {
-                const props = layers.getProperties(id);
-                const set = new Set(props.pixels.map(coordToKey));
-                const pixelsToRemove = [];
-                for (const coord of pixels) {
-                    if (set.has(coordToKey(coord))) pixelsToRemove.push(coord);
-                }
-                if (pixelsToRemove.length) layers.removePixels(id, pixelsToRemove);
-            }
+            if (pixelsToRemove.length) layers.removePixels(id, pixelsToRemove);
         }
     });
     return {};
 });
-
 
 export const useCutToolService = defineStore('cutToolService', () => {
     const tool = useToolSelectionService();
     const overlay = useOverlayService();
     const { layers } = useStore();
-    let cutSourceId = null;
-    let cutSourceProps = null;
-    const cutCoordSet = new Set();
     watch(() => tool.active, (active) => {
-        if (active === 'cut') {
-            tool.setCursor({ stroke: CURSOR_CONFIG.CUT_STROKE, rect: CURSOR_CONFIG.CUT_RECT });
-        }
-    }, { immediate: true });
+        if (active !== 'cut') return
+        tool.setCursor({ stroke: CURSOR_CONFIG.CUT_STROKE, rect: CURSOR_CONFIG.CUT_RECT });
+    });
+    watch(() => tool.previewPixels, (pixels) => {
+        if (tool.active !== 'cut' || layers.selectionCount !== 1) return;
+        const sourceId = layers.selectedIds[0];
+        const sourceKeys = new Set(layers.getProperty(sourceId, 'pixels').map(coordToKey));
 
-    const cutPixels = (pixels) => {
-        if (cutSourceId == null) return;
-        const coords = layers.getProperty(cutSourceId, 'pixels');
-        const set = new Set(coords.map(coordToKey));
+        overlay.helper.config = OVERLAY_CONFIG.REMOVE;
+        overlay.helper.clear();
+
         for (const coord of pixels) {
-            const key = coordToKey(coord);
-            if (set.has(key) && !cutCoordSet.has(key)) {
-                cutCoordSet.add(key);
-                overlay.helper.pixels.add(key);
-            }
-        }
-    };
-
-    const startCut = () => {
-        if (layers.selectionCount !== 1) return;
-        cutSourceId = layers.selectedIds[0];
-        cutSourceProps = layers.getProperties(cutSourceId);
-        cutCoordSet.clear();
-        overlay.helper.clear();
-        overlay.helper.config = OVERLAY_CONFIG.ADD;
-        cutPixels(tool.affectedPixels);
-    };
-
-    const finishCut = () => {
-        cutPixels(tool.affectedPixels);
-        if (cutCoordSet.size && cutSourceId != null) {
-            const cutCoords = Array.from(cutCoordSet).map(keyToCoord);
-            layers.removePixels(cutSourceId, cutCoords);
-            const newLayerId = layers.createLayer({
-                name: `Cut of ${cutSourceProps.name}`,
-                color: cutSourceProps.color,
-                visible: cutSourceProps.visible,
-                pixels: cutCoords,
-            }, cutSourceId);
-            layers.replaceSelection([newLayerId]);
-        }
-        cutSourceId = null;
-        cutSourceProps = null;
-        cutCoordSet.clear();
-        overlay.helper.clear();
-        overlay.helper.config = OVERLAY_CONFIG.ADD;
-    };
-
-    watch(() => tool.pointer.status, (status, prev) => {
-        if (status === 'cut' && prev !== 'cut') {
-            startCut();
-        } else if (prev === 'cut' && status !== 'cut') {
-            if (tool.pointer.event !== 'pointercancel' && tool.pointer.event !== 'pinch') {
-                finishCut();
+            const previewKey = coordToKey(coord);
+            if (sourceKeys.has(previewKey)) {
+                overlay.helper.pixels.add(previewKey);
             }
         }
     });
+    watch(() => tool.affectedPixels, (pixels) => {
+        if (tool.active !== 'cut' || layers.selectionCount !== 1) return;
+        const sourceId = layers.selectedIds[0];
+        const sourceKeys = new Set(layers.getProperty(sourceId, 'pixels').map(coordToKey));
+        
+        const cutCoords = []
+        for (const coord of pixels) {
+            const affectedKey = coordToKey(coord);
+            if (sourceKeys.has(affectedKey)) {
+                cutCoords.push(coord);
+            }
+        }
 
-    watch(() => tool.affectedPixels.slice(), (pixels) => {
-        if (tool.pointer.status === 'cut') cutPixels(pixels);
+        layers.removePixels(sourceId, cutCoords);
+        const newLayerId = layers.createLayer({
+            name: `Cut of ${layers.getProperty(sourceId, 'name')}`,
+            color: layers.getProperty(sourceId, 'color'),
+            visible: layers.getProperty(sourceId, 'visible'),
+            pixels: cutCoords,
+        }, sourceId);
+
+        layers.replaceSelection([newLayerId]);
     });
-
     return {};
 });
 
-
 export const useSelectService = defineStore('selectService', () => {
     const overlay = useOverlayService();
-    const layerPanel = useLayerPanelService();
-    const { layers, viewportEvent: viewportEvents, viewport: viewportStore } = useStore();
+    const { layers, viewportEvent: viewportEvents } = useStore();
     const tool = useToolSelectionService();
-    const mode = ref('select');
+    let mode = 'select';
 
-    watch([
-        () => tool.active,
-        () => overlay.helper.config,
-    ], ([active, helperConfig]) => {
-        if (active === 'select') {
-            const helperMode = helperConfig === OVERLAY_CONFIG.REMOVE ? 'remove' : 'add';
-            tool.setCursor({
-                stroke: helperMode === 'remove' ? CURSOR_CONFIG.REMOVE_STROKE : CURSOR_CONFIG.ADD_STROKE,
-                rect: helperMode === 'remove' ? CURSOR_CONFIG.REMOVE_RECT : CURSOR_CONFIG.ADD_RECT,
-            });
-        }
-    }, { immediate: true });
+    watch(() => tool.previewPixels, (pixels) => {
+        if (tool.active !== 'select') return;
 
-    const addByMode = (id) => {
-        const m = mode.value;
-        if (m === 'remove') {
-            if (layers.isSelected(id)) overlay.helper.add(id);
-        } else if (m === 'add') {
-            if (!layers.isSelected(id)) overlay.helper.add(id);
-        } else {
-            overlay.helper.add(id);
-        }
-    };
-
-    function start() {
-        const event = viewportEvents.get('pointerdown', tool.pointer.id);
-        const coord = viewportStore.clientToCoord(event);
-        const startId = coord ? layers.topVisibleIdAt(coord) : null;
-        if (!viewportEvents.isPressed('Shift')) {
-            mode.value = 'select';
-        } else {
-            mode.value = layers.isSelected(startId) ? 'remove' : 'add';
-        }
-        overlay.helper.config = mode.value === 'remove' ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
-        overlay.helper.clear();
-        if (startId !== null) addByMode(startId);
-    }
-
-    function move() {
-        if (tool.pointer.status === 'idle') return;
-        if (!viewportEvents.isDragging(tool.pointer.id)) return;
-        const pixels = tool.previewPixels;
-        const intersectedIds = new Set();
+        const intersectedIds = [];
         for (const coord of pixels) {
             const id = layers.topVisibleIdAt(coord);
-            if (id !== null) intersectedIds.add(id);
+            if (id !== null) intersectedIds.push(id);
         }
-        overlay.helper.clear();
-        intersectedIds.forEach(addByMode);
-    }
-
-    function finish() {
-        const m = mode.value;
-        const event = viewportEvents.get('pointerup', tool.pointer.id);
-        if (!event) return;
-        const coord = viewportStore.clientToCoord(event);
-        const startEvent = viewportEvents.get('pointerdown', tool.pointer.id);
-        const dx = startEvent ? Math.abs(event.clientX - startEvent.clientX) : 0;
-        const dy = startEvent ? Math.abs(event.clientY - startEvent.clientY) : 0;
-        const isClick = dx <= 4 && dy <= 4;
-        if (isClick && coord) {
-            const id = layers.topVisibleIdAt(coord);
-            if (id !== null) {
-                if (m === 'select' || !m) {
-                    layers.replaceSelection([id]);
-                } else {
-                    layers.toggleSelection(id);
-                }
-                layerPanel.setScrollRule({ type: 'follow', target: id });
-            }
-        } else {
-            const pixels = tool.affectedPixels;
-            if (pixels.length > 0) {
-                const intersectedIds = new Set();
-                for (const coord of pixels) {
-                    const id = layers.topVisibleIdAt(coord);
-                    if (id !== null) intersectedIds.add(id);
-                }
-                const currentSelection = new Set(
-                    (m === 'select' || !m) ? [] : layers.selectedIds
-                );
-                if (m === 'add') {
-                    intersectedIds.forEach(id => currentSelection.add(id));
-                } else if (m === 'remove') {
-                    intersectedIds.forEach(id => currentSelection.delete(id));
-                } else {
-                    intersectedIds.forEach(id => currentSelection.add(id));
-                }
-                layers.replaceSelection([...currentSelection]);
-            } else if (m === 'select' || !m) {
-                layers.clearSelection();
+        
+        if (intersectedIds.length === 1) {
+            if (!viewportEvents.isPressed('Shift')) {
+                mode = 'select';
+                overlay.helper.config = OVERLAY_CONFIG.ADD;
+                tool.setCursor({ stroke: CURSOR_CONFIG.ADD_STROKE, rect: CURSOR_CONFIG.ADD_RECT });
+            } else if (layers.isSelected(intersectedIds[0])) {
+                mode = 'remove';
+                overlay.helper.config = OVERLAY_CONFIG.REMOVE;
+                tool.setCursor({ stroke: CURSOR_CONFIG.REMOVE_STROKE, rect: CURSOR_CONFIG.REMOVE_RECT });
+            } else {
+                mode = 'add';
+                overlay.helper.config = OVERLAY_CONFIG.ADD;
+                tool.setCursor({ stroke: CURSOR_CONFIG.ADD_STROKE, rect: CURSOR_CONFIG.ADD_RECT });
             }
         }
-        overlay.helper.clear();
-        overlay.helper.config = OVERLAY_CONFIG.ADD;
-    }
 
-    function cancel() {
         overlay.helper.clear();
-        overlay.helper.config = OVERLAY_CONFIG.ADD;
-    }
+        intersectedIds.forEach(id => {
+            if (mode === 'remove' && !layers.isSelected(id)) return;
+            if (mode === 'add' && layers.isSelected(id)) return;
+            overlay.helper.add(id);
+        });
+    });
 
-    watch(() => tool.pointer.status, (status, prev) => {
-        if (status === 'select' && prev !== 'select') {
-            start();
-        } else if (status !== 'select' && prev === 'select') {
-            if (tool.pointer.event === 'pointercancel' || tool.pointer.event === 'pinch') cancel();
-            else finish();
+    watch(() => tool.affectedPixels, (pixels) => {
+        if (tool.active !== 'select') return;
+        if (pixels.length > 0) {
+            const intersectedIds = new Set();
+            for (const coord of pixels) {
+                const id = layers.topVisibleIdAt(coord);
+                if (id !== null) intersectedIds.add(id);
+            }
+
+            const currentSelection = new Set(mode === 'select' ? [] : layers.selectedIds);
+            if (mode === 'add') {
+                intersectedIds.forEach(id => currentSelection.add(id));
+            } else if (mode === 'remove') {
+                intersectedIds.forEach(id => currentSelection.delete(id));
+            } else {
+                intersectedIds.forEach(id => currentSelection.add(id));
+            }
+            layers.replaceSelection([...currentSelection]);
+        } else if (mode === 'select') {
+            layers.clearSelection();
         }
     });
 
-    watch(() => tool.previewPixels.slice(), () => {
-        if (tool.pointer.status === 'select') move();
-    });
-
-    const updateHoverOverlay = () => {
-        if (tool.active !== 'select') {
-            overlay.helper.clear();
-            overlay.helper.config = OVERLAY_CONFIG.ADD;
-            return;
-        }
-        if (tool.pointer.status !== 'idle') return;
-        const pixels = tool.previewPixels;
-        if (!pixels.length) {
-            overlay.helper.clear();
-            overlay.helper.config = OVERLAY_CONFIG.ADD;
-            return;
-        }
-        const coord = pixels[0];
-        const id = layers.topVisibleIdAt(coord);
-        overlay.helper.clear();
-        overlay.helper.add(id);
-        overlay.helper.config = (id != null && viewportEvents.isPressed('Shift') && layers.isSelected(id)) ? OVERLAY_CONFIG.REMOVE : OVERLAY_CONFIG.ADD;
-    };
-
-    watch(() => tool.previewPixels.slice(), updateHoverOverlay);
-    watch(() => tool.pointer.status, updateHoverOverlay);
-    watch(() => tool.active, updateHoverOverlay);
-
-    return { cancel };
+    return {};
 });
