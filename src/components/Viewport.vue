@@ -56,7 +56,7 @@
                 shape-rendering="crispEdges" />
 
         <!-- Helper overlay -->
-        <path v-if="toolSelectionService.active === 'select' || toolSelectionService.pointer.status === 'cut'"
+        <path id="helperOverlay"
               :d="helperOverlay.path"
               :fill="helperOverlay.FILL_COLOR"
               :stroke="helperOverlay.STROKE_COLOR"
@@ -92,10 +92,7 @@ const helperOverlay = computed(() => {
     const path = overlay.helper.path;
     if (!path) return { path }; // no style when empty
 
-    const style = (toolSelectionService.pointer.status === 'select' || toolSelectionService.pointer.status === 'idle')
-        ? overlay.helper.config
-        : OVERLAY_CONFIG.ADD;
-
+    const style =  overlay.helper.config;
     return {
         path,
         FILL_COLOR: style.FILL_COLOR,
