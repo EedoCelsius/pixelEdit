@@ -12,6 +12,9 @@
         <button @click="onSplit" :disabled="!canSplit" title="Split disconnected" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
           <img :src="toolbarIcons.split" alt="Split disconnected" class="w-4 h-4">
         </button>
+        <button @click="onGroup" :disabled="layers.selectionCount < 2" title="Group layers" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
+          <img :src="toolbarIcons.group" alt="Group layers" class="w-4 h-4">
+        </button>
         <button @click="onSelectEmpty" :disabled="!hasEmptyLayers" title="Select empty layers" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
           <img :src="toolbarIcons.empty" alt="Select empty layers" class="w-4 h-4">
         </button>
@@ -63,6 +66,14 @@ const onSelectEmpty = () => {
 const onSplit = () => {
     output.setRollbackPoint();
     layerSvc.splitLayer(layerPanel.anchorId);
+    output.commit();
+};
+const onGroup = () => {
+    if (layers.selectionCount < 2) return;
+    output.setRollbackPoint();
+    const name = `Group ${Object.keys(layers.groups).length + 1}`;
+    layers.createGroup(name, layers.selectedIds);
+    layerPanel.clearRange();
     output.commit();
 };
 </script>
