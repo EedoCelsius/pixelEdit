@@ -44,7 +44,7 @@ import ExportPanel from './components/ExportPanel.vue';
 import ViewportToolbar from './components/ViewportToolbar.vue';
 import StageResizePopup from './components/StageResizePopup.vue';
 const { input, viewport: viewportStore, nodeTree, nodes, output } = useStore();
-const { layerPanel, query } = useService();
+const { layerPanel, layerQuery } = useService();
 const viewportToolbar = ref(null);
 
 // Width control between display and layers
@@ -101,11 +101,11 @@ function onKeydown(event) {
       event.preventDefault();
       if (!nodeTree.layerSelectionExists) return;
       output.setRollbackPoint();
-      const belowId = query.below(query.lowermost(nodeTree.selectedLayerIds));
+      const belowId = layerQuery.below(layerQuery.lowermost(nodeTree.selectedLayerIds));
       const ids = nodeTree.selectedLayerIds;
       nodes.remove(ids);
       nodeTree.removeFromSelection(ids);
-      const newSelect = nodeTree.has(belowId) ? belowId : query.lowermost();
+      const newSelect = nodeTree.has(belowId) ? belowId : layerQuery.lowermost();
       layerPanel.setRange(newSelect, newSelect);
       layerPanel.setScrollRule({ type: "follow", target: newSelect });
       output.commit();
