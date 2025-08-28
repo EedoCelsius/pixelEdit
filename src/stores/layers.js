@@ -177,6 +177,19 @@ export const useLayerStore = defineStore('layers', {
         clearSelection() {
             this._selection.clear();
         },
+        translateAll(dx = 0, dy = 0) {
+            dx |= 0; dy |= 0;
+            if (dx === 0 && dy === 0) return;
+            for (const id of this._order) {
+                const set = this._pixels[id];
+                const moved = new Set();
+                for (const key of set) {
+                    const { x, y } = keyToCoord(key);
+                    moved.add(coordToKey({ x: x + dx, y: y + dy }));
+                }
+                this._pixels[id] = reactive(moved);
+            }
+        },
         /** Serialization */
         serialize() {
             return {

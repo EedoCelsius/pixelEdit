@@ -4,6 +4,16 @@
 
       <div class="h-4 w-px bg-white/10 mx-1"></div>
 
+      <!-- Stage resize -->
+      <div class="inline-flex rounded-md overflow-hidden border border-white/15">
+        <button @click="e => resize('top', e)" title="Expand Up (Shift to shrink)" class="p-1 bg-white/5 hover:bg-white/10">↑</button>
+        <button @click="e => resize('bottom', e)" title="Expand Down (Shift to shrink)" class="p-1 bg-white/5 hover:bg-white/10">↓</button>
+        <button @click="e => resize('left', e)" title="Expand Left (Shift to shrink)" class="p-1 bg-white/5 hover:bg-white/10">←</button>
+        <button @click="e => resize('right', e)" title="Expand Right (Shift to shrink)" class="p-1 bg-white/5 hover:bg-white/10">→</button>
+      </div>
+
+      <div class="h-4 w-px bg-white/10 mx-1"></div>
+
       <!-- Shape toggle -->
       <div class="inline-flex rounded-md overflow-hidden border border-white/15">
         <button @click="toolSelectionService.setShape('stroke')"
@@ -47,7 +57,12 @@ import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS, TOOL_MODIFIERS } from '@
 import stageIcons from '../image/stage_toolbar';
 
 const { viewport: viewportStore, layers, output, viewportEvent: viewportEvents } = useStore();
-const { toolSelection: toolSelectionService } = useService();
+const { toolSelection: toolSelectionService, stageResize: stageResizeService } = useService();
+
+function resize(direction, event) {
+    const delta = event.shiftKey ? -1 : 1;
+    stageResizeService.resize(direction, delta);
+}
 
 let previousTool = null;
 let lastSingleTool = 'draw';
