@@ -129,7 +129,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (!cutCoords.length || cutKeys.size === sourceKeys.size) return;
 
         layers.removePixels(sourceId, cutCoords);
-        const newLayerId = layers.createLayer({
+        layers.createLayer({
             name: `Cut of ${layers.getProperty(sourceId, 'name')}`,
             color: layers.getProperty(sourceId, 'color'),
             visibility: layers.getProperty(sourceId, 'visibility'),
@@ -148,7 +148,6 @@ export const useTopToolService = defineStore('topToolService', () => {
     const layerPanel = useLayerPanelService();
     const { layers } = useStore();
     watch(() => tool.prepared === 'top', (isTop) => {
-        console.log("hi")
         if (!isTop) return;
         overlay.helper.config = OVERLAY_CONFIG.ADD;
         tool.setCursor({ stroke: CURSOR_CONFIG.TOP, rect: CURSOR_CONFIG.TOP });
@@ -169,19 +168,18 @@ export const useTopToolService = defineStore('topToolService', () => {
         overlay.helper.setLayers(id ? [id] : []);
     });
     watch(() => tool.dragPixel, (pixel) => {
-        if (tool.prepared !== 'top') return;
-        if (tool.affectedPixels.length > 1)
-            tool.setCursor({ stroke: CURSOR_CONFIG.NOT_ALLOWED, rect: CURSOR_CONFIG.NOT_ALLOWED });
-    });
-    watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.prepared !== 'top' || layers.selectionCount !== 1) return;
-        if (pixels.length > 1 || !pixels[0]) return;
-        const id = layers.topVisibleIdAt(pixels[0]);
-        if (id !== null && !layers.getProperty(id, 'locked')) {
+        if (tool.prepared !== 'top' || !pixel) return;
+        const id = layers.topVisibleIdAt(pixel);
+        if (!id) return;
+        if (layers.getProperty(id, 'locked')) {
+            tool.setCursor({ stroke: CURSOR_CONFIG.LOCKED, rect: CURSOR_CONFIG.LOCKED });
+        }
+        else {
             layers.reorderLayers([id], layers.idsTopToBottom[0], false);
             layers.replaceSelection([id]);
             layerPanel.setScrollRule({ type: 'follow', target: id });
-        }
+            tool.setCursor({ stroke: CURSOR_CONFIG.TOP, rect: CURSOR_CONFIG.TOP });
+        } 
     });
     return {};
 });
