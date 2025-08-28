@@ -39,39 +39,18 @@ export const useOverlayService = defineStore('overlayService', () => {
         return { pixels, path, clear, addLayers, setLayers, addPixels, setPixels };
     }
 
-    const overlays = reactive({});
-    const list = computed(() => Object.values(overlays));
-
-    function addOverlay(id, config = OVERLAY_CONFIG.ADD) {
-        if (overlays[id]) return overlays[id];
-        const state = createOverlayState();
-        overlays[id] = { id, ...state, config: ref(config) };
-        return overlays[id];
-    }
-
-    function removeOverlay(id) {
-        delete overlays[id];
-    }
-
-    addOverlay('selection', OVERLAY_CONFIG.SELECTED);
-    addOverlay('helper', OVERLAY_CONFIG.ADD);
+    const selection = createOverlayState();
+    const helper = createOverlayState();
+    const helperConfig = ref(OVERLAY_CONFIG.ADD);
 
     function rebuildSelection() {
-        overlays.selection.setLayers(layers.selectedIds);
+        selection.setLayers(layers.selectedIds);
     }
 
     watch(() => layers.selectedIds.slice(), rebuildSelection, { immediate: true });
 
-    function getOverlay(id) {
-        return overlays[id];
-    }
-
     return {
-        overlays,
-        list,
-        addOverlay,
-        removeOverlay,
-        getOverlay,
+        selection,
+        helper: { ...helper, config: helperConfig }
     };
 });
-
