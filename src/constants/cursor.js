@@ -1,6 +1,6 @@
 import cursorIcons from '../image/stage_cursor';
 
-export const CURSOR_CONFIG = {
+export const CURSOR_STYLE = {
     DRAW_STROKE: `url("${cursorIcons.drawStroke}") 0 0, crosshair`,
     DRAW_RECT: `url("${cursorIcons.drawRect}") 0 0, crosshair`,
     ERASE_STROKE: `url("${cursorIcons.eraseStroke}") 0 0, crosshair`,
