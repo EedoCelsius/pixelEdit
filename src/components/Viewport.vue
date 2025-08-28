@@ -44,10 +44,10 @@
           <path v-if="ov.path"
                 :id="ov.id + 'Overlay'"
                 :d="ov.path"
-              :fill="ov.styles.FILL_COLOR"
-                :stroke="ov.styles.STROKE_COLOR"
-                :stroke-width="ov.styles.STROKE_WIDTH_SCALE / Math.max(1, stage.scale)"
-                :fill-rule="ov.styles.FILL_RULE"
+                :fill="ov.config.FILL_COLOR"
+                :stroke="ov.config.STROKE_COLOR"
+                :stroke-width="ov.config.STROKE_WIDTH_SCALE / Math.max(1, stage.scale)"
+                :fill-rule="ov.config.FILL_RULE"
                 shape-rendering="crispEdges" />
         </template>
       </svg>
@@ -60,9 +60,9 @@
               :width="marqueeRect.width"
               :height="marqueeRect.height"
               :visibility="marqueeRect.visibility"
-              :fill="OVERLAY_STYLES.MARQUEE.FILL_COLOR"
-              :stroke="OVERLAY_STYLES.MARQUEE.STROKE_COLOR"
-              :stroke-width="OVERLAY_STYLES.MARQUEE.STROKE_WIDTH_SCALE"
+              :fill="OVERLAY_CONFIG.MARQUEE.FILL_COLOR"
+              :stroke="OVERLAY_CONFIG.MARQUEE.STROKE_COLOR"
+              :stroke-width="OVERLAY_CONFIG.MARQUEE.STROKE_WIDTH_SCALE"
               shape-rendering="crispEdges" />
     </svg>
   </div>
@@ -72,7 +72,7 @@
 import { useTemplateRef, computed, onMounted, onUnmounted } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
-import { OVERLAY_STYLES, GRID_STROKE_COLOR } from '@/constants';
+import { OVERLAY_CONFIG, GRID_STROKE_COLOR } from '@/constants';
 import { rgbaCssU32, ensureCheckerboardPattern } from '../utils';
 
 const { viewport: viewportStore, nodeTree, nodes, viewportEvent: viewportEvents } = useStore();

@@ -1,4 +1,4 @@
-export const OVERLAY_STYLES = {
+export const OVERLAY_CONFIG = {
     SELECTED: {
         FILL_COLOR: 'rgba(56, 189, 248, 0.1)',
         STROKE_COLOR: 'rgba(56, 189, 248, 1.0)',
