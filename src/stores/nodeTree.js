@@ -214,7 +214,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
         },
         toggleSelection(id) {
             if (id == null) return;
-            if (this.isSelected(id)) this.removeFromSelection([id]);
+            if (this.selectedNodeIds.includes(id)) this.removeFromSelection([id]);
             else this.addToSelection([id]);
         },
         clearSelection() {
