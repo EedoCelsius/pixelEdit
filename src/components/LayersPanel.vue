@@ -233,7 +233,7 @@ function toggleVisibility(id) {
     output.setRollbackPoint();
     if (nodeTree.isSelected(id)) {
         const value = !nodes.getProperty(id, 'visibility');
-        for (const sid of nodeTree.selectedLayerIds) {
+        for (const sid of nodeTree.selectedNodeIds) {
             nodes.update(sid, { visibility: value });
         }
     } else {
@@ -246,7 +246,7 @@ function toggleLock(id) {
     output.setRollbackPoint();
     if (nodeTree.isSelected(id)) {
         const value = !nodes.getProperty(id, 'locked');
-        for (const sid of nodeTree.selectedLayerIds) {
+        for (const sid of nodeTree.selectedNodeIds) {
             nodes.update(sid, { locked: value });
         }
     } else {
@@ -257,7 +257,7 @@ function toggleLock(id) {
 
 function deleteLayer(id) {
     output.setRollbackPoint();
-    const targets = nodeTree.isSelected(id) ? nodeTree.selectedLayerIds : [id];
+    const targets = nodeTree.isSelected(id) ? nodeTree.selectedNodeIds : [id];
     const belowId = query.below(query.lowermost(targets));
     nodes.remove(targets);
     const newSelectId = nodeTree.has(belowId) ? belowId : query.lowermost();
