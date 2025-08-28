@@ -14,25 +14,25 @@
             </label>
           </div>
         </div>
-        <label class="absolute -top-2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+        <label class="absolute -top-3 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
           <span class="mb-1">Top</span>
           <input type="number" v-model.number="top" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
           <button @click="adjust('top', 1)" class="absolute top-1/2 right-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▲</button>
           <button @click="adjust('top', -1)" class="absolute top-1/2 left-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▼</button>
         </label>
-        <label class="absolute top-1/2 -left-4 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+        <label class="absolute top-1/2 -left-5 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
           <span class="mb-1">Left</span>
           <input type="number" v-model.number="left" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
           <button @click="adjust('left', 1)" class="absolute top-1/2 right-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">◀</button>
           <button @click="adjust('left', -1)" class="absolute top-1/2 left-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▶</button>
         </label>
-        <label class="absolute bottom-1/2 -right-4 translate-x-1/2 translate-y-1/2 flex flex-col items-center">
+        <label class="absolute bottom-1/2 -right-5 translate-x-1/2 translate-y-1/2 flex flex-col items-center">
           <span class="mb-1">Right</span>
           <input type="number" v-model.number="right" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
           <button @click="adjust('right', 1)" class="absolute bottom-1/2 left-12 translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▶</button>
           <button @click="adjust('right', -1)" class="absolute bottom-1/2 right-12 translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">◀</button>
         </label>
-        <label class="absolute -bottom-2 right-1/2 translate-x-1/2 translate-y-1/2 flex flex-col items-center">
+        <label class="absolute -bottom-3 right-1/2 translate-x-1/2 translate-y-1/2 flex flex-col items-center">
           <span class="mb-1">Bottom</span>
           <input type="number" v-model.number="bottom" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
           <button @click="adjust('bottom', 1)" class="absolute bottom-1/2 left-12 translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▼</button>

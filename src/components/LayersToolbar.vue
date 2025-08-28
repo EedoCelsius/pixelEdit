@@ -35,14 +35,14 @@ const onAdd = () => {
     const above = layers.selectionCount ? query.uppermost(layers.selectedIds) : null;
     const id = layers.createLayer({});
     layers.insertLayers([id], above, false);
-    layers.addToSelection([id]);
+    layers.replaceSelection([id]);
     layerPanel.setScrollRule({ type: 'follow', target: id });
     output.commit();
 };
 const onMerge = () => {
     output.setRollbackPoint();
     const id = layerSvc.mergeSelected();
-    layers.addToSelection([id]);
+    layers.replaceSelection([id]);
     layerPanel.setScrollRule({ type: 'follow', target: id });
     output.commit();
 };
