@@ -15,7 +15,7 @@ export const useViewportStore = defineStore('viewport', {
             offset: { x: 0, y: 0 },
         },
         _display: 'result', // 'result' | 'original'
-        _imageSrc: '',
+        _image: { src: '', x: 0, y: 0, width: 0, height: 0 },
         _element: null,
         _content: { top: 0, right: 0, bottom: 0, left: 0, width: 0, height: 0 },
     }),
@@ -26,7 +26,8 @@ export const useViewportStore = defineStore('viewport', {
         toggleLabel: (state) => state._display === 'original' ? '결과' : '원본',
         stage: (state) => readonly(state._stage),
         display: (state) => state._display,
-        imageSrc: (state) => state._imageSrc,
+        imageSrc: (state) => state._image.src,
+        imageRect: (state) => readonly(state._image),
         element: (state) => state._element,
         content: (state) => readonly(state._content),
     },
@@ -42,8 +43,16 @@ export const useViewportStore = defineStore('viewport', {
             this._stage.width = Math.max(1, newWidth | 0);
             this._stage.height = Math.max(1, newHeight | 0);
         },
-        setImage(src) {
-            this._imageSrc = src || '';
+        setImage(src, width, height) {
+            this._image.src = src || '';
+            if (width != null) this._image.width = width;
+            if (height != null) this._image.height = height;
+            this._image.x = 0;
+            this._image.y = 0;
+        },
+        setImageSize(width, height) {
+            if (width != null) this._image.width = width;
+            if (height != null) this._image.height = height;
         },
         setScale(newScale) {
             this._stage.scale = Math.max(this._stage.minScale, newScale);
@@ -63,6 +72,8 @@ export const useViewportStore = defineStore('viewport', {
             }
             this._stage.width = newWidth;
             this._stage.height = newHeight;
+            this._image.x += left;
+            this._image.y += top;
         },
         toggleView() {
             this._display = (this._display === 'original') ? 'result' : 'original';

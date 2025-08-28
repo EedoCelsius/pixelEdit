@@ -6,7 +6,7 @@
        @pointermove="viewportEvents.setPointerMove"
        @pointerup="viewportEvents.setPointerUp"
        @pointercancel="viewportEvents.setPointerUp">
-    <div id="stage" class="absolute shadow-inner select-none touch-none"
+    <div id="stage" class="absolute shadow-inner select-none touch-none overflow-hidden"
          :style="{
            width: stage.width+'px',
            height: stage.height+'px',
@@ -19,7 +19,12 @@
         <rect x="0" y="0" :width="stage.width" :height="stage.height" :fill="patternUrl"/>
       </svg>
       <!-- 원본 -->
-      <img v-show="viewportStore.display==='original'" class="absolute w-full h-full top-0 left-0 pointer-events-none block" :src="viewportStore.imageSrc" alt="source image" @load="onImageLoad" />
+      <img v-show="viewportStore.display==='original'"
+           class="absolute pointer-events-none block"
+           :src="viewportStore.imageSrc"
+           alt="source image"
+           :style="{ left: image.x + 'px', top: image.y + 'px', width: image.width + 'px', height: image.height + 'px' }"
+           @load="onImageLoad" />
       <!-- 결과 레이어 -->
       <svg v-show="viewportStore.display==='result'" class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
         <g>
@@ -80,6 +85,7 @@ const { viewport: viewportStore, layers, viewportEvent: viewportEvents } = useSt
 const { overlay, toolSelection: toolSelectionService, viewport } = useService();
 const viewportEl = useTemplateRef('viewportEl');
 const stage = viewportStore.stage;
+const image = viewportStore.imageRect;
 
 const viewportViewBox = computed(() => `0 0 ${viewportStore.content.width} ${viewportStore.content.height}`);
 const marqueeRect = computed(() => {
@@ -116,7 +122,9 @@ const helperOverlay = computed(() => {
 
 const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
 
-const onImageLoad = () => {
+const onImageLoad = (e) => {
+    const img = e.target;
+    viewportStore.setImageSize(img.naturalWidth, img.naturalHeight);
     viewportStore.recalcContentSize();
     viewportStore.setScale(stage.containScale * 3/4);
     viewport.centerPosition();
