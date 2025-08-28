@@ -95,9 +95,11 @@ export const useNodeTreeStore = defineStore('nodeTree', {
         _layerIds: (state) => flattenLayers(state._tree),
         _nodeIds: (state) => flattenNode(state._tree),
         _selectedLayerIds: (state) => flattenSelectedLayers(state._tree, state._selection),
-        _selectedNodeIdSet(state) { return new Set(flattenSelectedNode(state._tree, state._selection)) },
+        _selectedNodeIds: (state) => flattenSelectedNode(state._tree, state._selection),
+        _selectedNodeIdSet(state) { return new Set(this._selectedNodeIds) },
         tree(state) { return readonly(state._tree) },
         selectedIds(state) { return [...state._selection] },
+        isAncestorSelected(state) { return (id) => this._selectedNodeIdSet.has(id) },
         exists(state) { return this._nodeIds.length > 0 },
         has(state) { return (id) => findNode(state._tree, id) != null },
         layerOrder(state) { return readonly(this._layerIds) },
@@ -108,8 +110,9 @@ export const useNodeTreeStore = defineStore('nodeTree', {
         selectedLayerIds(state) { return this._selectedLayerIds },
         selectedLayerCount(state) { return this._selectedLayerIds.length },
         layerSelectionExists(state) { return this._selectedLayerIds.length > 0 },
-        isAncestorSelected(state) { return (id) => this._selectedNodeIdSet.has(id) },
         allNodeIds(state) { return this._nodeIds },
+        selectedNodeIds(state) { return this._selectedNodeIds },
+        selectedNodeCount(state) { return this._selectedNodeIds.length },
         descendantLayerIds(state) { return (id) => {
             const info = findNode(state._tree, id);
             return info ? collectLayerIds(info.node, []) : [];
