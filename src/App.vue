@@ -178,10 +178,10 @@ onMounted(async () => {
       });
       ids.push(id);
     }
-    layers.insert(ids);
+    layers.insertLayers(ids);
   } else {
     const ids = [layers.createLayer({}), layers.createLayer({})];
-    layers.insert(ids);
+    layers.insertLayers(ids);
   }
 
   layerPanel.setScrollRule({ type: "follow", target: layers.order[layers.order.length - 1] });
