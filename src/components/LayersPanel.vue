@@ -211,7 +211,7 @@ function onDrop(item, event) {
     row.classList.remove('insert-before', 'insert-after', 'insert-into');
     const rect = row.getBoundingClientRect();
     const y = event.clientY - rect.top;
-const ids = nodeTree.selectedNodeIds;
+    const ids = nodeTree.selectedIds;
     if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
         nodeTree.append(ids, item.id, true);
     } else {
