@@ -43,7 +43,7 @@ import LayersPanel from './components/LayersPanel.vue';
 import ExportPanel from './components/ExportPanel.vue';
 import ViewportToolbar from './components/ViewportToolbar.vue';
 import StageResizePopup from './components/StageResizePopup.vue';
-const { input, viewport: viewportStore, nodeTree, nodes, output } = useStore();
+const { input, viewport: viewportStore, layers, output } = useStore();
 const { layerPanel, query } = useService();
 const viewportToolbar = ref(null);
 
@@ -99,20 +99,20 @@ function onKeydown(event) {
     case 'Delete':
     case 'Backspace':
       event.preventDefault();
-      if (!nodeTree.layerSelectionExists) return;
+      if (!layers.selectionExists) return;
       output.setRollbackPoint();
-      const belowId = query.below(query.lowermost(nodeTree.selectedLayerIds));
-      const ids = nodeTree.selectedLayerIds;
-      nodes.remove(ids);
-      nodeTree.removeFromSelection(ids);
-      const newSelect = nodeTree.has(belowId) ? belowId : query.lowermost();
+      const belowId = query.below(query.lowermost(layers.selectedIds));
+      const ids = layers.selectedIds;
+      layers.deleteLayers(ids);
+      layers.removeFromSelection(ids);
+      const newSelect = layers.has(belowId) ? belowId : query.lowermost();
       layerPanel.setRange(newSelect, newSelect);
       layerPanel.setScrollRule({ type: "follow", target: newSelect });
       output.commit();
       return;
     case 'Enter':
-         if (!ctrl && !shift && nodeTree.selectedLayerCount === 1) {
-            const selectedId = nodeTree.selectedLayerIds[0];
+         if (!ctrl && !shift && layers.selectionCount === 1) {
+            const selectedId = layers.selectedIds[0];
             const row = document.querySelector(`.layer[data-id="${selectedId}"] .nameText`)
             if (row) {
                 event.preventDefault();
@@ -126,7 +126,7 @@ function onKeydown(event) {
         output.rollbackPending();
         return;
       }
-      nodeTree.clearSelection();
+      layers.clearSelection();
       return;
   }
 
@@ -170,7 +170,7 @@ onMounted(async () => {
     const ids = [];
     for (let i = 0; i < autoSegments.length; i++) {
       const segment = autoSegments[i];
-      const id = nodes.createLayer({
+      const id = layers.createLayer({
         name: `Auto ${i+1}`,
         color: segment.colorU32,
         visibility: true,
@@ -178,13 +178,13 @@ onMounted(async () => {
       });
       ids.push(id);
     }
-    nodeTree.insert(ids);
+    layers.insert(ids);
   } else {
-    const ids = [nodes.createLayer({}), nodes.createLayer({})];
-    nodeTree.insert(ids);
+    const ids = [layers.createLayer({}), layers.createLayer({})];
+    layers.insert(ids);
   }
 
-      layerPanel.setScrollRule({ type: "follow", target: nodeTree.layerOrder[nodeTree.layerOrder.length - 1] });
+  layerPanel.setScrollRule({ type: "follow", target: layers.order[layers.order.length - 1] });
 
   window.addEventListener('keydown', onKeydown);
   window.addEventListener('keyup', onKeyup);

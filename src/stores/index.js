@@ -1,14 +1,12 @@
 import { useInputStore } from './input';
-import { useNodeTreeStore } from './nodeTree';
-import { useNodeStore } from './nodes';
+import { useLayerStore } from './layers';
 import { useOutputStore } from './output';
 import { useViewportStore } from './viewport';
 import { useViewportEventStore } from './viewportEvent';
 
 export {
     useInputStore,
-    useNodeTreeStore,
-    useNodeStore,
+    useLayerStore,
     useOutputStore,
     useViewportStore,
     useViewportEventStore
@@ -16,8 +14,7 @@ export {
 
 export const useStore = () => ({
     input: useInputStore(),
-    nodeTree: useNodeTreeStore(),
-    nodes: useNodeStore(),
+    layers: useLayerStore(),
     output: useOutputStore(),
     viewport: useViewportStore(),
     viewportEvent: useViewportEventStore()

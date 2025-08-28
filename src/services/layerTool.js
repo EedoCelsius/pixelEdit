@@ -4,52 +4,52 @@ import { useQueryService } from './query';
 import { findPixelComponents, getPixelUnion, averageColorU32 } from '../utils';
 
 export const useLayerToolService = defineStore('layerToolService', () => {
-    const { nodeTree, nodes } = useStore();
+    const { layers } = useStore();
     const query = useQueryService();
 
     function mergeSelected() {
-        if (nodeTree.selectedLayerCount < 2) return;
-        const pixelUnion = getPixelUnion(nodes.getProperties(nodeTree.selectedLayerIds));
+        if (layers.selectionCount < 2) return;
+        const pixelUnion = getPixelUnion(layers.getProperties(layers.selectedIds));
 
         const colors = [];
         if (pixelUnion.length) {
             for (const coord of pixelUnion) {
-                colors.push(nodes.compositeColorAt(coord));
+                colors.push(layers.compositeColorAt(coord));
             }
         } else {
-            for (const id of nodeTree.selectedLayerIds) {
-                colors.push(nodes.getProperty(id, 'color'));
+            for (const id of layers.selectedIds) {
+                colors.push(layers.getProperty(id, 'color'));
             }
         }
         const colorU32 = averageColorU32(colors);
 
-        const firstId = nodeTree.selectedLayerIds[0];
-        const maintainedName = nodes.getProperty(firstId, 'name') || 'Merged';
-        const maintainedAttrs = nodes.getProperty(firstId, 'attributes');
-        const newLayerId = nodes.createLayer({
+        const firstId = layers.selectedIds[0];
+        const maintainedName = layers.getProperty(firstId, 'name') || 'Merged';
+        const maintainedAttrs = layers.getProperty(firstId, 'attributes');
+        const newLayerId = layers.createLayer({
             name: `Merged ${maintainedName}`,
             color: colorU32,
             attributes: maintainedAttrs,
         });
         const newPixels = pixelUnion;
-        if (newPixels.length) nodes.addPixelsToLayer(newLayerId, newPixels);
-        nodeTree.insert([newLayerId], query.lowermost(nodeTree.selectedLayerIds), true);
-        const ids = nodeTree.selectedLayerIds;
-        nodes.remove(ids);
+        if (newPixels.length) layers.addPixels(newLayerId, newPixels);
+        layers.insert([newLayerId], query.lowermost(layers.selectedIds), true);
+        const ids = layers.selectedIds;
+        layers.deleteLayers(ids);
         return newLayerId;
     }
 
     function copySelected() {
-        if (!nodeTree.selectedLayerCount) return [];
-        const sorted = nodeTree.selectedLayerIds
+        if (!layers.selectionCount) return [];
+        const sorted = layers.selectedIds
             .slice()
-            .sort((a, b) => nodeTree.indexOfLayer(a) - nodeTree.indexOfLayer(b));
+            .sort((a, b) => layers.indexOfLayer(a) - layers.indexOfLayer(b));
         const newLayerIds = [];
         for (const id of sorted) {
-            const layer = nodes.getProperties(id);
+            const layer = layers.getProperties(id);
             const pixels = [...layer.pixels];
             const attrs = layer.attributes;
-            const newLayerId = nodes.createLayer({
+            const newLayerId = layers.createLayer({
                 name: `Copy of ${layer.name}`,
                 color: layer.color,
                 visibility: layer.visibility,
@@ -58,36 +58,36 @@ export const useLayerToolService = defineStore('layerToolService', () => {
             });
             newLayerIds.push(newLayerId);
         }
-        nodeTree.insert(newLayerIds, query.uppermost(sorted), false);
+        layers.insert(newLayerIds, query.uppermost(sorted), false);
         return newLayerIds;
     }
 
     function splitSelected() {
-        if (!nodeTree.selectedLayerCount) return [];
+        if (!layers.selectionCount) return [];
 
-        const originalSelected = nodeTree.selectedLayerIds.slice();
+        const originalSelected = layers.selectedIds.slice();
         const sorted = originalSelected
             .slice()
-            .sort((a, b) => nodeTree.indexOfLayer(a) - nodeTree.indexOfLayer(b));
+            .sort((a, b) => layers.indexOfLayer(a) - layers.indexOfLayer(b));
         const newSelection = new Set(originalSelected);
         const allNewIds = [];
 
         for (const layerId of sorted) {
-            const pixels = nodes.getProperty(layerId, 'pixels');
+            const pixels = layers.getProperty(layerId, 'pixels');
             if (pixels.length < 2) continue;
 
             const components = findPixelComponents(pixels);
             if (components.length <= 1) continue;
 
-            const originalLayer = nodes.getProperties(layerId);
+            const originalLayer = layers.getProperties(layerId);
             const originalName = originalLayer.name;
             const originalColor = originalLayer.color;
             const originalVisibility = originalLayer.visibility;
             const originalAttrs = originalLayer.attributes;
-            const originalIndex = nodeTree.indexOfLayer(layerId);
+            const originalIndex = layers.indexOfLayer(layerId);
 
             const newIds = components.reverse().map((componentPixels, index) => {
-                return nodes.createLayer({
+                return layers.createLayer({
                     name: `${originalName} #${components.length - index}`,
                     color: originalColor,
                     visibility: originalVisibility,
@@ -96,17 +96,17 @@ export const useLayerToolService = defineStore('layerToolService', () => {
                 });
             });
 
-            nodes.remove([layerId]);
+            layers.deleteLayers([layerId]);
 
-            const target = nodeTree.layerIdsBottomToTop[originalIndex];
-            nodeTree.insert(newIds, target, true);
+            const target = layers.idsBottomToTop[originalIndex];
+            layers.insert(newIds, target, true);
 
             newSelection.delete(layerId);
             for (const id of newIds) newSelection.add(id);
             allNewIds.push(...newIds);
         }
 
-        nodeTree.replaceSelection([...newSelection]);
+        layers.replaceSelection([...newSelection]);
         return allNewIds;
     }
 
