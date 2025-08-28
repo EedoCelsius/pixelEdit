@@ -112,5 +112,33 @@ export const useViewportStore = defineStore('viewport', {
             if (!allowViewport && (x < 0 || y < 0 || x >= this._stage.width || y >= this._stage.height)) return null;
             return [x, y];
         },
+        serialize() {
+            return {
+                stage: {
+                    width: this._stage.width,
+                    height: this._stage.height,
+                    scale: this._stage.scale,
+                    offset: { ...this._stage.offset },
+                },
+                image: { ...this._image }
+            };
+        },
+        applySerialized(payload) {
+            const stage = payload?.stage || {};
+            const image = payload?.image || {};
+            if (stage.width != null) this._stage.width = stage.width;
+            if (stage.height != null) this._stage.height = stage.height;
+            this.recalcContentSize();
+            if (stage.scale != null) this._stage.scale = stage.scale;
+            if (stage.offset) {
+                if (stage.offset.x != null) this._stage.offset.x = stage.offset.x;
+                if (stage.offset.y != null) this._stage.offset.y = stage.offset.y;
+            }
+            if (image.src != null) this._image.src = image.src;
+            if (image.x != null) this._image.x = image.x;
+            if (image.y != null) this._image.y = image.y;
+            if (image.width != null) this._image.width = image.width;
+            if (image.height != null) this._image.height = image.height;
+        },
     }
 });

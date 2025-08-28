@@ -1,23 +1,30 @@
 <template>
   <div v-if="stageResizeService.show" class="fixed inset-0 flex items-center justify-center bg-black/50">
     <div class="bg-slate-800 p-4 rounded-md text-xs space-y-2">
-      <div class="grid grid-cols-2 gap-2">
-        <label class="flex flex-col">
+      <div class="grid grid-cols-3 grid-rows-3 gap-2 items-center justify-items-center">
+        <div></div>
+        <label class="flex flex-col items-center">
           <span class="mb-1">Top</span>
-          <input type="number" v-model.number="top" class="px-1 py-0.5 rounded bg-slate-700" />
+          <input type="number" v-model.number="top" class="w-16 px-1 py-0.5 rounded bg-slate-700" />
         </label>
-        <label class="flex flex-col">
-          <span class="mb-1">Bottom</span>
-          <input type="number" v-model.number="bottom" class="px-1 py-0.5 rounded bg-slate-700" />
-        </label>
-        <label class="flex flex-col">
+        <div></div>
+
+        <label class="flex flex-col items-center">
           <span class="mb-1">Left</span>
-          <input type="number" v-model.number="left" class="px-1 py-0.5 rounded bg-slate-700" />
+          <input type="number" v-model.number="left" class="w-16 px-1 py-0.5 rounded bg-slate-700" />
         </label>
-        <label class="flex flex-col">
+        <div class="w-24 h-24 border-2 border-dashed border-slate-500"></div>
+        <label class="flex flex-col items-center">
           <span class="mb-1">Right</span>
-          <input type="number" v-model.number="right" class="px-1 py-0.5 rounded bg-slate-700" />
+          <input type="number" v-model.number="right" class="w-16 px-1 py-0.5 rounded bg-slate-700" />
         </label>
+
+        <div></div>
+        <label class="flex flex-col items-center">
+          <span class="mb-1">Bottom</span>
+          <input type="number" v-model.number="bottom" class="w-16 px-1 py-0.5 rounded bg-slate-700" />
+        </label>
+        <div></div>
       </div>
       <div class="flex justify-end gap-2 pt-2">
         <button @click="close" class="px-2 py-1 rounded bg-white/5 hover:bg-white/10">Cancel</button>
