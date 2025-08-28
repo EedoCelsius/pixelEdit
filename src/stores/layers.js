@@ -83,8 +83,8 @@ export const useLayerStore = defineStore('layers', {
             while (this.has(id)) id++;
             return id;
         },
-        /** Create a layer and insert relative to a reference id (above = on top of it). If refId null -> push on top */
-        createLayer(layerProperties = {}, above = null) {
+        /** Create a layer and return its id. Use insertLayers to place it in order. */
+        createLayer(layerProperties = {}) {
             const id = this._allocId();
             this._name[id] = layerProperties.name || 'Layer';
             this._visibility[id] = layerProperties.visibility ?? true;
@@ -92,12 +92,6 @@ export const useLayerStore = defineStore('layers', {
             this._color[id] = (layerProperties.color ?? randColorU32()) >>> 0;
             const keyedPixels = layerProperties.pixels ? layerProperties.pixels.map(coordToKey) : [];
             this._pixels[id] = reactive(new Set(keyedPixels));
-            if (above === null) {
-                this._order.push(id);
-            } else {
-                const idx = this.indexOfLayer(above);
-                (idx < 0) ? this._order.push(id) : this._order.splice(idx + 1, 0, id);
-            }
             return id;
         },
         /** Update properties of a layer */
@@ -146,16 +140,16 @@ export const useLayerStore = defineStore('layers', {
                 delete this._pixels[id];
             }
         },
-        /** Reorder selected ids as a block relative to targetId. */
-        reorderLayers(ids, targetId, placeBelow = true) {
-            const selectionSet = new Set(ids);
-            if (!selectionSet.size) return;
-            const keptIds = this._order.filter(id => !selectionSet.has(id));
+        /** Insert given ids relative to targetId. Works for existing or new layers. */
+        insertLayers(ids, targetId, placeBelow = true) {
+            const idSet = new Set(ids);
+            const keptIds = this._order.filter(id => !idSet.has(id));
             let targetIndex = keptIds.indexOf(targetId);
             if (targetIndex < 0) targetIndex = keptIds.length;
             if (!placeBelow) targetIndex = targetIndex + 1;
-            const selectionInStack = this._order.filter(id => selectionSet.has(id));
-            keptIds.splice(targetIndex, 0, ...selectionInStack);
+            const inStack = this._order.filter(id => idSet.has(id));
+            const notInStack = ids.filter(id => !inStack.includes(id));
+            keptIds.splice(targetIndex, 0, ...inStack, ...notInStack);
             this._order = keptIds;
         },
         deleteEmptyLayers() {

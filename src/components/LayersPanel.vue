@@ -153,7 +153,7 @@ function onDrop(id, event) {
     const targetId = id;
     const rect = row.getBoundingClientRect();
     const placeBelow = (event.clientY - rect.top) > rect.height * 0.5;
-    layers.reorderLayers(layers.selectedIds, targetId, placeBelow);
+    layers.insertLayers(layers.selectedIds, targetId, placeBelow);
     output.commit();
 }
 
