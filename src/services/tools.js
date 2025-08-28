@@ -9,16 +9,20 @@ import { coordToKey } from '../utils';
 
 export const useDrawToolService = defineStore('drawToolService', () => {
     const tool = useToolSelectionService();
-    const overlay = useOverlayService();
+    const overlayService = useOverlayService();
+    const overlay = overlayService.addOverlay('draw');
+    overlay.config.value = OVERLAY_CONFIG.ADD;
     const { layers } = useStore();
     watch(() => tool.prepared === 'draw', (isDraw) => {
-        if (!isDraw) return;
-        overlay.helper.config = OVERLAY_CONFIG.ADD;
+        if (!isDraw) {
+            overlay.clear();
+            return;
+        }
         tool.setCursor({ stroke: CURSOR_CONFIG.DRAW_STROKE, rect: CURSOR_CONFIG.DRAW_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
         if (tool.prepared !== 'draw') return;
-        overlay.helper.setPixels(pixel ? [pixel] : []);
+        overlay.setPixels(pixel ? [pixel] : []);
     });
     watch(() => tool.dragPixel, (pixel) => {
         if (tool.prepared !== 'draw' || layers.selectionCount !== 1) return;
@@ -33,7 +37,7 @@ export const useDrawToolService = defineStore('drawToolService', () => {
     });
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.prepared !== 'draw' || layers.selectionCount !== 1) return;
-        overlay.helper.setPixels(pixels);
+        overlay.setPixels(pixels);
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.prepared !== 'draw' || layers.selectionCount !== 1) return;
@@ -46,16 +50,20 @@ export const useDrawToolService = defineStore('drawToolService', () => {
 
 export const useEraseToolService = defineStore('eraseToolService', () => {
     const tool = useToolSelectionService();
-    const overlay = useOverlayService();
+    const overlayService = useOverlayService();
+    const overlay = overlayService.addOverlay('erase');
+    overlay.config.value = OVERLAY_CONFIG.REMOVE;
     const { layers } = useStore();
     watch(() => tool.prepared === 'erase', (isErase) => {
-        if (!isErase) return;
-        overlay.helper.config = OVERLAY_CONFIG.REMOVE;
+        if (!isErase) {
+            overlay.clear();
+            return;
+        }
         tool.setCursor({ stroke: CURSOR_CONFIG.ERASE_STROKE, rect: CURSOR_CONFIG.ERASE_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
         if (tool.prepared !== 'erase') return;
-        overlay.helper.setPixels(pixel ? [pixel] : []);
+        overlay.setPixels(pixel ? [pixel] : []);
     });
     watch(() => tool.dragPixel, (pixel) => {
         if (tool.prepared !== 'erase' || layers.selectionCount !== 1) return;
@@ -70,7 +78,7 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     });
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.prepared !== 'erase' || layers.selectionCount !== 1) return;
-        overlay.helper.setPixels(pixels);
+        overlay.setPixels(pixels);
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.prepared !== 'erase' || layers.selectionCount !== 1) return;
@@ -83,17 +91,21 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
 
 export const useCutToolService = defineStore('cutToolService', () => {
     const tool = useToolSelectionService();
-    const overlay = useOverlayService();
+    const overlayService = useOverlayService();
+    const overlay = overlayService.addOverlay('cut');
+    overlay.config.value = OVERLAY_CONFIG.REMOVE;
     const layerPanel = useLayerPanelService();
     const { layers } = useStore();
     watch(() => tool.prepared === 'cut', (isCut) => {
-        if (!isCut) return;
-        overlay.helper.config = OVERLAY_CONFIG.REMOVE;
+        if (!isCut) {
+            overlay.clear();
+            return;
+        }
         tool.setCursor({ stroke: CURSOR_CONFIG.CUT_STROKE, rect: CURSOR_CONFIG.CUT_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
         if (tool.prepared !== 'cut') return;
-        overlay.helper.setPixels(pixel ? [pixel] : []);
+        overlay.setPixels(pixel ? [pixel] : []);
     });
     watch(() => tool.dragPixel, (pixel) => {
         if (tool.prepared !== 'cut' || layers.selectionCount !== 1) return;
@@ -108,7 +120,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
     });
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.prepared !== 'cut' || layers.selectionCount !== 1) return;
-        overlay.helper.setPixels(pixels);
+        overlay.setPixels(pixels);
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.prepared !== 'cut' || layers.selectionCount !== 1) return;
@@ -146,18 +158,22 @@ export const useCutToolService = defineStore('cutToolService', () => {
 
 export const useTopToolService = defineStore('topToolService', () => {
     const tool = useToolSelectionService();
-    const overlay = useOverlayService();
+    const overlayService = useOverlayService();
+    const overlay = overlayService.addOverlay('top');
+    overlay.config.value = OVERLAY_CONFIG.ADD;
     const layerPanel = useLayerPanelService();
     const { layers } = useStore();
     watch(() => tool.prepared === 'top', (isTop) => {
-        if (!isTop) return;
-        overlay.helper.config = OVERLAY_CONFIG.ADD;
+        if (!isTop) {
+            overlay.clear();
+            return;
+        }
         tool.setCursor({ stroke: CURSOR_CONFIG.TOP, rect: CURSOR_CONFIG.TOP });
     });
     watch(() => tool.hoverPixel, (pixel) => {
         if (tool.prepared !== 'top') return;
         if (!pixel) {
-            overlay.helper.clear();
+            overlay.clear();
             return;
         }
         const id = layers.topVisibleIdAt(pixel);
@@ -167,7 +183,7 @@ export const useTopToolService = defineStore('topToolService', () => {
         else {
             tool.setCursor({ stroke: CURSOR_CONFIG.TOP, rect: CURSOR_CONFIG.TOP });
         }
-        overlay.helper.setLayers(id ? [id] : []);
+        overlay.setLayers(id ? [id] : []);
     });
     watch(() => tool.dragPixel, (pixel) => {
         if (tool.prepared !== 'top' || !pixel) return;
@@ -188,39 +204,44 @@ export const useTopToolService = defineStore('topToolService', () => {
 
 export const useSelectService = defineStore('selectService', () => {
     const tool = useToolSelectionService();
-    const overlay = useOverlayService();
+    const overlayService = useOverlayService();
+    const overlay = overlayService.addOverlay('select');
+    overlay.config.value = OVERLAY_CONFIG.ADD;
     const layerPanel = useLayerPanelService();
     const { layers, viewportEvent: viewportEvents } = useStore();
     let mode = 'select';
     watch(() => tool.prepared === 'select', (isSelect) => {
-        if (!isSelect) return
+        if (!isSelect) {
+            overlay.clear();
+            return;
+        }
         tool.setCursor({ stroke: CURSOR_CONFIG.ADD_STROKE, rect: CURSOR_CONFIG.ADD_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
         if (tool.prepared !== 'select') return;
         if (!pixel) {
-            overlay.helper.clear();
+            overlay.clear();
             return;
         }
         const id = layers.topVisibleIdAt(pixel);
         if (!viewportEvents.isPressed('Shift')) {
             mode = 'select';
-            overlay.helper.config = OVERLAY_CONFIG.ADD;
+            overlay.config.value = OVERLAY_CONFIG.ADD;
             tool.setCursor({ stroke: CURSOR_CONFIG.ADD_STROKE, rect: CURSOR_CONFIG.ADD_RECT });
         } else if (layers.isSelected(id)) {
             mode = 'remove';
-            overlay.helper.config = OVERLAY_CONFIG.REMOVE;
+            overlay.config.value = OVERLAY_CONFIG.REMOVE;
             tool.setCursor({ stroke: CURSOR_CONFIG.REMOVE_STROKE, rect: CURSOR_CONFIG.REMOVE_RECT });
         } else {
             mode = 'add';
-            overlay.helper.config = OVERLAY_CONFIG.ADD;
+            overlay.config.value = OVERLAY_CONFIG.ADD;
             tool.setCursor({ stroke: CURSOR_CONFIG.ADD_STROKE, rect: CURSOR_CONFIG.ADD_RECT });
         }
 
         if (id && layers.getProperty(id, 'locked')) {
             tool.setCursor({ stroke: CURSOR_CONFIG.LOCKED, rect: CURSOR_CONFIG.LOCKED });
         }
-        overlay.helper.setLayers(id ? [id] : []);
+        overlay.setLayers(id ? [id] : []);
     });
     watch(() => tool.dragPixel, (pixel) => {
         if (tool.prepared !== 'select') return;
@@ -247,7 +268,7 @@ export const useSelectService = defineStore('selectService', () => {
             if (mode === 'add' && layers.isSelected(id)) return;
             highlightIds.push(id);
         });
-        overlay.helper.setLayers(highlightIds);
+        overlay.setLayers(highlightIds);
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.prepared !== 'select') return;
@@ -276,16 +297,20 @@ export const useSelectService = defineStore('selectService', () => {
 
 export const useGlobalEraseToolService = defineStore('globalEraseToolService', () => {
     const tool = useToolSelectionService();
-    const overlay = useOverlayService();
+    const overlayService = useOverlayService();
+    const overlay = overlayService.addOverlay('globalErase');
+    overlay.config.value = OVERLAY_CONFIG.REMOVE;
     const { layers } = useStore();
     watch(() => tool.prepared === 'globalErase', (isGlobalErase) => {
-        if (!isGlobalErase) return
-        overlay.helper.config = OVERLAY_CONFIG.REMOVE;
+        if (!isGlobalErase) {
+            overlay.clear();
+            return;
+        }
         tool.setCursor({ stroke: CURSOR_CONFIG.GLOBAL_ERASE_STROKE, rect: CURSOR_CONFIG.GLOBAL_ERASE_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
         if (tool.prepared !== 'globalErase') return;
-        overlay.helper.setPixels(pixel ? [pixel] : []);
+        overlay.setPixels(pixel ? [pixel] : []);
     });
     watch(() => tool.dragPixel, (pixel) => {
         if (tool.prepared !== 'globalErase') return;
@@ -314,7 +339,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
                 if (unlockedPixels.has(coordToKey(coord))) erasablePixels.push(coord);
             }
         }
-        overlay.helper.setPixels(erasablePixels);
+        overlay.setPixels(erasablePixels);
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.prepared !== 'globalErase' || !pixels.length) return;
