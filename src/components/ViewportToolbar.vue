@@ -50,7 +50,7 @@ import { useService } from '../services';
 import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS, TOOL_MODIFIERS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 
-const { viewport: viewportStore, layers, output, viewportEvent: viewportEvents } = useStore();
+const { viewport: viewportStore, nodeTree, output, viewportEvent: viewportEvents } = useStore();
 const { toolSelection: toolSelectionService, stageResize: stageResizeService } = useService();
 
 let previousTool = null;
@@ -90,7 +90,7 @@ watch(() => viewportEvents.recent.keyboard.up, (ups) => {
         }
     }
 });
-watch(() => layers.selectionCount, (size, prev) => {
+watch(() => nodeTree.selectedLayerCount, (size, prev) => {
     if (size === 1) {
         if (prev !== 1) lastMultiTool = toolSelectionService.prepared;
         selectables.value = SINGLE_SELECTION_TOOLS;

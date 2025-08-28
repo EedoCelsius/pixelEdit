@@ -5,7 +5,7 @@
       <svg v-show="viewportStore.display!=='result'" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-44 h-44 rounded-md border border-white/15">
         <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
         <g>
-            <path v-for="props in layers.getProperties(layers.idsBottomToTop)" :key="'pix-'+props.id" :d="layers.pathOf(props.id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(props.color)" :visibility="props.visibility?'visible':'hidden'"></path>
+            <path v-for="props in nodes.getProperties(nodeTree.layerIdsBottomToTop)" :key="'pix-'+props.id" :d="nodes.pathOfLayer(props.id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(props.color)" :visibility="props.visibility?'visible':'hidden'"></path>
         </g>
       </svg>
       <!-- 원본 -->
@@ -27,7 +27,7 @@ import { ref, computed, onMounted, nextTick } from 'vue';
 import { useStore } from '../stores';
 import { rgbaCssU32, ensureCheckerboardPattern } from '../utils';
 
-const { viewport: viewportStore, layers, output } = useStore();
+const { viewport: viewportStore, nodeTree, nodes, output } = useStore();
 const text = ref('');
 const textareaElement = ref(null);
 

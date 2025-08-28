@@ -1,6 +1,6 @@
 <template>
-  <div v-memo="[output.commitVersion, layers.selectedIds, layers.count, foldedMemo]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
-    <div v-for="item in flatNodes" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 16) + 'px' }" :class="{ selected: layers.isSelected(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)">
+  <div v-memo="[output.commitVersion, nodeTree.selectedLayerIds, nodeTree.layerCount, foldedMemo]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
+    <div v-for="item in flatNodes" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 16) + 'px' }" :class="{ selected: nodeTree.isSelected(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)">
       <template v-if="item.isGroup">
         <div class="w-4 text-center cursor-pointer" @click.stop="toggleFold(item.id)">{{ folded[item.id] ? '▶' : '▼' }}</div>
         <div class="min-w-0 flex-1">
@@ -25,7 +25,7 @@
         <div @click.stop="onThumbnailClick(item.id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
           <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
             <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
-            <path :d="layers.pathOf(item.id)" :fill="rgbaCssU32(item.props.color)" :opacity="item.props.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+            <path :d="nodes.pathOfLayer(item.id)" :fill="rgbaCssU32(item.props.color)" :opacity="item.props.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
           </svg>
         </div>
         <!-- 색상 -->
@@ -38,9 +38,9 @@
             <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
           </div>
           <div class="text-xs text-slate-400">
-            <template v-if="layers.disconnectedCountOf(item.id) > 1">
+            <template v-if="nodes.disconnectedCountOfLayer(item.id) > 1">
               <span class="cursor-pointer" @click.stop="onDisconnectedClick(item.id)">⚠️</span>
-              <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(item.id)">{{ layers.disconnectedCountOf(item.id) }} piece</span>
+              <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(item.id)">{{ nodes.disconnectedCountOfLayer(item.id) }} piece</span>
               <span class="mx-1">|</span>
             </template>
             <span class="cursor-pointer" @click.stop="onPixelCountClick(item.id)" title="같은 크기의 모든 레이어 선택">{{ item.props.pixels.length }} px</span>
@@ -72,7 +72,7 @@ import blockIcons from '../image/layer_block';
 
 import { useService } from '../services';
 
-const { viewport: viewportStore, layers, output } = useStore();
+const { viewport: viewportStore, nodeTree, nodes, output } = useStore();
 const { layerPanel, query, viewport, stageResize: stageResizeService } = useService();
 
 const dragging = ref(false);
@@ -85,16 +85,16 @@ const foldedMemo = computed(() => JSON.stringify(folded));
 
 const flatNodes = computed(() => {
   const result = [];
-  const walk = (nodes, depth) => {
-    for (let i = nodes.length - 1; i >= 0; i--) {
-      const node = nodes[i];
+  const walk = (list, depth) => {
+    for (let i = list.length - 1; i >= 0; i--) {
+      const node = list[i];
       const isGroup = !!node.children;
       result.push({ id: node.id, depth, isGroup });
       if (isGroup && !folded[node.id]) walk(node.children, depth + 1);
     }
   };
-  walk(layers.tree, 0);
-  const propsList = layers.getProperties(result.map(r => r.id));
+  walk(nodeTree.tree, 0);
+  const propsList = nodes.getProperties(result.map(r => r.id));
   return result.map((r, i) => ({ ...r, props: propsList[i] }));
 });
 
@@ -106,10 +106,10 @@ function toggleFold(id) {
 
 
   function onThumbnailClick(id) {
-      const color = layers.getProperty(id, 'color');
+      const color = nodes.getProperty(id, 'color');
       const ids = query.byColor(color);
       if (ids.length) {
-          layers.replaceSelection(ids);
+          nodeTree.replaceSelection(ids);
           layerPanel.clearRange();
       }
       layerPanel.setScrollRule({
@@ -119,12 +119,12 @@ function toggleFold(id) {
   }
 
   function onPixelCountClick(id) {
-      const count = layers.getProperty(id, 'pixels').length;
+      const count = (nodes.getProperty(id, 'pixels') || []).length;
       const ids = count === 0 ? [id] : query.byPixelCount(count);
       if (ids.length <= 1) {
           layerPanel.setRange(id, id);
       } else {
-          layers.replaceSelection(ids);
+          nodeTree.replaceSelection(ids);
           layerPanel.clearRange();
       }
       layerPanel.setScrollRule({
@@ -136,7 +136,7 @@ function toggleFold(id) {
   function onDisconnectedClick(id) {
       const ids = query.disconnected();
       if (ids.length) {
-          layers.replaceSelection(ids);
+          nodeTree.replaceSelection(ids);
           layerPanel.clearRange();
       }
       layerPanel.setScrollRule({
@@ -146,12 +146,12 @@ function toggleFold(id) {
   }
 
   function onDisconnectedCountClick(id) {
-      const count = layers.disconnectedCountOf(id);
+      const count = nodes.disconnectedCountOfLayer(id);
       const ids = count <= 1 ? [id] : query.byDisconnectedCount(count);
       if (ids.length <= 1) {
           layerPanel.setRange(id, id);
       } else {
-          layers.replaceSelection(ids);
+          nodeTree.replaceSelection(ids);
           layerPanel.clearRange();
       }
       layerPanel.setScrollRule({
@@ -174,7 +174,7 @@ function onDragEnd() {
 
 function onDragOver(item, event) {
     const row = event.currentTarget;
-    if (layers.isSelected(item.id)) {
+if (nodeTree.isSelected(item.id)) {
         row.classList.remove('insert-before', 'insert-after', 'insert-into');
         event.dataTransfer.dropEffect = 'none';
         return;
@@ -199,12 +199,12 @@ function onDrop(item, event) {
     row.classList.remove('insert-before', 'insert-after', 'insert-into');
     const rect = row.getBoundingClientRect();
     const y = event.clientY - rect.top;
-    const ids = layers.selectedNodeIds;
+const ids = nodeTree.selectedNodeIds;
     if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
-        layers.putIn(ids, item.id, true);
+        nodeTree.putIn(ids, item.id, true);
     } else {
         const placeBelow = y > rect.height * 0.5;
-        layers.insert(ids, item.id, placeBelow);
+        nodeTree.insert(ids, item.id, placeBelow);
     }
     output.commit();
 }
@@ -215,12 +215,12 @@ function onColorDown() {
 
 function onColorInput(id, event) {
     const colorU32 = hexToRgbaU32(event.target.value);
-    if (layers.isSelected(id)) {
-        for (const sid of layers.selectedIds) {
-            layers.updateProperties(sid, { color: colorU32 });
+    if (nodeTree.isSelected(id)) {
+        for (const sid of nodeTree.selectedLayerIds) {
+            nodes.update(sid, { color: colorU32 });
         }
     } else {
-        layers.updateProperties(id, { color: colorU32 });
+        nodes.update(id, { color: colorU32 });
     }
 }
 
@@ -230,36 +230,36 @@ function onColorChange() {
 
 function toggleVisibility(id) {
     output.setRollbackPoint();
-    if (layers.isSelected(id)) {
-        const value = !layers.getProperty(id, 'visibility');
-        for (const sid of layers.selectedIds) {
-            layers.updateProperties(sid, { visibility: value });
+    if (nodeTree.isSelected(id)) {
+        const value = !nodes.getProperty(id, 'visibility');
+        for (const sid of nodeTree.selectedLayerIds) {
+            nodes.update(sid, { visibility: value });
         }
     } else {
-        layers.toggleVisibility(id);
+        nodes.toggleVisibility(id);
     }
     output.commit();
 }
 
 function toggleLock(id) {
     output.setRollbackPoint();
-    if (layers.isSelected(id)) {
-        const value = !layers.getProperty(id, 'locked');
-        for (const sid of layers.selectedIds) {
-            layers.updateProperties(sid, { locked: value });
+    if (nodeTree.isSelected(id)) {
+        const value = !nodes.getProperty(id, 'locked');
+        for (const sid of nodeTree.selectedLayerIds) {
+            nodes.update(sid, { locked: value });
         }
     } else {
-        layers.toggleLock(id);
+        nodes.toggleLock(id);
     }
     output.commit();
 }
 
 function deleteLayer(id) {
     output.setRollbackPoint();
-    const targets = layers.isSelected(id) ? layers.selectedIds : [id];
+    const targets = nodeTree.isSelected(id) ? nodeTree.selectedLayerIds : [id];
     const belowId = query.below(query.lowermost(targets));
-    layers.deleteLayers(targets);
-    const newSelectId = layers.has(belowId) ? belowId : query.lowermost();
+    nodes.remove(targets);
+    const newSelectId = nodeTree.has(belowId) ? belowId : query.lowermost();
     layerPanel.setRange(newSelectId, newSelectId);
     if (newSelectId) {
         layerPanel.setScrollRule({
@@ -362,11 +362,11 @@ function startRename(id) {
 function finishRename(id, event) {
     const element = document.querySelector(`.layer[data-id="${id}"] .nameText`);
     element.contentEditable = false;
-    const oldName = layers.getProperty(id, 'name');
+    const oldName = nodes.getProperty(id, 'name');
     const text = event.target.innerText.trim();
     editingId.value = null;
     if (text && text !== oldName) {
-        layers.updateProperties(id, { name: text });
+        nodes.update(id, { name: text });
         output.commit();
     } else {
         event.target.innerText = oldName;
@@ -379,7 +379,7 @@ function finishRename(id, event) {
 }
 
 function onNameKey(id, event) {
-    const name = layers.getProperty(id, 'name');
+    const name = nodes.getProperty(id, 'name');
     if (event.key === 'Enter') {
         event.preventDefault();
         event.target.blur();
@@ -408,14 +408,14 @@ function handleGlobalPointerDown(event) {
         const onUp = (e) => {
             if (e.pointerId !== pid) return;
             window.removeEventListener('pointermove', onMove, true);
-            if (!moved) layers.clearSelection();
+            if (!moved) nodeTree.clearSelection();
         };
         window.addEventListener('pointermove', onMove, { capture: true });
         window.addEventListener('pointerup', onUp, { capture: true, once: true });
         return;
     }
     if (!isViewport && !isStage && !isLayers && !isButton)
-        layers.clearSelection();
+        nodeTree.clearSelection();
 }
 
 onMounted(() => {
