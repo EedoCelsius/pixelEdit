@@ -1,19 +1,24 @@
 <template>
   <div v-if="stageResizeService.show" class="fixed inset-0 flex items-center justify-center bg-black/50">
     <div class="bg-slate-800 p-4 rounded-md text-xs space-y-2">
-      <div class="grid grid-cols-3 grid-rows-3 gap-3 items-center justify-items-center">
-        <div></div>
-        <label class="flex flex-col items-center">
+      <div class="relative w-56 h-56 mx-auto">
+        <label class="absolute -top-10 left-1/2 -translate-x-1/2 flex flex-col items-center">
           <span class="mb-1">Top</span>
           <input type="number" v-model.number="top" class="w-16 px-1 py-0.5 rounded bg-slate-700" />
         </label>
-        <div></div>
-
-        <label class="flex flex-col items-center">
+        <label class="absolute top-1/2 -left-20 -translate-y-1/2 flex flex-col items-center">
           <span class="mb-1">Left</span>
           <input type="number" v-model.number="left" class="w-16 px-1 py-0.5 rounded bg-slate-700" />
         </label>
-        <div class="relative w-56 h-56 border-2 border-dashed border-slate-500">
+        <label class="absolute top-1/2 -right-20 -translate-y-1/2 flex flex-col items-center">
+          <span class="mb-1">Right</span>
+          <input type="number" v-model.number="right" class="w-16 px-1 py-0.5 rounded bg-slate-700" />
+        </label>
+        <label class="absolute -bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center">
+          <span class="mb-1">Bottom</span>
+          <input type="number" v-model.number="bottom" class="w-16 px-1 py-0.5 rounded bg-slate-700" />
+        </label>
+        <div class="absolute inset-0 border-2 border-dashed border-slate-500">
           <button @click="adjust('top', 1)" class="absolute -top-6 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-700 rounded text-white">▲</button>
           <button @click="adjust('top', -1)" class="absolute top-1 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-700 rounded text-white">▼</button>
           <button @click="adjust('bottom', 1)" class="absolute -bottom-6 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-700 rounded text-white">▼</button>
@@ -33,17 +38,6 @@
             </label>
           </div>
         </div>
-        <label class="flex flex-col items-center">
-          <span class="mb-1">Right</span>
-          <input type="number" v-model.number="right" class="w-16 px-1 py-0.5 rounded bg-slate-700" />
-        </label>
-
-        <div></div>
-        <label class="flex flex-col items-center">
-          <span class="mb-1">Bottom</span>
-          <input type="number" v-model.number="bottom" class="w-16 px-1 py-0.5 rounded bg-slate-700" />
-        </label>
-        <div></div>
       </div>
       <div class="flex justify-end gap-2 pt-2">
         <button @click="close" class="px-2 py-1 rounded bg-white/5 hover:bg-white/10">Cancel</button>
