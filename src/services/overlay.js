@@ -5,7 +5,7 @@ import { coordToKey, keyToCoord, pixelsToUnionPath } from '../utils';
 import { OVERLAY_CONFIG } from '@/constants';
 
 export const useOverlayService = defineStore('overlayService', () => {
-    const { layers } = useStore();
+    const { nodeTree, nodes } = useStore();
 
     function createOverlayState() {
         const pixelKeys = reactive(new Set());
@@ -21,7 +21,7 @@ export const useOverlayService = defineStore('overlayService', () => {
             if (!Array.isArray(ids)) ids = [ids];
             for (const id of ids) {
                 if (id == null) continue;
-                const layerPixels = layers.getProperty(id, 'pixels') || [];
+                const layerPixels = nodes.getProperty(id, 'pixels') || [];
                 addPixels(layerPixels);
             }
         }
@@ -56,10 +56,10 @@ export const useOverlayService = defineStore('overlayService', () => {
     addOverlay('selection', OVERLAY_CONFIG.SELECTED);
 
     function rebuildSelection() {
-        overlays.selection.setLayers(layers.selectedIds);
+        overlays.selection.setLayers(nodeTree.selectedLayerIds);
     }
 
-    watch(() => layers.selectedIds.slice(), rebuildSelection, { immediate: true });
+    watch(() => nodeTree.selectedLayerIds.slice(), rebuildSelection, { immediate: true });
 
     function getOverlay(id) {
         return overlays[id];
