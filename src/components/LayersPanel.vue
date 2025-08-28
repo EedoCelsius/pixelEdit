@@ -1,6 +1,6 @@
 <template>
   <div v-memo="[output.commitVersion, nodeTree.selectedLayerIds, nodeTree.layerCount, foldedMemo]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
-    <div v-for="item in flatNodes" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.isSelected(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)">
+    <div v-for="item in flatNodes" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.selectedNodeIds.includes(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)">
       <template v-if="item.isGroup">
         <div class="w-4 text-center cursor-pointer" @click.stop="toggleFold(item.id)">{{ folded[item.id] ? '▶' : '▼' }}</div>
         <div class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden" title="그룹 미리보기">
@@ -186,7 +186,7 @@ function onDragEnd() {
 
 function onDragOver(item, event) {
     const row = event.currentTarget;
-if (nodeTree.isSelected(item.id)) {
+if (nodeTree.selectedNodeIds.includes(item.id)) {
         row.classList.remove('insert-before', 'insert-after', 'insert-into');
         event.dataTransfer.dropEffect = 'none';
         return;
@@ -227,7 +227,7 @@ function onColorDown() {
 
 function onColorInput(id, event) {
     const colorU32 = hexToRgbaU32(event.target.value);
-    if (nodeTree.isSelected(id)) {
+    if (nodeTree.selectedNodeIds.includes(item.id)) {
         for (const sid of nodeTree.selectedLayerIds) {
             nodes.update(sid, { color: colorU32 });
         }
@@ -242,7 +242,7 @@ function onColorChange() {
 
 function toggleVisibility(id) {
     output.setRollbackPoint();
-    if (nodeTree.isSelected(id)) {
+    if (nodeTree.selectedNodeIds.includes(item.id)) {
         const value = !nodes.getProperty(id, 'visibility');
         for (const sid of nodeTree.selectedNodeIds) {
             nodes.update(sid, { visibility: value });
@@ -255,7 +255,7 @@ function toggleVisibility(id) {
 
 function toggleLock(id) {
     output.setRollbackPoint();
-    if (nodeTree.isSelected(id)) {
+    if (nodeTree.selectedNodeIds.includes(item.id)) {
         const value = !nodes.getProperty(id, 'locked');
         for (const sid of nodeTree.selectedNodeIds) {
             nodes.update(sid, { locked: value });
@@ -268,7 +268,7 @@ function toggleLock(id) {
 
 function deleteLayer(id) {
     output.setRollbackPoint();
-    const targets = nodeTree.isSelected(id) ? nodeTree.selectedNodeIds : [id];
+    const targets = nodeTree.selectedNodeIds.includes(item.id) ? nodeTree.selectedNodeIds : [id];
     const belowId = query.below(query.lowermost(targets));
     nodes.remove(targets);
     const newSelectId = nodeTree.has(belowId) ? belowId : query.lowermost();
