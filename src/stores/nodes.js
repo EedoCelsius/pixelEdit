@@ -87,14 +87,8 @@ export const useNodeStore = defineStore('nodes', {
         }
     },
     actions: {
-        _allocId() {
-            let id = Date.now();
-            const tree = useNodeTreeStore();
-            while (tree.has(id) || this.has(id)) id++;
-            return id;
-        },
         createLayer(layerProperties = {}) {
-            const id = this._allocId();
+            const id = Math.floor(Date.now() * Math.random());
             this._name[id] = layerProperties.name || 'Layer';
             this._visibility[id] = layerProperties.visibility ?? true;
             this._locked[id] = layerProperties.locked ?? false;
@@ -107,7 +101,7 @@ export const useNodeStore = defineStore('nodes', {
             return id;
         },
         createGroup(groupProperties = {}) {
-            const id = this._allocId();
+            const id = Math.floor(Date.now() * Math.random());
             this._name[id] = groupProperties.name || 'Group';
             this._visibility[id] = groupProperties.visibility ?? true;
             this._locked[id] = groupProperties.locked ?? false;
