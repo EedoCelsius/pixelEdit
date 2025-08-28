@@ -1,8 +1,8 @@
 <template>
   <div class="flex items-center gap-3 text-sm px-3 py-2">
-    <div>원본: <span class="text-slate-200">{{ viewportStore.stage.width }}×{{ viewportStore.stage.height }}</span></div>
+    <div>픽셀: <span class="text-slate-200">{{ viewportStore.stage.width }}×{{ viewportStore.stage.height }}</span></div>
     <div>확대: <span class="text-slate-200">{{ viewportStore.stage.scale.toFixed(1) }}x</span></div>
-    <div>선택 영역 픽셀 수: <span class="text-slate-200">{{ selectedAreaPixelCount }}</span></div>
+    <div>영역 내 픽셀 수: <span class="text-slate-200">{{ selectedAreaPixelCount }}</span></div>
     <div class="flex-1"></div>
     <div class="text-xs text-slate-400">{{ pixelInfo }}</div>
   </div>
