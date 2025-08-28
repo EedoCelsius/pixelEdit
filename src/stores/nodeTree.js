@@ -2,18 +2,18 @@ import { defineStore } from 'pinia';
 import { readonly, reactive } from 'vue';
 import { useNodeStore } from './nodes';
 
-function flatten(nodes, result = [], nodeStore = useNodeStore()) {
+function flattenLayers(nodes, result = [], nodeStore = useNodeStore()) {
     for (const node of nodes) {
-        if (node.children) flatten(node.children, result, nodeStore);
+        if (node.children) flattenLayers(node.children, result, nodeStore);
         else if (nodeStore.getProperty(node.id, 'type') === 'layer') result.push(node.id);
     }
     return result;
 }
 
-function flattenAll(nodes, result = []) {
+function flattenNode(nodes, result = []) {
     for (const node of nodes) {
         result.push(node.id);
-        if (node.children) flattenAll(node.children, result);
+        if (node.children) flattenNode(node.children, result);
     }
     return result;
 }
@@ -68,7 +68,19 @@ function collectLayerIds(node, result = [], nodeStore = useNodeStore()) {
     return result;
 }
 
-function flattenSelection(tree, selection) {
+function flattenSelectedNode(tree, selection) {
+    const result = [];
+    const walk = (nodes) => {
+        for (const node of nodes) {
+            if (selection.has(node.id)) result.push(node.id);
+            if (node.children) walk(node.children);
+        }
+    };
+    walk(tree);
+    return result;
+}
+
+function flattenSelectedLayers(tree, selection) {
     const result = new Set();
     for (const id of selection) {
         const info = findNode(tree, id);
@@ -83,29 +95,18 @@ export const useNodeTreeStore = defineStore('nodeTree', {
         _selection: new Set()
     }),
     getters: {
-        exists: (state) => flattenAll(state._tree).length > 0,
-        layerOrder: (state) => readonly(flatten(state._tree)),
+        exists: (state) => flattenNode(state._tree).length > 0,
+        layerOrder: (state) => readonly(flattenLayers(state._tree)),
         tree: (state) => readonly(state._tree),
         has: (state) => (id) => findNode(state._tree, id) != null,
-        layerCount: (state) => flatten(state._tree).length,
-        layerIdsBottomToTop: (state) => readonly(flatten(state._tree)),
-        layerIdsTopToBottom: (state) => readonly([...flatten(state._tree)].reverse()),
-        indexOfLayer: (state) => (id) => flatten(state._tree).indexOf(id),
-        selectedLayerIds: (state) => flattenSelection(state._tree, state._selection),
-        selectedNodeIds: (state) => {
-            const set = state._selection;
-            const result = [];
-            const walk = (nodes) => {
-                for (const n of nodes) {
-                    if (set.has(n.id)) result.push(n.id);
-                    if (n.children) walk(n.children);
-                }
-            };
-            walk(state._tree);
-            return result;
-        },
-        selectedLayerCount: (state) => flattenSelection(state._tree, state._selection).length,
-        layerSelectionExists: (state) => flattenSelection(state._tree, state._selection).length > 0,
+        layerCount: (state) => flattenLayers(state._tree).length,
+        layerIdsBottomToTop: (state) => readonly(flattenLayers(state._tree)),
+        layerIdsTopToBottom: (state) => readonly([...flattenLayers(state._tree)].reverse()),
+        indexOfLayer: (state) => (id) => flattenLayers(state._tree).indexOf(id),
+        selectedLayerIds: (state) => flattenSelectedLayers(state._tree, state._selection),
+        selectedNodeIds: (state) => flattenSelectedNode(state._tree, state._selection),
+        selectedLayerCount: (state) => flattenSelectedLayers(state._tree, state._selection).length,
+        layerSelectionExists: (state) => flattenSelectedLayers(state._tree, state._selection).length > 0,
         isSelected: (state) => (id) => {
             if (state._selection.has(id)) return true;
             const info = findNode(state._tree, id);
@@ -117,7 +118,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
             }
             return false;
         },
-        allNodeIds: (state) => flattenAll(state._tree)
+        allNodeIds: (state) => flattenNode(state._tree)
     },
     actions: {
         _findNode(id) {
@@ -148,7 +149,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
             }
             parentArr.splice(index, 0, ...nodes);
         },
-        putIn(ids, groupId, placeTop = true) {
+        append(ids, groupId, placeTop = true) {
             const nodeStore = useNodeStore();
             const nodes = ids.map(id => {
                 const existing = this._removeFromTree(id);
