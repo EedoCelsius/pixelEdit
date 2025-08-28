@@ -47,7 +47,7 @@ const onAddGroup = () => {
     const selected = layers.selectedNodeIds;
     const id = layers.createGroup({});
     if (selected.length === 0) {
-        layers.putIn([id], null, true);
+        layers.putIn([id], null, false);
     } else {
         const lowermost = selected[0];
         layers.insert([id], lowermost, true);

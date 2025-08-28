@@ -85,7 +85,8 @@ const folded = layerPanel.folded;
 const flatNodes = computed(() => {
   const result = [];
   const walk = (nodes, depth) => {
-    for (const node of nodes) {
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const node = nodes[i];
       const isGroup = !!node.children;
       result.push({ id: node.id, depth, isGroup });
       if (isGroup && !folded[node.id]) walk(node.children, depth + 1);

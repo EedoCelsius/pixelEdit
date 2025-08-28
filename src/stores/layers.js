@@ -74,7 +74,8 @@ export const useLayerStore = defineStore('layers', {
         _locked: {},
         _pixels: {},
         _attributes: {},
-        _selection: new Set()
+        _selection: new Set(),
+        _isGroup: {}
     }),
     getters: {
         exists: (state) => flatten(state._tree).length > 0,
@@ -194,6 +195,7 @@ export const useLayerStore = defineStore('layers', {
             this._pixels[id] = reactive(new Set(keyedPixels));
             const attrs = layerProperties.attributes ? layerProperties.attributes.map(a => ({ ...a })) : [];
             this._attributes[id] = reactive(attrs);
+            this._isGroup[id] = false;
             return id;
         },
         /** Create an empty group and return its id. Use insert/putIn to place it. */
@@ -205,6 +207,7 @@ export const useLayerStore = defineStore('layers', {
             this._color[id] = (groupProperties.color ?? randColorU32()) >>> 0;
             this._pixels[id] = reactive(new Set());
             this._attributes[id] = reactive([]);
+            this._isGroup[id] = true;
             return id;
         },
         /** Update properties of a layer */
@@ -274,6 +277,7 @@ export const useLayerStore = defineStore('layers', {
                 delete this._locked[id];
                 delete this._pixels[id];
                 delete this._attributes[id];
+                delete this._isGroup[id];
             }
         },
         /**
@@ -281,7 +285,7 @@ export const useLayerStore = defineStore('layers', {
          * ids can include layers or groups. Existing nodes are moved.
          */
         insert(ids, targetId, placeBelow = true) {
-            const nodes = ids.map(id => this._removeFromTree(id) || { id });
+            const nodes = ids.map(id => this._removeFromTree(id) || (this._isGroup[id] ? { id, children: reactive([]) } : { id }));
             const targetInfo = targetId != null ? this._findNode(targetId) : null;
             let parentArr = this._tree;
             let index = parentArr.length;
@@ -297,7 +301,7 @@ export const useLayerStore = defineStore('layers', {
          * groupId null refers to root.
          */
         putIn(ids, groupId, placeTop = true) {
-            const nodes = ids.map(id => this._removeFromTree(id) || { id });
+            const nodes = ids.map(id => this._removeFromTree(id) || (this._isGroup[id] ? { id, children: reactive([]) } : { id }));
             let targetArr = this._tree;
             if (groupId != null) {
                 const info = this._findNode(groupId);
@@ -412,6 +416,7 @@ export const useLayerStore = defineStore('layers', {
             this._locked = {};
             this._pixels = {};
             this._attributes = {};
+            this._isGroup = {};
             // rebuild tree
             if (Array.isArray(treePayload)) this._tree = reactive(buildTree(treePayload));
             else if (Array.isArray(orderPayload)) this._tree = reactive(orderPayload.map(id => ({ id })));
@@ -428,7 +433,17 @@ export const useLayerStore = defineStore('layers', {
                 this._pixels[id] = reactive(new Set(keyedPixels));
                 const attrs = info.attributes ? info.attributes.map(a => ({ ...a })) : [];
                 this._attributes[id] = reactive(attrs);
+                this._isGroup[id] = false;
             }
+            const markGroups = (nodes) => {
+                for (const n of nodes) {
+                    if (n.children) {
+                        this._isGroup[n.id] = true;
+                        markGroups(n.children);
+                    }
+                }
+            };
+            markGroups(this._tree);
             this._selection = new Set(payload?.selection || []);
         }
     }
