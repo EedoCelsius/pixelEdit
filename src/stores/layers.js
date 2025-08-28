@@ -13,6 +13,17 @@ function flatten(nodes, result = []) {
     return result;
 }
 
+/**
+ * Helper: flatten tree nodes to id list including groups.
+ */
+function flattenAll(nodes, result = []) {
+    for (const node of nodes) {
+        result.push(node.id);
+        if (node.children) flattenAll(node.children, result);
+    }
+    return result;
+}
+
 /** Build reactive tree from serialized plain object */
 function buildTree(nodes) {
     return nodes.map(n => n.children
@@ -406,10 +417,10 @@ export const useLayerStore = defineStore('layers', {
         },
         /** Serialization */
         serialize() {
-            const order = flatten(this._tree);
+            const allIds = flattenAll(this._tree);
             return {
                 tree: cloneTree(this._tree),
-                byId: Object.fromEntries(order.map(id => [id, {
+                byId: Object.fromEntries(allIds.map(id => [id, {
                     name: this._name[id],
                     visibility: !!this._visibility[id],
                     locked: !!this._locked[id],
@@ -436,9 +447,9 @@ export const useLayerStore = defineStore('layers', {
             // rebuild tree
             if (Array.isArray(treePayload)) this._tree = reactive(buildTree(treePayload));
             else if (Array.isArray(orderPayload)) this._tree = reactive(orderPayload.map(id => ({ id })));
-            // rebuild layer info
-            const order = flatten(this._tree);
-            for (const id of order) {
+            // rebuild layer/group info
+            const allIds = flattenAll(this._tree);
+            for (const id of allIds) {
                 const info = byId[id] || byId[id.toString()];
                 if (!info) continue;
                 this._name[id] = info.name || 'Layer';
