@@ -228,7 +228,7 @@ export const useSelectService = defineStore('selectService', () => {
             mode = 'select';
             overlay.config.value = OVERLAY_CONFIG.ADD;
             tool.setCursor({ stroke: CURSOR_CONFIG.ADD_STROKE, rect: CURSOR_CONFIG.ADD_RECT });
-        } else if (nodeTree.isSelected(id)) {
+        } else if (nodeTree.selectedLayerIds.includes(id)) {
             mode = 'remove';
             overlay.config.value = OVERLAY_CONFIG.REMOVE;
             tool.setCursor({ stroke: CURSOR_CONFIG.REMOVE_STROKE, rect: CURSOR_CONFIG.REMOVE_RECT });
@@ -264,8 +264,8 @@ export const useSelectService = defineStore('selectService', () => {
         }
         const highlightIds = [];
         intersectedIds.forEach(id => {
-            if (mode === 'remove' && !nodeTree.isSelected(id)) return;
-            if (mode === 'add' && nodeTree.isSelected(id)) return;
+            if (mode === 'remove' && !nodeTree.selectedLayerIds.includes(id)) return;
+            if (mode === 'add' && nodeTree.selectedLayerIds.includes(id)) return;
             highlightIds.push(id);
         });
         overlay.setLayers(highlightIds);
