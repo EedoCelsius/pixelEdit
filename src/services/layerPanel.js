@@ -38,7 +38,8 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         const order = [];
         const ancestors = new Map();
         const walk = (nodes, anc) => {
-            for (const node of nodes) {
+            for (let i = nodes.length - 1; i >= 0; i--) {
+                const node = nodes[i];
                 ancestors.set(node.id, anc.slice());
                 order.push(node.id);
                 if (node.children && !(skipFolded && folded[node.id])) {
@@ -122,14 +123,14 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
             const anchorVis = visibleAncestor(state.anchorId, orderSet);
             if (tailVis == null || anchorVis == null) return;
             const idx = order.indexOf(tailVis);
-            const newTail = order[idx + 1] ?? order[order.length - 1];
+            const newTail = order[idx - 1] ?? order[0];
             setRange(anchorVis, newTail);
             setScrollRule({ type: 'follow-up', target: newTail });
         } else {
             const anchorVis = visibleAncestor(state.anchorId, orderSet);
             if (anchorVis == null) return;
             const idx = order.indexOf(anchorVis);
-            const nextId = order[idx + 1] ?? anchorVis;
+            const nextId = order[idx - 1] ?? anchorVis;
             setRange(nextId, nextId);
             setScrollRule({ type: 'follow-up', target: nextId });
         }
@@ -146,14 +147,14 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
             const anchorVis = visibleAncestor(state.anchorId, orderSet);
             if (tailVis == null || anchorVis == null) return;
             const idx = order.indexOf(tailVis);
-            const newTail = order[idx - 1] ?? order[0];
+            const newTail = order[idx + 1] ?? order[order.length - 1];
             setRange(anchorVis, newTail);
             setScrollRule({ type: 'follow-down', target: newTail });
         } else {
             const anchorVis = visibleAncestor(state.anchorId, orderSet);
             if (anchorVis == null) return;
             const idx = order.indexOf(anchorVis);
-            const nextId = order[idx - 1] ?? anchorVis;
+            const nextId = order[idx + 1] ?? anchorVis;
             setRange(nextId, nextId);
             setScrollRule({ type: 'follow-down', target: nextId });
         }
