@@ -13,7 +13,7 @@
           <span class="mb-1">Left</span>
           <input type="number" v-model.number="left" class="w-16 px-1 py-0.5 rounded bg-slate-700" />
         </label>
-        <div class="relative w-40 h-40 border-2 border-dashed border-slate-500">
+        <div class="relative w-56 h-56 border-2 border-dashed border-slate-500">
           <button @click="adjust('top', 1)" class="absolute -top-6 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-700 rounded text-white">▲</button>
           <button @click="adjust('top', -1)" class="absolute top-1 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-700 rounded text-white">▼</button>
           <button @click="adjust('bottom', 1)" class="absolute -bottom-6 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-700 rounded text-white">▼</button>
