@@ -44,7 +44,7 @@ const onAdd = () => {
 };
 const onAddGroup = () => {
     output.setRollbackPoint();
-    const selected = nodeTree.selectedNodeIds;
+    const selected = nodeTree.selectedIds;
     const id = nodes.createGroup({});
     if (selected.length === 0) {
         nodeTree.append([id], null, false);
