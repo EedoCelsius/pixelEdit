@@ -60,7 +60,7 @@ const onSelectEmpty = () => {
 };
 const onSplit = () => {
     output.setRollbackPoint();
-    const newIds = layerSvc.splitLayer(layerPanel.anchorId);
+    const newIds = layerSvc.splitSelected();
     layerPanel.setScrollRule({ type: 'follow', target: newIds[0] });
     output.commit();
 };

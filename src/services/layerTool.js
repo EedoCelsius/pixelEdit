@@ -1,12 +1,10 @@
 import { defineStore } from 'pinia';
 import { useStore } from '../stores';
-import { useLayerPanelService } from './layerPanel';
 import { useQueryService } from './query';
 import { findPixelComponents, getPixelUnion, averageColorU32 } from '../utils';
 
 export const useLayerToolService = defineStore('layerToolService', () => {
     const { layers } = useStore();
-    const layerPanel = useLayerPanelService();
     const query = useQueryService();
 
     function mergeSelected() {
@@ -25,12 +23,13 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         }
         const colorU32 = averageColorU32(colors);
 
-        const anchorName = layers.getProperty(layerPanel.anchorId, 'name') || 'Merged';
-        const anchorAttrs = layers.getProperty(layerPanel.anchorId, 'attributes');
+        const firstId = layers.selectedIds[0];
+        const maintainedName = layers.getProperty(firstId, 'name') || 'Merged';
+        const maintainedAttrs = layers.getProperty(firstId, 'attributes');
         const newLayerId = layers.createLayer({
-            name: `Merged ${anchorName}`,
+            name: `Merged ${maintainedName}`,
             color: colorU32,
-            attributes: anchorAttrs,
+            attributes: maintainedAttrs,
         });
         const newPixels = pixelUnion;
         if (newPixels.length) layers.addPixels(newLayerId, newPixels);
@@ -63,44 +62,58 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         return newLayerIds;
     }
 
-    function splitLayer(layerId) {
-        if (layerId == null) return;
-        if (layers.getProperty(layerId, 'pixels').length < 2) return;
+    function splitSelected() {
+        if (!layers.selectionCount) return [];
 
-        const pixels = layers.getProperty(layerId, 'pixels');
-        const components = findPixelComponents(pixels);
-        if (components.length <= 1) return;
+        const originalSelected = layers.selectedIds.slice();
+        const sorted = originalSelected
+            .slice()
+            .sort((a, b) => layers.indexOfLayer(a) - layers.indexOfLayer(b));
+        const newSelection = new Set(originalSelected);
+        const allNewIds = [];
 
-        const originalLayer = layers.getProperties(layerId);
-        const originalName = originalLayer.name;
-        const originalColor = originalLayer.color;
-        const originalVisibility = originalLayer.visibility;
-        const originalAttrs = originalLayer.attributes;
-        const originalIndex = layers.indexOfLayer(layerId);
+        for (const layerId of sorted) {
+            const pixels = layers.getProperty(layerId, 'pixels');
+            if (pixels.length < 2) continue;
 
-        const newIds = components.reverse().map((componentPixels, index) => {
-            return layers.createLayer({
-                name: `${originalName} #${components.length - index}`,
-                color: originalColor,
-                visibility: originalVisibility,
-                pixels: componentPixels,
-                attributes: originalAttrs,
+            const components = findPixelComponents(pixels);
+            if (components.length <= 1) continue;
+
+            const originalLayer = layers.getProperties(layerId);
+            const originalName = originalLayer.name;
+            const originalColor = originalLayer.color;
+            const originalVisibility = originalLayer.visibility;
+            const originalAttrs = originalLayer.attributes;
+            const originalIndex = layers.indexOfLayer(layerId);
+
+            const newIds = components.reverse().map((componentPixels, index) => {
+                return layers.createLayer({
+                    name: `${originalName} #${components.length - index}`,
+                    color: originalColor,
+                    visibility: originalVisibility,
+                    pixels: componentPixels,
+                    attributes: originalAttrs,
+                });
             });
-        });
 
-        layers.deleteLayers([layerId]);
+            layers.deleteLayers([layerId]);
 
-        const target = layers.idsBottomToTop[originalIndex];
-        layers.insertLayers(newIds, target, true);
+            const target = layers.idsBottomToTop[originalIndex];
+            layers.insertLayers(newIds, target, true);
 
-        layers.replaceSelection(newIds);
-        return newIds;
+            newSelection.delete(layerId);
+            for (const id of newIds) newSelection.add(id);
+            allNewIds.push(...newIds);
+        }
+
+        layers.replaceSelection([...newSelection]);
+        return allNewIds;
     }
 
     return {
         mergeSelected,
         copySelected,
-        splitLayer,
+        splitSelected,
     };
 });
 

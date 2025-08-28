@@ -111,9 +111,9 @@ function onKeydown(event) {
       output.commit();
       return;
     case 'Enter':
-         if (!ctrl && !shift) {
-            const anchorId = layerPanel.anchorId;
-            const row = document.querySelector(`.layer[data-id="${anchorId}"] .nameText`)
+         if (!ctrl && !shift && layers.selectionCount === 1) {
+            const selectedId = layers.selectedIds[0];
+            const row = document.querySelector(`.layer[data-id="${selectedId}"] .nameText`)
             if (row) {
                 event.preventDefault();
                 row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
