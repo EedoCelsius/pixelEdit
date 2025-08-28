@@ -52,7 +52,7 @@ import blockIcons from '../image/layer_block';
 import { useService } from '../services';
 
 const { viewport: viewportStore, layers, output } = useStore();
-const { layerPanel, query, viewport } = useService();
+const { layerPanel, query, viewport, stageResize: stageResizeService } = useService();
 
 const dragging = ref(false);
 const dragId = ref(null);
@@ -340,13 +340,30 @@ function onNameKey(id, event) {
 }
 
 function handleGlobalPointerDown(event) {
+    if (stageResizeService.show) return;
     const target = event.target;
-    const stageEl = viewport.element;
+    const viewportEl = viewport.element;
+    const stageEl = document.getElementById('stage');
+    const isViewport = viewportEl && viewportEl.contains(target);
     const isStage = stageEl && stageEl.contains(target);
     const isLayers = listElement.value && listElement.value.contains(target);
     const isButton = !!target.closest('button');
-    if (isStage || isLayers || isButton) return;
-    layers.clearSelection();
+    if (isLayers || isButton) return;
+    if (isViewport && !isStage) {
+        let moved = false;
+        const pid = event.pointerId;
+        const onMove = (e) => { if (e.pointerId === pid) moved = true; };
+        const onUp = (e) => {
+            if (e.pointerId !== pid) return;
+            window.removeEventListener('pointermove', onMove, true);
+            if (!moved) layers.clearSelection();
+        };
+        window.addEventListener('pointermove', onMove, { capture: true });
+        window.addEventListener('pointerup', onUp, { capture: true, once: true });
+        return;
+    }
+    if (!isViewport && !isStage && !isLayers && !isButton)
+        layers.clearSelection();
 }
 
 onMounted(() => {
