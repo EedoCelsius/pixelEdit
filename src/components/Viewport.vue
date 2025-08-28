@@ -38,25 +38,31 @@
           <path v-for="y in (stage.height+1)" :key="'gy'+y" :d="'M 0 '+(y-1)+' H '+stage.width"></path>
         </g>
       </svg>
-        <!-- 오버레이 -->
+      <!-- 오버레이 (선택, 추가, 제거) -->
       <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
-        <template v-for="ov in overlay.list" :key="ov.id">
-          <path v-if="ov.path"
-                :id="ov.id + 'Overlay'"
-                :d="ov.path"
-                :fill="ov.config.FILL_COLOR"
-                :stroke="ov.config.STROKE_COLOR"
-                :stroke-width="ov.config.STROKE_WIDTH_SCALE / Math.max(1, stage.scale)"
-                :fill-rule="ov.config.FILL_RULE"
+          <!-- Selection overlay (sky blue) -->
+          <path id="selectionOverlay"
+                v-if="layers.selectionExists"
+                :d="overlay.selection.path"
+                :fill="OVERLAY_CONFIG.SELECTED.FILL_COLOR"
+                :stroke="OVERLAY_CONFIG.SELECTED.STROKE_COLOR"
+                :stroke-width="OVERLAY_CONFIG.SELECTED.STROKE_WIDTH_SCALE / Math.max(1, stage.scale)"
                 shape-rendering="crispEdges" />
-        </template>
+        <!-- Helper overlay -->
+        <path id="helperOverlay"
+              :d="helperOverlay.path"
+              :fill="helperOverlay.FILL_COLOR"
+              :stroke="helperOverlay.STROKE_COLOR"
+              :stroke-width="helperOverlay.STROKE_WIDTH_SCALE / Math.max(1, stage.scale)"
+              fill-rule="evenodd"
+              shape-rendering="crispEdges" />
       </svg>
-      </div>
-      <!-- Marquee overlay -->
-      <svg class="absolute top-0 left-0 w-full h-full pointer-events-none block" :viewBox="viewportViewBox" preserveAspectRatio="none">
-          <rect id="marqueeRect"
-                :x="marqueeRect.x"
-                :y="marqueeRect.y"
+    </div>
+    <!-- Marquee overlay -->
+    <svg class="absolute top-0 left-0 w-full h-full pointer-events-none block" :viewBox="viewportViewBox" preserveAspectRatio="none">
+        <rect id="marqueeRect"
+              :x="marqueeRect.x"
+              :y="marqueeRect.y"
               :width="marqueeRect.width"
               :height="marqueeRect.height"
               :visibility="marqueeRect.visibility"
@@ -101,7 +107,20 @@ const marqueeRect = computed(() => {
     };
 });
 
-  const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
+const helperOverlay = computed(() => {
+    const path = overlay.helper.path;
+    if (!path) return { path }; // no style when empty
+
+    const style =  overlay.helper.config;
+    return {
+        path,
+        FILL_COLOR: style.FILL_COLOR,
+        STROKE_COLOR: style.STROKE_COLOR,
+        STROKE_WIDTH_SCALE: style.STROKE_WIDTH_SCALE,
+    };
+});
+
+const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
 
 const onImageLoad = (e) => {
     const img = e.target;
