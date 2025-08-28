@@ -134,6 +134,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
             color: layers.getProperty(sourceId, 'color'),
             visibility: layers.getProperty(sourceId, 'visibility'),
             pixels: cutCoords,
+            attributes: layers.getProperty(sourceId, 'attributes'),
         });
         layers.insertLayers([id], sourceId, false);
 

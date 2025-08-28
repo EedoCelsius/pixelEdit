@@ -26,7 +26,12 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         const colorU32 = averageColorU32(colors);
 
         const anchorName = layers.getProperty(layerPanel.anchorId, 'name') || 'Merged';
-        const newLayerId = layers.createLayer({ name: `Merged ${anchorName}`, color: colorU32 });
+        const anchorAttrs = layers.getProperty(layerPanel.anchorId, 'attributes');
+        const newLayerId = layers.createLayer({
+            name: `Merged ${anchorName}`,
+            color: colorU32,
+            attributes: anchorAttrs,
+        });
         const newPixels = pixelUnion;
         if (newPixels.length) layers.addPixels(newLayerId, newPixels);
         layers.insertLayers([newLayerId], query.lowermost(layers.selectedIds), true);
@@ -44,11 +49,13 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         for (const id of sorted) {
             const layer = layers.getProperties(id);
             const pixels = [...layer.pixels];
+            const attrs = layer.attributes;
             const newLayerId = layers.createLayer({
                 name: `Copy of ${layer.name}`,
                 color: layer.color,
                 visibility: layer.visibility,
-                pixels
+                pixels,
+                attributes: attrs,
             });
             newLayerIds.push(newLayerId);
         }
@@ -68,6 +75,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         const originalName = originalLayer.name;
         const originalColor = originalLayer.color;
         const originalVisibility = originalLayer.visibility;
+        const originalAttrs = originalLayer.attributes;
         const originalIndex = layers.indexOfLayer(layerId);
 
         const newIds = components.reverse().map((componentPixels, index) => {
@@ -75,7 +83,8 @@ export const useLayerToolService = defineStore('layerToolService', () => {
                 name: `${originalName} #${components.length - index}`,
                 color: originalColor,
                 visibility: originalVisibility,
-                pixels: componentPixels
+                pixels: componentPixels,
+                attributes: originalAttrs,
             });
         });
 
