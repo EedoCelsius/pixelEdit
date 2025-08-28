@@ -1,5 +1,5 @@
 <template>
-  <div v-memo="[output.commitVersion, layers.selectedIds, layers.count]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
+  <div v-memo="[output.commitVersion, layers.selectedIds, layers.count, foldedMemo]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
     <div v-for="item in flatNodes" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 16) + 'px' }" :class="{ selected: layers.isSelected(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)">
       <template v-if="item.isGroup">
         <div class="w-4 text-center cursor-pointer" @click.stop="toggleFold(item.id)">{{ folded[item.id] ? '▶' : '▼' }}</div>
@@ -81,6 +81,7 @@ const editingId = ref(null);
 const listElement = ref(null);
 const icons = reactive(blockIcons);
 const folded = layerPanel.folded;
+const foldedMemo = computed(() => JSON.stringify(folded));
 
 const flatNodes = computed(() => {
   const result = [];
