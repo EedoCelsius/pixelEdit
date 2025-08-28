@@ -57,7 +57,7 @@ export const useViewportStore = defineStore('viewport', {
             for (const id of layerStore.idsBottomToTop) {
                 const set = layerStore._pixels[id];
                 for (const key of [...set]) {
-                    const { x, y } = keyToCoord(key);
+                    const [x, y] = keyToCoord(key);
                     if (x < 0 || y < 0 || x >= newWidth || y >= newHeight) set.delete(key);
                 }
             }

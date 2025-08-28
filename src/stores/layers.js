@@ -184,8 +184,8 @@ export const useLayerStore = defineStore('layers', {
                 const set = this._pixels[id];
                 const moved = new Set();
                 for (const key of set) {
-                    const { x, y } = keyToCoord(key);
-                    moved.add(coordToKey({ x: x + dx, y: y + dy }));
+                    const [x, y] = keyToCoord(key);
+                    moved.add(coordToKey([x + dx, y + dy]));
                 }
                 this._pixels[id] = reactive(moved);
             }
