@@ -202,7 +202,7 @@ function onDrop(item, event) {
     const y = event.clientY - rect.top;
 const ids = nodeTree.selectedNodeIds;
     if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
-        nodeTree.putIn(ids, item.id, true);
+        nodeTree.append(ids, item.id, true);
     } else {
         const placeBelow = y > rect.height * 0.5;
         nodeTree.insert(ids, item.id, placeBelow);

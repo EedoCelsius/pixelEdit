@@ -47,11 +47,11 @@ const onAddGroup = () => {
     const selected = nodeTree.selectedNodeIds;
     const id = nodes.createGroup({});
     if (selected.length === 0) {
-        nodeTree.putIn([id], null, false);
+        nodeTree.append([id], null, false);
     } else {
         const lowermost = selected[0];
         nodeTree.insert([id], lowermost, true);
-        nodeTree.putIn(selected, id, true);
+        nodeTree.append(selected, id, true);
     }
     nodeTree.replaceSelection([id]);
     layerPanel.setRange(id, id);
