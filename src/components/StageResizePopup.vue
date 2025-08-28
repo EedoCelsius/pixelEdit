@@ -14,14 +14,18 @@
           <input type="number" v-model.number="left" class="w-16 px-1 py-0.5 rounded bg-slate-700" />
         </label>
         <div class="relative w-24 h-24 border-2 border-dashed border-slate-500">
-          <button @click="adjust('top', 1)" class="absolute -top-5 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-700 rounded text-white">+</button>
-          <button @click="adjust('top', -1)" class="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-700 rounded text-white">-</button>
-          <button @click="adjust('bottom', 1)" class="absolute -bottom-5 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-700 rounded text-white">+</button>
-          <button @click="adjust('bottom', -1)" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-700 rounded text-white">-</button>
-          <button @click="adjust('left', 1)" class="absolute top-1/2 -left-5 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">+</button>
-          <button @click="adjust('left', -1)" class="absolute top-1/2 left-0 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">-</button>
-          <button @click="adjust('right', 1)" class="absolute top-1/2 -right-5 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">+</button>
-          <button @click="adjust('right', -1)" class="absolute top-1/2 right-0 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">-</button>
+          <button @click="adjust('top', 1)" class="absolute -top-5 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-700 rounded text-white">▲</button>
+          <button @click="adjust('top', -1)" class="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-700 rounded text-white">▼</button>
+          <button @click="adjust('bottom', 1)" class="absolute -bottom-5 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-700 rounded text-white">▼</button>
+          <button @click="adjust('bottom', -1)" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-700 rounded text-white">▲</button>
+          <button @click="adjust('left', 1)" class="absolute top-1/2 -left-5 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">◀</button>
+          <button @click="adjust('left', -1)" class="absolute top-1/2 left-0 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▶</button>
+          <button @click="adjust('right', 1)" class="absolute top-1/2 -right-5 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▶</button>
+          <button @click="adjust('right', -1)" class="absolute top-1/2 right-0 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">◀</button>
+          <div class="absolute inset-0 flex flex-col items-center justify-center text-[10px] text-white/70">
+            <div>W: {{ width }} → {{ newWidth }}</div>
+            <div>H: {{ height }} → {{ newHeight }}</div>
+          </div>
         </div>
         <label class="flex flex-col items-center">
           <span class="mb-1">Right</span>
@@ -35,7 +39,6 @@
         </label>
         <div></div>
       </div>
-      <div class="text-center">W: {{ width }} → {{ newWidth }}, H: {{ height }} → {{ newHeight }}</div>
       <div class="flex justify-end gap-2 pt-2">
         <button @click="close" class="px-2 py-1 rounded bg-white/5 hover:bg-white/10">Cancel</button>
         <button @click="apply" class="px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white">Apply</button>
