@@ -1,17 +1,17 @@
 import { defineStore } from 'pinia';
 import { reactive, toRefs, watch, computed } from 'vue';
 import { useStore } from '../stores';
-import { useQueryService } from './query';
 
 export const useLayerPanelService = defineStore('layerPanelService', () => {
     const { layers } = useStore();
-    const query = useQueryService();
 
     const state = reactive({
         anchorId: null,
         tailId: null,
-        scrollRule: null
+        scrollRule: null,
     });
+
+    const folded = reactive({});
 
     const exists = computed(() => state.anchorId != null && state.tailId != null);
 
@@ -34,6 +34,31 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         }
     }
 
+    function dfs(skipFolded = false) {
+        const order = [];
+        const ancestors = new Map();
+        const walk = (nodes, anc) => {
+            for (const node of nodes) {
+                ancestors.set(node.id, anc.slice());
+                order.push(node.id);
+                if (node.children && !(skipFolded && folded[node.id])) {
+                    walk(node.children, anc.concat(node.id));
+                }
+            }
+        };
+        walk(layers.tree, []);
+        return { order, ancestors };
+    }
+
+    function visibleAncestor(id, orderSet) {
+        let info = layers._findNode(id);
+        while (info && !orderSet.has(info.node.id)) {
+            if (!info.parent) return null;
+            info = layers._findNode(info.parent.id);
+        }
+        return info ? info.node.id : null;
+    }
+
     function setRange(anchorId = null, tailId = null) {
         disableWatch();
         if (anchorId == null || tailId == null) {
@@ -42,17 +67,24 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
             layers.clearSelection();
             return;
         }
-        const order = layers.order;
-        const start = order.indexOf(anchorId);
-        const end = order.indexOf(tailId);
-        if (start < 0 || end < 0) {
+
+        const { order, ancestors } = dfs(false);
+        const idxA = order.indexOf(anchorId);
+        const idxB = order.indexOf(tailId);
+        if (idxA === -1 || idxB === -1) {
             state.anchorId = null;
             state.tailId = null;
             layers.clearSelection();
             return;
         }
-        const [min, max] = start < end ? [start, end] : [end, start];
-        layers.replaceSelection(order.slice(min, max + 1));
+        const [start, end] = idxA < idxB ? [idxA, idxB] : [idxB, idxA];
+        const slice = order.slice(start, end + 1);
+        const ancToRemove = new Set([
+            ...(ancestors.get(anchorId) || []),
+            ...(ancestors.get(tailId) || []),
+        ]);
+        const selection = slice.filter(id => !ancToRemove.has(id));
+        layers.replaceSelection(selection);
         state.anchorId = anchorId;
         state.tailId = tailId;
         enableWatch();
@@ -81,13 +113,23 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
 
     function onArrowUp(shift, ctrl) {
         if (!layers.exists || ctrl) return;
+        const { order } = dfs(true);
+        if (!order.length) return;
+        const orderSet = new Set(order);
         if (shift) {
             if (!layers.selectionExists) return;
-            const newTail = query.above(state.tailId) ?? query.uppermost();
-            setRange(state.anchorId, newTail);
+            const tailVis = visibleAncestor(state.tailId, orderSet);
+            const anchorVis = visibleAncestor(state.anchorId, orderSet);
+            if (tailVis == null || anchorVis == null) return;
+            const idx = order.indexOf(tailVis);
+            const newTail = order[idx + 1] ?? order[order.length - 1];
+            setRange(anchorVis, newTail);
             setScrollRule({ type: 'follow-up', target: newTail });
         } else {
-            const nextId = query.above(state.anchorId) ?? state.anchorId;
+            const anchorVis = visibleAncestor(state.anchorId, orderSet);
+            if (anchorVis == null) return;
+            const idx = order.indexOf(anchorVis);
+            const nextId = order[idx + 1] ?? anchorVis;
             setRange(nextId, nextId);
             setScrollRule({ type: 'follow-up', target: nextId });
         }
@@ -95,27 +137,44 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
 
     function onArrowDown(shift, ctrl) {
         if (!layers.exists || ctrl) return;
+        const { order } = dfs(true);
+        if (!order.length) return;
+        const orderSet = new Set(order);
         if (shift) {
             if (!layers.selectionExists) return;
-            const newTail = query.below(state.tailId) ?? query.lowermost();
-            setRange(state.anchorId, newTail);
+            const tailVis = visibleAncestor(state.tailId, orderSet);
+            const anchorVis = visibleAncestor(state.anchorId, orderSet);
+            if (tailVis == null || anchorVis == null) return;
+            const idx = order.indexOf(tailVis);
+            const newTail = order[idx - 1] ?? order[0];
+            setRange(anchorVis, newTail);
             setScrollRule({ type: 'follow-down', target: newTail });
         } else {
-            const nextId = query.below(state.anchorId) ?? state.anchorId;
+            const anchorVis = visibleAncestor(state.anchorId, orderSet);
+            if (anchorVis == null) return;
+            const idx = order.indexOf(anchorVis);
+            const nextId = order[idx - 1] ?? anchorVis;
             setRange(nextId, nextId);
             setScrollRule({ type: 'follow-down', target: nextId });
         }
     }
 
+    function toggleFold(id) {
+        folded[id] = !folded[id];
+    }
+
     function selectAll() {
-        setRange(query.uppermost(), query.lowermost());
+        const { order } = dfs(false);
+        if (!order.length) return;
+        setRange(order[0], order[order.length - 1]);
     }
 
     function serialize() {
         return {
             anchor: state.anchorId,
             tailId: state.tailId,
-            scrollRule: state.scrollRule
+            scrollRule: state.scrollRule,
+            folded: { ...folded },
         };
     }
 
@@ -127,11 +186,15 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
             enableWatch();
         }
         state.scrollRule = payload?.scrollRule;
+        for (const key of Object.keys(folded)) delete folded[key];
+        Object.assign(folded, payload?.folded || {});
     }
 
     return {
         ...toRefs(state),
         exists,
+        folded,
+        toggleFold,
         setRange,
         clearRange,
         setScrollRule,
@@ -140,7 +203,7 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         onArrowDown,
         selectAll,
         serialize,
-        applySerialized
+        applySerialized,
     };
 });
 

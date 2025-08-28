@@ -33,7 +33,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         });
         const newPixels = pixelUnion;
         if (newPixels.length) layers.addPixels(newLayerId, newPixels);
-        layers.insertLayers([newLayerId], query.lowermost(layers.selectedIds), true);
+        layers.insert([newLayerId], query.lowermost(layers.selectedIds), true);
         const ids = layers.selectedIds;
         layers.deleteLayers(ids);
         return newLayerId;
@@ -58,7 +58,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
             });
             newLayerIds.push(newLayerId);
         }
-        layers.insertLayers(newLayerIds, query.uppermost(sorted), false);
+        layers.insert(newLayerIds, query.uppermost(sorted), false);
         return newLayerIds;
     }
 
@@ -99,7 +99,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
             layers.deleteLayers([layerId]);
 
             const target = layers.idsBottomToTop[originalIndex];
-            layers.insertLayers(newIds, target, true);
+            layers.insert(newIds, target, true);
 
             newSelection.delete(layerId);
             for (const id of newIds) newSelection.add(id);
