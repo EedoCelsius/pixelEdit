@@ -186,7 +186,7 @@ function onDragEnd() {
 
 function onDragOver(item, event) {
     const row = event.currentTarget;
-if (nodeTree.selectedNodeIds.includes(item.id)) {
+    if (nodeTree.selectedNodeIds.includes(item.id)) {
         row.classList.remove('insert-before', 'insert-after', 'insert-into');
         event.dataTransfer.dropEffect = 'none';
         return;
@@ -227,7 +227,7 @@ function onColorDown() {
 
 function onColorInput(id, event) {
     const colorU32 = hexToRgbaU32(event.target.value);
-    if (nodeTree.selectedNodeIds.includes(item.id)) {
+    if (nodeTree.selectedNodeIds.includes(id)) {
         for (const sid of nodeTree.selectedLayerIds) {
             nodes.update(sid, { color: colorU32 });
         }
@@ -242,7 +242,7 @@ function onColorChange() {
 
 function toggleVisibility(id) {
     output.setRollbackPoint();
-    if (nodeTree.selectedNodeIds.includes(item.id)) {
+    if (nodeTree.selectedNodeIds.includes(id)) {
         const value = !nodes.getProperty(id, 'visibility');
         for (const sid of nodeTree.selectedNodeIds) {
             nodes.update(sid, { visibility: value });
@@ -255,7 +255,7 @@ function toggleVisibility(id) {
 
 function toggleLock(id) {
     output.setRollbackPoint();
-    if (nodeTree.selectedNodeIds.includes(item.id)) {
+    if (nodeTree.selectedNodeIds.includes(id)) {
         const value = !nodes.getProperty(id, 'locked');
         for (const sid of nodeTree.selectedNodeIds) {
             nodes.update(sid, { locked: value });
@@ -268,7 +268,7 @@ function toggleLock(id) {
 
 function deleteLayer(id) {
     output.setRollbackPoint();
-    const targets = nodeTree.selectedNodeIds.includes(item.id) ? nodeTree.selectedNodeIds : [id];
+    const targets = nodeTree.selectedNodeIds.includes(id) ? nodeTree.selectedNodeIds : [id];
     const belowId = query.below(query.lowermost(targets));
     nodes.remove(targets);
     const newSelectId = nodeTree.has(belowId) ? belowId : query.lowermost();
