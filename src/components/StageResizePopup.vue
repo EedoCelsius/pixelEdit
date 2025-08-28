@@ -1,7 +1,7 @@
 <template>
   <div v-if="stageResizeService.show" class="fixed inset-0 flex items-center justify-center bg-black/50">
-    <div class="bg-slate-800 px-24 pt-20 pb-28 rounded-lg text-xs space-y-2">
-      <div class="relative w-52 h-36 mx-auto">
+    <div class="bg-slate-800 px-14 pt-12 pb-14 rounded-lg text-xs space-y-2">
+      <div class="relative w-80 h-64 mx-auto">
         <div class="absolute inset-0 border-2 border-dashed border-slate-500">
           <div class="absolute inset-0 flex flex-col items-center justify-center text-white/70 space-y-1">
             <label class="flex items-center gap-1">
@@ -14,31 +14,31 @@
             </label>
           </div>
         </div>
-        <label class="absolute -top-3 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+        <label class="absolute top-7 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
           <span class="mb-1">Top</span>
           <input type="number" v-model.number="top" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
           <button @click="adjust('top', 1)" class="absolute top-1/2 right-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▲</button>
           <button @click="adjust('top', -1)" class="absolute top-1/2 left-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▼</button>
         </label>
-        <label class="absolute top-1/2 -left-5 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+        <label class="absolute top-1/2 left-7 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
           <span class="mb-1">Left</span>
           <input type="number" v-model.number="left" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
           <button @click="adjust('left', 1)" class="absolute top-1/2 right-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">◀</button>
           <button @click="adjust('left', -1)" class="absolute top-1/2 left-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▶</button>
         </label>
-        <label class="absolute bottom-1/2 -right-5 translate-x-1/2 translate-y-1/2 flex flex-col items-center">
+        <label class="absolute bottom-1/2 right-7 translate-x-1/2 translate-y-1/2 flex flex-col items-center">
           <span class="mb-1">Right</span>
           <input type="number" v-model.number="right" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
           <button @click="adjust('right', 1)" class="absolute bottom-1/2 left-12 translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▶</button>
           <button @click="adjust('right', -1)" class="absolute bottom-1/2 right-12 translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">◀</button>
         </label>
-        <label class="absolute -bottom-3 right-1/2 translate-x-1/2 translate-y-1/2 flex flex-col items-center">
+        <label class="absolute bottom-7 right-1/2 translate-x-1/2 translate-y-1/2 flex flex-col items-center">
           <span class="mb-1">Bottom</span>
           <input type="number" v-model.number="bottom" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
           <button @click="adjust('bottom', 1)" class="absolute bottom-1/2 left-12 translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▼</button>
           <button @click="adjust('bottom', -1)" class="absolute bottom-1/2 right-12 translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▲</button>
         </label>
-        <div class="absolute -bottom-24 -right-16">
+        <div class="absolute -bottom-12 -right-8">
           <div class="flex justify-end gap-2">
             <button @click="close" class="px-2 py-1 rounded bg-white/5 hover:bg-white/10">Cancel</button>
             <button @click="apply" class="px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white">Apply</button>
