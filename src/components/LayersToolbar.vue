@@ -3,6 +3,9 @@
         <button @click="onAdd" title="Add layer" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
           <img :src="toolbarIcons.add" alt="Add layer" class="w-4 h-4">
         </button>
+        <button @click="onAddGroup" title="Add group" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
+          <img :src="toolbarIcons.group" alt="Add group" class="w-4 h-4">
+        </button>
         <button @click="onCopy" :disabled="!layers.selectionExists" title="Copy layer" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
           <img :src="toolbarIcons.copy" alt="Copy layer" class="w-4 h-4">
         </button>
@@ -34,8 +37,24 @@ const onAdd = () => {
     output.setRollbackPoint();
     const above = layers.selectionCount ? query.uppermost(layers.selectedIds) : null;
     const id = layers.createLayer({});
-    layers.insertLayers([id], above, false);
+    layers.insert([id], above, false);
     layers.replaceSelection([id]);
+    layerPanel.setScrollRule({ type: 'follow', target: id });
+    output.commit();
+};
+const onAddGroup = () => {
+    output.setRollbackPoint();
+    const selected = layers.selectedNodeIds;
+    const id = layers.createGroup({});
+    if (selected.length === 0) {
+        layers.putIn([id], null, false);
+    } else {
+        const lowermost = selected[0];
+        layers.insert([id], lowermost, true);
+        layers.putIn(selected, id, true);
+    }
+    layers.replaceSelection([id]);
+    layerPanel.setRange(id, id);
     layerPanel.setScrollRule({ type: 'follow', target: id });
     output.commit();
 };
