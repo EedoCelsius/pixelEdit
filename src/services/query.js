@@ -2,10 +2,10 @@ import { defineStore } from 'pinia';
 import { useStore } from '../stores';
 
 export const useQueryService = defineStore('queryService', () => {
-    const { layers } = useStore();
+    const { nodeTree, nodes } = useStore();
 
     function uppermost(ids) {
-        const order = layers.idsBottomToTop;
+        const order = nodeTree.layerIdsBottomToTop;
         if (ids == null) {
             return order[order.length - 1] ?? null;
         }
@@ -18,7 +18,7 @@ export const useQueryService = defineStore('queryService', () => {
     }
 
     function lowermost(ids) {
-        const order = layers.idsBottomToTop;
+        const order = nodeTree.layerIdsBottomToTop;
         if (ids == null) {
             return order[0] ?? null;
         }
@@ -32,41 +32,41 @@ export const useQueryService = defineStore('queryService', () => {
 
     function above(id) {
         if (id == null) return null;
-        const order = layers.idsBottomToTop;
+        const order = nodeTree.layerIdsBottomToTop;
         const idx = order.indexOf(id);
         return order[idx + 1] ?? null;
     }
 
     function below(id) {
         if (id == null) return null;
-        const order = layers.idsBottomToTop;
+        const order = nodeTree.layerIdsBottomToTop;
         const idx = order.indexOf(id);
         return order[idx - 1] ?? null;
     }
 
     function empty() {
-        return layers.order.filter(id => layers.getProperty(id, 'pixels').length === 0);
+        return nodeTree.layerOrder.filter(id => (nodes.getProperty(id, 'pixels') || []).length === 0);
     }
 
     function disconnected() {
-        return layers.order.filter(layerId => layers.disconnectedCountOf(layerId) > 1);
+        return nodeTree.layerOrder.filter(layerId => nodes.disconnectedCountOfLayer(layerId) > 1);
     }
 
     function byColor(color) {
-        return layers.order.filter(
-            layerId => layers.getProperty(layerId, 'color') === color
+        return nodeTree.layerOrder.filter(
+            layerId => nodes.getProperty(layerId, 'color') === color
         );
     }
 
     function byPixelCount(pixelCount) {
-        return layers.order.filter(
-            layerId => layers.getProperty(layerId, 'pixels').length === pixelCount
+        return nodeTree.layerOrder.filter(
+            layerId => (nodes.getProperty(layerId, 'pixels') || []).length === pixelCount
         );
     }
 
     function byDisconnectedCount(disconnectedCount) {
-        return layers.order.filter(
-            layerId => layers.disconnectedCountOf(layerId) === disconnectedCount
+        return nodeTree.layerOrder.filter(
+            layerId => nodes.disconnectedCountOfLayer(layerId) === disconnectedCount
         );
     }
 

@@ -2,7 +2,8 @@ import { defineStore } from 'pinia';
 import { readonly } from 'vue';
 import { clamp, keyToCoord } from '../utils';
 import { MIN_SCALE_RATIO } from '@/constants';
-import { useLayerStore } from './layers';
+import { useNodeTreeStore } from './nodeTree';
+import { useNodeStore } from './nodes';
 
 export const useViewportStore = defineStore('viewport', {
     state: () => ({
@@ -59,12 +60,13 @@ export const useViewportStore = defineStore('viewport', {
         },
         resizeByEdges({ top = 0, bottom = 0, left = 0, right = 0 } = {}) {
             top |= 0; bottom |= 0; left |= 0; right |= 0;
-            const layerStore = useLayerStore();
-            if (left !== 0 || top !== 0) layerStore.translateAll(left, top);
+            const tree = useNodeTreeStore();
+            const nodeStore = useNodeStore();
+            if (left !== 0 || top !== 0) nodeStore.translateAllLayers(left, top);
             const newWidth = Math.max(1, this._stage.width + left + right);
             const newHeight = Math.max(1, this._stage.height + top + bottom);
-            for (const id of layerStore.idsBottomToTop) {
-                const set = layerStore._pixels[id];
+            for (const id of tree.layerIdsBottomToTop) {
+                const set = nodeStore._pixels[id];
                 for (const key of [...set]) {
                     const [x, y] = keyToCoord(key);
                     if (x < 0 || y < 0 || x >= newWidth || y >= newHeight) set.delete(key);
