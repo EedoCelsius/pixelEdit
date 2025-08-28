@@ -1,66 +1,45 @@
 <template>
-  <div v-memo="[output.commitVersion, layers.selectedIds, layers.count, foldedMemo]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
-    <div v-for="item in flatNodes" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 16) + 'px' }" :class="{ selected: layers.isSelected(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)">
-      <template v-if="item.isGroup">
-        <div class="w-4 text-center cursor-pointer" @click.stop="toggleFold(item.id)">{{ folded[item.id] ? '▶' : '▼' }}</div>
-        <div class="min-w-0 flex-1">
-          <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
-            <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
-          </div>
+  <div v-memo="[output.commitVersion, layers.selectedIds, layers.count]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
+    <div v-for="props in layers.getProperties(layers.idsTopToBottom)" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="props.id" :data-id="props.id" :class="{ selected: layers.isSelected(props.id), anchor: layerPanel.anchorId===props.id, dragging: dragId===props.id }" draggable="true" @click="layerPanel.onLayerClick(props.id,$event)" @dragstart="onDragStart(props.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(props.id,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(props.id,$event)">
+      <!-- 썸네일 -->
+      <div @click.stop="onThumbnailClick(props.id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
+        <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
+          <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
+          <path :d="layers.pathOf(props.id)" :fill="rgbaCssU32(props.color)" :opacity="props.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+        </svg>
+      </div>
+      <!-- 색상 -->
+      <div class="h-6 w-6 rounded border border-white/25 p-0 relative overflow-hidden">
+        <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :class="{ 'cursor-not-allowed': props.locked }" :disabled="props.locked" :value="rgbaToHexU32(props.color)" @pointerdown.stop @mousedown.stop @click.stop="onColorDown()" @input.stop="onColorInput(props.id, $event)" @change.stop="onColorChange()" title="색상 변경" />
+      </div>
+      <!-- 이름/픽셀 -->
+      <div class="min-w-0 flex-1">
+        <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
+          <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(props.id)" @keydown="onNameKey(props.id,$event)" @blur="finishRename(props.id,$event)">{{ props.name }}</span>
         </div>
-        <div class="flex gap-1 justify-end">
-          <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
-            <img :src="(item.props.visibility?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(item.id)" />
-          </div>
-          <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="잠금/해제">
-            <img :src="(item.props.locked?icons.lock:icons.unlock)" alt="lock/unlock" class="w-4 h-4 cursor-pointer" @error="icons.lock=icons.unlock=''" @click.stop="toggleLock(item.id)" />
-          </div>
-          <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
-            <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(item.id)" />
-          </div>
+        <div class="text-xs text-slate-400">
+          <template v-if="layers.disconnectedCountOf(props.id) > 1">
+            <span class="cursor-pointer" @click.stop="onDisconnectedClick(props.id)">⚠️</span>
+            <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(props.id)">{{ layers.disconnectedCountOf(props.id) }} piece</span>
+            <span class="mx-1">|</span>
+          </template>
+          <span class="cursor-pointer" @click.stop="onPixelCountClick(props.id)" title="같은 크기의 모든 레이어 선택">{{ props.pixels.length }} px</span>
         </div>
-      </template>
-      <template v-else>
-        <!-- 썸네일 -->
-        <div @click.stop="onThumbnailClick(item.id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
-          <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
-            <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
-            <path :d="layers.pathOf(item.id)" :fill="rgbaCssU32(item.props.color)" :opacity="item.props.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
-          </svg>
+      </div>
+      <!-- 액션 -->
+      <div class="flex gap-1 justify-end">
+        <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
+          <img :src="(props.visibility?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(props.id)" />
         </div>
-        <!-- 색상 -->
-        <div class="h-6 w-6 rounded border border-white/25 p-0 relative overflow-hidden">
-          <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :class="{ 'cursor-not-allowed': item.props.locked }" :disabled="item.props.locked" :value="rgbaToHexU32(item.props.color)" @pointerdown.stop @mousedown.stop @click.stop="onColorDown()" @input.stop="onColorInput(item.id, $event)" @change.stop="onColorChange()" title="색상 변경" />
+        <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="잠금/해제">
+          <img :src="(props.locked?icons.lock:icons.unlock)" alt="lock/unlock" class="w-4 h-4 cursor-pointer" @error="icons.lock=icons.unlock=''" @click.stop="toggleLock(props.id)" />
         </div>
-        <!-- 이름/픽셀 -->
-        <div class="min-w-0 flex-1">
-          <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
-            <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
-          </div>
-          <div class="text-xs text-slate-400">
-            <template v-if="layers.disconnectedCountOf(item.id) > 1">
-              <span class="cursor-pointer" @click.stop="onDisconnectedClick(item.id)">⚠️</span>
-              <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(item.id)">{{ layers.disconnectedCountOf(item.id) }} piece</span>
-              <span class="mx-1">|</span>
-            </template>
-            <span class="cursor-pointer" @click.stop="onPixelCountClick(item.id)" title="같은 크기의 모든 레이어 선택">{{ item.props.pixels.length }} px</span>
-          </div>
+        <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
+          <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(props.id)" />
         </div>
-        <!-- 액션 -->
-        <div class="flex gap-1 justify-end">
-          <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
-            <img :src="(item.props.visibility?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(item.id)" />
-          </div>
-          <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="잠금/해제">
-            <img :src="(item.props.locked?icons.lock:icons.unlock)" alt="lock/unlock" class="w-4 h-4 cursor-pointer" @error="icons.lock=icons.unlock=''" @click.stop="toggleLock(item.id)" />
-          </div>
-          <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
-            <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(item.id)" />
-          </div>
         </div>
-      </template>
     </div>
-    <div v-show="flatNodes.length===0" class="text-xs text-slate-400/80 py-6 text-center">(레이어가 없습니다)</div>
+      <div v-show="layers.idsTopToBottom.length===0" class="text-xs text-slate-400/80 py-6 text-center">(레이어가 없습니다)</div>
   </div>
 </template>
 
@@ -80,29 +59,8 @@ const dragId = ref(null);
 const editingId = ref(null);
 const listElement = ref(null);
 const icons = reactive(blockIcons);
-const folded = layerPanel.folded;
-const foldedMemo = computed(() => JSON.stringify(folded));
-
-const flatNodes = computed(() => {
-  const result = [];
-  const walk = (nodes, depth) => {
-    for (let i = nodes.length - 1; i >= 0; i--) {
-      const node = nodes[i];
-      const isGroup = !!node.children;
-      result.push({ id: node.id, depth, isGroup });
-      if (isGroup && !folded[node.id]) walk(node.children, depth + 1);
-    }
-  };
-  walk(layers.tree, 0);
-  const propsList = layers.getProperties(result.map(r => r.id));
-  return result.map((r, i) => ({ ...r, props: propsList[i] }));
-});
 
 const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
-
-function toggleFold(id) {
-  layerPanel.toggleFold(id);
-}
 
 
   function onThumbnailClick(id) {
@@ -172,40 +130,30 @@ function onDragEnd() {
     dragId.value = null;
 }
 
-function onDragOver(item, event) {
+function onDragOver(id, event) {
     const row = event.currentTarget;
-    if (layers.isSelected(item.id)) {
-        row.classList.remove('insert-before', 'insert-after', 'insert-into');
+    if (layers.isSelected(id)) {
+        row.classList.remove('insert-before', 'insert-after');
         event.dataTransfer.dropEffect = 'none';
         return;
     }
     const rect = row.getBoundingClientRect();
-    const y = event.clientY - rect.top;
-    row.classList.remove('insert-before', 'insert-after', 'insert-into');
-    if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
-        row.classList.add('insert-into');
-    } else {
-        const before = y < rect.height * 0.5;
-        row.classList.add(before ? 'insert-before' : 'insert-after');
-    }
+    const before = (event.clientY - rect.top) < rect.height * 0.5;
+    row.classList.toggle('insert-before', before);
+    row.classList.toggle('insert-after', !before);
 }
 
 function onDragLeave(event) {
-    event.currentTarget.classList.remove('insert-before', 'insert-after', 'insert-into');
+    event.currentTarget.classList.remove('insert-before', 'insert-after');
 }
 
-function onDrop(item, event) {
+function onDrop(id, event) {
     const row = event.currentTarget;
-    row.classList.remove('insert-before', 'insert-after', 'insert-into');
+    row.classList.remove('insert-before', 'insert-after');
+    const targetId = id;
     const rect = row.getBoundingClientRect();
-    const y = event.clientY - rect.top;
-    const ids = layers.selectedNodeIds;
-    if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
-        layers.putIn(ids, item.id, true);
-    } else {
-        const placeBelow = y > rect.height * 0.5;
-        layers.insert(ids, item.id, placeBelow);
-    }
+    const placeBelow = (event.clientY - rect.top) > rect.height * 0.5;
+    layers.insertLayers(layers.selectedIds, targetId, placeBelow);
     output.commit();
 }
 
@@ -434,7 +382,6 @@ onUnmounted(() => {
 /* 레이어 재정렬 표시 */
 .insert-before{box-shadow:inset 0 3px 0 0 rgba(56,189,248,.7)}
 .insert-after{box-shadow:inset 0 -3px 0 0 rgba(56,189,248,.7)}
-.insert-into{box-shadow:inset 0 0 0 2px rgba(56,189,248,.7)}
 
 /* 선택 강조 */
 .layer.selected{

@@ -148,7 +148,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
             pixels: cutCoords,
             attributes: layers.getProperty(sourceId, 'attributes'),
         });
-        layers.insert([id], sourceId, false);
+        layers.insertLayers([id], sourceId, false);
 
         layers.replaceSelection([sourceId]);
         layerPanel.setScrollRule({ type: 'follow', target: sourceId });
@@ -193,7 +193,7 @@ export const useTopToolService = defineStore('topToolService', () => {
             tool.setCursor({ stroke: CURSOR_CONFIG.LOCKED, rect: CURSOR_CONFIG.LOCKED });
         }
         else {
-            layers.insert([id], layers.idsTopToBottom[0], false);
+            layers.insertLayers([id], layers.idsTopToBottom[0], false);
             layers.replaceSelection([id]);
             layerPanel.setScrollRule({ type: 'follow', target: id });
             tool.setCursor({ stroke: CURSOR_CONFIG.TOP, rect: CURSOR_CONFIG.TOP });
