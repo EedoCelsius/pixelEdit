@@ -5,7 +5,8 @@ import { useOverlayService } from './overlay';
 
 export const useToolSelectionService = defineStore('toolSelectionService', () => {
     const { viewport: viewportStore, viewportEvent: viewportEvents, output } = useStore();
-    const overlay = useOverlayService();
+    const overlayService = useOverlayService();
+    const helper = overlayService.getOverlay('helper');
 
     const active = ref(false)
     const prepared = ref(null);
@@ -136,7 +137,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         marquee.visible = false;
         previewPixels.value = [];
         affectedPixels.value = [];
-        overlay.helper.clear();
+          helper.clear();
     });
 
     return {
