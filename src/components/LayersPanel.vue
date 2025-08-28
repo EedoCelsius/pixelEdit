@@ -79,7 +79,7 @@ import blockIcons from '../image/layer_block';
 import { useService } from '../services';
 
 const { viewport: viewportStore, nodeTree, nodes, output } = useStore();
-const { layerPanel, query, viewport, stageResize: stageResizeService } = useService();
+const { layerPanel, layerQuery, viewport, stageResize: stageResizeService } = useService();
 
 const dragging = ref(false);
 const dragId = ref(null);
@@ -119,7 +119,7 @@ function descendantProps(id) {
 
   function onThumbnailClick(id) {
       const color = nodes.getProperty(id, 'color');
-      const ids = query.byColor(color);
+      const ids = layerQuery.byColor(color);
       if (ids.length) {
           nodeTree.replaceSelection(ids);
           layerPanel.clearRange();
@@ -132,7 +132,7 @@ function descendantProps(id) {
 
   function onPixelCountClick(id) {
       const count = (nodes.getProperty(id, 'pixels') || []).length;
-      const ids = count === 0 ? [id] : query.byPixelCount(count);
+      const ids = count === 0 ? [id] : layerQuery.byPixelCount(count);
       if (ids.length <= 1) {
           layerPanel.setRange(id, id);
       } else {
@@ -146,7 +146,7 @@ function descendantProps(id) {
   }
 
   function onDisconnectedClick(id) {
-      const ids = query.disconnected();
+      const ids = layerQuery.disconnected();
       if (ids.length) {
           nodeTree.replaceSelection(ids);
           layerPanel.clearRange();
@@ -159,7 +159,7 @@ function descendantProps(id) {
 
   function onDisconnectedCountClick(id) {
       const count = nodes.disconnectedCountOfLayer(id);
-      const ids = count <= 1 ? [id] : query.byDisconnectedCount(count);
+      const ids = count <= 1 ? [id] : layerQuery.byDisconnectedCount(count);
       if (ids.length <= 1) {
           layerPanel.setRange(id, id);
       } else {
@@ -269,9 +269,9 @@ function toggleLock(id) {
 function deleteLayer(id) {
     output.setRollbackPoint();
     const targets = nodeTree.selectedNodeIds.includes(id) ? nodeTree.selectedNodeIds : [id];
-    const belowId = query.below(query.lowermost(targets));
+    const belowId = layerQuery.below(layerQuery.lowermost(targets));
     nodes.remove(targets);
-    const newSelectId = nodeTree.has(belowId) ? belowId : query.lowermost();
+    const newSelectId = nodeTree.has(belowId) ? belowId : layerQuery.lowermost();
     layerPanel.setRange(newSelectId, newSelectId);
     if (newSelectId) {
         layerPanel.setScrollRule({

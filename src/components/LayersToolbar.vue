@@ -28,14 +28,14 @@ import { computed } from 'vue';
 import toolbarIcons from '../image/layer_toolbar';
 
 const { nodeTree, nodes, output } = useStore();
-const { layerTool: layerSvc, layerPanel, query } = useService();
+const { layerTool: layerSvc, layerPanel, layerQuery } = useService();
 
 const hasEmptyLayers = computed(() => nodeTree.layerOrder.some(id => (nodes.getProperty(id, 'pixels') || []).length === 0));
 const canSplit = computed(() => nodeTree.selectedLayerIds.some(id => nodes.disconnectedCountOfLayer(id) > 1));
 
 const onAdd = () => {
     output.setRollbackPoint();
-    const above = nodeTree.selectedLayerCount ? query.uppermost(nodeTree.selectedLayerIds) : null;
+    const above = nodeTree.selectedLayerCount ? layerQuery.uppermost(nodeTree.selectedLayerIds) : null;
     const id = nodes.createLayer({});
     nodeTree.insert([id], above, false);
     nodeTree.replaceSelection([id]);
@@ -73,7 +73,7 @@ const onCopy = () => {
     output.commit();
 };
 const onSelectEmpty = () => {
-    const ids = query.empty();
+    const ids = layerQuery.empty();
     nodeTree.replaceSelection(ids);
     layerPanel.setScrollRule({ type: 'follow', target: ids[0] });
 };

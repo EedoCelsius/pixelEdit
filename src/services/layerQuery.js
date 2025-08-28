@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { useStore } from '../stores';
 
-export const useQueryService = defineStore('queryService', () => {
+export const useLayerQueryService = defineStore('layerQueryService', () => {
     const { nodeTree, nodes } = useStore();
 
     function uppermost(ids) {
