@@ -28,6 +28,7 @@
         <export-panel class="border-t border-white/10"></export-panel>
       </aside>
     </div>
+    <StageResizePopup />
 </template>
 
 <script setup>
@@ -41,6 +42,7 @@ import LayersToolbar from './components/LayersToolbar.vue';
 import LayersPanel from './components/LayersPanel.vue';
 import ExportPanel from './components/ExportPanel.vue';
 import ViewportToolbar from './components/ViewportToolbar.vue';
+import StageResizePopup from './components/StageResizePopup.vue';
 const { input, viewport: viewportStore, layers, output } = useStore();
 const { layerPanel, query } = useService();
 const viewportToolbar = ref(null);
@@ -160,7 +162,7 @@ onMounted(async () => {
     viewportStore.setSize(21, 18);
   } else {
     viewportStore.setSize(input.width, input.height);
-    viewportStore.setImage(input.src || '');
+    viewportStore.setImage(input.src || '', input.width, input.height);
   }
 
   const autoSegments = input.isLoaded ? input.segment(40) : [];

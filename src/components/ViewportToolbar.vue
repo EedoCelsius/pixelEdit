@@ -1,6 +1,10 @@
 <template>
     <div class="flex items-center gap-2 p-2 flex-wrap">
       <button @click="viewportStore.toggleView" class="inline-flex items-center px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">{{ viewportStore.toggleLabel }}</button>
+      <!-- Stage resize -->
+      <button @click="stageResizeService.open" title="Resize Canvas" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
+        <img :src="stageIcons.resize" alt="resize" class="w-4 h-4">
+      </button>
 
       <div class="h-4 w-px bg-white/10 mx-1"></div>
 
@@ -47,7 +51,7 @@ import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS, TOOL_MODIFIERS } from '@
 import stageIcons from '../image/stage_toolbar';
 
 const { viewport: viewportStore, layers, output, viewportEvent: viewportEvents } = useStore();
-const { toolSelection: toolSelectionService } = useService();
+const { toolSelection: toolSelectionService, stageResize: stageResizeService } = useService();
 
 let previousTool = null;
 let lastSingleTool = 'draw';

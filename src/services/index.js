@@ -5,6 +5,7 @@ import { useQueryService } from './query';
 import { useDrawToolService, useEraseToolService, useTopToolService, useGlobalEraseToolService, useCutToolService, useSelectService } from './tools';
 import { useToolSelectionService } from './toolSelection';
 import { useViewportService } from './viewport';
+import { useStageResizeService } from './stageResize';
 
 export {
     useLayerPanelService,
@@ -18,7 +19,8 @@ export {
     useGlobalEraseToolService,
     useCutToolService,
     useToolSelectionService,
-    useViewportService
+    useViewportService,
+    useStageResizeService
 };
 
 export const useService = () => ({
@@ -35,5 +37,6 @@ export const useService = () => ({
         top: useTopToolService(),
     },
     toolSelection: useToolSelectionService(),
-    viewport: useViewportService()
+    viewport: useViewportService(),
+    stageResize: useStageResizeService()
 });

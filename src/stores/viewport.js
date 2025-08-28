@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 import { readonly } from 'vue';
-import { clamp } from '../utils';
+import { clamp, keyToCoord } from '../utils';
 import { MIN_SCALE_RATIO } from '@/constants';
+import { useLayerStore } from './layers';
 
 export const useViewportStore = defineStore('viewport', {
     state: () => ({
@@ -14,7 +15,7 @@ export const useViewportStore = defineStore('viewport', {
             offset: { x: 0, y: 0 },
         },
         _display: 'result', // 'result' | 'original'
-        _imageSrc: '',
+        _image: { src: '', x: 0, y: 0, width: 0, height: 0 },
         _element: null,
         _content: { top: 0, right: 0, bottom: 0, left: 0, width: 0, height: 0 },
     }),
@@ -25,7 +26,8 @@ export const useViewportStore = defineStore('viewport', {
         toggleLabel: (state) => state._display === 'original' ? '결과' : '원본',
         stage: (state) => readonly(state._stage),
         display: (state) => state._display,
-        imageSrc: (state) => state._imageSrc,
+        imageSrc: (state) => state._image.src,
+        imageRect: (state) => readonly(state._image),
         element: (state) => state._element,
         content: (state) => readonly(state._content),
     },
@@ -41,11 +43,37 @@ export const useViewportStore = defineStore('viewport', {
             this._stage.width = Math.max(1, newWidth | 0);
             this._stage.height = Math.max(1, newHeight | 0);
         },
-        setImage(src) {
-            this._imageSrc = src || '';
+        setImage(src, width, height) {
+            this._image.src = src || '';
+            if (width != null) this._image.width = width;
+            if (height != null) this._image.height = height;
+            this._image.x = 0;
+            this._image.y = 0;
+        },
+        setImageSize(width, height) {
+            if (width != null) this._image.width = width;
+            if (height != null) this._image.height = height;
         },
         setScale(newScale) {
             this._stage.scale = Math.max(this._stage.minScale, newScale);
+        },
+        resizeByEdges({ top = 0, bottom = 0, left = 0, right = 0 } = {}) {
+            top |= 0; bottom |= 0; left |= 0; right |= 0;
+            const layerStore = useLayerStore();
+            if (left !== 0 || top !== 0) layerStore.translateAll(left, top);
+            const newWidth = Math.max(1, this._stage.width + left + right);
+            const newHeight = Math.max(1, this._stage.height + top + bottom);
+            for (const id of layerStore.idsBottomToTop) {
+                const set = layerStore._pixels[id];
+                for (const key of [...set]) {
+                    const [x, y] = keyToCoord(key);
+                    if (x < 0 || y < 0 || x >= newWidth || y >= newHeight) set.delete(key);
+                }
+            }
+            this._stage.width = newWidth;
+            this._stage.height = newHeight;
+            this._image.x += left;
+            this._image.y += top;
         },
         toggleView() {
             this._display = (this._display === 'original') ? 'result' : 'original';
@@ -83,6 +111,34 @@ export const useViewportStore = defineStore('viewport', {
             let y = Math.floor((event.clientY - top) / this._stage.scale);
             if (!allowViewport && (x < 0 || y < 0 || x >= this._stage.width || y >= this._stage.height)) return null;
             return [x, y];
+        },
+        serialize() {
+            return {
+                stage: {
+                    width: this._stage.width,
+                    height: this._stage.height,
+                    scale: this._stage.scale,
+                    offset: { ...this._stage.offset },
+                },
+                image: { ...this._image }
+            };
+        },
+        applySerialized(payload) {
+            const stage = payload?.stage || {};
+            const image = payload?.image || {};
+            if (stage.width != null) this._stage.width = stage.width;
+            if (stage.height != null) this._stage.height = stage.height;
+            this.recalcContentSize();
+            if (stage.scale != null) this._stage.scale = stage.scale;
+            if (stage.offset) {
+                if (stage.offset.x != null) this._stage.offset.x = stage.offset.x;
+                if (stage.offset.y != null) this._stage.offset.y = stage.offset.y;
+            }
+            if (image.src != null) this._image.src = image.src;
+            if (image.x != null) this._image.x = image.x;
+            if (image.y != null) this._image.y = image.y;
+            if (image.width != null) this._image.width = image.width;
+            if (image.height != null) this._image.height = image.height;
         },
     }
 });

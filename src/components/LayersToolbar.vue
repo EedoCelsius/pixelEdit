@@ -35,32 +35,33 @@ const onAdd = () => {
     const above = layers.selectionCount ? query.uppermost(layers.selectedIds) : null;
     const id = layers.createLayer({});
     layers.insertLayers([id], above, false);
-    layerPanel.setRange(id, id);
+    layers.addToSelection([id]);
+    layerPanel.setScrollRule({ type: 'follow', target: id });
     output.commit();
 };
 const onMerge = () => {
     output.setRollbackPoint();
     const id = layerSvc.mergeSelected();
-    layerPanel.setRange(id, id);
+    layers.addToSelection([id]);
+    layerPanel.setScrollRule({ type: 'follow', target: id });
     output.commit();
 };
 const onCopy = () => {
     output.setRollbackPoint();
     const ids = layerSvc.copySelected();
     layers.replaceSelection(ids);
-    layerPanel.clearRange();
+    layerPanel.setScrollRule({ type: 'follow', target: ids[0] });
     output.commit();
 };
 const onSelectEmpty = () => {
     const ids = query.empty();
-    if (ids.length) {
-        layers.replaceSelection(ids);
-        layerPanel.clearRange();
-    }
+    layers.replaceSelection(ids);
+    layerPanel.setScrollRule({ type: 'follow', target: ids[0] });
 };
 const onSplit = () => {
     output.setRollbackPoint();
-    layerSvc.splitLayer(layerPanel.anchorId);
+    const newIds = layerSvc.splitLayer(layerPanel.anchorId);
+    layerPanel.setScrollRule({ type: 'follow', target: newIds[0] });
     output.commit();
 };
 </script>

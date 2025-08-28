@@ -32,7 +32,6 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         layers.insertLayers([newLayerId], query.lowermost(layers.selectedIds), true);
         const ids = layers.selectedIds;
         layers.deleteLayers(ids);
-        layers.removeFromSelection(ids);
         return newLayerId;
     }
 
