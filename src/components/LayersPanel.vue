@@ -1,45 +1,72 @@
 <template>
-  <div v-memo="[output.commitVersion, layers.selectedIds, layers.count]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
-    <div v-for="props in layers.getProperties(layers.idsTopToBottom)" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="props.id" :data-id="props.id" :class="{ selected: layers.isSelected(props.id), anchor: layerPanel.anchorId===props.id, dragging: dragId===props.id }" draggable="true" @click="layerPanel.onLayerClick(props.id,$event)" @dragstart="onDragStart(props.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(props.id,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(props.id,$event)">
-      <!-- 썸네일 -->
-      <div @click.stop="onThumbnailClick(props.id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
-        <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
-          <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
-          <path :d="layers.pathOf(props.id)" :fill="rgbaCssU32(props.color)" :opacity="props.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
-        </svg>
-      </div>
-      <!-- 색상 -->
-      <div class="h-6 w-6 rounded border border-white/25 p-0 relative overflow-hidden">
-        <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :class="{ 'cursor-not-allowed': props.locked }" :disabled="props.locked" :value="rgbaToHexU32(props.color)" @pointerdown.stop @mousedown.stop @click.stop="onColorDown()" @input.stop="onColorInput(props.id, $event)" @change.stop="onColorChange()" title="색상 변경" />
-      </div>
-      <!-- 이름/픽셀 -->
-      <div class="min-w-0 flex-1">
-        <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
-          <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(props.id)" @keydown="onNameKey(props.id,$event)" @blur="finishRename(props.id,$event)">{{ props.name }}</span>
+  <div v-memo="[output.commitVersion, nodeTree.selectedLayerIds, nodeTree.layerCount, foldedMemo]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
+    <div v-for="item in flatNodes" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.isSelected(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)">
+      <template v-if="item.isGroup">
+        <div class="w-4 text-center cursor-pointer" @click.stop="toggleFold(item.id)">{{ folded[item.id] ? '▶' : '▼' }}</div>
+        <div class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden" title="그룹 미리보기">
+          <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
+            <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
+            <path v-for="child in descendantProps(item.id)" :key="child.id" :d="nodes.pathOfLayer(child.id)" :fill="rgbaCssU32(child.color)" :opacity="child.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+          </svg>
         </div>
-        <div class="text-xs text-slate-400">
-          <template v-if="layers.disconnectedCountOf(props.id) > 1">
-            <span class="cursor-pointer" @click.stop="onDisconnectedClick(props.id)">⚠️</span>
-            <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(props.id)">{{ layers.disconnectedCountOf(props.id) }} piece</span>
-            <span class="mx-1">|</span>
-          </template>
-          <span class="cursor-pointer" @click.stop="onPixelCountClick(props.id)" title="같은 크기의 모든 레이어 선택">{{ props.pixels.length }} px</span>
+        <div class="min-w-0 flex-1">
+          <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
+            <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
+          </div>
         </div>
-      </div>
-      <!-- 액션 -->
-      <div class="flex gap-1 justify-end">
-        <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
-          <img :src="(props.visibility?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(props.id)" />
+        <div class="flex gap-1 justify-end">
+          <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
+            <img :src="(item.props.visibility?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(item.id)" />
+          </div>
+          <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="잠금/해제">
+            <img :src="(item.props.locked?icons.lock:icons.unlock)" alt="lock/unlock" class="w-4 h-4 cursor-pointer" @error="icons.lock=icons.unlock=''" @click.stop="toggleLock(item.id)" />
+          </div>
+          <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
+            <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(item.id)" />
+          </div>
         </div>
-        <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="잠금/해제">
-          <img :src="(props.locked?icons.lock:icons.unlock)" alt="lock/unlock" class="w-4 h-4 cursor-pointer" @error="icons.lock=icons.unlock=''" @click.stop="toggleLock(props.id)" />
+      </template>
+      <template v-else>
+        <!-- 썸네일 -->
+        <div v-if="item.depth===0" @click.stop="onThumbnailClick(item.id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
+          <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
+            <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
+            <path :d="nodes.pathOfLayer(item.id)" :fill="rgbaCssU32(item.props.color)" :opacity="item.props.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+          </svg>
         </div>
-        <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
-          <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(props.id)" />
+        <!-- 색상 -->
+        <div class="h-6 w-6 rounded border border-white/25 p-0 relative overflow-hidden">
+          <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :class="{ 'cursor-not-allowed': item.props.locked }" :disabled="item.props.locked" :value="rgbaToHexU32(item.props.color)" @pointerdown.stop @mousedown.stop @click.stop="onColorDown()" @input.stop="onColorInput(item.id, $event)" @change.stop="onColorChange()" title="색상 변경" />
         </div>
+        <!-- 이름/픽셀 -->
+        <div class="min-w-0 flex-1">
+          <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
+            <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
+          </div>
+          <div class="text-xs text-slate-400">
+            <template v-if="nodes.disconnectedCountOfLayer(item.id) > 1">
+              <span class="cursor-pointer" @click.stop="onDisconnectedClick(item.id)">⚠️</span>
+              <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(item.id)">{{ nodes.disconnectedCountOfLayer(item.id) }} piece</span>
+              <span class="mx-1">|</span>
+            </template>
+            <span class="cursor-pointer" @click.stop="onPixelCountClick(item.id)" title="같은 크기의 모든 레이어 선택">{{ item.props.pixels.length }} px</span>
+          </div>
         </div>
+        <!-- 액션 -->
+        <div class="flex gap-1 justify-end">
+          <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
+            <img :src="(item.props.visibility?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(item.id)" />
+          </div>
+          <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="잠금/해제">
+            <img :src="(item.props.locked?icons.lock:icons.unlock)" alt="lock/unlock" class="w-4 h-4 cursor-pointer" @error="icons.lock=icons.unlock=''" @click.stop="toggleLock(item.id)" />
+          </div>
+          <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
+            <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(item.id)" />
+          </div>
+        </div>
+      </template>
     </div>
-      <div v-show="layers.idsTopToBottom.length===0" class="text-xs text-slate-400/80 py-6 text-center">(레이어가 없습니다)</div>
+    <div v-show="flatNodes.length===0" class="text-xs text-slate-400/80 py-6 text-center">(레이어가 없습니다)</div>
   </div>
 </template>
 
@@ -51,7 +78,7 @@ import blockIcons from '../image/layer_block';
 
 import { useService } from '../services';
 
-const { viewport: viewportStore, layers, output } = useStore();
+const { viewport: viewportStore, nodeTree, nodes, output } = useStore();
 const { layerPanel, query, viewport, stageResize: stageResizeService } = useService();
 
 const dragging = ref(false);
@@ -59,15 +86,42 @@ const dragId = ref(null);
 const editingId = ref(null);
 const listElement = ref(null);
 const icons = reactive(blockIcons);
+const folded = layerPanel.folded;
+const foldedMemo = computed(() => JSON.stringify(folded));
+
+const flatNodes = computed(() => {
+  const ids = [];
+  const depths = [];
+  const walk = (list, depth) => {
+    for (let i = list.length - 1; i >= 0; i--) {
+      const node = list[i];
+      ids.push(node.id);
+      depths.push(depth);
+      if (node.children && !folded[node.id]) walk(node.children, depth + 1);
+    }
+  };
+  walk(nodeTree.tree, 0);
+  const propsList = nodes.getProperties(ids);
+  return ids.map((id, i) => ({ id, depth: depths[i], isGroup: propsList[i].type === 'group', props: propsList[i] }));
+});
 
 const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
 
+function toggleFold(id) {
+  layerPanel.toggleFold(id);
+}
+
+function descendantProps(id) {
+  const ids = nodeTree.descendantLayerIds(id);
+  return nodes.getProperties(ids);
+}
+
 
   function onThumbnailClick(id) {
-      const color = layers.getProperty(id, 'color');
+      const color = nodes.getProperty(id, 'color');
       const ids = query.byColor(color);
       if (ids.length) {
-          layers.replaceSelection(ids);
+          nodeTree.replaceSelection(ids);
           layerPanel.clearRange();
       }
       layerPanel.setScrollRule({
@@ -77,12 +131,12 @@ const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.bod
   }
 
   function onPixelCountClick(id) {
-      const count = layers.getProperty(id, 'pixels').length;
+      const count = (nodes.getProperty(id, 'pixels') || []).length;
       const ids = count === 0 ? [id] : query.byPixelCount(count);
       if (ids.length <= 1) {
           layerPanel.setRange(id, id);
       } else {
-          layers.replaceSelection(ids);
+          nodeTree.replaceSelection(ids);
           layerPanel.clearRange();
       }
       layerPanel.setScrollRule({
@@ -94,7 +148,7 @@ const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.bod
   function onDisconnectedClick(id) {
       const ids = query.disconnected();
       if (ids.length) {
-          layers.replaceSelection(ids);
+          nodeTree.replaceSelection(ids);
           layerPanel.clearRange();
       }
       layerPanel.setScrollRule({
@@ -104,12 +158,12 @@ const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.bod
   }
 
   function onDisconnectedCountClick(id) {
-      const count = layers.disconnectedCountOf(id);
+      const count = nodes.disconnectedCountOfLayer(id);
       const ids = count <= 1 ? [id] : query.byDisconnectedCount(count);
       if (ids.length <= 1) {
           layerPanel.setRange(id, id);
       } else {
-          layers.replaceSelection(ids);
+          nodeTree.replaceSelection(ids);
           layerPanel.clearRange();
       }
       layerPanel.setScrollRule({
@@ -130,30 +184,40 @@ function onDragEnd() {
     dragId.value = null;
 }
 
-function onDragOver(id, event) {
+function onDragOver(item, event) {
     const row = event.currentTarget;
-    if (layers.isSelected(id)) {
-        row.classList.remove('insert-before', 'insert-after');
+if (nodeTree.isSelected(item.id)) {
+        row.classList.remove('insert-before', 'insert-after', 'insert-into');
         event.dataTransfer.dropEffect = 'none';
         return;
     }
     const rect = row.getBoundingClientRect();
-    const before = (event.clientY - rect.top) < rect.height * 0.5;
-    row.classList.toggle('insert-before', before);
-    row.classList.toggle('insert-after', !before);
+    const y = event.clientY - rect.top;
+    row.classList.remove('insert-before', 'insert-after', 'insert-into');
+    if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
+        row.classList.add('insert-into');
+    } else {
+        const before = y < rect.height * 0.5;
+        row.classList.add(before ? 'insert-before' : 'insert-after');
+    }
 }
 
 function onDragLeave(event) {
-    event.currentTarget.classList.remove('insert-before', 'insert-after');
+    event.currentTarget.classList.remove('insert-before', 'insert-after', 'insert-into');
 }
 
-function onDrop(id, event) {
+function onDrop(item, event) {
     const row = event.currentTarget;
-    row.classList.remove('insert-before', 'insert-after');
-    const targetId = id;
+    row.classList.remove('insert-before', 'insert-after', 'insert-into');
     const rect = row.getBoundingClientRect();
-    const placeBelow = (event.clientY - rect.top) > rect.height * 0.5;
-    layers.insertLayers(layers.selectedIds, targetId, placeBelow);
+    const y = event.clientY - rect.top;
+const ids = nodeTree.selectedNodeIds;
+    if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
+        nodeTree.append(ids, item.id, true);
+    } else {
+        const placeBelow = y > rect.height * 0.5;
+        nodeTree.insert(ids, item.id, placeBelow);
+    }
     output.commit();
 }
 
@@ -163,12 +227,12 @@ function onColorDown() {
 
 function onColorInput(id, event) {
     const colorU32 = hexToRgbaU32(event.target.value);
-    if (layers.isSelected(id)) {
-        for (const sid of layers.selectedIds) {
-            layers.updateProperties(sid, { color: colorU32 });
+    if (nodeTree.isSelected(id)) {
+        for (const sid of nodeTree.selectedLayerIds) {
+            nodes.update(sid, { color: colorU32 });
         }
     } else {
-        layers.updateProperties(id, { color: colorU32 });
+        nodes.update(id, { color: colorU32 });
     }
 }
 
@@ -178,36 +242,36 @@ function onColorChange() {
 
 function toggleVisibility(id) {
     output.setRollbackPoint();
-    if (layers.isSelected(id)) {
-        const value = !layers.getProperty(id, 'visibility');
-        for (const sid of layers.selectedIds) {
-            layers.updateProperties(sid, { visibility: value });
+    if (nodeTree.isSelected(id)) {
+        const value = !nodes.getProperty(id, 'visibility');
+        for (const sid of nodeTree.selectedNodeIds) {
+            nodes.update(sid, { visibility: value });
         }
     } else {
-        layers.toggleVisibility(id);
+        nodes.toggleVisibility(id);
     }
     output.commit();
 }
 
 function toggleLock(id) {
     output.setRollbackPoint();
-    if (layers.isSelected(id)) {
-        const value = !layers.getProperty(id, 'locked');
-        for (const sid of layers.selectedIds) {
-            layers.updateProperties(sid, { locked: value });
+    if (nodeTree.isSelected(id)) {
+        const value = !nodes.getProperty(id, 'locked');
+        for (const sid of nodeTree.selectedNodeIds) {
+            nodes.update(sid, { locked: value });
         }
     } else {
-        layers.toggleLock(id);
+        nodes.toggleLock(id);
     }
     output.commit();
 }
 
 function deleteLayer(id) {
     output.setRollbackPoint();
-    const targets = layers.isSelected(id) ? layers.selectedIds : [id];
+    const targets = nodeTree.isSelected(id) ? nodeTree.selectedNodeIds : [id];
     const belowId = query.below(query.lowermost(targets));
-    layers.deleteLayers(targets);
-    const newSelectId = layers.has(belowId) ? belowId : query.lowermost();
+    nodes.remove(targets);
+    const newSelectId = nodeTree.has(belowId) ? belowId : query.lowermost();
     layerPanel.setRange(newSelectId, newSelectId);
     if (newSelectId) {
         layerPanel.setScrollRule({
@@ -310,11 +374,11 @@ function startRename(id) {
 function finishRename(id, event) {
     const element = document.querySelector(`.layer[data-id="${id}"] .nameText`);
     element.contentEditable = false;
-    const oldName = layers.getProperty(id, 'name');
+    const oldName = nodes.getProperty(id, 'name');
     const text = event.target.innerText.trim();
     editingId.value = null;
     if (text && text !== oldName) {
-        layers.updateProperties(id, { name: text });
+        nodes.update(id, { name: text });
         output.commit();
     } else {
         event.target.innerText = oldName;
@@ -327,7 +391,7 @@ function finishRename(id, event) {
 }
 
 function onNameKey(id, event) {
-    const name = layers.getProperty(id, 'name');
+    const name = nodes.getProperty(id, 'name');
     if (event.key === 'Enter') {
         event.preventDefault();
         event.target.blur();
@@ -356,14 +420,14 @@ function handleGlobalPointerDown(event) {
         const onUp = (e) => {
             if (e.pointerId !== pid) return;
             window.removeEventListener('pointermove', onMove, true);
-            if (!moved) layers.clearSelection();
+            if (!moved) nodeTree.clearSelection();
         };
         window.addEventListener('pointermove', onMove, { capture: true });
         window.addEventListener('pointerup', onUp, { capture: true, once: true });
         return;
     }
     if (!isViewport && !isStage && !isLayers && !isButton)
-        layers.clearSelection();
+        nodeTree.clearSelection();
 }
 
 onMounted(() => {
@@ -382,6 +446,7 @@ onUnmounted(() => {
 /* 레이어 재정렬 표시 */
 .insert-before{box-shadow:inset 0 3px 0 0 rgba(56,189,248,.7)}
 .insert-after{box-shadow:inset 0 -3px 0 0 rgba(56,189,248,.7)}
+.insert-into{box-shadow:inset 0 0 0 2px rgba(56,189,248,.7)}
 
 /* 선택 강조 */
 .layer.selected{
