@@ -1,8 +1,14 @@
 <template>
   <div v-memo="[output.commitVersion, nodeTree.selectedLayerIds, nodeTree.layerCount, foldedMemo]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
-    <div v-for="item in flatNodes" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 16) + 'px' }" :class="{ selected: nodeTree.isSelected(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)">
+    <div v-for="item in flatNodes" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.isSelected(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)">
       <template v-if="item.isGroup">
         <div class="w-4 text-center cursor-pointer" @click.stop="toggleFold(item.id)">{{ folded[item.id] ? '▶' : '▼' }}</div>
+        <div class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden" title="그룹 미리보기">
+          <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
+            <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
+            <path v-for="child in descendantProps(item.id)" :key="child.id" :d="nodes.pathOfLayer(child.id)" :fill="rgbaCssU32(child.color)" :opacity="child.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+          </svg>
+        </div>
         <div class="min-w-0 flex-1">
           <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
             <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
@@ -22,7 +28,7 @@
       </template>
       <template v-else>
         <!-- 썸네일 -->
-        <div @click.stop="onThumbnailClick(item.id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
+        <div v-if="item.depth===0" @click.stop="onThumbnailClick(item.id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
           <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
             <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
             <path :d="nodes.pathOfLayer(item.id)" :fill="rgbaCssU32(item.props.color)" :opacity="item.props.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
@@ -103,6 +109,11 @@ const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.bod
 
 function toggleFold(id) {
   layerPanel.toggleFold(id);
+}
+
+function descendantProps(id) {
+  const ids = nodeTree.descendantLayerIds(id);
+  return nodes.getProperties(ids);
 }
 
 
