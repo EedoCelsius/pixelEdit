@@ -40,6 +40,20 @@ function findNode(nodes, id, parent = null) {
     return null;
 }
 
+/** Return an array of nodes from root to the node with the given id */
+function pathTo(nodes, id, stack = []) {
+    for (const node of nodes) {
+        stack.push(node);
+        if (node.id === id) return [...stack];
+        if (node.children) {
+            const res = pathTo(node.children, id, stack);
+            if (res) return res;
+        }
+        stack.pop();
+    }
+    return null;
+}
+
 /** Collect all layer ids within a node (recursively) */
 function collectLayerIds(node, result = []) {
     if (!node) return result;
@@ -333,13 +347,7 @@ export const useLayerStore = defineStore('layers', {
                 for (const node of nodes) {
                     const selected = this._selection.has(node.id);
                     if (ancestorSelected && selected) this._selection.delete(node.id);
-                    if (node.children) {
-                        traverse(node.children, ancestorSelected || selected);
-                        if (node.children.every(ch => this._selection.has(ch.id))) {
-                            for (const ch of node.children) this._selection.delete(ch.id);
-                            this._selection.add(node.id);
-                        }
-                    }
+                    if (node.children) traverse(node.children, ancestorSelected || selected);
                 }
             };
             traverse(this._tree, false);
@@ -348,9 +356,17 @@ export const useLayerStore = defineStore('layers', {
             if (this._selection.delete(id)) return;
             const ancestor = this._selectedAncestor(id);
             if (!ancestor) return;
+            const path = pathTo(this._tree, id);
+            if (!path) return;
+            const start = path.findIndex(n => n.id === ancestor.id);
+            if (start === -1) return;
+            for (const node of path.slice(start, -1)) {
+                if (node.children) {
+                    for (const child of node.children) this._selection.add(child.id);
+                }
+            }
             this._selection.delete(ancestor.id);
-            for (const child of ancestor.children) this._selection.add(child.id);
-            this._deselect(id);
+            this._selection.delete(id);
         },
         replaceSelection(ids = []) {
             this._selection = new Set(ids);
