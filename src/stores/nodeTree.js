@@ -70,13 +70,10 @@ function collectLayerIds(node, result = [], nodeStore = useNodeStore()) {
 
 function flattenSelectedNode(tree, selection) {
     const result = [];
-    const walk = (nodes) => {
-        for (const node of nodes) {
-            if (selection.has(node.id)) result.push(node.id);
-            if (node.children) walk(node.children);
-        }
-    };
-    walk(tree);
+    for (const id of selection) {
+        const info = findNode(tree, id);
+        if (info) flattenNode([info.node], result);
+    }
     return result;
 }
 
@@ -95,30 +92,25 @@ export const useNodeTreeStore = defineStore('nodeTree', {
         _selection: new Set()
     }),
     getters: {
-        exists: (state) => flattenNode(state._tree).length > 0,
-        layerOrder: (state) => readonly(flattenLayers(state._tree)),
+        _layerIds: (state) => flattenLayers(state._tree),
+        _nodeIds: (state) => flattenNode(state._tree),
+        _selectedNodeIds: (state) => flattenSelectedNode(state._tree, state._selection),
+        _selectedLayerIds: (state) => flattenSelectedLayers(state._tree, state._selection),
+        exists: (state, getters) => getters._nodeIds.length > 0,
+        layerOrder: (state, getters) => readonly(getters._layerIds),
         tree: (state) => readonly(state._tree),
         has: (state) => (id) => findNode(state._tree, id) != null,
-        layerCount: (state) => flattenLayers(state._tree).length,
-        layerIdsBottomToTop: (state) => readonly(flattenLayers(state._tree)),
-        layerIdsTopToBottom: (state) => readonly([...flattenLayers(state._tree)].reverse()),
-        indexOfLayer: (state) => (id) => flattenLayers(state._tree).indexOf(id),
-        selectedLayerIds: (state) => flattenSelectedLayers(state._tree, state._selection),
-        selectedNodeIds: (state) => flattenSelectedNode(state._tree, state._selection),
-        selectedLayerCount: (state) => flattenSelectedLayers(state._tree, state._selection).length,
-        layerSelectionExists: (state) => flattenSelectedLayers(state._tree, state._selection).length > 0,
-        isSelected: (state) => (id) => {
-            if (state._selection.has(id)) return true;
-            const info = findNode(state._tree, id);
-            let parent = info?.parent;
-            while (parent) {
-                if (state._selection.has(parent.id)) return true;
-                parent = findNode(state._tree, parent.id)?.parent;
-                
-            }
-            return false;
-        },
-        allNodeIds: (state) => flattenNode(state._tree)
+        layerCount: (state, getters) => getters._layerIds.length,
+        layerIdsBottomToTop: (state, getters) => readonly(getters._layerIds),
+        layerIdsTopToBottom: (state, getters) => readonly([...getters._layerIds].reverse()),
+        indexOfLayer: (state, getters) => (id) => getters._layerIds.indexOf(id),
+        selectedLayerIds: (state, getters) => getters._selectedLayerIds,
+        selectedNodeIds: (state, getters) => getters._selectedNodeIds,
+        selectedLayerCount: (state, getters) => getters._selectedLayerIds.length,
+        layerSelectionExists: (state, getters) => getters._selectedLayerIds.length > 0,
+        _selectedNodeIdSet: (state, getters) => new Set(getters._selectedNodeIds),
+        isSelected: (state, getters) => (id) => getters._selectedNodeIdSet.has(id),
+        allNodeIds: (state, getters) => getters._nodeIds
     },
     actions: {
         _findNode(id) {
