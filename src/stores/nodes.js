@@ -209,7 +209,7 @@ export const useNodeStore = defineStore('nodes', {
         },
         serialize() {
             const tree = useNodeTreeStore();
-            const allIds = tree.allNodeIds();
+            const allIds = tree.allNodeIds;
             return Object.fromEntries(allIds.map(id => {
                 const entry = {
                     name: this._name[id],
