@@ -129,12 +129,13 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (!cutCoords.length || cutKeys.size === sourceKeys.size) return;
 
         layers.removePixels(sourceId, cutCoords);
-        layers.createLayer({
+        const id = layers.createLayer({
             name: `Cut of ${layers.getProperty(sourceId, 'name')}`,
             color: layers.getProperty(sourceId, 'color'),
             visibility: layers.getProperty(sourceId, 'visibility'),
             pixels: cutCoords,
-        }, sourceId);
+        });
+        layers.insertLayers([id], sourceId, false);
 
         layers.replaceSelection([sourceId]);
         layerPanel.setScrollRule({ type: 'follow', target: sourceId });
@@ -175,7 +176,7 @@ export const useTopToolService = defineStore('topToolService', () => {
             tool.setCursor({ stroke: CURSOR_CONFIG.LOCKED, rect: CURSOR_CONFIG.LOCKED });
         }
         else {
-            layers.reorderLayers([id], layers.idsTopToBottom[0], false);
+            layers.insertLayers([id], layers.idsTopToBottom[0], false);
             layers.replaceSelection([id]);
             layerPanel.setScrollRule({ type: 'follow', target: id });
             tool.setCursor({ stroke: CURSOR_CONFIG.TOP, rect: CURSOR_CONFIG.TOP });

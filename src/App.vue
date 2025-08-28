@@ -165,18 +165,21 @@ onMounted(async () => {
 
   const autoSegments = input.isLoaded ? input.segment(40) : [];
   if (autoSegments.length) {
+    const ids = [];
     for (let i = 0; i < autoSegments.length; i++) {
       const segment = autoSegments[i];
-      layers.createLayer({
+      const id = layers.createLayer({
         name: `Auto ${i+1}`,
         color: segment.colorU32,
         visibility: true,
         pixels: segment.pixels
       });
+      ids.push(id);
     }
+    layers.insertLayers(ids);
   } else {
-    layers.createLayer({});
-    layers.createLayer({});
+    const ids = [layers.createLayer({}), layers.createLayer({})];
+    layers.insertLayers(ids);
   }
 
   layerPanel.setScrollRule({ type: "follow", target: layers.order[layers.order.length - 1] });

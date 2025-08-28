@@ -34,9 +34,7 @@ const onAdd = () => {
     output.setRollbackPoint();
     const above = layers.selectionCount ? query.uppermost(layers.selectedIds) : null;
     const id = layers.createLayer({});
-    if (above !== null) {
-        layers.reorderLayers([id], above, false);
-    }
+    layers.insertLayers([id], above, false);
     layerPanel.setRange(id, id);
     output.commit();
 };

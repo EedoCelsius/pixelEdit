@@ -29,7 +29,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         const newLayerId = layers.createLayer({ name: `Merged ${anchorName}`, color: colorU32 });
         const newPixels = pixelUnion;
         if (newPixels.length) layers.addPixels(newLayerId, newPixels);
-        layers.reorderLayers([newLayerId], query.lowermost(layers.selectedIds), true);
+        layers.insertLayers([newLayerId], query.lowermost(layers.selectedIds), true);
         const ids = layers.selectedIds;
         layers.deleteLayers(ids);
         layers.removeFromSelection(ids);
@@ -38,8 +38,11 @@ export const useLayerToolService = defineStore('layerToolService', () => {
 
     function copySelected() {
         if (!layers.selectionCount) return [];
+        const sorted = layers.selectedIds
+            .slice()
+            .sort((a, b) => layers.indexOfLayer(a) - layers.indexOfLayer(b));
         const newLayerIds = [];
-        for (const id of layers.selectedIds) {
+        for (const id of sorted) {
             const layer = layers.getProperties(id);
             const pixels = [...layer.pixels];
             const newLayerId = layers.createLayer({
@@ -47,9 +50,10 @@ export const useLayerToolService = defineStore('layerToolService', () => {
                 color: layer.color,
                 visibility: layer.visibility,
                 pixels
-            }, id);
+            });
             newLayerIds.push(newLayerId);
         }
+        layers.insertLayers(newLayerIds, query.uppermost(sorted), false);
         return newLayerIds;
     }
 
@@ -67,21 +71,19 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         const originalVisibility = originalLayer.visibility;
         const originalIndex = layers.indexOfLayer(layerId);
 
-        const newIds = components.reverse().map((componentPixels, index) => (
-            layers.createLayer({
+        const newIds = components.reverse().map((componentPixels, index) => {
+            return layers.createLayer({
                 name: `${originalName} #${components.length - index}`,
                 color: originalColor,
                 visibility: originalVisibility,
                 pixels: componentPixels
-            })
-        ));
+            });
+        });
 
         layers.deleteLayers([layerId]);
 
-        const currentOrder = layers.idsBottomToTop.slice();
-        const orderWithoutNew = currentOrder.filter(i => !newIds.includes(i));
-        orderWithoutNew.splice(originalIndex, 0, ...newIds.reverse());
-        layers._order = orderWithoutNew;
+        const target = layers.idsBottomToTop[originalIndex];
+        layers.insertLayers(newIds, target, true);
 
         layers.replaceSelection(newIds);
         return newIds;
