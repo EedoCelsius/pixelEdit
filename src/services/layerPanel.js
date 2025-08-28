@@ -3,7 +3,7 @@ import { reactive, toRefs, watch, computed } from 'vue';
 import { useStore } from '../stores';
 
 export const useLayerPanelService = defineStore('layerPanelService', () => {
-    const { nodeTree } = useStore();
+    const { layers } = useStore();
 
     const state = reactive({
         anchorId: null,
@@ -19,8 +19,10 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
     function enableWatch() {
         if (!stopWatch) {
             stopWatch = watch(
-                () => nodeTree.selectedLayerIds,
-                () => { clearRange(); },
+                () => layers.selectedIds,
+                () => {
+                    clearRange();
+                },
                 { flush: 'sync' }
             );
         }
@@ -35,9 +37,9 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
     function dfs(skipFolded = false) {
         const order = [];
         const ancestors = new Map();
-        const walk = (list, anc) => {
-            for (let i = list.length - 1; i >= 0; i--) {
-                const node = list[i];
+        const walk = (nodes, anc) => {
+            for (let i = nodes.length - 1; i >= 0; i--) {
+                const node = nodes[i];
                 ancestors.set(node.id, anc.slice());
                 order.push(node.id);
                 if (node.children && !(skipFolded && folded[node.id])) {
@@ -45,15 +47,15 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
                 }
             }
         };
-        walk(nodeTree.tree, []);
+        walk(layers.tree, []);
         return { order, ancestors };
     }
 
     function visibleAncestor(id, orderSet) {
-        let info = nodeTree._findNode(id);
+        let info = layers._findNode(id);
         while (info && !orderSet.has(info.node.id)) {
             if (!info.parent) return null;
-            info = nodeTree._findNode(info.parent.id);
+            info = layers._findNode(info.parent.id);
         }
         return info ? info.node.id : null;
     }
@@ -63,7 +65,7 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         if (anchorId == null || tailId == null) {
             state.anchorId = null;
             state.tailId = null;
-            nodeTree.clearSelection();
+            layers.clearSelection();
             return;
         }
 
@@ -73,7 +75,7 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         if (idxA === -1 || idxB === -1) {
             state.anchorId = null;
             state.tailId = null;
-            nodeTree.clearSelection();
+            layers.clearSelection();
             return;
         }
         const [start, end] = idxA < idxB ? [idxA, idxB] : [idxB, idxA];
@@ -83,7 +85,7 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
             ...(ancestors.get(tailId) || []),
         ]);
         const selection = slice.filter(id => !ancToRemove.has(id));
-        nodeTree.replaceSelection(selection);
+        layers.replaceSelection(selection);
         state.anchorId = anchorId;
         state.tailId = tailId;
         enableWatch();
@@ -103,7 +105,7 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         if (event.shiftKey) {
             setRange(state.anchorId ?? id, id);
         } else if (event.ctrlKey || event.metaKey) {
-            nodeTree.toggleSelection(id);
+            layers.toggleSelection(id);
         } else {
             setRange(id, id);
         }
@@ -111,12 +113,12 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
     }
 
     function onArrowUp(shift, ctrl) {
-        if (!nodeTree.exists || ctrl) return;
+        if (!layers.exists || ctrl) return;
         const { order } = dfs(true);
         if (!order.length) return;
         const orderSet = new Set(order);
         if (shift) {
-            if (!nodeTree.layerSelectionExists) return;
+            if (!layers.selectionExists) return;
             const tailVis = visibleAncestor(state.tailId, orderSet);
             const anchorVis = visibleAncestor(state.anchorId, orderSet);
             if (tailVis == null || anchorVis == null) return;
@@ -135,12 +137,12 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
     }
 
     function onArrowDown(shift, ctrl) {
-        if (!nodeTree.exists || ctrl) return;
+        if (!layers.exists || ctrl) return;
         const { order } = dfs(true);
         if (!order.length) return;
         const orderSet = new Set(order);
         if (shift) {
-            if (!nodeTree.layerSelectionExists) return;
+            if (!layers.selectionExists) return;
             const tailVis = visibleAncestor(state.tailId, orderSet);
             const anchorVis = visibleAncestor(state.anchorId, orderSet);
             if (tailVis == null || anchorVis == null) return;
