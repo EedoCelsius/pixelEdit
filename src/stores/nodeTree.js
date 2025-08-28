@@ -110,11 +110,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
         selectedLayerCount(state) { return this._selectedLayerIds.length },
         layerSelectionExists(state) { return this._selectedLayerIds.length > 0 },
         isSelected(state) { return (id) => this._selectedNodeIdSet.has(id) },
-        allNodeIds(state) { return this._nodeIds },
-        descendantLayerIds(state) { return (id) => {
-            const info = findNode(state._tree, id);
-            return info ? collectLayerIds(info.node, []) : [];
-        } }
+        allNodeIds(state) { return this._nodeIds }
     },
     actions: {
         _findNode(id) {
