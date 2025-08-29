@@ -10,7 +10,7 @@ export const useViewportEventStore = defineStore('viewportEvent', {
             pointer: { down: [], move: [], up: [] },
         },
         _recentTicks: {
-            pointer: { down: 0, move: 0, up: 0 },
+            pointer: { down: -1, move: -1, up: -1 },
         },
         _tick: 0,
         _tickScheduled: false,

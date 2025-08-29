@@ -9,8 +9,8 @@ export const useKeyboardEventStore = defineStore('keyboardEvent', {
             up: [],
         },
         _recentTicks: {
-            down: 0,
-            up: 0,
+            down: -1,
+            up: -1,
         },
         _tick: 0,
         _tickScheduled: false,

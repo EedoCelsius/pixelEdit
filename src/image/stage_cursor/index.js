@@ -11,6 +11,11 @@ import globalEraseRect from './global_erase_rect.svg';
 import cutStroke from './cut_stroke.svg';
 import cutRect from './cut_rect.svg';
 import top from './top.svg';
+import up from './up.svg';
+import down from './down.svg';
+import left from './left.svg';
+import right from './right.svg';
+import change from './change.svg';
 import locked from './locked.svg';
 
 export default {
@@ -27,5 +32,10 @@ export default {
   cutStroke,
   cutRect,
   top,
+  up,
+  down,
+  left,
+  right,
+  change,
   locked
 };

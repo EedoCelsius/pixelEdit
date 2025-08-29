@@ -9,6 +9,7 @@ import top from './top.svg';
 import resize from './resize.svg';
 import undo from './undo.svg';
 import redo from './redo.svg';
+import path from './path.svg';
 
 export default {
   stroke,
@@ -19,6 +20,7 @@ export default {
   select,
   globalErase,
   top,
+  path,
   resize,
   undo,
   redo,

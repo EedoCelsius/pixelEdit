@@ -10,6 +10,7 @@ export const SINGLE_SELECTION_TOOLS = [
 export const MULTI_SELECTION_TOOLS = [
   { type: 'select', name: 'Select', icon: stageIcons.select },
   { type: 'globalErase', name: 'Global Erase', icon: stageIcons.globalErase },
+  { type: 'path', name: 'Path', icon: stageIcons.path },
 ];
 
 export const TOOL_MODIFIERS = {

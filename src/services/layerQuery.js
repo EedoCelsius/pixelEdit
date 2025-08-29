@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia';
 import { useStore } from '../stores';
-import { coordToKey } from '../utils';
 
 export const useLayerQueryService = defineStore('layerQueryService', () => {
     const { nodeTree, nodes, pixels } = useStore();
@@ -46,13 +45,11 @@ export const useLayerQueryService = defineStore('layerQueryService', () => {
     }
 
     function topVisibleAt(coord) {
-        const key = coordToKey(coord);
         const order = nodeTree.layerIdsBottomToTop;
         for (let i = order.length - 1; i >= 0; i--) {
             const id = order[i];
             if (!nodes._visibility[id]) continue;
-            const set = pixels._pixels[id];
-            if (set && set.has(key)) return id;
+            if (pixels.has(id, coord)) return id;
         }
         return null;
     }

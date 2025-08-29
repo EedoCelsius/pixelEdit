@@ -63,15 +63,13 @@ toolSelectionService.setShape('stroke');
 watch(() => keyboardEvents.recent.down, (downs) => {
     for (const e of downs) {
         const key = e.key.toLowerCase();
-        const ctrl = e.ctrlKey || e.metaKey;
-        const shift = e.shiftKey;
-        if (ctrl) {
-            if (key === 'z' && !shift) {
+        if (e.ctrlKey || e.metaKey) {
+            if (key === 'z' && !e.shiftKey) {
                 e.preventDefault();
                 output.undo();
                 continue;
             }
-            if (key === 'y' || (key === 'z' && shift)) {
+            if (key === 'y' || (key === 'z' && e.shiftKey)) {
                 e.preventDefault();
                 output.redo();
                 continue;

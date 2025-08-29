@@ -14,6 +14,11 @@ export const CURSOR_STYLE = {
     CUT_STROKE: `url("${cursorIcons.cutStroke}") 0 16, crosshair`,
     CUT_RECT: `url("${cursorIcons.cutRect}") 0 0, crosshair`,
     TOP: `url("${cursorIcons.top}") 8 8, crosshair`,
+    UP: `url("${cursorIcons.up}") 8 8, crosshair`,
+    DOWN: `url("${cursorIcons.down}") 8 8, crosshair`,
+    LEFT: `url("${cursorIcons.left}") 8 8, crosshair`,
+    RIGHT: `url("${cursorIcons.right}") 8 8, crosshair`,
+    CHANGE: `url("${cursorIcons.change}") 8 8, crosshair`,
     LOCKED: `url("${cursorIcons.locked}") 8 8, not-allowed`,
     NOT_ALLOWED: 'not-allowed',
 };
