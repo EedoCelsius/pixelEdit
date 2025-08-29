@@ -5,22 +5,18 @@ import { MAX_POINTER_WINDOW } from '@/constants';
 export const useViewportEventStore = defineStore('viewportEvent', {
     state: () => ({
         _pointer: {},
-        _keyboard: {},
         _wheel: null,
         _recent: {
             pointer: { down: [], move: [], up: [] },
-            keyboard: { down: [], up: [] },
         },
         _recentTicks: {
             pointer: { down: 0, move: 0, up: 0 },
-            keyboard: { down: 0, up: 0 },
         },
         _tick: 0,
         _tickScheduled: false,
     }),
     getters: {
         pointer: (state) => readonly(state._pointer),
-        keyboard: (state) => readonly(state._keyboard),
         wheel: (state) => readonly(state._wheel),
         recent: (state) => readonly(state._recent),
         pinchIds: (state) => {
@@ -35,10 +31,6 @@ export const useViewportEventStore = defineStore('viewportEvent', {
             }
             return active.length >= 2 ? active : null;
         },
-        isPressed: (state) => (key) => {
-            const entry = state._keyboard[key];
-            return !!entry && !!entry.down && (!entry.up || entry.down.timeStamp > entry.up.timeStamp);
-        },
         isDragging: (state) => (id) => {
             const entry = state._pointer[id];
             return !!entry && !!entry.down && (!entry.up || entry.down.timeStamp > entry.up.timeStamp);
@@ -51,10 +43,6 @@ export const useViewportEventStore = defineStore('viewportEvent', {
                     return state._pointer[idOrKey]?.move;
                 case 'pointerup':
                     return state._pointer[idOrKey]?.up;
-                case 'keydown':
-                    return state._keyboard[idOrKey]?.down;
-                case 'keyup':
-                    return state._keyboard[idOrKey]?.up;
                 case 'wheel':
                     return state._wheel;
                 default:
@@ -89,16 +77,6 @@ export const useViewportEventStore = defineStore('viewportEvent', {
                 this.pruneOldPointers();
             }
             this._pushRecent('pointer', 'up', event);
-        },
-        setKeyDown(event) {
-            if (this._keyboard[event.key]) this._keyboard[event.key].down = event;
-            else this._keyboard[event.key] = { down: event, up: null };
-            this._pushRecent('keyboard', 'down', event);
-        },
-        setKeyUp(event) {
-            if (this._keyboard[event.key]) this._keyboard[event.key].up = event;
-            else this._keyboard[event.key] = { down: null, up: event };
-            this._pushRecent('keyboard', 'up', event);
         },
         setWheel(event) {
             this._wheel = event;

@@ -208,7 +208,7 @@ export const useSelectService = defineStore('selectService', () => {
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
     const layerPanel = useLayerPanelService();
-    const { nodeTree, nodes, viewportEvent: viewportEvents } = useStore();
+    const { nodeTree, nodes, viewportEvent: viewportEvents, keyboardEvent: keyboardEvents } = useStore();
     let mode = 'select';
     watch(() => tool.prepared === 'select', (isSelect) => {
         if (!isSelect) {
@@ -224,7 +224,7 @@ export const useSelectService = defineStore('selectService', () => {
             return;
         }
         const id = nodes.topVisibleIdAt(pixel);
-        if (!viewportEvents.isPressed('Shift')) {
+        if (!keyboardEvents.isPressed('Shift')) {
             mode = 'select';
             overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
             tool.setCursor({ stroke: CURSOR_STYLE.ADD_STROKE, rect: CURSOR_STYLE.ADD_RECT });

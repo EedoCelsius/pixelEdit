@@ -4,6 +4,7 @@ import { useNodeStore } from './nodes';
 import { useOutputStore } from './output';
 import { useViewportStore } from './viewport';
 import { useViewportEventStore } from './viewportEvent';
+import { useKeyboardEventStore } from './keyboardEvent';
 
 export {
     useInputStore,
@@ -11,7 +12,8 @@ export {
     useNodeStore,
     useOutputStore,
     useViewportStore,
-    useViewportEventStore
+    useViewportEventStore,
+    useKeyboardEventStore
 };
 
 export const useStore = () => ({
@@ -20,5 +22,6 @@ export const useStore = () => ({
     nodes: useNodeStore(),
     output: useOutputStore(),
     viewport: useViewportStore(),
-    viewportEvent: useViewportEventStore()
+    viewportEvent: useViewportEventStore(),
+    keyboardEvent: useKeyboardEventStore()
 });

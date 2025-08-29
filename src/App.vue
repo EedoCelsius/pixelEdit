@@ -6,7 +6,7 @@
         :style="displayStyle"
       >
         <h2 class="m-0 px-3 py-2 text-xs uppercase tracking-wide text-slate-300/90 border-b border-white/10">Display</h2>
-        <viewport-toolbar ref="viewportToolbar" class="border-b border-white/10"></viewport-toolbar>
+      <viewport-toolbar class="border-b border-white/10"></viewport-toolbar>
         <Viewport class="flex-1 min-h-0"></Viewport>
         <viewport-info class="border-t border-white/10"></viewport-info>
       </section>
@@ -45,7 +45,6 @@ import ViewportToolbar from './components/ViewportToolbar.vue';
 import StageResizePopup from './components/StageResizePopup.vue';
 const { input, viewport: viewportStore, nodeTree, nodes, output } = useStore();
 const { layerPanel, layerQuery } = useService();
-const viewportToolbar = ref(null);
 
 // Width control between display and layers
 const container = ref(null);
@@ -70,88 +69,6 @@ function onDrag(event) {
 
 function stopDrag() {
   isDragging.value = false;
-}
-
-// General key handler
-function onKeydown(event) {
-  const target = event.target;
-  const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
-  if (typing) return;
-
-  const key = event.key.toLowerCase();
-  const ctrl = event.ctrlKey || event.metaKey;
-  const shift = event.shiftKey;
-
-  switch (event.key) {
-    case 'Control':
-    case 'Meta':
-      return viewportToolbar.value?.ctrlKeyDown(event);
-    case 'Shift':
-      return viewportToolbar.value?.shiftKeyDown(event);
-    case 'ArrowUp':
-      event.preventDefault();
-      layerPanel.onArrowUp(shift, ctrl);
-      return;
-    case 'ArrowDown':
-      event.preventDefault();
-      layerPanel.onArrowDown(shift, ctrl);
-      return;
-    case 'Delete':
-    case 'Backspace':
-      event.preventDefault();
-      if (!nodeTree.layerSelectionExists) return;
-      output.setRollbackPoint();
-      const belowId = layerQuery.below(layerQuery.lowermost(nodeTree.selectedLayerIds));
-      const ids = nodeTree.selectedLayerIds;
-      nodes.remove(ids);
-      nodeTree.removeFromSelection(ids);
-      const newSelect = nodeTree.has(belowId) ? belowId : layerQuery.lowermost();
-      layerPanel.setRange(newSelect, newSelect);
-      layerPanel.setScrollRule({ type: "follow", target: newSelect });
-      output.commit();
-      return;
-    case 'Enter':
-         if (!ctrl && !shift && nodeTree.selectedLayerCount === 1) {
-            const selectedId = nodeTree.selectedLayerIds[0];
-            const row = document.querySelector(`.layer[data-id="${selectedId}"] .nameText`)
-            if (row) {
-                event.preventDefault();
-                row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-            }
-        }
-        return;
-    case 'Escape':
-      if (output.hasPendingRollback) {
-        event.preventDefault();
-        output.rollbackPending();
-        return;
-      }
-      nodeTree.clearSelection();
-      return;
-  }
-
-  if (ctrl) {
-    if (key === 'a') {
-      event.preventDefault();
-      layerPanel.selectAll();
-    } else if (key === 'z' && !shift) {
-      event.preventDefault();
-      output.undo();
-    } else if (key === 'y' || (key === 'z' && shift)) {
-      event.preventDefault();
-      output.redo();
-    }
-  }
-}
-
-function onKeyup(event) {
-  switch (event.key) {
-    case 'Control':
-    case 'Meta':
-      return viewportToolbar.value?.ctrlKeyUp(event);
-    case 'Shift':
-      return viewportToolbar.value?.shiftKeyUp(event);
-  }
 }
 
 onMounted(async () => {
@@ -186,8 +103,6 @@ onMounted(async () => {
 
       layerPanel.setScrollRule({ type: "follow", target: nodeTree.layerOrder[nodeTree.layerOrder.length - 1] });
 
-  window.addEventListener('keydown', onKeydown);
-  window.addEventListener('keyup', onKeyup);
   window.addEventListener('mousemove', onDrag);
   window.addEventListener('mouseup', stopDrag);
 });

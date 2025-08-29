@@ -50,7 +50,7 @@ import { useService } from '../services';
 import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS, TOOL_MODIFIERS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 
-const { viewport: viewportStore, nodeTree, output, viewportEvent: viewportEvents } = useStore();
+const { viewport: viewportStore, nodeTree, output, keyboardEvent: keyboardEvents } = useStore();
 const { toolSelection: toolSelectionService, stageResize: stageResizeService } = useService();
 
 let previousTool = null;
@@ -60,11 +60,26 @@ const selectables = ref(MULTI_SELECTION_TOOLS);
 toolSelectionService.setPrepared(lastMultiTool);
 toolSelectionService.setShape('stroke');
 
-watch(() => viewportEvents.recent.keyboard.down, (downs) => {
+watch(() => keyboardEvents.recent.down, (downs) => {
     for (const e of downs) {
-        const map = TOOL_MODIFIERS[e.key]
+        const key = e.key.toLowerCase();
+        const ctrl = e.ctrlKey || e.metaKey;
+        const shift = e.shiftKey;
+        if (ctrl) {
+            if (key === 'z' && !shift) {
+                e.preventDefault();
+                output.undo();
+                continue;
+            }
+            if (key === 'y' || (key === 'z' && shift)) {
+                e.preventDefault();
+                output.redo();
+                continue;
+            }
+        }
+        const map = TOOL_MODIFIERS[e.key];
         if (!map || e.repeat) continue;
-        const change = map[toolSelectionService.prepared] ?? map.default
+        const change = map[toolSelectionService.prepared] ?? map.default;
         if (change) {
             previousTool = toolSelectionService.prepared;
             toolSelectionService.setPrepared(change);
@@ -72,7 +87,7 @@ watch(() => viewportEvents.recent.keyboard.down, (downs) => {
         }
     }
 });
-watch(() => viewportEvents.recent.keyboard.up, (ups) => {
+watch(() => keyboardEvents.recent.up, (ups) => {
     for (const e of ups) {
         if (e.key === 'Shift') {
             if (toolSelectionService.prepared !== previousTool) {
@@ -81,7 +96,7 @@ watch(() => viewportEvents.recent.keyboard.up, (ups) => {
             }
         }
         if (e.key === 'Control' || e.key === 'Meta') {
-            const down = viewportEvents.get("keydown", e.key);
+            const down = keyboardEvents.get("keydown", e.key);
             if (!down || !down.repeat) continue;
             if (toolSelectionService.prepared !== previousTool) {
                 toolSelectionService.setPrepared(previousTool);
@@ -107,11 +122,4 @@ watch(() => nodeTree.selectedLayerCount, (size, prev) => {
     }
 });
 
-// Keyboard handlers
-function ctrlKeyDown(e) { viewportEvents.setKeyDown(e); }
-function ctrlKeyUp(e) { viewportEvents.setKeyUp(e); }
-function shiftKeyDown(e) { viewportEvents.setKeyDown(e); }
-function shiftKeyUp(e) { viewportEvents.setKeyUp(e); }
-
-defineExpose({ ctrlKeyDown, ctrlKeyUp, shiftKeyDown, shiftKeyUp });
 </script>
