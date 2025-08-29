@@ -43,7 +43,7 @@ import LayersPanel from './components/LayersPanel.vue';
 import ExportPanel from './components/ExportPanel.vue';
 import ViewportToolbar from './components/ViewportToolbar.vue';
 import StageResizePopup from './components/StageResizePopup.vue';
-const { input, viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output } = useStore();
+const { input, viewport: viewportStore, nodeTree, nodes, output } = useStore();
 const { layerPanel, layerQuery } = useService();
 
 // Width control between display and layers
@@ -85,14 +85,14 @@ onMounted(async () => {
   const autoSegments = input.isLoaded ? input.segment(40) : [];
   if (autoSegments.length) {
     const ids = [];
-      for (let i = 0; i < autoSegments.length; i++) {
+    for (let i = 0; i < autoSegments.length; i++) {
       const segment = autoSegments[i];
       const id = nodes.createLayer({
         name: `Auto ${i+1}`,
         color: segment.colorU32,
-        visibility: true
+        visibility: true,
+        pixels: segment.pixels
       });
-      if (segment.pixels?.length) pixelStore.set(id, segment.pixels);
       ids.push(id);
     }
     nodeTree.insert(ids);
