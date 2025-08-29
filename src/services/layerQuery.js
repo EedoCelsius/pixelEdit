@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia';
 import { useStore } from '../stores';
+import { coordToKey } from '../utils';
 
 export const useLayerQueryService = defineStore('layerQueryService', () => {
-    const { nodeTree, nodes } = useStore();
+    const { nodeTree, nodes, pixels } = useStore();
 
     function uppermost(ids) {
         const order = nodeTree.layerIdsBottomToTop;
@@ -44,12 +45,24 @@ export const useLayerQueryService = defineStore('layerQueryService', () => {
         return order[idx - 1] ?? null;
     }
 
+    function topVisibleAt(coord) {
+        const key = coordToKey(coord);
+        const order = nodeTree.layerIdsBottomToTop;
+        for (let i = order.length - 1; i >= 0; i--) {
+            const id = order[i];
+            if (!nodes._visibility[id]) continue;
+            const set = pixels._pixels[id];
+            if (set && set.has(key)) return id;
+        }
+        return null;
+    }
+
     function empty() {
-        return nodeTree.layerOrder.filter(id => (nodes.getProperty(id, 'pixels') || []).length === 0);
+        return nodeTree.layerOrder.filter(id => pixels.get(id).length === 0);
     }
 
     function disconnected() {
-        return nodeTree.layerOrder.filter(layerId => nodes.disconnectedCountOfLayer(layerId) > 1);
+        return nodeTree.layerOrder.filter(layerId => pixels.disconnectedCountOfLayer(layerId) > 1);
     }
 
     function byColor(color) {
@@ -60,13 +73,13 @@ export const useLayerQueryService = defineStore('layerQueryService', () => {
 
     function byPixelCount(pixelCount) {
         return nodeTree.layerOrder.filter(
-            layerId => (nodes.getProperty(layerId, 'pixels') || []).length === pixelCount
+            layerId => pixels.get(layerId).length === pixelCount
         );
     }
 
     function byDisconnectedCount(disconnectedCount) {
         return nodeTree.layerOrder.filter(
-            layerId => nodes.disconnectedCountOfLayer(layerId) === disconnectedCount
+            layerId => pixels.disconnectedCountOfLayer(layerId) === disconnectedCount
         );
     }
 
@@ -75,6 +88,7 @@ export const useLayerQueryService = defineStore('layerQueryService', () => {
         lowermost,
         above,
         below,
+        topVisibleAt,
         empty,
         disconnected,
         byColor,
