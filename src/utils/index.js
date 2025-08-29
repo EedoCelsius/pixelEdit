@@ -63,6 +63,76 @@ export function ensureCheckerboardPattern(target = document.body) {
     return id;
 }
 
+export function ensurePathPattern(kind, target = document.body) {
+    const id = `pixel-kind-${kind}`;
+    if (document.getElementById(id)) return id;
+    const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
+    svg.setAttribute('width', '0');
+    svg.setAttribute('height', '0');
+    svg.style.position = 'absolute';
+    svg.style.left = '-9999px';
+    const defs = document.createElementNS(SVG_NAMESPACE, 'defs');
+    const pattern = document.createElementNS(SVG_NAMESPACE, 'pattern');
+    pattern.setAttribute('id', id);
+    pattern.setAttribute('width', '1');
+    pattern.setAttribute('height', '1');
+    pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+
+    const cornerPos = {
+        tl: [0, 0],
+        tr: [0.75, 0],
+        bl: [0, 0.75],
+        br: [0.75, 0.75]
+    };
+    const opposite = { tl: 'br', tr: 'bl', bl: 'tr', br: 'tl' };
+    const directions = {
+        tltr: 'right',
+        tlbl: 'down',
+        trtl: 'left',
+        trbr: 'down',
+        bltl: 'up',
+        blbr: 'right',
+        brtr: 'up',
+        brbl: 'left'
+    };
+    const arrowPath = {
+        right: 'M0.2 0.5H0.8L0.6 0.3V0.7Z',
+        left: 'M0.8 0.5H0.2L0.4 0.3V0.7Z',
+        down: 'M0.5 0.2V0.8L0.7 0.6H0.3Z',
+        up: 'M0.5 0.8V0.2L0.7 0.4H0.3Z'
+    };
+
+    const start = cornerPos[kind.slice(0, 2)];
+    const end = cornerPos[opposite[kind.slice(0, 2)]];
+    const direction = directions[kind];
+
+    const s = document.createElementNS(SVG_NAMESPACE, 'rect');
+    s.setAttribute('x', String(start[0]));
+    s.setAttribute('y', String(start[1]));
+    s.setAttribute('width', '0.25');
+    s.setAttribute('height', '0.25');
+    s.setAttribute('fill', '#00ff00');
+
+    const e = document.createElementNS(SVG_NAMESPACE, 'rect');
+    e.setAttribute('x', String(end[0]));
+    e.setAttribute('y', String(end[1]));
+    e.setAttribute('width', '0.25');
+    e.setAttribute('height', '0.25');
+    e.setAttribute('fill', '#ff0000');
+
+    const a = document.createElementNS(SVG_NAMESPACE, 'path');
+    a.setAttribute('d', arrowPath[direction]);
+    a.setAttribute('fill', '#000000');
+
+    pattern.appendChild(s);
+    pattern.appendChild(e);
+    pattern.appendChild(a);
+    defs.appendChild(pattern);
+    svg.appendChild(defs);
+    target.appendChild(svg);
+    return id;
+}
+
 // --- color helpers (32-bit unsigned RGBA packed as 0xAABBGGRR) ---
 export const packRGBA = (color) => {
     const r = clamp((+color.r || 0), 0, 255),
