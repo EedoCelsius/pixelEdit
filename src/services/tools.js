@@ -171,7 +171,7 @@ export const useTopToolService = defineStore('topToolService', () => {
         tool.setCursor({ stroke: CURSOR_STYLE.TOP, rect: CURSOR_STYLE.TOP });
     });
     watch(() => tool.hoverPixel, (pixel) => {
-        if (tool.prepared !== 'top') return;
+        if (tool.prepared !== 'top' || nodeTree.selectedIds.length !== 1) return;
         if (!pixel) {
             overlayService.clear(overlayId);
             return;
@@ -186,14 +186,14 @@ export const useTopToolService = defineStore('topToolService', () => {
         overlayService.setLayers(overlayId, id ? [id] : []);
     });
     watch(() => tool.dragPixel, (pixel) => {
-        if (tool.prepared !== 'top' || !pixel) return;
+        if (tool.prepared !== 'top' || nodeTree.selectedIds.length !== 1 || !pixel) return;
         const id = nodes.topVisibleIdAt(pixel);
         if (!id) return;
         if (nodes.getProperty(id, 'locked')) {
             tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
         }
         else {
-            nodeTree.insert([id], nodeTree.layerIdsTopToBottom[0], false);
+            nodeTree.insert([id], nodeTree.selectedIds[0], false);
             nodeTree.replaceSelection([id]);
             layerPanel.setScrollRule({ type: 'follow', target: id });
             tool.setCursor({ stroke: CURSOR_STYLE.TOP, rect: CURSOR_STYLE.TOP });
