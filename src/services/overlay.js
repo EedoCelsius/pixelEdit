@@ -5,7 +5,7 @@ import { coordToKey, keyToCoord, pixelsToUnionPath } from '../utils';
 import { OVERLAY_STYLES } from '@/constants';
 
 export const useOverlayService = defineStore('overlayService', () => {
-    const { nodeTree, pixels: pixelStore } = useStore();
+    const { nodeTree, nodes } = useStore();
 
     const pixelKeys = reactive({});
     const styles = reactive({});
@@ -45,7 +45,7 @@ export const useOverlayService = defineStore('overlayService', () => {
         if (!Array.isArray(ids)) ids = [ids];
         for (const layerId of ids) {
             if (layerId == null) continue;
-            const layerPixels = pixelStore.get(layerId);
+            const layerPixels = nodes.getProperty(layerId, 'pixels') || [];
             addPixels(id, layerPixels);
         }
     }

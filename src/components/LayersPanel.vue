@@ -6,7 +6,7 @@
         <div class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden" title="그룹 미리보기">
           <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
             <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
-            <path v-for="child in descendantProps(item.id)" :key="child.id" :d="pixelStore.pathOfLayer(child.id)" :fill="rgbaCssU32(child.color)" :opacity="child.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+            <path v-for="child in descendantProps(item.id)" :key="child.id" :d="nodes.pathOfLayer(child.id)" :fill="rgbaCssU32(child.color)" :opacity="child.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
           </svg>
         </div>
         <div class="min-w-0 flex-1">
@@ -31,7 +31,7 @@
         <div v-if="item.depth===0" @click.stop="onThumbnailClick(item.id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
           <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
             <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
-            <path :d="pixelStore.pathOfLayer(item.id)" :fill="rgbaCssU32(item.props.color)" :opacity="item.props.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+            <path :d="nodes.pathOfLayer(item.id)" :fill="rgbaCssU32(item.props.color)" :opacity="item.props.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
           </svg>
         </div>
         <!-- 색상 -->
@@ -44,9 +44,9 @@
             <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
           </div>
           <div class="text-xs text-slate-400">
-            <template v-if="pixelStore.disconnectedCountOfLayer(item.id) > 1">
+            <template v-if="nodes.disconnectedCountOfLayer(item.id) > 1">
               <span class="cursor-pointer" @click.stop="onDisconnectedClick(item.id)">⚠️</span>
-              <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(item.id)">{{ pixelStore.disconnectedCountOfLayer(item.id) }} piece</span>
+              <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(item.id)">{{ nodes.disconnectedCountOfLayer(item.id) }} piece</span>
               <span class="mx-1">|</span>
             </template>
             <span class="cursor-pointer" @click.stop="onPixelCountClick(item.id)" title="같은 크기의 모든 레이어 선택">{{ item.props.pixels.length }} px</span>
@@ -78,7 +78,7 @@ import blockIcons from '../image/layer_block';
 
 import { useService } from '../services';
 
-const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output, keyboardEvent: keyboardEvents } = useStore();
+const { viewport: viewportStore, nodeTree, nodes, output, keyboardEvent: keyboardEvents } = useStore();
 const { layerPanel, layerQuery, viewport, stageResize: stageResizeService } = useService();
 
 const dragging = ref(false);
@@ -102,8 +102,7 @@ const flatNodes = computed(() => {
   };
   walk(nodeTree.tree, 0);
   const propsList = nodes.getProperties(ids);
-  const pixelList = pixelStore.getProperties(ids);
-  return ids.map((id, i) => ({ id, depth: depths[i], isGroup: propsList[i].type === 'group', props: { ...propsList[i], pixels: pixelList[i].pixels } }));
+  return ids.map((id, i) => ({ id, depth: depths[i], isGroup: propsList[i].type === 'group', props: propsList[i] }));
 });
 
 const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
@@ -132,7 +131,7 @@ function descendantProps(id) {
   }
 
   function onPixelCountClick(id) {
-      const count = pixelStore.get(id).length;
+      const count = (nodes.getProperty(id, 'pixels') || []).length;
       const ids = count === 0 ? [id] : layerQuery.byPixelCount(count);
       if (ids.length <= 1) {
           layerPanel.setRange(id, id);
@@ -159,7 +158,7 @@ function descendantProps(id) {
   }
 
   function onDisconnectedCountClick(id) {
-      const count = pixelStore.disconnectedCountOfLayer(id);
+      const count = nodes.disconnectedCountOfLayer(id);
       const ids = count <= 1 ? [id] : layerQuery.byDisconnectedCount(count);
       if (ids.length <= 1) {
           layerPanel.setRange(id, id);
@@ -271,9 +270,7 @@ function deleteLayer(id) {
     output.setRollbackPoint();
     const targets = nodeTree.selectedNodeIds.includes(id) ? nodeTree.selectedNodeIds : [id];
     const belowId = layerQuery.below(layerQuery.lowermost(targets));
-    const removed = nodeTree.remove(targets);
-    nodes.remove(removed);
-    pixelStore.remove(removed);
+    nodes.remove(targets);
     const newSelectId = nodeTree.has(belowId) ? belowId : layerQuery.lowermost();
     layerPanel.setRange(newSelectId, newSelectId);
     if (newSelectId) {
@@ -290,9 +287,8 @@ function deleteSelection() {
     output.setRollbackPoint();
     const belowId = layerQuery.below(layerQuery.lowermost(nodeTree.selectedLayerIds));
     const ids = nodeTree.selectedLayerIds;
-    const removed = nodeTree.remove(ids);
-    nodes.remove(removed);
-    pixelStore.remove(removed);
+    nodes.remove(ids);
+    nodeTree.removeFromSelection(ids);
     const newSelect = nodeTree.has(belowId) ? belowId : layerQuery.lowermost();
     layerPanel.setRange(newSelect, newSelect);
     layerPanel.setScrollRule({ type: 'follow', target: newSelect });

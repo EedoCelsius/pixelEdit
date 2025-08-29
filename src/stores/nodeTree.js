@@ -242,7 +242,6 @@ export const useNodeTreeStore = defineStore('nodeTree', {
                 const node = this._removeFromTree(id);
                 if (node) collectIds(node);
             }
-            for (const id of removed) this._selection.delete(id);
             return removed;
         },
         serialize() {
