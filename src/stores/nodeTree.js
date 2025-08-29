@@ -129,13 +129,6 @@ export const useNodeTreeStore = defineStore('nodeTree', {
         },
         insert(ids, targetId, placeBelow = true) {
             const nodeStore = useNodeStore();
-            const nodes = ids.map(id => {
-                const existing = this._removeFromTree(id);
-                if (existing) return existing;
-                return nodeStore.getProperty(id, 'type') === 'group'
-                    ? { id, children: reactive([]) }
-                    : { id };
-            });
             const targetInfo = targetId != null ? this._findNode(targetId) : null;
             let parentArr = this._tree;
             let index = parentArr.length;
@@ -144,6 +137,23 @@ export const useNodeTreeStore = defineStore('nodeTree', {
                 index = targetInfo.index;
                 if (!placeBelow) index++;
             }
+
+            // adjust index to account for nodes that will be removed before insertion
+            const idsSet = new Set(ids);
+            let removedBefore = 0;
+            for (let i = 0; i < index; i++) {
+                if (idsSet.has(parentArr[i].id)) removedBefore++;
+            }
+            index -= removedBefore;
+
+            const nodes = ids.map(id => {
+                const existing = this._removeFromTree(id);
+                if (existing) return existing;
+                return nodeStore.getProperty(id, 'type') === 'group'
+                    ? { id, children: reactive([]) }
+                    : { id };
+            });
+
             parentArr.splice(index, 0, ...nodes);
         },
         append(ids, groupId, placeTop = true) {
