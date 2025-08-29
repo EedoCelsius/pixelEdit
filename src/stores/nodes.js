@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { reactive } from 'vue';
-import { coordToKey, keyToCoord, pixelsToUnionPath, randColorU32, groupConnectedPixels } from '../utils';
-import { useNodeTreeStore } from './nodeTree';
+import { randColorU32 } from '../utils';
 
 export const useNodeStore = defineStore('nodes', {
     state: () => ({
@@ -9,22 +8,11 @@ export const useNodeStore = defineStore('nodes', {
         _color: {},
         _visibility: {},
         _locked: {},
-        _pixels: {},
         _attributes: {},
         _type: {}
     }),
     getters: {
         has: (state) => (id) => state._name[id] != null,
-        pathOfLayer: (state) => (id) => {
-            const set = state._pixels[id];
-            if (!set) return pixelsToUnionPath([]);
-            return pixelsToUnionPath([...set].map(keyToCoord));
-        },
-        disconnectedCountOfLayer: (state) => (id) => {
-            const set = state._pixels[id];
-            if (!set) return 0;
-            return groupConnectedPixels([...set].map(keyToCoord)).length;
-        },
         getProperty: (state) => (id, prop) => {
             switch (prop) {
                 case 'name':
@@ -37,10 +25,6 @@ export const useNodeStore = defineStore('nodes', {
                     return !!state._locked[id];
                 case 'type':
                     return state._type[id];
-                case 'pixels': {
-                    const set = state._pixels[id];
-                    return set ? [...set].map(keyToCoord) : undefined;
-                }
                 case 'attributes':
                     return state._attributes[id]?.map(a => ({ ...a })) || [];
                 default:
@@ -55,35 +39,12 @@ export const useNodeStore = defineStore('nodes', {
                 visibility: !!state._visibility[id],
                 locked: !!state._locked[id],
                 type: state._type[id],
-                ...(state._pixels[id] ? { pixels: [...state._pixels[id]].map(keyToCoord) } : {}),
                 attributes: state._attributes[id]?.map(a => ({ ...a })) || []
             });
             return (ids = []) => {
                 if (Array.isArray(ids)) return ids.map(propsOf);
                 return propsOf(ids);
             };
-        },
-        compositeColorAt: (state) => (coord) => {
-            const key = coordToKey(coord);
-            const order = useNodeTreeStore().layerIdsBottomToTop;
-            for (let i = order.length - 1; i >= 0; i--) {
-                const id = order[i];
-                if (!state._visibility[id]) continue;
-                const set = state._pixels[id];
-                if (set.has(key)) return (state._color[id] >>> 0);
-            }
-            return 0x00000000 >>> 0;
-        },
-        topVisibleIdAt: (state) => (coord) => {
-            const key = coordToKey(coord);
-            const order = useNodeTreeStore().layerIdsBottomToTop;
-            for (let i = order.length - 1; i >= 0; i--) {
-                const id = order[i];
-                if (!state._visibility[id]) continue;
-                const set = state._pixels[id];
-                if (set.has(key)) return id;
-            }
-            return null;
         }
     },
     actions: {
@@ -93,8 +54,6 @@ export const useNodeStore = defineStore('nodes', {
             this._visibility[id] = layerProperties.visibility ?? true;
             this._locked[id] = layerProperties.locked ?? false;
             this._color[id] = (layerProperties.color ?? randColorU32()) >>> 0;
-            const keyedPixels = layerProperties.pixels ? layerProperties.pixels.map(coordToKey) : [];
-            this._pixels[id] = reactive(new Set(keyedPixels));
             const attrs = layerProperties.attributes ? layerProperties.attributes.map(a => ({ ...a })) : [];
             this._attributes[id] = reactive(attrs);
             this._type[id] = 'layer';
@@ -116,9 +75,6 @@ export const useNodeStore = defineStore('nodes', {
             if (props.visibility !== undefined) this._visibility[id] = !!props.visibility;
             if (props.locked !== undefined) this._locked[id] = !!props.locked;
             if (!this._locked[id] && props.color !== undefined) this._color[id] = (props.color >>> 0);
-            if (!this._locked[id] && props.pixels !== undefined) {
-                this._pixels[id] = reactive(new Set(props.pixels.map(coordToKey)));
-            }
             if (props.attributes !== undefined) {
                 const attrs = Array.isArray(props.attributes) ? props.attributes.map(a => ({ ...a })) : [];
                 this._attributes[id] = reactive(attrs);
@@ -146,83 +102,36 @@ export const useNodeStore = defineStore('nodes', {
             const index = attrs.findIndex(a => a.name === name);
             if (index >= 0) attrs.splice(index, 1);
         },
-        addPixelsToLayer(id, pixels) {
-            if (this._locked[id]) return;
-            const set = this._pixels[id];
-            for (const coord of pixels) set.add(coordToKey(coord));
-        },
-        removePixelsFromLayer(id, pixels) {
-            if (this._locked[id]) return;
-            const set = this._pixels[id];
-            for (const coord of pixels) set.delete(coordToKey(coord));
-        },
-        togglePixelInLayer(id, coord) {
-            if (this._locked[id]) return;
-            const set = this._pixels[id];
-            const key = coordToKey(coord);
-            if (set.has(key)) set.delete(key);
-            else set.add(key);
-        },
-        remove(ids) {
-            const tree = useNodeTreeStore();
-            const removed = tree.remove(ids);
-            for (const id of removed) {
+        remove(ids = []) {
+            const removed = [];
+            for (const id of ids) {
+                if (this._name[id] == null) continue;
+                removed.push(id);
                 delete this._name[id];
                 delete this._color[id];
                 delete this._visibility[id];
                 delete this._locked[id];
-                delete this._pixels[id];
                 delete this._attributes[id];
                 delete this._type[id];
             }
             return removed;
         },
-        translateAllLayers(dx = 0, dy = 0) {
-            dx |= 0; dy |= 0;
-            if (dx === 0 && dy === 0) return;
-            const order = useNodeTreeStore().layerIdsBottomToTop;
-            for (const id of order) {
-                const set = this._pixels[id];
-                const moved = new Set();
-                for (const key of set) {
-                    const [x, y] = keyToCoord(key);
-                    moved.add(coordToKey([x + dx, y + dy]));
-                }
-                this._pixels[id] = reactive(moved);
-            }
-        },
-        deleteEmptyLayers() {
-            const tree = useNodeTreeStore();
-            const order = tree.layerIdsBottomToTop;
-            const emptyIds = order.filter(id => {
-                const set = this._pixels[id];
-                return set.size === 0;
-            });
-            if (emptyIds.length) this.remove(emptyIds);
-            return emptyIds;
-        },
         serialize() {
-            const tree = useNodeTreeStore();
-            const allIds = tree.allNodeIds;
-            return Object.fromEntries(allIds.map(id => {
-                const entry = {
-                    name: this._name[id],
-                    visibility: !!this._visibility[id],
-                    locked: !!this._locked[id],
-                    color: (this._color[id] >>> 0),
-                    type: this._type[id],
-                    attributes: this._attributes[id]?.map(a => ({ ...a })) || []
-                };
-                if (this._pixels[id]) entry.pixels = [...this._pixels[id]].map(key => keyToCoord(key));
-                return [id, entry];
-            }));
+            const allIds = Object.keys(this._name).map(id => Number(id));
+            return Object.fromEntries(allIds.map(id => [id, {
+                name: this._name[id],
+                visibility: !!this._visibility[id],
+                locked: !!this._locked[id],
+                color: (this._color[id] >>> 0),
+                type: this._type[id],
+                attributes: this._attributes[id]?.map(a => ({ ...a })) || []
+            }]));
         },
         applySerialized(byId = {}) {
             this._name = {};
             this._color = {};
             this._visibility = {};
             this._locked = {};
-            this._pixels = {};
             this._attributes = {};
             this._type = {};
             for (const id of Object.keys(byId)) {
@@ -233,10 +142,6 @@ export const useNodeStore = defineStore('nodes', {
                 this._locked[numId] = !!info.locked;
                 this._color[numId] = (info.color ?? randColorU32()) >>> 0;
                 this._type[numId] = info.type || 'layer';
-                if (Array.isArray(info.pixels)) {
-                    const keyedPixels = info.pixels.map(coordToKey);
-                    this._pixels[numId] = reactive(new Set(keyedPixels));
-                }
                 const attrs = info.attributes ? info.attributes.map(a => ({ ...a })) : [];
                 this._attributes[numId] = reactive(attrs);
             }
