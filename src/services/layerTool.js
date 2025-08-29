@@ -115,10 +115,25 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         return allNewIds;
     }
 
+    function groupSelected() {
+        const selected = nodeTree.selectedIds;
+        const id = nodes.createGroup({});
+        if (selected.length === 0) {
+            nodeTree.append([id], null, false);
+        } else {
+            const lowermost = selected[0];
+            nodeTree.insert([id], lowermost, true);
+            nodeTree.append(selected, id, true);
+        }
+        nodeTree.replaceSelection([id]);
+        return id;
+    }
+
     return {
         mergeSelected,
         copySelected,
         splitSelected,
+        groupSelected,
     };
 });
 

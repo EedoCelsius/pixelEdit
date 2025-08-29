@@ -44,16 +44,7 @@ const onAdd = () => {
 };
 const onAddGroup = () => {
     output.setRollbackPoint();
-    const selected = nodeTree.selectedIds;
-    const id = nodes.createGroup({});
-    if (selected.length === 0) {
-        nodeTree.append([id], null, false);
-    } else {
-        const lowermost = selected[0];
-        nodeTree.insert([id], lowermost, true);
-        nodeTree.append(selected, id, true);
-    }
-    nodeTree.replaceSelection([id]);
+    const id = layerSvc.groupSelected();
     layerPanel.setRange(id, id);
     layerPanel.setScrollRule({ type: 'follow', target: id });
     output.commit();
