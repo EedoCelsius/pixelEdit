@@ -79,7 +79,7 @@ import blockIcons from '../image/layer_block';
 import { useService } from '../services';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output, keyboardEvent: keyboardEvents } = useStore();
-const { layerPanel, layerQuery, viewport, stageResize: stageResizeService } = useService();
+const { layerPanel, layerQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc } = useService();
 
 const dragging = ref(false);
 const dragId = ref(null);
@@ -408,12 +408,20 @@ function ensureBlockVisibility({
                   }
                   break;
           }
-          if (ctrl) {
-              if (key.toLowerCase() === 'a') {
-                  e.preventDefault();
-                  layerPanel.selectAll();
-              }
-          }
+        if (ctrl) {
+            const lower = key.toLowerCase();
+            if (lower === 'a') {
+                e.preventDefault();
+                layerPanel.selectAll();
+            } else if (lower === 'g') {
+                e.preventDefault();
+                output.setRollbackPoint();
+                const id = layerSvc.groupSelected();
+                layerPanel.setRange(id, id);
+                layerPanel.setScrollRule({ type: 'follow', target: id });
+                output.commit();
+            }
+        }
       }
   });
 
