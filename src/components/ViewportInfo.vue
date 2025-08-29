@@ -14,11 +14,11 @@ import { useStore } from '../stores';
 import { useService } from '../services';
 import { getPixelUnion, rgbaCssU32, rgbaCssObj } from '../utils';
 
-const { viewport: viewportStore, nodeTree, nodes, input } = useStore();
-const { toolSelection: toolSelectionService } = useService();
+const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, input } = useStore();
+const { toolSelection: toolSelectionService, layerQuery } = useService();
 
 const selectedAreaPixelCount = computed(() => {
-    const pixels = getPixelUnion(nodes.getProperties(nodeTree.selectedLayerIds));
+    const pixels = getPixelUnion(pixelStore.getProperties(nodeTree.selectedLayerIds));
     return pixels.length;
   });
 
@@ -30,7 +30,8 @@ const pixelInfo = computed(() => {
       const colorObject = input.readPixel(coord);
       return `[${px},${py}] ${rgbaCssObj(colorObject)}`;
     } else {
-      const colorU32 = nodes.compositeColorAt(coord);
+      const id = layerQuery.topVisibleAt(coord);
+      const colorU32 = id ? nodes.getProperty(id, 'color') : 0;
       return `[${px},${py}] ${rgbaCssU32(colorU32)}`;
     }
   });

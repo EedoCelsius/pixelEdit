@@ -28,7 +28,7 @@
       <!-- 결과 레이어 -->
       <svg v-show="viewportStore.display==='result'" class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
         <g>
-            <path v-for="props in nodes.getProperties(nodeTree.layerIdsBottomToTop)" :key="'pix-'+props.id" :d="nodes.pathOfLayer(props.id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(props.color)" :visibility="props.visibility?'visible':'hidden'"></path>
+            <path v-for="props in nodes.getProperties(nodeTree.layerIdsBottomToTop)" :key="'pix-'+props.id" :d="pixelStore.pathOfLayer(props.id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(props.color)" :visibility="props.visibility?'visible':'hidden'"></path>
         </g>
       </svg>
       <!-- 그리드 -->
@@ -75,7 +75,7 @@ import { useService } from '../services';
 import { OVERLAY_STYLES, GRID_STROKE_COLOR } from '@/constants';
 import { rgbaCssU32, ensureCheckerboardPattern } from '../utils';
 
-const { viewport: viewportStore, nodeTree, nodes, viewportEvent: viewportEvents } = useStore();
+const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, viewportEvent: viewportEvents } = useStore();
 const { overlay, toolSelection: toolSelectionService, viewport } = useService();
 const viewportEl = useTemplateRef('viewportEl');
 const stage = viewportStore.stage;

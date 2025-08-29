@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia';
 import { readonly } from 'vue';
-import { clamp, keyToCoord } from '../utils';
+import { clamp } from '../utils';
 import { MIN_SCALE_RATIO } from '@/constants';
 import { useNodeTreeStore } from './nodeTree';
-import { useNodeStore } from './nodes';
+import { usePixelStore } from './pixels';
 
 export const useViewportStore = defineStore('viewport', {
     state: () => ({
@@ -61,16 +61,19 @@ export const useViewportStore = defineStore('viewport', {
         resizeByEdges({ top = 0, bottom = 0, left = 0, right = 0 } = {}) {
             top |= 0; bottom |= 0; left |= 0; right |= 0;
             const tree = useNodeTreeStore();
-            const nodeStore = useNodeStore();
-            if (left !== 0 || top !== 0) nodeStore.translateAllLayers(left, top);
+            const pixelStore = usePixelStore();
+            if (left !== 0 || top !== 0) pixelStore.translateAll(left, top);
             const newWidth = Math.max(1, this._stage.width + left + right);
             const newHeight = Math.max(1, this._stage.height + top + bottom);
             for (const id of tree.layerIdsBottomToTop) {
-                const set = nodeStore._pixels[id];
-                for (const key of [...set]) {
-                    const [x, y] = keyToCoord(key);
-                    if (x < 0 || y < 0 || x >= newWidth || y >= newHeight) set.delete(key);
+                const pixels = pixelStore.get(id);
+                const toRemove = [];
+                for (const [x, y] of pixels) {
+                    if (x < 0 || y < 0 || x >= newWidth || y >= newHeight) {
+                        toRemove.push([x, y]);
+                    }
                 }
+                if (toRemove.length) pixelStore.removePixels(id, toRemove);
             }
             this._stage.width = newWidth;
             this._stage.height = newHeight;
