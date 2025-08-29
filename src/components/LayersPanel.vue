@@ -78,7 +78,7 @@ import blockIcons from '../image/layer_block';
 
 import { useService } from '../services';
 
-const { viewport: viewportStore, nodeTree, nodes, output } = useStore();
+const { viewport: viewportStore, nodeTree, nodes, output, keyboardEvent: keyboardEvents } = useStore();
 const { layerPanel, layerQuery, viewport, stageResize: stageResizeService } = useService();
 
 const dragging = ref(false);
@@ -282,6 +282,19 @@ function deleteLayer(id) {
     output.commit();
 }
 
+function deleteSelection() {
+    if (!nodeTree.layerSelectionExists) return;
+    output.setRollbackPoint();
+    const belowId = layerQuery.below(layerQuery.lowermost(nodeTree.selectedLayerIds));
+    const ids = nodeTree.selectedLayerIds;
+    nodes.remove(ids);
+    nodeTree.removeFromSelection(ids);
+    const newSelect = nodeTree.has(belowId) ? belowId : layerQuery.lowermost();
+    layerPanel.setRange(newSelect, newSelect);
+    layerPanel.setScrollRule({ type: 'follow', target: newSelect });
+    output.commit();
+}
+
 function ensureBlockVisibility({
     type,
     target
@@ -352,6 +365,53 @@ function ensureBlockVisibility({
         behavior: 'smooth'
     });
 }
+
+  watch(() => keyboardEvents.recent.down, (downs) => {
+      for (const e of downs) {
+          const key = e.key;
+          const ctrl = e.ctrlKey || e.metaKey;
+          const shift = e.shiftKey;
+          switch (key) {
+              case 'ArrowUp':
+                  e.preventDefault();
+                  layerPanel.onArrowUp(shift, ctrl);
+                  break;
+              case 'ArrowDown':
+                  e.preventDefault();
+                  layerPanel.onArrowDown(shift, ctrl);
+                  break;
+              case 'Delete':
+              case 'Backspace':
+                  e.preventDefault();
+                  deleteSelection();
+                  break;
+              case 'Enter':
+                  if (!ctrl && !shift && nodeTree.selectedLayerCount === 1) {
+                      const selectedId = nodeTree.selectedLayerIds[0];
+                      const row = document.querySelector(`.layer[data-id="${selectedId}"] .nameText`);
+                      if (row) {
+                          e.preventDefault();
+                          row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+                      }
+                  }
+                  break;
+              case 'Escape':
+                  if (output.hasPendingRollback) {
+                      e.preventDefault();
+                      output.rollbackPending();
+                  } else {
+                      nodeTree.clearSelection();
+                  }
+                  break;
+          }
+          if (ctrl) {
+              if (key.toLowerCase() === 'a') {
+                  e.preventDefault();
+                  layerPanel.selectAll();
+              }
+          }
+      }
+  });
 
   watch(() => layerPanel.scrollRule, rule => nextTick(() => ensureBlockVisibility(rule)));
 
