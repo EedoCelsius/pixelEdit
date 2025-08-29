@@ -299,6 +299,23 @@ function deleteSelection() {
     output.commit();
 }
 
+function groupSelection() {
+    output.setRollbackPoint();
+    const selected = nodeTree.selectedIds;
+    const id = nodes.createGroup({});
+    if (selected.length === 0) {
+        nodeTree.append([id], null, false);
+    } else {
+        const lowermost = selected[0];
+        nodeTree.insert([id], lowermost, true);
+        nodeTree.append(selected, id, true);
+    }
+    nodeTree.replaceSelection([id]);
+    layerPanel.setRange(id, id);
+    layerPanel.setScrollRule({ type: 'follow', target: id });
+    output.commit();
+}
+
 function ensureBlockVisibility({
     type,
     target
@@ -409,9 +426,13 @@ function ensureBlockVisibility({
                   break;
           }
           if (ctrl) {
-              if (key.toLowerCase() === 'a') {
+              const lower = key.toLowerCase();
+              if (lower === 'a') {
                   e.preventDefault();
                   layerPanel.selectAll();
+              } else if (lower === 'g') {
+                  e.preventDefault();
+                  groupSelection();
               }
           }
       }
