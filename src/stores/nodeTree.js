@@ -148,7 +148,6 @@ export const useNodeTreeStore = defineStore('nodeTree', {
 
             const nodes = ids.map(id => {
                 const existing = this._removeFromTree(id);
-                console.log(existing)
                 if (existing) return existing;
                 return nodeStore.getProperty(id, 'type') === 'group'
                     ? { id, children: reactive([]) }
