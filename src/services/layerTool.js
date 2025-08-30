@@ -130,22 +130,21 @@ export const useLayerToolService = defineStore('layerToolService', () => {
     }
 
     function ungroupSelected() {
-        const groupIds = nodeTree.selectedNodeIds.filter(id => nodes.getProperty(id, 'type') === 'group');
-        const newSelection = nodeTree.selectedNodeIds.slice();
+        const groupIds = nodeTree.selectedIds.filter(id => nodes.getProperty(id, 'type') === 'group');
+        const newSelection = new Set(nodeTree.selectedIds);
         for (const groupId of groupIds) {
             const info = nodeTree._findNode(groupId);
             if (!info) continue;
             const parentArr = info.parent ? info.parent.children : nodeTree._tree;
-            const index = info.index;
-            const children = info.node.children ? info.node.children.map(c => c.id) : [];
-            parentArr.splice(index, 1, ...(info.node.children || []));
+            const childrenNodes = info.node.children || [];
+            parentArr.splice(info.index, 1, ...childrenNodes);
             nodes.remove([groupId]);
-            const selIdx = newSelection.indexOf(groupId);
-            if (selIdx >= 0) {
-                newSelection.splice(selIdx, 1, ...children);
+            newSelection.delete(groupId);
+            for (const child of childrenNodes) {
+                newSelection.add(child.id);
             }
         }
-        nodeTree.replaceSelection(newSelection);
+        nodeTree.replaceSelection([...newSelection]);
         return groupIds;
     }
 
