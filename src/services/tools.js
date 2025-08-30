@@ -183,12 +183,13 @@ export const useTopToolService = defineStore('topToolService', () => {
         }
         const id = layerQuery.topVisibleAt(pixel);
         if (id && nodes.getProperty(id, 'locked')) {
+            overlayService.setLayers(overlayId, [id]);
             tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
         }
         else {
+            overlayService.setPixels(overlayId, [pixel]);
             tool.setCursor({ stroke: CURSOR_STYLE.TOP, rect: CURSOR_STYLE.TOP });
         }
-        overlayService.setLayers(overlayId, id ? [id] : []);
     });
     watch(() => tool.dragPixel, (pixel) => {
         if (tool.prepared !== 'top' || nodeTree.selectedIds.length !== 1 || !pixel) return;
@@ -245,12 +246,12 @@ export const useSelectService = defineStore('selectService', () => {
         }
 
         if (!id)
-            overlayService.setPixels(overlayId, [pixel])
+            overlayService.setPixels(overlayId, [pixel]);
         else {
             if (nodes.getProperty(id, 'locked'))
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
             else
-                overlayService.setLayers(overlayId, [id];
+                overlayService.setLayers(overlayId, [id]);
         }
         
     });
