@@ -57,7 +57,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
             const pixel = viewportStore.clientToCoord(e);
             if (pixel) previewPixels.value = [pixel];
             if (hoverPixel.value !== null) hoverPixel.value = null;
-            if (dragPixel.value?.[0] !== pixel?.[0] || dragPixel.value?.[1] !== pixel?.[1]) dragPixel.value = pixel;
+            if (pixel !== null) dragPixel.value = pixel;
 
             active.value = true;
             pointer = e.pointerId, nextTool = prepared.value, nextShape = shape.value;
@@ -105,7 +105,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         
         const pixel = viewportStore.clientToCoord(e);
         if (dragPixel.value !== null) dragPixel.value = null;
-        if (hoverPixel.value?.[0] !== pixel?.[0] || hoverPixel.value?.[1] !== pixel?.[1]) hoverPixel.value = pixel;
+        if (pixel !== null) hoverPixel.value = pixel;
         if (previewPixels.value.length) {
             affectedPixels.value = previewPixels.value;
             previewPixels.value = [];
