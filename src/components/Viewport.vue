@@ -101,7 +101,7 @@ const marqueeRect = computed(() => {
     };
 });
 
-  const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
+const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
 
 const onImageLoad = (e) => {
     const img = e.target;
@@ -114,6 +114,7 @@ const onImageLoad = (e) => {
 const resizeObserver = new ResizeObserver(viewportStore.recalcContentSize);
 onMounted(() => {
     viewport.setElement(viewportEl.value);
+    viewport.centerPosition();
     resizeObserver.observe(viewport.element);
 });
 onUnmounted(resizeObserver.disconnect);
