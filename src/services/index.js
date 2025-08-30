@@ -6,6 +6,7 @@ import { useDrawToolService, useEraseToolService, useTopToolService, useGlobalEr
 import { useToolSelectionService } from './toolSelection';
 import { useViewportService } from './viewport';
 import { useStageResizeService } from './stageResize';
+import { useContextMenuService } from './contextMenu';
 
 export {
     useLayerPanelService,
@@ -21,7 +22,8 @@ export {
     useCutToolService,
     useToolSelectionService,
     useViewportService,
-    useStageResizeService
+    useStageResizeService,
+    useContextMenuService
 };
 
 export const useService = () => ({
@@ -40,5 +42,6 @@ export const useService = () => ({
     },
     toolSelection: useToolSelectionService(),
     viewport: useViewportService(),
-    stageResize: useStageResizeService()
+    stageResize: useStageResizeService(),
+    contextMenu: useContextMenuService()
 });
