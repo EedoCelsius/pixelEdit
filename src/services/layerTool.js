@@ -129,11 +129,32 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         return id;
     }
 
+    function ungroupSelected() {
+        const groupIds = nodeTree.selectedNodeIds.filter(id => nodes.getProperty(id, 'type') === 'group');
+        const newSelection = nodeTree.selectedNodeIds.slice();
+        for (const groupId of groupIds) {
+            const info = nodeTree._findNode(groupId);
+            if (!info) continue;
+            const parentArr = info.parent ? info.parent.children : nodeTree._tree;
+            const index = info.index;
+            const children = info.node.children ? info.node.children.map(c => c.id) : [];
+            parentArr.splice(index, 1, ...(info.node.children || []));
+            nodes.remove([groupId]);
+            const selIdx = newSelection.indexOf(groupId);
+            if (selIdx >= 0) {
+                newSelection.splice(selIdx, 1, ...children);
+            }
+        }
+        nodeTree.replaceSelection(newSelection);
+        return groupIds;
+    }
+
     return {
         mergeSelected,
         copySelected,
         splitSelected,
         groupSelected,
+        ungroupSelected,
     };
 });
 

@@ -1,6 +1,6 @@
 <template>
   <div v-memo="[output.commitVersion, nodeTree.selectedLayerIds, nodeTree.layerCount, foldedMemo]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
-    <div v-for="item in flatNodes" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.selectedNodeIds.includes(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)">
+    <div v-for="item in flatNodes" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.selectedNodeIds.includes(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)" @contextmenu.prevent="onContextMenu(item,$event)">
       <template v-if="item.isGroup">
         <div class="w-4 text-center cursor-pointer" @click.stop="toggleFold(item.id)">{{ folded[item.id] ? '▶' : '▼' }}</div>
         <div class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden" title="그룹 미리보기">
@@ -77,9 +77,11 @@ import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, clamp, ensureCheckerboardPatter
 import blockIcons from '../image/layer_block';
 
 import { useService } from '../services';
+import { useContextMenuStore } from '../stores/contextMenu';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output, keyboardEvent: keyboardEvents } = useStore();
 const { layerPanel, layerQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc } = useService();
+const contextMenu = useContextMenuStore();
 
 const dragging = ref(false);
 const dragId = ref(null);
@@ -265,6 +267,23 @@ function toggleLock(id) {
         nodes.toggleLock(id);
     }
     output.commit();
+}
+
+function onContextMenu(item, event) {
+    if (!item.isGroup) return;
+    if (!nodeTree.selectedNodeIds.includes(item.id)) {
+        layerPanel.setRange(item.id, item.id);
+    }
+    contextMenu.open(event, [
+        {
+            label: 'Ungroup',
+            action: () => {
+                output.setRollbackPoint();
+                layerSvc.ungroupSelected();
+                output.commit();
+            }
+        }
+    ]);
 }
 
 function deleteLayer(id) {
