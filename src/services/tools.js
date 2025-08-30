@@ -4,7 +4,6 @@ import { useToolSelectionService } from './toolSelection';
 import { useOverlayService } from './overlay';
 import { useLayerPanelService } from './layerPanel';
 import { useLayerQueryService } from './layerQuery';
-import { usePixelPathService } from './pixelPath';
 import { useStore } from '../stores';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
 import { coordToKey, keyToCoord, ensurePathPattern } from '../utils';
@@ -380,48 +379,6 @@ export const usePathToolService = defineStore('pathToolService', () => {
         rebuild();
     });
     watch(() => nodeTree.selectedIds, rebuild);
-    return {};
-});
-
-export const useTraceToolService = defineStore('traceToolService', () => {
-    const { nodeTree, pixels: pixelStore, nodes } = useStore();
-    const tool = useToolSelectionService();
-    const pixelPath = usePixelPathService();
-    const overlayService = useOverlayService();
-    const overlayId = overlayService.createOverlay();
-    overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
-
-    function showPath(pixels) {
-        if (tool.prepared !== 'trace' || nodeTree.selectedLayerCount !== 1) {
-            overlayService.clear(overlayId);
-            return;
-        }
-        const start = pixels[0];
-        if (!start) {
-            overlayService.clear(overlayId);
-            return;
-        }
-        const layerId = nodeTree.selectedLayerIds[0];
-        if (nodes.getProperty(layerId, 'locked')) {
-            overlayService.clear(overlayId);
-            tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
-            return;
-        }
-        const layerPixels = pixelStore.get(layerId);
-        const paths = pixelPath.pathsFromStart(layerPixels, start);
-        overlayService.setPixels(overlayId, paths.flat());
-        tool.setCursor({ stroke: CURSOR_STYLE.ADD_STROKE, rect: CURSOR_STYLE.ADD_RECT });
-    }
-
-    watch(() => tool.prepared === 'trace', (isTrace) => {
-        if (!isTrace) {
-            overlayService.clear(overlayId);
-            return;
-        }
-        tool.setCursor({ stroke: CURSOR_STYLE.ADD_STROKE, rect: CURSOR_STYLE.ADD_RECT });
-    });
-    watch(() => tool.previewPixels, showPath);
-    watch(() => tool.affectedPixels, showPath);
     return {};
 });
 
