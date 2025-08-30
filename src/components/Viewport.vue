@@ -103,18 +103,22 @@ const marqueeRect = computed(() => {
 
 const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
 
+function initPosition() {
+  viewportStore.recalcContentSize();
+  viewportStore.setScale(stage.containScale * 3/4);
+  viewport.centerPosition();
+}
+
 const onImageLoad = (e) => {
     const img = e.target;
     viewportStore.setImageSize(img.naturalWidth, img.naturalHeight);
-    viewportStore.recalcContentSize();
-    viewportStore.setScale(stage.containScale * 3/4);
-    viewport.centerPosition();
+    initPosition();
 };
 
 const resizeObserver = new ResizeObserver(viewportStore.recalcContentSize);
 onMounted(() => {
     viewport.setElement(viewportEl.value);
-    viewport.centerPosition();
+    requestAnimationFrame(initPosition);
     resizeObserver.observe(viewport.element);
 });
 onUnmounted(resizeObserver.disconnect);
