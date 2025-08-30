@@ -1,4 +1,6 @@
 import { defineStore } from 'pinia';
+import { useStore } from '.';
+import { useLayerPanelService } from '../services/layerPanel';
 import { packRGBA, averageColorU32 } from '../utils';
 
 export const useInputStore = defineStore('input', {
@@ -44,8 +46,43 @@ export const useInputStore = defineStore('input', {
             const data = context.getImageData(0, 0, w, h).data;
             this.createImage({ src, width: w, height: h, buffer: data });
         },
+        async loadFile(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            const dataUrl = await new Promise((res, rej) => {
+                reader.onload = () => res(reader.result);
+                reader.onerror = rej;
+                reader.readAsDataURL(file);
+            });
+            await this.load(dataUrl);
+        },
         async loadFromQuery() {
             await this.load(new URL(location.href).searchParams.get('pixel'));
+        },
+        initialize() {
+            const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore } = useStore();
+            const layerPanel = useLayerPanelService();
+            viewportStore.setSize(this.width, this.height);
+            viewportStore.setImage(this.src || '', this.width, this.height);
+            const autoSegments = this.segment(40);
+            if (autoSegments.length) {
+                const ids = [];
+                for (let i = 0; i < autoSegments.length; i++) {
+                    const segment = autoSegments[i];
+                    const id = nodes.createLayer({
+                        name: `Auto ${i + 1}`,
+                        color: segment.colorU32,
+                        visibility: true
+                    });
+                    if (segment.pixels?.length) pixelStore.set(id, segment.pixels);
+                    ids.push(id);
+                }
+                nodeTree.insert(ids);
+            } else {
+                const ids = [nodes.createLayer({}), nodes.createLayer({})];
+                nodeTree.insert(ids);
+            }
+            layerPanel.setScrollRule({ type: 'follow', target: nodeTree.layerOrder[nodeTree.layerOrder.length - 1] });
         },
         isWithin([x, y]) {
             return x >= 0 && y >= 0 && x < this._width && y < this._height;
