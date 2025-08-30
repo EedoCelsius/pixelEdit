@@ -48,9 +48,13 @@ export const useInputStore = defineStore('input', {
         },
         async loadFile(file) {
             if (!file) return;
-            const url = URL.createObjectURL(file);
-            await this.load(url);
-            URL.revokeObjectURL(url);
+            const reader = new FileReader();
+            const dataUrl = await new Promise((res, rej) => {
+                reader.onload = () => res(reader.result);
+                reader.onerror = rej;
+                reader.readAsDataURL(file);
+            });
+            await this.load(dataUrl);
         },
         async loadFromQuery() {
             await this.load(new URL(location.href).searchParams.get('pixel'));
