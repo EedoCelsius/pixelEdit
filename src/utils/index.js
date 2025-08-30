@@ -403,5 +403,3 @@ export function pixelsToUnionPath(pixels) {
 export function findPixelComponents(pixels) {
     return groupConnectedPixels(pixels);
 }
-
-export * from './path.js';
