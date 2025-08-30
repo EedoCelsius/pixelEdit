@@ -113,8 +113,8 @@ export function ensurePathPattern(kind, target = document.body) {
     s.setAttribute('width', String(cornerSize));
     s.setAttribute('height', String(cornerSize));
     s.setAttribute('fill', '#00ff00');
-    ba.setAttribute('stroke-width', String(cornerSize / 10));
-    ba.setAttribute('stroke', '#000000');
+    s.setAttribute('stroke-width', String(cornerSize / 10));
+    s.setAttribute('stroke', '#000000');
 
     const e = document.createElementNS(SVG_NAMESPACE, 'rect');
     e.setAttribute('x', String(end[0]));
@@ -122,8 +122,8 @@ export function ensurePathPattern(kind, target = document.body) {
     e.setAttribute('width', String(cornerSize));
     e.setAttribute('height', String(cornerSize));
     e.setAttribute('fill', '#ff0000');
-    ba.setAttribute('stroke-width', String(cornerSize / 10));
-    ba.setAttribute('stroke', '#000000');
+    e.setAttribute('stroke-width', String(cornerSize / 10));
+    e.setAttribute('stroke', '#000000');
 
     const ba = document.createElementNS(SVG_NAMESPACE, 'path');
     ba.setAttribute('d', arrowPath[direction]);
