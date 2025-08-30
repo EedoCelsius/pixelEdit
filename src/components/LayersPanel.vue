@@ -270,20 +270,42 @@ function toggleLock(id) {
 }
 
 function onContextMenu(item, event) {
-    if (!item.isGroup) return;
     if (!nodeTree.selectedIds.includes(item.id)) {
         layerPanel.setRange(item.id, item.id);
     }
-    contextMenu.open(event, [
+    const items = [
         {
+            label: 'Group',
+            action: () => {
+                output.setRollbackPoint();
+                const id = layerSvc.groupSelected();
+                layerPanel.setRange(id, id);
+                layerPanel.setScrollRule({ type: 'follow', target: id });
+                output.commit();
+            }
+        },
+        {
+            label: 'Copy',
+            action: () => {
+                output.setRollbackPoint();
+                const ids = layerSvc.copySelected();
+                nodeTree.replaceSelection(ids);
+                layerPanel.setScrollRule({ type: 'follow', target: ids[0] });
+                output.commit();
+            }
+        }
+    ];
+    if (item.isGroup) {
+        items.push({
             label: 'Ungroup',
             action: () => {
                 output.setRollbackPoint();
                 layerSvc.ungroupSelected();
                 output.commit();
             }
-        }
-    ]);
+        });
+    }
+    contextMenu.open(event, items);
 }
 
 function deleteLayer(id) {
