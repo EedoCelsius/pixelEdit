@@ -80,7 +80,9 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     });
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.prepared !== 'erase' || nodeTree.selectedLayerCount !== 1) return;
-        overlayService.setPixels(overlayId, pixels);
+        const sourceId = nodeTree.selectedLayerIds[0];
+        const sourceKeys = new Set(pixelStore.get(sourceId).map(coordToKey));
+        overlayService.setPixels(overlayId, pixels.filter(pixel => sourceKeys.includes(coordToKey(pixel))));
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.prepared !== 'erase' || nodeTree.selectedLayerCount !== 1) return;
@@ -242,10 +244,15 @@ export const useSelectService = defineStore('selectService', () => {
             tool.setCursor({ stroke: CURSOR_STYLE.ADD_STROKE, rect: CURSOR_STYLE.ADD_RECT });
         }
 
-        if (id && nodes.getProperty(id, 'locked')) {
-            tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
+        if (!id)
+            overlayService.setPixels(overlayId, [pixel])
+        else {
+            if (nodes.getProperty(id, 'locked'))
+                tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
+            else
+                overlayService.setLayers(overlayId, [id];
         }
-        overlayService.setLayers(overlayId, id ? [id] : []);
+        
     });
     watch(() => tool.dragPixel, (pixel) => {
         if (tool.prepared !== 'select') return;
