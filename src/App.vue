@@ -29,6 +29,7 @@
       </aside>
     </div>
     <StageResizePopup />
+    <ContextMenu />
 </template>
 
 <script setup>
@@ -42,6 +43,7 @@ import LayersPanel from './components/LayersPanel.vue';
 import ExportPanel from './components/ExportPanel.vue';
 import ViewportToolbar from './components/ViewportToolbar.vue';
 import StageResizePopup from './components/StageResizePopup.vue';
+import ContextMenu from './components/ContextMenu.vue';
 const { input, viewport: viewportStore } = useStore();
 
 // Width control between display and layers
