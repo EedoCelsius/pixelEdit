@@ -88,7 +88,7 @@ function flattenSelectedLayers(tree, selection) {
 
 export const useNodeTreeStore = defineStore('nodeTree', {
     state: () => ({
-        _tree: reactive([]),
+        _tree: [],
         _selection: new Set()
     }),
     getters: {
@@ -148,6 +148,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
 
             const nodes = ids.map(id => {
                 const existing = this._removeFromTree(id);
+                console.log(existing)
                 if (existing) return existing;
                 return nodeStore.getProperty(id, 'type') === 'group'
                     ? { id, children: reactive([]) }

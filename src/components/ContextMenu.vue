@@ -7,12 +7,14 @@
 </template>
 
 <script setup>
-import { useContextMenuService } from '../services/contextMenu';
+import { storeToRefs } from 'pinia';
+import { useContextMenuStore } from '../stores/contextMenu';
 
-const { visible, x, y, items, close } = useContextMenuService();
+const menuStore = useContextMenuStore();
+const { visible, x, y, items } = storeToRefs(menuStore);
 
 function select(item) {
-  close();
+  menuStore.close();
   item.action && item.action();
 }
 </script>

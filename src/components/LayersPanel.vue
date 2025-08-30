@@ -77,9 +77,11 @@ import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, clamp, ensureCheckerboardPatter
 import blockIcons from '../image/layer_block';
 
 import { useService } from '../services';
+import { useContextMenuStore } from '../stores/contextMenu';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output, keyboardEvent: keyboardEvents } = useStore();
-const { layerPanel, layerQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc, contextMenu } = useService();
+const { layerPanel, layerQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc } = useService();
+const contextMenu = useContextMenuStore();
 
 const dragging = ref(false);
 const dragId = ref(null);
@@ -269,7 +271,7 @@ function toggleLock(id) {
 
 function onContextMenu(item, event) {
     if (!item.isGroup) return;
-    if (!nodeTree.selectedNodeIds.includes(item.id)) {
+    if (!nodeTree.selectedIds.includes(item.id)) {
         layerPanel.setRange(item.id, item.id);
     }
     contextMenu.open(event, [
@@ -501,6 +503,7 @@ function handleGlobalPointerDown(event) {
     const isStage = stageEl && stageEl.contains(target);
     const isLayers = listElement.value && listElement.value.contains(target);
     const isButton = !!target.closest('button');
+    const isContextMenu = contextMenu.visible;
     if (isLayers || isButton) return;
     if (isViewport && !isStage) {
         let moved = false;
@@ -515,7 +518,7 @@ function handleGlobalPointerDown(event) {
         window.addEventListener('pointerup', onUp, { capture: true, once: true });
         return;
     }
-    if (!isViewport && !isStage && !isLayers && !isButton)
+    if (!isViewport && !isStage && !isLayers && !isButton && !isContextMenu)
         nodeTree.clearSelection();
 }
 

@@ -44,7 +44,7 @@ import ExportPanel from './components/ExportPanel.vue';
 import ViewportToolbar from './components/ViewportToolbar.vue';
 import StageResizePopup from './components/StageResizePopup.vue';
 import ContextMenu from './components/ContextMenu.vue';
-const { input, viewport: viewportStore } = useStore();
+const { input } = useStore();
 
 // Width control between display and layers
 const container = ref(null);
