@@ -6,7 +6,8 @@ import { useLayerPanelService } from './layerPanel';
 import { useLayerQueryService } from './layerQuery';
 import { useStore } from '../stores';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
-import { coordToKey, pathWithStart } from '../utils';
+import { coordToKey, keyToCoord, ensurePathPattern } from '../utils';
+import { PIXEL_KINDS } from '../stores/pixels';
 
 export const useDrawToolService = defineStore('drawToolService', () => {
     const tool = useToolSelectionService();
@@ -307,38 +308,77 @@ export const useSelectService = defineStore('selectService', () => {
 });
 
 export const usePathToolService = defineStore('pathToolService', () => {
-    const tool = useToolSelectionService();
-    const overlayService = useOverlayService();
     const { nodeTree, pixels: pixelStore } = useStore();
-    const overlayId = overlayService.createOverlay();
-    overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
-    let start = null;
-    function updatePath() {
-        if (!start) return;
+    const tool = useToolSelectionService();
+    const layerQuery = useLayerQueryService();
+    const overlayService = useOverlayService();
+    const overlays = PIXEL_KINDS.map(kind => {
+        const id = overlayService.createOverlay();
+        overlayService.setStyles(id, {
+            FILL_COLOR: `url(#${ensurePathPattern(kind)})`,
+            STROKE_COLOR: 'none',
+            STROKE_WIDTH_SCALE: 0,
+            FILL_RULE: 'evenodd'
+        });
+        return id;
+    });
+    function rebuild() {
+        if (tool.prepared !== 'path') return;
         const layerIds = nodeTree.selectedLayerIds;
-        let coords = [];
-        for (const id of layerIds) {
-            coords = coords.concat(pixelStore.get(id));
-        }
-        const paths = pathWithStart(coords, start);
-        overlayService.setPixels(overlayId, paths.flat());
+        PIXEL_KINDS.forEach((kind, idx) => {
+            const overlayId = overlays[idx];
+            overlayService.clear(overlayId);
+            for (const id of layerIds) {
+                const set = pixelStore[kind][id];
+                if (!set) continue;
+                overlayService.addPixels(overlayId, [...set].map(keyToCoord));
+            }
+        });
     }
     watch(() => tool.prepared === 'path', (isPath) => {
+        console.log(0)
         if (!isPath) {
-            overlayService.clear(overlayId);
-            start = null;
+            overlays.forEach(id => overlayService.clear(id));
             return;
         }
+        rebuild();
         tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
-    watch(() => tool.dragPixel, (pixel) => {
+    watch(() => tool.hoverPixel, (pixel) => {
         if (tool.prepared !== 'path' || !pixel) return;
-        start = pixel;
-        updatePath();
+        tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
-    watch(() => nodeTree.selectedLayerIds.slice(), () => {
-        if (tool.prepared === 'path') updatePath();
+    watch(() => tool.dragPixel, (pixel, prevPixel) => {
+        if (tool.prepared !== 'path' || !pixel) return;
+        const target = layerQuery.topVisibleAt(pixel);
+        if (nodeTree.selectedLayerIds.includes(target)) {
+            if (!prevPixel) {
+                pixelStore.cycleKind(target, pixel);
+            }
+            else if (prevPixel[0] === pixel[0]) {
+                if (prevPixel[1] < pixel[1]) {
+                    pixelStore.changeKind(target, pixel, 'down');
+                    tool.setCursor({ stroke: CURSOR_STYLE.DOWN, rect: CURSOR_STYLE.DOWN });
+                }
+                else {
+                    pixelStore.changeKind(target, pixel, 'up');
+                    tool.setCursor({ stroke: CURSOR_STYLE.UP, rect: CURSOR_STYLE.UP });
+                }
+            }
+            else {
+                if (prevPixel[0] < pixel[0]) {
+                    pixelStore.changeKind(target, pixel, 'right');
+                    tool.setCursor({ stroke: CURSOR_STYLE.RIGHT, rect: CURSOR_STYLE.RIGHT });
+                }
+                else {
+                    pixelStore.changeKind(target, pixel, 'left');
+                    tool.setCursor({ stroke: CURSOR_STYLE.LEFT, rect: CURSOR_STYLE.LEFT });
+                }
+            }
+        }
+        rebuild();
     });
+    watch(() => nodeTree.selectedIds, rebuild);
     return {};
 });
 
