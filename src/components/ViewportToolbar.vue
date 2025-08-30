@@ -1,6 +1,8 @@
 <template>
     <div class="flex items-center gap-2 p-2 flex-wrap">
-      <button @click="viewportStore.toggleView" class="inline-flex items-center px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">{{ viewportStore.toggleLabel }}</button>
+      <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileChange" />
+      <button v-if="input.isLoaded" @click="viewportStore.toggleView" class="inline-flex items-center px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">{{ viewportStore.toggleLabel }}</button>
+      <button v-else @click="openFileDialog" class="inline-flex items-center px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">Load</button>
       <!-- Stage resize -->
       <button @click="stageResizeService.open" title="Resize Canvas" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
         <img :src="stageIcons.resize" alt="resize" class="w-4 h-4">
@@ -50,8 +52,20 @@ import { useService } from '../services';
 import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS, TOOL_MODIFIERS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 
-const { viewport: viewportStore, nodeTree, output, keyboardEvent: keyboardEvents } = useStore();
+const { viewport: viewportStore, nodeTree, input, output, keyboardEvent: keyboardEvents } = useStore();
 const { toolSelection: toolSelectionService, stageResize: stageResizeService } = useService();
+
+const fileInput = ref(null);
+function openFileDialog() {
+  fileInput.value?.click();
+}
+async function onFileChange(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  await input.loadFile(file);
+  input.initialize();
+  e.target.value = '';
+}
 
 let previousTool = null;
 let lastSingleTool = 'draw';
