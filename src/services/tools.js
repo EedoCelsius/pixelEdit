@@ -82,7 +82,7 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
         if (tool.prepared !== 'erase' || nodeTree.selectedLayerCount !== 1) return;
         const sourceId = nodeTree.selectedLayerIds[0];
         const sourceKeys = new Set(pixelStore.get(sourceId).map(coordToKey));
-        overlayService.setPixels(overlayId, pixels.filter(pixel => sourceKeys.includes(coordToKey(pixel))));
+        overlayService.setPixels(overlayId, pixels.filter(pixel => sourceKeys.has(coordToKey(pixel))));
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.prepared !== 'erase' || nodeTree.selectedLayerCount !== 1) return;
