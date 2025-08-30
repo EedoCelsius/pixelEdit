@@ -81,20 +81,13 @@ export const useViewportService = defineStore('viewportService', () => {
     viewportStore.setOffset((width - scaledWidth) / 2, (height - scaledHeight) / 2);
   }
 
-  watch(
-    () => viewportEvents.recent.pointer.move,
-    () => {
+  watch(() => viewportEvents.recent.pointer.move, () => {
       if (viewportEvents.pinchIds) handlePinch();
-    },
-    { deep: true }
-  );
+  });
 
-  watch(
-    () => viewportEvents.pinchIds,
-    () => {
+  watch(() => viewportEvents.pinchIds, () => {
       lastTouchDistance = 0;
-    }
-  );
+  });
 
   watch(() => viewportEvents.get('wheel'), (e) => {
     if (e) handleWheel(e);
