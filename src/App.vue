@@ -75,8 +75,6 @@ onMounted(async () => {
   } catch {}
   if (input.isLoaded) {
     input.initialize();
-  } else {
-    viewportStore.setSize(21, 18);
   }
   window.addEventListener('mousemove', onDrag);
   window.addEventListener('mouseup', stopDrag);
