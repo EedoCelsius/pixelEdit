@@ -6,8 +6,9 @@ import { useLayerPanelService } from './layerPanel';
 import { useLayerQueryService } from './layerQuery';
 import { useStore } from '../stores';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
-import { coordToKey, keyToCoord, ensurePathPattern } from '../utils';
+import { coordToKey, keyToCoord, ensurePathPattern, getPixelUnion } from '../utils';
 import { PIXEL_KINDS } from '../stores/pixels';
+import { pathsFromStart } from '../../utils/path.js';
 
 export const useDrawToolService = defineStore('drawToolService', () => {
     const tool = useToolSelectionService();
@@ -442,4 +443,39 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         }
     });
     return {};
+});
+
+export const useTraceToolService = defineStore('traceToolService', () => {
+    const tool = useToolSelectionService();
+    const overlayService = useOverlayService();
+    const overlayId = overlayService.createOverlay();
+    overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
+    const { nodeTree, pixels: pixelStore } = useStore();
+
+    function buildSelectedPixels() {
+        const layers = pixelStore.getProperties(nodeTree.selectedLayerIds);
+        return getPixelUnion(layers);
+    }
+
+    function showPath(start) {
+        const pixels = buildSelectedPixels();
+        const paths = pathsFromStart(pixels, start);
+        overlayService.setPixels(overlayId, paths.flat());
+        return paths;
+    }
+
+    watch(() => tool.prepared === 'trace', (isTrace) => {
+        if (!isTrace) {
+            overlayService.clear(overlayId);
+            return;
+        }
+        tool.setCursor({ stroke: CURSOR_STYLE.ADD_STROKE, rect: CURSOR_STYLE.ADD_RECT });
+    });
+
+    watch(() => tool.affectedPixels, (pixels) => {
+        if (tool.prepared !== 'trace' || !pixels.length) return;
+        showPath(pixels[0]);
+    });
+
+    return { showPath };
 });
