@@ -8,6 +8,7 @@ import { useStore } from '../stores';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
 import { coordToKey, keyToCoord, ensurePathPattern } from '../utils';
 import { PIXEL_KINDS } from '../stores/pixels';
+import { useOneStrokeService } from './oneStroke';
 
 export const useDrawToolService = defineStore('drawToolService', () => {
     const tool = useToolSelectionService();
@@ -156,6 +157,55 @@ export const useCutToolService = defineStore('cutToolService', () => {
 
         nodeTree.replaceSelection([sourceId]);
         layerPanel.setScrollRule({ type: 'follow', target: sourceId });
+    });
+    return {};
+});
+
+export const useOneStrokeToolService = defineStore('oneStrokeToolService', () => {
+    const tool = useToolSelectionService();
+    const overlayService = useOverlayService();
+    const overlayId = overlayService.createOverlay();
+    overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
+    const oneStroke = useOneStrokeService();
+    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    watch(() => tool.prepared === 'oneStroke', (isActive) => {
+        if (!isActive) {
+            overlayService.clear(overlayId);
+            return;
+        }
+        tool.setCursor({ stroke: CURSOR_STYLE.DRAW_STROKE, rect: CURSOR_STYLE.DRAW_RECT });
+    });
+    watch(() => tool.hoverPixel, (pixel) => {
+        if (tool.prepared !== 'oneStroke') return;
+        overlayService.setPixels(overlayId, pixel ? [pixel] : []);
+    });
+    watch(() => tool.dragPixel, (pixel) => {
+        if (tool.prepared !== 'oneStroke' || nodeTree.selectedLayerCount !== 1) return;
+        const sourceId = nodeTree.selectedLayerIds[0];
+        if (nodes.getProperty(sourceId, 'locked')) {
+            if (pixel)
+                tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
+            else
+                tool.setCursor({ stroke: CURSOR_STYLE.DRAW_STROKE, rect: CURSOR_STYLE.DRAW_RECT });
+            return;
+        }
+    });
+    watch(() => tool.previewPixels, (pixels) => {
+        if (tool.prepared !== 'oneStroke' || nodeTree.selectedLayerCount !== 1) return;
+        if (!pixels.length) {
+            overlayService.clear(overlayId);
+            return;
+        }
+        const paths = oneStroke.withStartEnd(pixels, pixels[0], pixels[pixels.length - 1]);
+        overlayService.setPixels(overlayId, paths.flat());
+    });
+    watch(() => tool.affectedPixels, (pixels) => {
+        if (tool.prepared !== 'oneStroke' || nodeTree.selectedLayerCount !== 1) return;
+        if (!pixels.length) return;
+        const id = nodeTree.selectedLayerIds[0];
+        if (nodes.getProperty(id, 'locked')) return;
+        const paths = oneStroke.withStartEnd(pixels, pixels[0], pixels[pixels.length - 1]);
+        pixelStore.addPixels(id, paths.flat());
     });
     return {};
 });

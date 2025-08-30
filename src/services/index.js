@@ -2,10 +2,11 @@ import { useLayerPanelService } from './layerPanel';
 import { useLayerToolService } from './layerTool';
 import { useOverlayService } from './overlay';
 import { useLayerQueryService } from './layerQuery';
-import { useDrawToolService, useEraseToolService, useTopToolService, useGlobalEraseToolService, useCutToolService, useSelectService, usePathToolService } from './tools';
+import { useDrawToolService, useEraseToolService, useTopToolService, useGlobalEraseToolService, useCutToolService, useSelectService, usePathToolService, useOneStrokeToolService } from './tools';
 import { useToolSelectionService } from './toolSelection';
 import { useViewportService } from './viewport';
 import { useStageResizeService } from './stageResize';
+import { useOneStrokeService } from './oneStroke';
 
 export {
     useLayerPanelService,
@@ -17,11 +18,13 @@ export {
     useEraseToolService,
     useTopToolService,
     usePathToolService,
+    useOneStrokeToolService,
     useGlobalEraseToolService,
     useCutToolService,
     useToolSelectionService,
     useViewportService,
-    useStageResizeService
+    useStageResizeService,
+    useOneStrokeService
 };
 
 export const useService = () => ({
@@ -35,10 +38,12 @@ export const useService = () => ({
         erase: useEraseToolService(),
         globalErase: useGlobalEraseToolService(),
         path: usePathToolService(),
+        oneStroke: useOneStrokeToolService(),
         cut: useCutToolService(),
         top: useTopToolService(),
     },
     toolSelection: useToolSelectionService(),
     viewport: useViewportService(),
-    stageResize: useStageResizeService()
+    stageResize: useStageResizeService(),
+    oneStroke: useOneStrokeService()
 });
