@@ -379,7 +379,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
     const overlayService = useOverlayService();
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.REMOVE);
-    const { nodeTree, nodes } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore } = useStore();
     watch(() => tool.prepared === 'globalErase', (isGlobalErase) => {
         if (!isGlobalErase) {
             overlayService.clear(overlayId);
