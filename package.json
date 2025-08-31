@@ -9,15 +9,18 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:wasm": "asc assembly/hamiltonian.ts -o src/wasm/hamiltonian.wasm --optimize --noAssert --exportRuntime"
   },
   "dependencies": {
     "pinia": "^3.0.3",
-    "vue": "^3.5.18"
+    "vue": "^3.5.18",
+    "@assemblyscript/loader": "^0.27.23"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
     "vite": "^7.0.6",
-    "vite-plugin-vue-devtools": "^8.0.0"
+    "vite-plugin-vue-devtools": "^8.0.0",
+    "assemblyscript": "^0.27.23"
   }
 }
