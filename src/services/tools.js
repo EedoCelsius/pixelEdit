@@ -7,7 +7,7 @@ import { useLayerQueryService } from './layerQuery';
 import { useHamiltonianService } from './hamiltonian';
 import { useStore } from '../stores';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
-import { coordToIndex, indexToCoord, ensurePathPattern } from '../utils';
+import { indexToCoord, ensurePathPattern } from '../utils';
 import { PIXEL_KINDS } from '../stores/pixels';
 
 export const useDrawToolService = defineStore('drawToolService', () => {
@@ -134,15 +134,13 @@ export const useCutToolService = defineStore('cutToolService', () => {
         const sourcePixels = new Set(pixelStore.get(sourceId));
 
         const cutPixels = [];
-        const cutPixelSet = new Set();
         for (const pixel of pixels) {
-            if (sourcePixels.has(pixel) && !cutPixelSet.has(pixel)) {
+            if (sourcePixels.has(pixel)) {
                 cutPixels.push(pixel);
-                cutPixelSet.add(pixel);
             }
         }
 
-        if (!cutPixels.length || cutPixelSet.size === sourcePixels.size) return;
+        if (!cutPixels.length || cutPixels.length === sourcePixels.size) return;
 
         pixelStore.removePixels(sourceId, cutPixels);
         const id = nodes.createLayer({
