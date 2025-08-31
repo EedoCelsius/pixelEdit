@@ -65,31 +65,27 @@ function solve(pixels, opts = {}) {
     return bestIdx;
   }
 
-  const path = [];
-
   function search(activeCount, acc) {
     if (best.paths && acc.length >= best.paths.length) return;
     if (activeCount === 0) {
-      best.paths = acc.slice();
+      best.paths = acc.map((p) => p.slice());
       return;
     }
     const isFirst = acc.length === 0;
     const startNode = isFirst && start != null ? start : chooseStart();
     remove(startNode);
-    path.push(startNode);
-    extend(startNode, activeCount - 1, acc, isFirst);
-    path.pop();
+    extend(startNode, [startNode], activeCount - 1, acc, isFirst);
     restore(startNode);
   }
 
-  function extend(node, activeCount, acc, isFirst) {
+  function extend(node, path, activeCount, acc, isFirst) {
     if (best.paths && acc.length + 1 >= best.paths.length) return;
 
     for (const nb of neighbors[node]) {
       if (!remaining[nb]) continue;
       remove(nb);
       path.push(nb);
-      extend(nb, activeCount - 1, acc, isFirst);
+      extend(nb, path, activeCount - 1, acc, isFirst);
       path.pop();
       restore(nb);
     }
