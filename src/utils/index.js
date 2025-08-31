@@ -1,16 +1,17 @@
 import { SVG_NAMESPACE, CHECKERBOARD_CONFIG } from '@/constants';
 
 export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-export const coordToKey = ([x, y]) => x + ',' + y;
-export const keyToCoord = (key) => key.split(',').map(n => +n);
+export const MAX_DIMENSION = 65536;
+export const coordToIndex = (x, y) => x + MAX_DIMENSION * y;
+export const indexToCoord = (index) => [index % MAX_DIMENSION, Math.floor(index / MAX_DIMENSION)];
 
 export function getPixelUnion(props = []) {
     const set = new Set();
     const layers = Array.isArray(props) ? props : [props];
     for (const layer of layers)
-        for (const coord of layer.pixels)
-            set.add(coordToKey(coord));
-    return [...set].map(keyToCoord);
+        for (const index of layer.pixels)
+            set.add(index);
+    return [...set];
 }
 
 export function ensureCheckerboardPattern(target = document.body) {
@@ -273,7 +274,7 @@ export function rgbaToHexU32(packedColor) {
 
 export function groupConnectedPixels(pixels) {
     if (!pixels || !pixels.length) return [];
-    const pixelSet = new Set(pixels.map(coordToKey));
+    const pixelSet = new Set(pixels);
     const neighbors = [
         [1, 0],
         [-1, 0],
@@ -282,20 +283,20 @@ export function groupConnectedPixels(pixels) {
     ];
     const seen = new Set();
     const components = [];
-    for (const startPixelKey of pixelSet) {
-        if (seen.has(startPixelKey)) continue;
+    for (const startIndex of pixelSet) {
+        if (seen.has(startIndex)) continue;
         const component = [];
-        const queue = [startPixelKey];
-        seen.add(startPixelKey);
+        const queue = [startIndex];
+        seen.add(startIndex);
         while (queue.length) {
-            const currentPixelKey = queue.pop();
-            component.push(keyToCoord(currentPixelKey));
-            const [x, y] = keyToCoord(currentPixelKey);
+            const currentIndex = queue.pop();
+            component.push(currentIndex);
+            const [x, y] = indexToCoord(currentIndex);
             for (const [dx, dy] of neighbors) {
-                const neighborKey = coordToKey([x + dx, y + dy]);
-                if (pixelSet.has(neighborKey) && !seen.has(neighborKey)) {
-                    seen.add(neighborKey);
-                    queue.push(neighborKey);
+                const neighborIndex = coordToIndex(x + dx, y + dy);
+                if (pixelSet.has(neighborIndex) && !seen.has(neighborIndex)) {
+                    seen.add(neighborIndex);
+                    queue.push(neighborIndex);
                 }
             }
         }
@@ -305,17 +306,18 @@ export function groupConnectedPixels(pixels) {
 }
 
 export function buildOutline(pixels) {
-    const pixelSet = new Set(pixels.map(coordToKey));
+    const pixelSet = new Set(pixels);
     if (!pixelSet.size) return [];
     const paths = [];
     const components = groupConnectedPixels(pixels);
     for (const component of components) {
         const edges = [];
-        for (const [x, y] of component) {
-            if (!pixelSet.has(coordToKey([x, y - 1]))) edges.push([[x, y], [x + 1, y]]);
-            if (!pixelSet.has(coordToKey([x + 1, y]))) edges.push([[x + 1, y], [x + 1, y + 1]]);
-            if (!pixelSet.has(coordToKey([x, y + 1]))) edges.push([[x, y + 1], [x + 1, y + 1]]);
-            if (!pixelSet.has(coordToKey([x - 1, y]))) edges.push([[x, y], [x, y + 1]]);
+        for (const index of component) {
+            const [x, y] = indexToCoord(index);
+            if (!pixelSet.has(coordToIndex(x, y - 1))) edges.push([[x, y], [x + 1, y]]);
+            if (!pixelSet.has(coordToIndex(x + 1, y))) edges.push([[x + 1, y], [x + 1, y + 1]]);
+            if (!pixelSet.has(coordToIndex(x, y + 1))) edges.push([[x, y + 1], [x + 1, y + 1]]);
+            if (!pixelSet.has(coordToIndex(x - 1, y))) edges.push([[x, y], [x, y + 1]]);
         }
         paths.push(edges);
     }

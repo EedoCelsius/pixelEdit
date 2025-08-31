@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, reactive, watch } from 'vue';
 import { useStore } from '../stores';
-import { coordToKey, keyToCoord, pixelsToUnionPath } from '../utils';
+import { pixelsToUnionPath } from '../utils';
 import { OVERLAY_STYLES } from '@/constants';
 
 export const useOverlayService = defineStore('overlayService', () => {
@@ -28,17 +28,17 @@ export const useOverlayService = defineStore('overlayService', () => {
         pixelKeys[id]?.clear();
     }
 
-    function addPixels(id, coords) {
+    function addPixels(id, indexes) {
         const keys = pixelKeys[id];
         if (!keys) return;
-        for (const coord of coords) keys.add(coordToKey(coord));
+        for (const index of indexes) keys.add(index);
     }
 
-    function setPixels(id, coords) {
+    function setPixels(id, indexes) {
         const keys = pixelKeys[id];
         if (!keys) return;
         keys.clear();
-        addPixels(id, coords);
+        addPixels(id, indexes);
     }
 
     function addLayers(id, ids) {
@@ -62,7 +62,7 @@ export const useOverlayService = defineStore('overlayService', () => {
     function getOverlay(id) {
         const keys = pixelKeys[id];
         if (!keys) return null;
-        const pixels = Array.from(keys).map(keyToCoord);
+        const pixels = Array.from(keys);
         const path = keys.size ? pixelsToUnionPath(pixels) : '';
         return { id: Number(id), pixelKeys: keys, pixels, path, styles: styles[id] };
     }

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { readonly } from 'vue';
-import { clamp } from '../utils';
+import { clamp, coordToIndex, indexToCoord } from '../utils';
 import { MIN_SCALE_RATIO } from '@/constants';
 import { useNodeTreeStore } from './nodeTree';
 import { usePixelStore } from './pixels';
@@ -68,9 +68,10 @@ export const useViewportStore = defineStore('viewport', {
             for (const id of tree.layerIdsBottomToTop) {
                 const pixels = pixelStore.get(id);
                 const toRemove = [];
-                for (const [x, y] of pixels) {
+                for (const index of pixels) {
+                    const [x, y] = indexToCoord(index);
                     if (x < 0 || y < 0 || x >= newWidth || y >= newHeight) {
-                        toRemove.push([x, y]);
+                        toRemove.push(index);
                     }
                 }
                 if (toRemove.length) pixelStore.removePixels(id, toRemove);
@@ -109,13 +110,13 @@ export const useViewportStore = defineStore('viewport', {
                 this._stage.scale = this._stage.minScale;
             }
         },
-        clientToCoord(event, { allowViewport } = {}) {
+        clientToIndex(event, { allowViewport } = {}) {
             const left = this._content.left + this._stage.offset.x;
             const top = this._content.top + this._stage.offset.y;
             let x = Math.floor((event.clientX - left) / this._stage.scale);
             let y = Math.floor((event.clientY - top) / this._stage.scale);
             if (!allowViewport && (x < 0 || y < 0 || x >= this._stage.width || y >= this._stage.height)) return null;
-            return [x, y];
+            return coordToIndex(x, y);
         },
         serialize() {
             return {

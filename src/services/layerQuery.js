@@ -44,12 +44,12 @@ export const useLayerQueryService = defineStore('layerQueryService', () => {
         return order[idx - 1] ?? null;
     }
 
-    function topVisibleAt(coord) {
+    function topVisibleAt(index) {
         const order = nodeTree.layerIdsBottomToTop;
         for (let i = order.length - 1; i >= 0; i--) {
             const id = order[i];
             if (!nodes._visibility[id]) continue;
-            if (pixels.has(id, coord)) return id;
+            if (pixels.has(id, index)) return id;
         }
         return null;
     }

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { useStore } from '.';
 import { useLayerPanelService } from '../services/layerPanel';
-import { packRGBA, averageColorU32 } from '../utils';
+import { packRGBA, averageColorU32, coordToIndex, indexToCoord } from '../utils';
 
 export const useInputStore = defineStore('input', {
     state: () => ({
@@ -84,22 +84,24 @@ export const useInputStore = defineStore('input', {
             }
             layerPanel.setScrollRule({ type: 'follow', target: nodeTree.layerOrder[nodeTree.layerOrder.length - 1] });
         },
-        isWithin([x, y]) {
+        isWithin(index) {
+            const [x, y] = indexToCoord(index);
             return x >= 0 && y >= 0 && x < this._width && y < this._height;
         },
-        _offset([x, y]) {
+        _offset(index) {
+            const [x, y] = indexToCoord(index);
             return ((y * this._width) + x) * 4;
         },
-        readPixel(coord) {
-            const [x, y] = coord;
-            if (!this.isLoaded || !this.isWithin(coord)) return {
+        readPixel(index) {
+            const [x, y] = indexToCoord(index);
+            if (!this.isLoaded || !this.isWithin(index)) return {
                 r: 0,
                 g: 0,
                 b: 0,
                 a: 0
             };
             const data = this._buffer;
-            const i = this._offset(coord);
+            const i = this._offset(index);
             return {
                 r: data[i],
                 g: data[i + 1],
@@ -107,9 +109,9 @@ export const useInputStore = defineStore('input', {
                 a: data[i + 3]
             };
         },
-        writePixel(coord, { r = 0, g = 0, b = 0, a = 255 } = {}) {
-            if (!this.isLoaded || !this.isWithin(coord)) return;
-            const i = this._offset(coord);
+        writePixel(index, { r = 0, g = 0, b = 0, a = 255 } = {}) {
+            if (!this.isLoaded || !this.isWithin(index)) return;
+            const i = this._offset(index);
             this._buffer[i] = r;
             this._buffer[i + 1] = g;
             this._buffer[i + 2] = b;
@@ -137,7 +139,7 @@ export const useInputStore = defineStore('input', {
                 for (let x = 0; x < width; x++) {
                     const flatIndex = y * width + x;
                     if (visited[flatIndex]) continue;
-                    const pixelIndex = this._offset([x, y]);
+                    const pixelIndex = this._offset(coordToIndex(x, y));
                     const seedColor = {
                         r: data[pixelIndex],
                         g: data[pixelIndex + 1],
@@ -147,12 +149,13 @@ export const useInputStore = defineStore('input', {
                     visited[flatIndex] = 1;
                     if (seedColor.a === 0) continue;
                     queue.length = 0;
-                    queue.push([x, y]);
+                    queue.push(coordToIndex(x, y));
                     const pixels = [];
                     const colors = [];
                     while (queue.length) {
-                        const [cx, cy] = queue.pop();
-                        const currentIndex = this._offset([cx, cy]);
+                        const idx = queue.pop();
+                        const [cx, cy] = indexToCoord(idx);
+                        const currentIndex = this._offset(idx);
                         const currentR = data[currentIndex],
                             currentG = data[currentIndex + 1],
                             currentB = data[currentIndex + 2],
@@ -163,15 +166,15 @@ export const useInputStore = defineStore('input', {
                                 b: currentB,
                                 a: currentA
                             }, seedColor) > tolerance) continue;
-                        pixels.push([cx, cy]);
+                        pixels.push(coordToIndex(cx, cy));
                         colors.push(packRGBA({ r: currentR, g: currentG, b: currentB, a: currentA }));
                         for (const [dx, dy] of directions) {
                             const nextX = cx + dx,
                                 nextY = cy + dy;
-                            if (!this.isWithin([nextX, nextY])) continue;
+                            if (!this.isWithin(coordToIndex(nextX, nextY))) continue;
                             const nextFlatIndex = nextY * width + nextX;
                             if (visited[nextFlatIndex]) continue;
-                            const nextIndex = this._offset([nextX, nextY]);
+                            const nextIndex = this._offset(coordToIndex(nextX, nextY));
                             const nextAlpha = data[nextIndex + 3];
                             if (nextAlpha > 0 && colorDistance({
                                     r: data[nextIndex],
@@ -180,7 +183,7 @@ export const useInputStore = defineStore('input', {
                                     a: nextAlpha
                                 }, seedColor) <= tolerance) {
                                 visited[nextFlatIndex] = 1;
-                                queue.push([nextX, nextY]);
+                                queue.push(coordToIndex(nextX, nextY));
                             } else if (nextAlpha === 0) {
                                 visited[nextFlatIndex] = 1;
                             }
