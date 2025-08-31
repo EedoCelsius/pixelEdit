@@ -30,7 +30,12 @@
                 @click="toolSelectionService.setPrepared(tool.type)"
                 :title="tool.name"
                 :class="`p-1 ${toolSelectionService.prepared === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
-          <img :src="tool.icon" :alt="tool.name" class="w-4 h-4">
+          <template v-if="tool.icon">
+            <img :src="tool.icon" :alt="tool.name" class="w-4 h-4">
+          </template>
+          <template v-else>
+            <span class="text-xs">{{ tool.label || tool.name }}</span>
+          </template>
         </button>
       </div>
 
