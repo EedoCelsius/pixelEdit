@@ -4,7 +4,6 @@ export const SINGLE_SELECTION_TOOLS = [
   { type: 'draw', name: 'Draw', icon: stageIcons.draw },
   { type: 'erase', name: 'Erase', icon: stageIcons.erase },
   { type: 'cut', name: 'Cut', icon: stageIcons.cut },
-  { type: 'trace', name: 'Trace', label: 'T' },
   { type: 'top', name: 'To Top', icon: stageIcons.top },
 ];
 
