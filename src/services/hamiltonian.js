@@ -1,28 +1,20 @@
-// Utility to encode/decode coordinates
-function key(p) {
-  return `${p.x},${p.y}`;
-}
-
-function parse(k) {
-  const [x, y] = k.split(',').map(Number);
-  return { x, y };
-}
+import { indexToCoord, coordToIndex } from '../utils';
 
 // Build adjacency map for pixels with 8-way connectivity
 function buildGraph(pixels) {
-  const set = new Set(pixels.map(key));
+  const set = new Set(pixels);
   const graph = new Map();
-  for (const p of pixels) {
-    const k = key(p);
+  for (const pixel of pixels) {
+    const [x, y] = indexToCoord(pixel);
     const neighbors = [];
     for (let dx = -1; dx <= 1; dx++) {
       for (let dy = -1; dy <= 1; dy++) {
         if (dx === 0 && dy === 0) continue;
-        const nKey = `${p.x + dx},${p.y + dy}`;
-        if (set.has(nKey)) neighbors.push(nKey);
+        const nPixel = coordToIndex(x + dx, y + dy);
+        if (set.has(nPixel)) neighbors.push(nPixel);
       }
     }
-    graph.set(k, neighbors);
+    graph.set(pixel, neighbors);
   }
   return graph;
 }
@@ -45,11 +37,11 @@ function chooseStart(remaining, graph) {
 function solve(pixels, opts = {}) {
   const graph = buildGraph(pixels);
   const remaining = new Set(graph.keys());
-  const start = opts.start ? key(opts.start) : null;
-  const end = opts.end ? key(opts.end) : null;
+  const start = opts.start ?? null;
+  const end = opts.end ?? null;
 
-  if (start && !remaining.has(start)) throw new Error('Start pixel missing');
-  if (end && !remaining.has(end)) throw new Error('End pixel missing');
+  if (start != null && !remaining.has(start)) throw new Error('Start pixel missing');
+  if (end != null && !remaining.has(end)) throw new Error('End pixel missing');
 
   const best = { paths: null };
 
@@ -60,7 +52,7 @@ function solve(pixels, opts = {}) {
       return;
     }
     const isFirst = acc.length === 0;
-    const startNode = isFirst && start ? start : chooseStart(rem, graph);
+    const startNode = isFirst && start != null ? start : chooseStart(rem, graph);
     rem.delete(startNode);
     extend(startNode, [startNode], rem, acc, isFirst);
     rem.add(startNode);
@@ -84,7 +76,7 @@ function solve(pixels, opts = {}) {
       rem.add(nb);
     }
 
-    if (!isFirst || !end || node === end) {
+    if (!isFirst || end == null || node === end) {
       acc.push(path.slice());
       search(rem, acc);
       acc.pop();
@@ -92,7 +84,7 @@ function solve(pixels, opts = {}) {
   }
 
   search(remaining, []);
-  return best.paths ? best.paths.map((p) => p.map(parse)) : [];
+  return best.paths ? best.paths.map((p) => p.slice()) : [];
 }
 
 export const useHamiltonianService = () => {
@@ -114,4 +106,3 @@ export const useHamiltonianService = () => {
     traverseFree,
   };
 };
-

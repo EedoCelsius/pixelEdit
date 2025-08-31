@@ -185,7 +185,7 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
             enableWatch();
         }
         state.scrollRule = payload?.scrollRule;
-        for (const key of Object.keys(folded)) delete folded[key];
+        for (const id of Object.keys(folded)) delete folded[id];
         Object.assign(folded, payload?.folded || {});
     }
 

@@ -7,7 +7,7 @@ import { useLayerQueryService } from './layerQuery';
 import { useHamiltonianService } from './hamiltonian';
 import { useStore } from '../stores';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
-import { coordToKey, keyToCoord, ensurePathPattern } from '../utils';
+import { indexToCoord, ensurePathPattern } from '../utils';
 import { PIXEL_KINDS } from '../stores/pixels';
 
 export const useDrawToolService = defineStore('drawToolService', () => {
@@ -72,8 +72,8 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
         if (tool.prepared !== 'erase' || nodeTree.selectedLayerCount !== 1) return;
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.getProperty(sourceId, 'locked')) {
-            const sourceKeys = new Set(pixelStore.get(sourceId).map(coordToKey));
-            if (pixel && sourceKeys.has(coordToKey(pixel)))
+            const sourcePixels = new Set(pixelStore.get(sourceId));
+            if (pixel != null && sourcePixels.has(pixel))
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
             else
                 tool.setCursor({ stroke: CURSOR_STYLE.ERASE_STROKE, rect: CURSOR_STYLE.ERASE_RECT });
@@ -82,8 +82,8 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.prepared !== 'erase' || nodeTree.selectedLayerCount !== 1) return;
         const sourceId = nodeTree.selectedLayerIds[0];
-        const sourceKeys = new Set(pixelStore.get(sourceId).map(coordToKey));
-        overlayService.setPixels(overlayId, pixels.filter(pixel => sourceKeys.has(coordToKey(pixel))));
+        const sourcePixels = new Set(pixelStore.get(sourceId));
+        overlayService.setPixels(overlayId, pixels.filter(pixel => sourcePixels.has(pixel)));
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.prepared !== 'erase' || nodeTree.selectedLayerCount !== 1) return;
@@ -116,8 +116,8 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (tool.prepared !== 'cut' || nodeTree.selectedLayerCount !== 1) return;
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.getProperty(sourceId, 'locked')) {
-            const sourceKeys = new Set(pixelStore.get(sourceId).map(coordToKey));
-            if (pixel && sourceKeys.has(coordToKey(pixel)))
+            const sourcePixels = new Set(pixelStore.get(sourceId));
+            if (pixel != null && sourcePixels.has(pixel))
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
             else
                 tool.setCursor({ stroke: CURSOR_STYLE.CUT_STROKE, rect: CURSOR_STYLE.CUT_RECT });
@@ -131,28 +131,25 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (tool.prepared !== 'cut' || nodeTree.selectedLayerCount !== 1) return;
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.getProperty(sourceId, 'locked')) return;
-        const sourceKeys = new Set(pixelStore.get(sourceId).map(coordToKey));
+        const sourcePixels = new Set(pixelStore.get(sourceId));
 
-        const cutCoords = [];
-        const cutKeys = new Set();
-        for (const coord of pixels) {
-            const affectedKey = coordToKey(coord);
-            if (sourceKeys.has(affectedKey) && !cutKeys.has(affectedKey)) {
-                cutCoords.push(coord);
-                cutKeys.add(affectedKey);
+        const cutPixels = [];
+        for (const pixel of pixels) {
+            if (sourcePixels.has(pixel)) {
+                cutPixels.push(pixel);
             }
         }
 
-        if (!cutCoords.length || cutKeys.size === sourceKeys.size) return;
+        if (!cutPixels.length || cutPixels.length === sourcePixels.size) return;
 
-        pixelStore.removePixels(sourceId, cutCoords);
+        pixelStore.removePixels(sourceId, cutPixels);
         const id = nodes.createLayer({
             name: `Cut of ${nodes.getProperty(sourceId, 'name')}`,
             color: nodes.getProperty(sourceId, 'color'),
             visibility: nodes.getProperty(sourceId, 'visibility'),
             attributes: nodes.getProperty(sourceId, 'attributes'),
         });
-        if (cutCoords.length) pixelStore.set(id, cutCoords);
+        if (cutPixels.length) pixelStore.set(id, cutPixels);
         nodeTree.insert([id], sourceId, false);
 
         nodeTree.replaceSelection([sourceId]);
@@ -224,12 +221,12 @@ export const useHamStartToolService = defineStore('hamStartToolService', () => {
         if (tool.prepared !== 'hamStart' || nodeTree.selectedLayerCount !== 1) return;
         if (pixels.length !== 1) return;
 
-        const [sx, sy] = pixels[0];
+        const startPixel = pixels[0];
         const layerId = nodeTree.selectedLayerIds[0];
-        if (!pixelStore.has(layerId, [sx, sy])) return;
+        if (!pixelStore.has(layerId, startPixel)) return;
 
-        const allPixels = pixelStore.get(layerId).map(([x, y]) => ({ x, y }));
-        const paths = hamiltonian.traverseWithStart(allPixels, { x: sx, y: sy });
+        const allPixels = pixelStore.get(layerId);
+        const paths = hamiltonian.traverseWithStart(allPixels, startPixel);
         if (!paths.length) return;
 
         const color = nodes.getProperty(layerId, 'color');
@@ -247,9 +244,9 @@ export const useHamStartToolService = defineStore('hamStartToolService', () => {
             nodeTree.append([subGroupId], groupId, false);
 
             const ids = [];
-            path.forEach((pt, j) => {
+            path.forEach((pixel, j) => {
                 const lid = nodes.createLayer({ name: `Pixel ${j + 1}`, color });
-                pixelStore.addPixels(lid, [[pt.x, pt.y]]);
+                pixelStore.addPixels(lid, [pixel]);
                 ids.push(lid);
             });
             nodeTree.append(ids, subGroupId, false);
@@ -322,8 +319,8 @@ export const useSelectService = defineStore('selectService', () => {
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.prepared !== 'select') return;
         const intersectedIds = [];
-        for (const coord of pixels) {
-            const id = layerQuery.topVisibleAt(coord);
+        for (const pixel of pixels) {
+            const id = layerQuery.topVisibleAt(pixel);
             if (id === null) continue;
             if (!nodes.getProperty(id, 'locked')) intersectedIds.push(id);
         }
@@ -339,9 +336,9 @@ export const useSelectService = defineStore('selectService', () => {
         if (tool.prepared !== 'select') return;
         if (pixels.length > 0) {
             const intersectedIds = new Set();
-            for (const coord of pixels) {
-            const id = layerQuery.topVisibleAt(coord);
-            if (id !== null && !nodes.getProperty(id, 'locked')) intersectedIds.add(id);
+            for (const pixel of pixels) {
+                const id = layerQuery.topVisibleAt(pixel);
+                if (id !== null && !nodes.getProperty(id, 'locked')) intersectedIds.add(id);
             }
             const currentSelection = new Set(mode === 'select' ? [] : nodeTree.selectedLayerIds);
             if (mode === 'add') {
@@ -384,7 +381,7 @@ export const usePathToolService = defineStore('pathToolService', () => {
             for (const id of layerIds) {
                 const set = pixelStore[kind][id];
                 if (!set) continue;
-                overlayService.addPixels(overlayId, [...set].map(keyToCoord));
+                overlayService.addPixels(overlayId, [...set]);
             }
         });
     }
@@ -402,30 +399,34 @@ export const usePathToolService = defineStore('pathToolService', () => {
         tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
     watch(() => tool.dragPixel, (pixel, prevPixel) => {
-        if (tool.prepared !== 'path' || !pixel) return;
+        if (tool.prepared !== 'path' || pixel == null) return;
         const target = layerQuery.topVisibleAt(pixel);
         if (nodeTree.selectedLayerIds.includes(target)) {
-            if (!prevPixel) {
+            if (prevPixel == null) {
                 pixelStore.cycleKind(target, pixel);
             }
-            else if (prevPixel[0] === pixel[0]) {
-                if (prevPixel[1] < pixel[1]) {
-                    pixelStore.changeKind(target, pixel, 'down');
-                    tool.setCursor({ stroke: CURSOR_STYLE.DOWN, rect: CURSOR_STYLE.DOWN });
-                }
-                else {
-                    pixelStore.changeKind(target, pixel, 'up');
-                    tool.setCursor({ stroke: CURSOR_STYLE.UP, rect: CURSOR_STYLE.UP });
-                }
-            }
             else {
-                if (prevPixel[0] < pixel[0]) {
-                    pixelStore.changeKind(target, pixel, 'right');
-                    tool.setCursor({ stroke: CURSOR_STYLE.RIGHT, rect: CURSOR_STYLE.RIGHT });
+                const [px, py] = indexToCoord(pixel);
+                const [prevX, prevY] = indexToCoord(prevPixel);
+                if (prevX === px) {
+                    if (prevY < py) {
+                        pixelStore.changeKind(target, pixel, 'down');
+                        tool.setCursor({ stroke: CURSOR_STYLE.DOWN, rect: CURSOR_STYLE.DOWN });
+                    }
+                    else {
+                        pixelStore.changeKind(target, pixel, 'up');
+                        tool.setCursor({ stroke: CURSOR_STYLE.UP, rect: CURSOR_STYLE.UP });
+                    }
                 }
                 else {
-                    pixelStore.changeKind(target, pixel, 'left');
-                    tool.setCursor({ stroke: CURSOR_STYLE.LEFT, rect: CURSOR_STYLE.LEFT });
+                    if (prevX < px) {
+                        pixelStore.changeKind(target, pixel, 'right');
+                        tool.setCursor({ stroke: CURSOR_STYLE.RIGHT, rect: CURSOR_STYLE.RIGHT });
+                    }
+                    else {
+                        pixelStore.changeKind(target, pixel, 'left');
+                        tool.setCursor({ stroke: CURSOR_STYLE.LEFT, rect: CURSOR_STYLE.LEFT });
+                    }
                 }
             }
         }
@@ -457,11 +458,11 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         if (pixel){
             const lockedIds = nodeTree.layerOrder.filter(id => nodes.getProperty(id, 'locked'));
             for (const id of lockedIds) {
-                const lockedPixels = new Set(pixelStore.get(id).map(coordToKey));
-                if (lockedPixels.has(coordToKey(pixel))) {
-                    tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
-                    return;
-                }
+            const lockedPixels = new Set(pixelStore.get(id));
+            if (lockedPixels.has(pixel)) {
+                tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
+                return;
+            }
             }
         }
         tool.setCursor({ stroke: CURSOR_STYLE.GLOBAL_ERASE_STROKE, rect: CURSOR_STYLE.GLOBAL_ERASE_RECT });
@@ -473,10 +474,10 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
             const unlockedIds = nodeTree.layerOrder.filter(id => !nodes.getProperty(id, 'locked'));
             const unlockedPixels = new Set();
             for (const id of unlockedIds) {
-                pixelStore.get(id).forEach(coord => unlockedPixels.add(coordToKey(coord)));
+                pixelStore.get(id).forEach(pixel => unlockedPixels.add(pixel));
             }
-            for (const coord of pixels) {
-                if (unlockedPixels.has(coordToKey(coord))) erasablePixels.push(coord);
+            for (const pixel of pixels) {
+                if (unlockedPixels.has(pixel)) erasablePixels.push(pixel);
             }
         }
         overlayService.setPixels(overlayId, erasablePixels);
@@ -486,10 +487,10 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         const targetIds = (nodeTree.layerSelectionExists ? nodeTree.selectedLayerIds : nodeTree.layerOrder)
             .filter(id => !nodes.getProperty(id, 'locked'));
         for (const id of targetIds) {
-            const targetKeys = new Set(pixelStore.get(id).map(coordToKey));
+            const targetPixels = new Set(pixelStore.get(id));
             const pixelsToRemove = [];
-            for (const coord of pixels) {
-                if (targetKeys.has(coordToKey(coord))) pixelsToRemove.push(coord);
+            for (const pixel of pixels) {
+                if (targetPixels.has(pixel)) pixelsToRemove.push(pixel);
             }
             if (pixelsToRemove.length) pixelStore.removePixels(id, pixelsToRemove);
         }

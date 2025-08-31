@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, reactive, computed, watch } from 'vue';
 import { useStore } from '../stores';
+import { coordToIndex, indexToCoord } from '../utils';
 
 export const useToolSelectionService = defineStore('toolSelectionService', () => {
     const { viewport: viewportStore, viewportEvent: viewportEvents, output } = useStore();
@@ -31,19 +32,22 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     function getCursor() { return cursor[shape.value] || 'default'; }
 
     function getPixelsInsideMarquee() {
-        const startCoord = viewportStore.clientToCoord(marquee.anchorEvent, { allowViewport: true });
-        const currentCoord = viewportStore.clientToCoord(marquee.tailEvent, { allowViewport: true });
+        const startPixel = viewportStore.clientToIndex(marquee.anchorEvent, { allowViewport: true });
+        const currentPixel = viewportStore.clientToIndex(marquee.tailEvent, { allowViewport: true });
 
-        const minX = Math.max(Math.min(startCoord[0], currentCoord[0]), 0);
-        const maxX = Math.min(Math.max(startCoord[0], currentCoord[0]), viewportStore.stage.width - 1);
-        const minY = Math.max(Math.min(startCoord[1], currentCoord[1]), 0);
-        const maxY = Math.min(Math.max(startCoord[1], currentCoord[1]), viewportStore.stage.height - 1);
+        const [sx, sy] = indexToCoord(startPixel);
+        const [cx, cy] = indexToCoord(currentPixel);
+
+        const minX = Math.max(Math.min(sx, cx), 0);
+        const maxX = Math.min(Math.max(sx, cx), viewportStore.stage.width - 1);
+        const minY = Math.max(Math.min(sy, cy), 0);
+        const maxY = Math.min(Math.max(sy, cy), viewportStore.stage.height - 1);
 
         if (viewportStore.stage.width - 1 < minX || viewportStore.stage.height - 1 < minY || maxX < 0 || maxY < 0) return [];
 
         const pixels = [];
         for (let yy = minY; yy <= maxY; yy++)
-            for (let xx = minX; xx <= maxX; xx++) pixels.push([xx, yy]);
+            for (let xx = minX; xx <= maxX; xx++) pixels.push(coordToIndex(xx, yy));
         return pixels;
     }
 
@@ -54,8 +58,8 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
             output.setRollbackPoint();
             try { e.target.setPointerCapture?.(e.pointerId); } catch {}
 
-            const pixel = viewportStore.clientToCoord(e);
-            if (pixel) previewPixels.value = [pixel];
+            const pixel = viewportStore.clientToIndex(e);
+            if (pixel != null) previewPixels.value = [pixel];
             if (hoverPixel.value !== null) hoverPixel.value = null;
             if (pixel !== null) dragPixel.value = pixel;
 
@@ -72,27 +76,27 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
 
     watch(() => viewportEvents.recent.pointer.move, (moves) => {
         if (!pointer) {
-            const pixel = viewportStore.clientToCoord(moves[0]);
-            if (hoverPixel.value?.[0] !== pixel?.[0] || hoverPixel.value?.[1] !== pixel?.[1]) hoverPixel.value = pixel;
+            const pixel = viewportStore.clientToIndex(moves[0]);
+            if (hoverPixel.value !== pixel) hoverPixel.value = pixel;
             return;
         }
         if (!moves.find(e => e.pointerId === pointer)) return;
 
         const e = viewportEvents.get('pointermove', pointer);
         if (!e || viewportEvents.pinchIds) return;
-        
-        const pixel = viewportStore.clientToCoord(e);
-        if (dragPixel.value?.[0] !== pixel?.[0] || dragPixel.value?.[1] !== pixel?.[1]) dragPixel.value = pixel;
+
+        const pixel = viewportStore.clientToIndex(e);
+        if (dragPixel.value !== pixel) dragPixel.value = pixel;
 
         if (shape.value === 'stroke') {
-            if (!pixel || previewPixels.value.find(p => p[0] === pixel[0] && p[1] === pixel[1])) return;
+            if (pixel == null || previewPixels.value.includes(pixel)) return;
             previewPixels.value = [...previewPixels.value, pixel];
         }
         else if (shape.value === 'rect') {
-            const previousTailCoord = viewportStore.clientToCoord(marquee.tailEvent, { allowViewport: true });
-            const currentCoord = viewportStore.clientToCoord(e, { allowViewport: true });
+            const previousTailPixel = viewportStore.clientToIndex(marquee.tailEvent, { allowViewport: true });
+            const currentPixel = viewportStore.clientToIndex(e, { allowViewport: true });
             marquee.tailEvent = e;
-            if (previousTailCoord[0] !== currentCoord[0] || previousTailCoord[1] !== currentCoord[1])
+            if (previousTailPixel !== currentPixel)
                 previewPixels.value = getPixelsInsideMarquee();
         }
     });
@@ -102,8 +106,8 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         
         const e = viewportEvents.get('pointerup', pointer);
         if (!e || viewportEvents.pinchIds) return;
-        
-        const pixel = viewportStore.clientToCoord(e);
+
+        const pixel = viewportStore.clientToIndex(e);
         if (dragPixel.value !== null) dragPixel.value = null;
         if (pixel !== null) hoverPixel.value = pixel;
         if (previewPixels.value.length) {

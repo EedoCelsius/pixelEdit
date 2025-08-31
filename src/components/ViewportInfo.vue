@@ -12,7 +12,7 @@
 import { computed } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
-import { getPixelUnion, rgbaCssU32, rgbaCssObj } from '../utils';
+import { getPixelUnion, rgbaCssU32, rgbaCssObj, indexToCoord } from '../utils';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, input } = useStore();
 const { toolSelection: toolSelectionService, layerQuery } = useService();
@@ -23,14 +23,14 @@ const selectedAreaPixelCount = computed(() => {
   });
 
 const pixelInfo = computed(() => {
-    const coord = toolSelectionService.previewPixels[0];
-    if (!coord) return '-';
-    const [px, py] = coord;
+    const pixel = toolSelectionService.previewPixels[0];
+    if (pixel == null) return '-';
+    const [px, py] = indexToCoord(pixel);
     if (viewportStore.display === 'original' && input.isLoaded) {
-      const colorObject = input.readPixel(coord);
+      const colorObject = input.readPixel(pixel);
       return `[${px},${py}] ${rgbaCssObj(colorObject)}`;
     } else {
-      const id = layerQuery.topVisibleAt(coord);
+      const id = layerQuery.topVisibleAt(pixel);
       const colorU32 = id ? nodes.getProperty(id, 'color') : 0;
       return `[${px},${py}] ${rgbaCssU32(colorU32)}`;
     }

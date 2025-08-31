@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { useStore } from '.';
 import { useLayerPanelService } from '../services/layerPanel';
-import { packRGBA, averageColorU32 } from '../utils';
+import { packRGBA, averageColorU32, coordToIndex, indexToCoord } from '../utils';
 
 export const useInputStore = defineStore('input', {
     state: () => ({
@@ -84,22 +84,24 @@ export const useInputStore = defineStore('input', {
             }
             layerPanel.setScrollRule({ type: 'follow', target: nodeTree.layerOrder[nodeTree.layerOrder.length - 1] });
         },
-        isWithin([x, y]) {
+        isWithin(pixel) {
+            const [x, y] = indexToCoord(pixel);
             return x >= 0 && y >= 0 && x < this._width && y < this._height;
         },
-        _offset([x, y]) {
+        _offset(pixel) {
+            const [x, y] = indexToCoord(pixel);
             return ((y * this._width) + x) * 4;
         },
-        readPixel(coord) {
-            const [x, y] = coord;
-            if (!this.isLoaded || !this.isWithin(coord)) return {
+        readPixel(pixel) {
+            const [x, y] = indexToCoord(pixel);
+            if (!this.isLoaded || !this.isWithin(pixel)) return {
                 r: 0,
                 g: 0,
                 b: 0,
                 a: 0
             };
             const data = this._buffer;
-            const i = this._offset(coord);
+            const i = this._offset(pixel);
             return {
                 r: data[i],
                 g: data[i + 1],
@@ -107,9 +109,9 @@ export const useInputStore = defineStore('input', {
                 a: data[i + 3]
             };
         },
-        writePixel(coord, { r = 0, g = 0, b = 0, a = 255 } = {}) {
-            if (!this.isLoaded || !this.isWithin(coord)) return;
-            const i = this._offset(coord);
+        writePixel(pixel, { r = 0, g = 0, b = 0, a = 255 } = {}) {
+            if (!this.isLoaded || !this.isWithin(pixel)) return;
+            const i = this._offset(pixel);
             this._buffer[i] = r;
             this._buffer[i + 1] = g;
             this._buffer[i + 2] = b;
@@ -137,50 +139,51 @@ export const useInputStore = defineStore('input', {
                 for (let x = 0; x < width; x++) {
                     const flatIndex = y * width + x;
                     if (visited[flatIndex]) continue;
-                    const pixelIndex = this._offset([x, y]);
+                    const pixelOffset = this._offset(coordToIndex(x, y));
                     const seedColor = {
-                        r: data[pixelIndex],
-                        g: data[pixelIndex + 1],
-                        b: data[pixelIndex + 2],
-                        a: data[pixelIndex + 3]
+                        r: data[pixelOffset],
+                        g: data[pixelOffset + 1],
+                        b: data[pixelOffset + 2],
+                        a: data[pixelOffset + 3]
                     };
                     visited[flatIndex] = 1;
                     if (seedColor.a === 0) continue;
                     queue.length = 0;
-                    queue.push([x, y]);
+                    queue.push(coordToIndex(x, y));
                     const pixels = [];
                     const colors = [];
                     while (queue.length) {
-                        const [cx, cy] = queue.pop();
-                        const currentIndex = this._offset([cx, cy]);
-                        const currentR = data[currentIndex],
-                            currentG = data[currentIndex + 1],
-                            currentB = data[currentIndex + 2],
-                            currentA = data[currentIndex + 3];
+                        const pixel = queue.pop();
+                        const [cx, cy] = indexToCoord(pixel);
+                        const currentOffset = this._offset(pixel);
+                        const currentR = data[currentOffset],
+                            currentG = data[currentOffset + 1],
+                            currentB = data[currentOffset + 2],
+                            currentA = data[currentOffset + 3];
                         if (colorDistance({
                                 r: currentR,
                                 g: currentG,
                                 b: currentB,
                                 a: currentA
                             }, seedColor) > tolerance) continue;
-                        pixels.push([cx, cy]);
+                        pixels.push(coordToIndex(cx, cy));
                         colors.push(packRGBA({ r: currentR, g: currentG, b: currentB, a: currentA }));
                         for (const [dx, dy] of directions) {
                             const nextX = cx + dx,
                                 nextY = cy + dy;
-                            if (!this.isWithin([nextX, nextY])) continue;
+                            if (!this.isWithin(coordToIndex(nextX, nextY))) continue;
                             const nextFlatIndex = nextY * width + nextX;
                             if (visited[nextFlatIndex]) continue;
-                            const nextIndex = this._offset([nextX, nextY]);
-                            const nextAlpha = data[nextIndex + 3];
+                            const nextOffset = this._offset(coordToIndex(nextX, nextY));
+                            const nextAlpha = data[nextOffset + 3];
                             if (nextAlpha > 0 && colorDistance({
-                                    r: data[nextIndex],
-                                    g: data[nextIndex + 1],
-                                    b: data[nextIndex + 2],
+                                    r: data[nextOffset],
+                                    g: data[nextOffset + 1],
+                                    b: data[nextOffset + 2],
                                     a: nextAlpha
                                 }, seedColor) <= tolerance) {
                                 visited[nextFlatIndex] = 1;
-                                queue.push([nextX, nextY]);
+                                queue.push(coordToIndex(nextX, nextY));
                             } else if (nextAlpha === 0) {
                                 visited[nextFlatIndex] = 1;
                             }

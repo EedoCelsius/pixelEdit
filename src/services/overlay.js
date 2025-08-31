@@ -1,44 +1,44 @@
 import { defineStore } from 'pinia';
 import { computed, reactive, watch } from 'vue';
 import { useStore } from '../stores';
-import { coordToKey, keyToCoord, pixelsToUnionPath } from '../utils';
+import { pixelsToUnionPath } from '../utils';
 import { OVERLAY_STYLES } from '@/constants';
 
 export const useOverlayService = defineStore('overlayService', () => {
     const { nodeTree, pixels: pixelStore } = useStore();
 
-    const pixelKeys = reactive({});
+    const overlayPixels = reactive({});
     const styles = reactive({});
 
-    const list = computed(() => Object.keys(pixelKeys).map(id => getOverlay(id)));
+    const list = computed(() => Object.keys(overlayPixels).map(id => getOverlay(id)));
 
     function createOverlay(style = OVERLAY_STYLES.ADD) {
         const id = Math.floor(Date.now() * Math.random());
-        pixelKeys[id] = reactive(new Set());
+        overlayPixels[id] = reactive(new Set());
         styles[id] = style;
         return id;
     }
 
     function removeOverlay(id) {
-        delete pixelKeys[id];
+        delete overlayPixels[id];
         delete styles[id];
     }
 
     function clear(id) {
-        pixelKeys[id]?.clear();
+        overlayPixels[id]?.clear();
     }
 
-    function addPixels(id, coords) {
-        const keys = pixelKeys[id];
-        if (!keys) return;
-        for (const coord of coords) keys.add(coordToKey(coord));
+    function addPixels(id, pixels) {
+        const pixelSet = overlayPixels[id];
+        if (!pixelSet) return;
+        for (const pixel of pixels) pixelSet.add(pixel);
     }
 
-    function setPixels(id, coords) {
-        const keys = pixelKeys[id];
-        if (!keys) return;
-        keys.clear();
-        addPixels(id, coords);
+    function setPixels(id, pixels) {
+        const pixelSet = overlayPixels[id];
+        if (!pixelSet) return;
+        pixelSet.clear();
+        addPixels(id, pixels);
     }
 
     function addLayers(id, ids) {
@@ -60,11 +60,11 @@ export const useOverlayService = defineStore('overlayService', () => {
     }
 
     function getOverlay(id) {
-        const keys = pixelKeys[id];
-        if (!keys) return null;
-        const pixels = Array.from(keys).map(keyToCoord);
-        const path = keys.size ? pixelsToUnionPath(pixels) : '';
-        return { id: Number(id), pixelKeys: keys, pixels, path, styles: styles[id] };
+        const pixelSet = overlayPixels[id];
+        if (!pixelSet) return null;
+        const pixels = Array.from(pixelSet);
+        const path = pixelSet.size ? pixelsToUnionPath(pixels) : '';
+        return { id: Number(id), pixelSet, pixels, path, styles: styles[id] };
     }
 
     const selectionId = createOverlay(OVERLAY_STYLES.SELECTED);
@@ -76,7 +76,7 @@ export const useOverlayService = defineStore('overlayService', () => {
     watch(() => nodeTree.selectedLayerIds.slice(), rebuildSelection, { immediate: true });
 
     return {
-        pixelKeys,
+        overlayPixels,
         styles,
         list,
         createOverlay,
