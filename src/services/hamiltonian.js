@@ -34,6 +34,36 @@ function buildGraph(pixels) {
   return { nodes, neighbors, degrees, indexMap };
 }
 
+// Find connected components from an adjacency list
+function getComponents(neighbors) {
+  const n = neighbors.length;
+  const compIndex = new Int32Array(n);
+  compIndex.fill(-1);
+  const components = [];
+  let cid = 0;
+
+  for (let i = 0; i < n; i++) {
+    if (compIndex[i] !== -1) continue;
+    const stack = [i];
+    compIndex[i] = cid;
+    const comp = [];
+    while (stack.length) {
+      const node = stack.pop();
+      comp.push(node);
+      for (const nb of neighbors[node]) {
+        if (compIndex[nb] === -1) {
+          compIndex[nb] = cid;
+          stack.push(nb);
+        }
+      }
+    }
+    components.push(comp);
+    cid++;
+  }
+
+  return { components, compIndex };
+}
+
 // Core solver using backtracking to find minimum path cover
 function solve(pixels, opts = {}) {
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
@@ -111,15 +141,54 @@ function solve(pixels, opts = {}) {
 
 export const useHamiltonianService = () => {
   function traverseWithStart(pixels, start) {
-    return solve(pixels, { start });
+    const { nodes, neighbors, indexMap } = buildGraph(pixels);
+    const { components, compIndex } = getComponents(neighbors);
+    const startIdx = indexMap.get(start);
+    if (startIdx === undefined) throw new Error('Start pixel missing');
+
+    const result = [];
+    for (let i = 0; i < components.length; i++) {
+      const compPixels = components[i].map((idx) => nodes[idx]);
+      if (compIndex[startIdx] === i) {
+        result.push(...solve(compPixels, { start }));
+      } else {
+        result.push(...solve(compPixels));
+      }
+    }
+    return result;
   }
 
   function traverseWithStartEnd(pixels, start, end) {
-    return solve(pixels, { start, end });
+    const { nodes, neighbors, indexMap } = buildGraph(pixels);
+    const { components, compIndex } = getComponents(neighbors);
+    const startIdx = indexMap.get(start);
+    const endIdx = indexMap.get(end);
+    if (startIdx === undefined) throw new Error('Start pixel missing');
+    if (endIdx === undefined) throw new Error('End pixel missing');
+    if (compIndex[startIdx] !== compIndex[endIdx])
+      throw new Error('Start and end pixels are disconnected');
+
+    const result = [];
+    for (let i = 0; i < components.length; i++) {
+      const compPixels = components[i].map((idx) => nodes[idx]);
+      if (compIndex[startIdx] === i) {
+        result.push(...solve(compPixels, { start, end }));
+      } else {
+        result.push(...solve(compPixels));
+      }
+    }
+    return result;
   }
 
   function traverseFree(pixels) {
-    return solve(pixels);
+    const { nodes, neighbors } = buildGraph(pixels);
+    const { components } = getComponents(neighbors);
+    const result = [];
+    for (const comp of components) {
+      const compPixels = comp.map((idx) => nodes[idx]);
+      result.push(...solve(compPixels));
+    }
+    return result;
   }
 
   return {
