@@ -23,14 +23,14 @@ const selectedAreaPixelCount = computed(() => {
   });
 
 const pixelInfo = computed(() => {
-    const idx = toolSelectionService.previewPixels[0];
-    if (idx == null) return '-';
-    const [px, py] = indexToCoord(idx);
+    const pixel = toolSelectionService.previewPixels[0];
+    if (pixel == null) return '-';
+    const [px, py] = indexToCoord(pixel);
     if (viewportStore.display === 'original' && input.isLoaded) {
-      const colorObject = input.readPixel(idx);
+      const colorObject = input.readPixel(pixel);
       return `[${px},${py}] ${rgbaCssObj(colorObject)}`;
     } else {
-      const id = layerQuery.topVisibleAt(idx);
+      const id = layerQuery.topVisibleAt(pixel);
       const colorU32 = id ? nodes.getProperty(id, 'color') : 0;
       return `[${px},${py}] ${rgbaCssU32(colorU32)}`;
     }

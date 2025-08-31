@@ -32,11 +32,11 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     function getCursor() { return cursor[shape.value] || 'default'; }
 
     function getPixelsInsideMarquee() {
-        const startIndex = viewportStore.clientToIndex(marquee.anchorEvent, { allowViewport: true });
-        const currentIndex = viewportStore.clientToIndex(marquee.tailEvent, { allowViewport: true });
+        const startPixel = viewportStore.clientToIndex(marquee.anchorEvent, { allowViewport: true });
+        const currentPixel = viewportStore.clientToIndex(marquee.tailEvent, { allowViewport: true });
 
-        const [sx, sy] = indexToCoord(startIndex);
-        const [cx, cy] = indexToCoord(currentIndex);
+        const [sx, sy] = indexToCoord(startPixel);
+        const [cx, cy] = indexToCoord(currentPixel);
 
         const minX = Math.max(Math.min(sx, cx), 0);
         const maxX = Math.min(Math.max(sx, cx), viewportStore.stage.width - 1);
@@ -93,10 +93,10 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
             previewPixels.value = [...previewPixels.value, pixel];
         }
         else if (shape.value === 'rect') {
-            const previousTailIndex = viewportStore.clientToIndex(marquee.tailEvent, { allowViewport: true });
-            const currentIndex = viewportStore.clientToIndex(e, { allowViewport: true });
+            const previousTailPixel = viewportStore.clientToIndex(marquee.tailEvent, { allowViewport: true });
+            const currentPixel = viewportStore.clientToIndex(e, { allowViewport: true });
             marquee.tailEvent = e;
-            if (previousTailIndex !== currentIndex)
+            if (previousTailPixel !== currentPixel)
                 previewPixels.value = getPixelsInsideMarquee();
         }
     });

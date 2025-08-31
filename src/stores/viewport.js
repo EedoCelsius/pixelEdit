@@ -68,10 +68,10 @@ export const useViewportStore = defineStore('viewport', {
             for (const id of tree.layerIdsBottomToTop) {
                 const pixels = pixelStore.get(id);
                 const toRemove = [];
-                for (const index of pixels) {
-                    const [x, y] = indexToCoord(index);
+                for (const pixel of pixels) {
+                    const [x, y] = indexToCoord(pixel);
                     if (x < 0 || y < 0 || x >= newWidth || y >= newHeight) {
-                        toRemove.push(index);
+                        toRemove.push(pixel);
                     }
                 }
                 if (toRemove.length) pixelStore.removePixels(id, toRemove);

@@ -9,8 +9,8 @@ export function getPixelUnion(props = []) {
     const set = new Set();
     const layers = Array.isArray(props) ? props : [props];
     for (const layer of layers)
-        for (const index of layer.pixels)
-            set.add(index);
+        for (const pixel of layer.pixels)
+            set.add(pixel);
     return [...set];
 }
 
@@ -283,20 +283,20 @@ export function groupConnectedPixels(pixels) {
     ];
     const seen = new Set();
     const components = [];
-    for (const startIndex of pixelSet) {
-        if (seen.has(startIndex)) continue;
+    for (const startPixel of pixelSet) {
+        if (seen.has(startPixel)) continue;
         const component = [];
-        const queue = [startIndex];
-        seen.add(startIndex);
+        const queue = [startPixel];
+        seen.add(startPixel);
         while (queue.length) {
-            const currentIndex = queue.pop();
-            component.push(currentIndex);
-            const [x, y] = indexToCoord(currentIndex);
+            const currentPixel = queue.pop();
+            component.push(currentPixel);
+            const [x, y] = indexToCoord(currentPixel);
             for (const [dx, dy] of neighbors) {
-                const neighborIndex = coordToIndex(x + dx, y + dy);
-                if (pixelSet.has(neighborIndex) && !seen.has(neighborIndex)) {
-                    seen.add(neighborIndex);
-                    queue.push(neighborIndex);
+                const neighborPixel = coordToIndex(x + dx, y + dy);
+                if (pixelSet.has(neighborPixel) && !seen.has(neighborPixel)) {
+                    seen.add(neighborPixel);
+                    queue.push(neighborPixel);
                 }
             }
         }
@@ -312,8 +312,8 @@ export function buildOutline(pixels) {
     const components = groupConnectedPixels(pixels);
     for (const component of components) {
         const edges = [];
-        for (const index of component) {
-            const [x, y] = indexToCoord(index);
+        for (const pixel of component) {
+            const [x, y] = indexToCoord(pixel);
             if (!pixelSet.has(coordToIndex(x, y - 1))) edges.push([[x, y], [x + 1, y]]);
             if (!pixelSet.has(coordToIndex(x + 1, y))) edges.push([[x + 1, y], [x + 1, y + 1]]);
             if (!pixelSet.has(coordToIndex(x, y + 1))) edges.push([[x, y + 1], [x + 1, y + 1]]);

@@ -13,8 +13,8 @@ export const useLayerToolService = defineStore('layerToolService', () => {
 
         const colors = [];
         if (pixelUnion.length) {
-            for (const index of pixelUnion) {
-                const id = layerQuery.topVisibleAt(index);
+            for (const pixel of pixelUnion) {
+                const id = layerQuery.topVisibleAt(pixel);
                 colors.push(id ? nodes.getProperty(id, 'color') : 0);
             }
         } else {

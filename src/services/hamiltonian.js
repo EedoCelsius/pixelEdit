@@ -1,20 +1,20 @@
 import { indexToCoord, coordToIndex } from '../utils';
 
-// Build adjacency map for pixels with 8-way connectivity using indexes
-function buildGraph(indexes) {
-  const set = new Set(indexes);
+// Build adjacency map for pixels with 8-way connectivity
+function buildGraph(pixels) {
+  const set = new Set(pixels);
   const graph = new Map();
-  for (const index of indexes) {
-    const [x, y] = indexToCoord(index);
+  for (const pixel of pixels) {
+    const [x, y] = indexToCoord(pixel);
     const neighbors = [];
     for (let dx = -1; dx <= 1; dx++) {
       for (let dy = -1; dy <= 1; dy++) {
         if (dx === 0 && dy === 0) continue;
-        const nIndex = coordToIndex(x + dx, y + dy);
-        if (set.has(nIndex)) neighbors.push(nIndex);
+        const nPixel = coordToIndex(x + dx, y + dy);
+        if (set.has(nPixel)) neighbors.push(nPixel);
       }
     }
-    graph.set(index, neighbors);
+    graph.set(pixel, neighbors);
   }
   return graph;
 }
@@ -34,8 +34,8 @@ function chooseStart(remaining, graph) {
 }
 
 // Core solver using backtracking to find minimum path cover
-function solve(indexes, opts = {}) {
-  const graph = buildGraph(indexes);
+function solve(pixels, opts = {}) {
+  const graph = buildGraph(pixels);
   const remaining = new Set(graph.keys());
   const start = opts.start ?? null;
   const end = opts.end ?? null;
@@ -88,16 +88,16 @@ function solve(indexes, opts = {}) {
 }
 
 export const useHamiltonianService = () => {
-  function traverseWithStart(indexes, start) {
-    return solve(indexes, { start });
+  function traverseWithStart(pixels, start) {
+    return solve(pixels, { start });
   }
 
-  function traverseWithStartEnd(indexes, start, end) {
-    return solve(indexes, { start, end });
+  function traverseWithStartEnd(pixels, start, end) {
+    return solve(pixels, { start, end });
   }
 
-  function traverseFree(indexes) {
-    return solve(indexes);
+  function traverseFree(pixels) {
+    return solve(pixels);
   }
 
   return {

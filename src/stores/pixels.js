@@ -9,7 +9,7 @@ function unionSet(state, id) {
     for (const kind of PIXEL_KINDS) {
         const set = state[kind][id];
         if (!set) continue;
-        for (const index of set) merged.add(index);
+        for (const pixel of set) merged.add(pixel);
     }
     return merged;
 }
@@ -33,9 +33,9 @@ export const usePixelStore = defineStore('pixels', {
             return pixelsToUnionPath([...unionSet(state, id)]);
         },
         disconnectedCountOfLayer: (state) => (id) => {
-            const indexes = [...unionSet(state, id)];
-            if (!indexes.length) return 0;
-            return groupConnectedPixels(indexes).length;
+            const pixels = [...unionSet(state, id)];
+            if (!pixels.length) return 0;
+            return groupConnectedPixels(pixels).length;
         },
         getProperties: (state) => {
             const propsOf = (id) => ({
@@ -47,10 +47,10 @@ export const usePixelStore = defineStore('pixels', {
                 return propsOf(ids);
             };
         },
-        has: (state) => (id, index) => {
+        has: (state) => (id, pixel) => {
             for (const kind of PIXEL_KINDS) {
                 const set = state[kind][id];
-                if (set && set.has(index)) return true;
+                if (set && set.has(pixel)) return true;
             }
             return false;
         }
@@ -67,56 +67,56 @@ export const usePixelStore = defineStore('pixels', {
         },
         addPixels(id, pixels, kind = DEFAULT_KIND) {
             if (!this[kind][id]) this[kind][id] = new Set();
-            for (const index of pixels) {
-                for (const kind of PIXEL_KINDS) this[kind][id]?.delete(index);
-                this[kind][id].add(index);
+            for (const pixel of pixels) {
+                for (const kind of PIXEL_KINDS) this[kind][id]?.delete(pixel);
+                this[kind][id].add(pixel);
             }
         },
         removePixels(id, pixels) {
             for (const kind of PIXEL_KINDS) {
                 const set = this[kind][id];
                 if (!set) continue;
-                for (const index of pixels) set.delete(index);
+                for (const pixel of pixels) set.delete(pixel);
             }
         },
-        cycleKind(id, index) {
-            const idx = PIXEL_KINDS.findIndex(k => this[k][id]?.has(index));
+        cycleKind(id, pixel) {
+            const idx = PIXEL_KINDS.findIndex(k => this[k][id]?.has(pixel));
             if (idx >= 0) {
                 const current = PIXEL_KINDS[idx];
-                this[current][id].delete(index);
+                this[current][id].delete(pixel);
                 const next = PIXEL_KINDS[(idx + 1) % PIXEL_KINDS.length];
                 if (!this[next][id]) this[next][id] = new Set();
-                this[next][id].add(index);
+                this[next][id].add(pixel);
             }
             else {
                 const target = this[DEFAULT_KIND][id];
-                if (target) target.add(index);
+                if (target) target.add(pixel);
             }
         },
-        changeKind(id, index, kind) {
+        changeKind(id, pixel, kind) {
             switch (kind) {
                 case 'up': kind = 'bltl'; break;
                 case 'right': kind = 'tltr'; break;
                 case 'down': kind = 'tlbl'; break;
                 case 'left': kind = 'trtl'; break;
             }
-            const idx = PIXEL_KINDS.findIndex(k => this[k][id]?.has(index));
+            const idx = PIXEL_KINDS.findIndex(k => this[k][id]?.has(pixel));
             if (idx === -1) return;
             const current = PIXEL_KINDS[idx];
-            this[current][id].delete(index);
+            this[current][id].delete(pixel);
             if (!this[kind][id]) this[kind][id] = new Set();
-            this[kind][id].add(index);
+            this[kind][id].add(pixel);
         },
-        togglePixel(id, index) {
+        togglePixel(id, pixel) {
             for (const kind of PIXEL_KINDS) {
                 const set = this[kind][id];
-                if (set && set.has(index)) {
-                    set.delete(index);
+                if (set && set.has(pixel)) {
+                    set.delete(pixel);
                     return;
                 }
             }
             const target = this[DEFAULT_KIND][id];
-            if (target) target.add(index);
+            if (target) target.add(pixel);
         },
         translateAll(dx = 0, dy = 0) {
             dx |= 0; dy |= 0;
@@ -126,8 +126,8 @@ export const usePixelStore = defineStore('pixels', {
                 for (const id of ids) {
                     const set = this[kind][id];
                     const moved = new Set();
-                    for (const index of set) {
-                        const [x, y] = indexToCoord(index);
+                    for (const pixel of set) {
+                        const [x, y] = indexToCoord(pixel);
                         moved.add(coordToIndex(x + dx, y + dy));
                     }
                     this[kind][id] = moved;
