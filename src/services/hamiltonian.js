@@ -1,4 +1,4 @@
-import { indexToCoord, coordToIndex } from '../utils';
+import { MAX_DIMENSION } from '../utils';
 
 // Build adjacency info for pixels with 8-way connectivity
 // Returns { nodes, neighbors, degrees, indexMap }
@@ -8,13 +8,21 @@ function buildGraph(pixels) {
   const indexMap = new Map(nodes.map((p, i) => [p, i]));
   const neighbors = nodes.map(() => []);
 
+  const xs = new Int32Array(nodes.length);
+  const ys = new Int32Array(nodes.length);
   for (let i = 0; i < nodes.length; i++) {
-    const pixel = nodes[i];
-    const [x, y] = indexToCoord(pixel);
+    const p = nodes[i];
+    xs[i] = p % MAX_DIMENSION;
+    ys[i] = Math.floor(p / MAX_DIMENSION);
+  }
+
+  for (let i = 0; i < nodes.length; i++) {
+    const x = xs[i];
+    const y = ys[i];
     for (let dx = -1; dx <= 1; dx++) {
       for (let dy = -1; dy <= 1; dy++) {
         if (dx === 0 && dy === 0) continue;
-        const nPixel = coordToIndex(x + dx, y + dy);
+        const nPixel = x + dx + MAX_DIMENSION * (y + dy);
         if (set.has(nPixel)) neighbors[i].push(indexMap.get(nPixel));
       }
     }
