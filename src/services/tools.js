@@ -72,8 +72,8 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
         if (tool.prepared !== 'erase' || nodeTree.selectedLayerCount !== 1) return;
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.getProperty(sourceId, 'locked')) {
-            const sourceKeys = new Set(pixelStore.get(sourceId));
-            if (pixel != null && sourceKeys.has(pixel))
+            const sourceIndexes = new Set(pixelStore.get(sourceId));
+            if (pixel != null && sourceIndexes.has(pixel))
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
             else
                 tool.setCursor({ stroke: CURSOR_STYLE.ERASE_STROKE, rect: CURSOR_STYLE.ERASE_RECT });
@@ -82,8 +82,8 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.prepared !== 'erase' || nodeTree.selectedLayerCount !== 1) return;
         const sourceId = nodeTree.selectedLayerIds[0];
-        const sourceKeys = new Set(pixelStore.get(sourceId));
-        overlayService.setPixels(overlayId, pixels.filter(pixel => sourceKeys.has(pixel)));
+        const sourceIndexes = new Set(pixelStore.get(sourceId));
+        overlayService.setPixels(overlayId, pixels.filter(pixel => sourceIndexes.has(pixel)));
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.prepared !== 'erase' || nodeTree.selectedLayerCount !== 1) return;
@@ -116,8 +116,8 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (tool.prepared !== 'cut' || nodeTree.selectedLayerCount !== 1) return;
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.getProperty(sourceId, 'locked')) {
-            const sourceKeys = new Set(pixelStore.get(sourceId));
-            if (pixel != null && sourceKeys.has(pixel))
+            const sourceIndexes = new Set(pixelStore.get(sourceId));
+            if (pixel != null && sourceIndexes.has(pixel))
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
             else
                 tool.setCursor({ stroke: CURSOR_STYLE.CUT_STROKE, rect: CURSOR_STYLE.CUT_RECT });
@@ -131,18 +131,18 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (tool.prepared !== 'cut' || nodeTree.selectedLayerCount !== 1) return;
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.getProperty(sourceId, 'locked')) return;
-        const sourceKeys = new Set(pixelStore.get(sourceId));
+        const sourceIndexes = new Set(pixelStore.get(sourceId));
 
         const cutIndexes = [];
         const cutIndexSet = new Set();
         for (const index of pixels) {
-            if (sourceKeys.has(index) && !cutIndexSet.has(index)) {
+            if (sourceIndexes.has(index) && !cutIndexSet.has(index)) {
                 cutIndexes.push(index);
                 cutIndexSet.add(index);
             }
         }
 
-        if (!cutIndexes.length || cutIndexSet.size === sourceKeys.size) return;
+        if (!cutIndexes.length || cutIndexSet.size === sourceIndexes.size) return;
 
         pixelStore.removePixels(sourceId, cutIndexes);
         const id = nodes.createLayer({
@@ -223,12 +223,12 @@ export const useHamStartToolService = defineStore('hamStartToolService', () => {
         if (tool.prepared !== 'hamStart' || nodeTree.selectedLayerCount !== 1) return;
         if (pixels.length !== 1) return;
 
-        const [sx, sy] = indexToCoord(pixels[0]);
+        const startIndex = pixels[0];
         const layerId = nodeTree.selectedLayerIds[0];
-        if (!pixelStore.has(layerId, coordToIndex(sx, sy))) return;
+        if (!pixelStore.has(layerId, startIndex)) return;
 
-        const allPixels = pixelStore.get(layerId).map(i => { const [x, y] = indexToCoord(i); return { x, y }; });
-        const paths = hamiltonian.traverseWithStart(allPixels, { x: sx, y: sy });
+        const allPixels = pixelStore.get(layerId);
+        const paths = hamiltonian.traverseWithStart(allPixels, startIndex);
         if (!paths.length) return;
 
         const color = nodes.getProperty(layerId, 'color');
@@ -246,9 +246,9 @@ export const useHamStartToolService = defineStore('hamStartToolService', () => {
             nodeTree.append([subGroupId], groupId, false);
 
             const ids = [];
-            path.forEach((pt, j) => {
+            path.forEach((index, j) => {
                 const lid = nodes.createLayer({ name: `Pixel ${j + 1}`, color });
-                pixelStore.addPixels(lid, [coordToIndex(pt.x, pt.y)]);
+                pixelStore.addPixels(lid, [index]);
                 ids.push(lid);
             });
             nodeTree.append(ids, subGroupId, false);

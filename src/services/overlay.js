@@ -7,37 +7,37 @@ import { OVERLAY_STYLES } from '@/constants';
 export const useOverlayService = defineStore('overlayService', () => {
     const { nodeTree, pixels: pixelStore } = useStore();
 
-    const pixelKeys = reactive({});
+    const pixelIndexes = reactive({});
     const styles = reactive({});
 
-    const list = computed(() => Object.keys(pixelKeys).map(id => getOverlay(id)));
+    const list = computed(() => Object.keys(pixelIndexes).map(id => getOverlay(id)));
 
     function createOverlay(style = OVERLAY_STYLES.ADD) {
         const id = Math.floor(Date.now() * Math.random());
-        pixelKeys[id] = reactive(new Set());
+        pixelIndexes[id] = reactive(new Set());
         styles[id] = style;
         return id;
     }
 
     function removeOverlay(id) {
-        delete pixelKeys[id];
+        delete pixelIndexes[id];
         delete styles[id];
     }
 
     function clear(id) {
-        pixelKeys[id]?.clear();
+        pixelIndexes[id]?.clear();
     }
 
     function addPixels(id, indexes) {
-        const keys = pixelKeys[id];
-        if (!keys) return;
-        for (const index of indexes) keys.add(index);
+        const indexSet = pixelIndexes[id];
+        if (!indexSet) return;
+        for (const index of indexes) indexSet.add(index);
     }
 
     function setPixels(id, indexes) {
-        const keys = pixelKeys[id];
-        if (!keys) return;
-        keys.clear();
+        const indexSet = pixelIndexes[id];
+        if (!indexSet) return;
+        indexSet.clear();
         addPixels(id, indexes);
     }
 
@@ -60,11 +60,11 @@ export const useOverlayService = defineStore('overlayService', () => {
     }
 
     function getOverlay(id) {
-        const keys = pixelKeys[id];
-        if (!keys) return null;
-        const pixels = Array.from(keys);
-        const path = keys.size ? pixelsToUnionPath(pixels) : '';
-        return { id: Number(id), pixelKeys: keys, pixels, path, styles: styles[id] };
+        const indexSet = pixelIndexes[id];
+        if (!indexSet) return null;
+        const pixels = Array.from(indexSet);
+        const path = indexSet.size ? pixelsToUnionPath(pixels) : '';
+        return { id: Number(id), pixelIndexes: indexSet, pixels, path, styles: styles[id] };
     }
 
     const selectionId = createOverlay(OVERLAY_STYLES.SELECTED);
@@ -76,7 +76,7 @@ export const useOverlayService = defineStore('overlayService', () => {
     watch(() => nodeTree.selectedLayerIds.slice(), rebuildSelection, { immediate: true });
 
     return {
-        pixelKeys,
+        pixelIndexes,
         styles,
         list,
         createOverlay,

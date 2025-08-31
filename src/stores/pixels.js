@@ -9,7 +9,7 @@ function unionSet(state, id) {
     for (const kind of PIXEL_KINDS) {
         const set = state[kind][id];
         if (!set) continue;
-        for (const key of set) merged.add(key);
+        for (const index of set) merged.add(index);
     }
     return merged;
 }
