@@ -30,6 +30,8 @@ function buildGraph(pixels) {
 function solve(pixels, opts = {}) {
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
   const total = nodes.length;
+  const remaining = new Uint8Array(total);
+  remaining.fill(1);
 
   const start = opts.start != null ? indexMap.get(opts.start) : null;
   const end = opts.end != null ? indexMap.get(opts.end) : null;
@@ -40,23 +42,22 @@ function solve(pixels, opts = {}) {
   const best = { paths: null };
 
   function remove(node) {
-    const oldDeg = degrees[node];
-    degrees[node] = -1;
-    for (const nb of neighbors[node]) if (degrees[nb] >= 0) degrees[nb]--;
-    return oldDeg;
+    remaining[node] = 0;
+    for (const nb of neighbors[node]) if (remaining[nb]) degrees[nb]--;
   }
 
-  function restore(node, oldDeg) {
-    degrees[node] = oldDeg;
-    for (const nb of neighbors[node]) if (degrees[nb] >= 0) degrees[nb]++;
+  function restore(node) {
+    for (const nb of neighbors[node]) if (remaining[nb]) degrees[nb]++;
+    remaining[node] = 1;
   }
 
   function chooseStart() {
     let bestIdx = -1;
     let min = Infinity;
     for (let i = 0; i < degrees.length; i++) {
+      if (!remaining[i]) continue;
       const d = degrees[i];
-      if (d >= 0 && d < min) {
+      if (d < min) {
         min = d;
         bestIdx = i;
       }
@@ -72,21 +73,21 @@ function solve(pixels, opts = {}) {
     }
     const isFirst = acc.length === 0;
     const startNode = isFirst && start != null ? start : chooseStart();
-    const oldDeg = remove(startNode);
+    remove(startNode);
     extend(startNode, [startNode], activeCount - 1, acc, isFirst);
-    restore(startNode, oldDeg);
+    restore(startNode);
   }
 
   function extend(node, path, activeCount, acc, isFirst) {
     if (best.paths && acc.length + 1 >= best.paths.length) return;
 
     for (const nb of neighbors[node]) {
-      if (degrees[nb] < 0) continue;
-      const oldDeg = remove(nb);
+      if (!remaining[nb]) continue;
+      remove(nb);
       path.push(nb);
       extend(nb, path, activeCount - 1, acc, isFirst);
       path.pop();
-      restore(nb, oldDeg);
+      restore(nb);
     }
 
     if (!isFirst || end == null || node === end) {
