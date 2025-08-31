@@ -2,11 +2,10 @@ import { useLayerPanelService } from './layerPanel';
 import { useLayerToolService } from './layerTool';
 import { useOverlayService } from './overlay';
 import { useLayerQueryService } from './layerQuery';
-import { useDrawToolService, useEraseToolService, useTopToolService, useGlobalEraseToolService, useCutToolService, useSelectService, usePathToolService, useHamStartToolService } from './tools';
+import { useDrawToolService, useEraseToolService, useTopToolService, useGlobalEraseToolService, useCutToolService, useSelectService, usePathToolService } from './tools';
 import { useToolSelectionService } from './toolSelection';
 import { useViewportService } from './viewport';
 import { useStageResizeService } from './stageResize';
-import { useHamiltonianService } from './hamiltonian';
 
 export {
     useLayerPanelService,
@@ -20,11 +19,9 @@ export {
     usePathToolService,
     useGlobalEraseToolService,
     useCutToolService,
-    useHamStartToolService,
     useToolSelectionService,
     useViewportService,
-    useStageResizeService,
-    useHamiltonianService
+    useStageResizeService
 };
 
 export const useService = () => ({
@@ -40,10 +37,8 @@ export const useService = () => ({
         path: usePathToolService(),
         cut: useCutToolService(),
         top: useTopToolService(),
-        hamStart: useHamStartToolService(),
     },
     toolSelection: useToolSelectionService(),
     viewport: useViewportService(),
-    stageResize: useStageResizeService(),
-    hamiltonian: useHamiltonianService()
+    stageResize: useStageResizeService()
 });
