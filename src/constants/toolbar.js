@@ -5,7 +5,6 @@ export const SINGLE_SELECTION_TOOLS = [
   { type: 'erase', name: 'Erase', icon: stageIcons.erase },
   { type: 'cut', name: 'Cut', icon: stageIcons.cut },
   { type: 'top', name: 'To Top', icon: stageIcons.top },
-  { type: 'hamStart', name: 'Hamilton', label: 'H' },
 ];
 
 export const MULTI_SELECTION_TOOLS = [
