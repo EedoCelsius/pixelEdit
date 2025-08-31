@@ -8,6 +8,7 @@ import { useStore } from '../stores';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
 import { coordToKey, keyToCoord, ensurePathPattern } from '../utils';
 import { PIXEL_KINDS } from '../stores/pixels';
+import { usePixelTraversalService } from './pixelTraversal';
 
 export const useDrawToolService = defineStore('drawToolService', () => {
     const tool = useToolSelectionService();
@@ -204,6 +205,57 @@ export const useTopToolService = defineStore('topToolService', () => {
             layerPanel.setScrollRule({ type: 'follow', target: id });
             tool.setCursor({ stroke: CURSOR_STYLE.TOP, rect: CURSOR_STYLE.TOP });
         }
+    });
+    return {};
+});
+
+export const useTraceToolService = defineStore('traceToolService', () => {
+    const tool = useToolSelectionService();
+    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const pixelTraversal = usePixelTraversalService();
+    let start = null;
+    let end = null;
+    watch(() => tool.prepared === 'trace', (isTrace) => {
+        if (!isTrace) { start = null; end = null; }
+    });
+    watch(() => tool.dragPixel, (pixel) => {
+        if (tool.prepared !== 'trace') return;
+        if (pixel && !start) start = pixel;
+        if (pixel) end = pixel;
+    });
+    watch(() => tool.affectedPixels, () => {
+        if (tool.prepared !== 'trace') return;
+        if (!start || !end || nodeTree.selectedLayerCount !== 1) { start = null; end = null; return; }
+        const sourceId = nodeTree.selectedLayerIds[0];
+        if (nodes.getProperty(sourceId, 'locked')) { start = null; end = null; return; }
+        const layerPixels = pixelStore.get(sourceId);
+        const paths = pixelTraversal.traverseWithStartEnd(layerPixels, start, end);
+        const ordered = paths.flat();
+        if (!ordered.length) { start = null; end = null; return; }
+        const name = nodes.getProperty(sourceId, 'name');
+        const color = nodes.getProperty(sourceId, 'color');
+        const visibility = nodes.getProperty(sourceId, 'visibility');
+        const attrs = nodes.getProperty(sourceId, 'attributes');
+        const groupId = nodes.createGroup({ name: `${name} Trace` });
+        const newIds = ordered.map((coord, idx) => {
+            const id = nodes.createLayer({
+                name: `${name} #${idx + 1}`,
+                color,
+                visibility,
+                attributes: attrs,
+            });
+            pixelStore.set(id, [coord]);
+            return id;
+        });
+        const originalIndex = nodeTree.indexOfLayer(sourceId);
+        const removed = nodeTree.remove([sourceId]);
+        nodes.remove(removed);
+        pixelStore.remove(removed);
+        const target = nodeTree.layerIdsBottomToTop[originalIndex];
+        nodeTree.insert([groupId], target, true);
+        nodeTree.append(newIds, groupId, false);
+        nodeTree.replaceSelection([groupId]);
+        start = null; end = null;
     });
     return {};
 });
