@@ -69,6 +69,7 @@ const DP_THRESHOLD = 20;
 // Dynamic programming solver for Hamiltonian path using bitmasks
 // Returns an array with a single path (or empty if no path exists)
 function solveDP(pixels, opts = {}) {
+  console.log("dp!")
   const { nodes, neighbors, indexMap } = buildGraph(pixels);
   const n = nodes.length;
   if (n === 0) return [];
@@ -224,7 +225,7 @@ export const useHamiltonianService = () => {
     const result = [];
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
-      const solver = compPixels.length <= DP_THRESHOLD ? solveDP : solve;
+      const solver = compPixels.length <= DP_THRESHOLD ? solve : solveDP;
       if (compIndex[startIdx] === i) {
         result.push(...solver(compPixels, { start }));
       } else {
