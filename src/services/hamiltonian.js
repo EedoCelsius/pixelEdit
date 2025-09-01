@@ -1,6 +1,5 @@
 import { instantiate } from '@assemblyscript/loader';
 
-// Load wasm module at module initialization time using a relative path
 const wasmModule = await instantiate(fetch('hamiltonian.wasm'));
 const {
   traverseWithStart: wasmTraverseWithStart,
