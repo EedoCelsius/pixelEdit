@@ -34,25 +34,6 @@ function buildGraph(pixels) {
   return { nodes, neighbors, degrees, indexMap };
 }
 
-// Attempt to split graph at a degree-2 vertex. If removing the vertex
-// disconnects the graph into two components we treat each component as a tile
-// and later stitch the solutions together.
-function splitByDegreeTwo(pixels) {
-  const { nodes, neighbors, degrees } = buildGraph(pixels);
-  for (let i = 0; i < nodes.length; i++) {
-    if (degrees[i] !== 2) continue;
-    // create a copy of neighbors without vertex i
-    const cloned = neighbors.map((nbs) => nbs.filter((n) => n !== i));
-    cloned[i] = [];
-    const { components } = getComponents(cloned);
-    if (components.length === 2) {
-      const tiles = components.map((comp) => comp.map((idx) => nodes[idx]));
-      return { pivot: nodes[i], tiles };
-    }
-  }
-  return null;
-}
-
 // Find connected components from an adjacency list
 function getComponents(neighbors) {
   const n = neighbors.length;
@@ -158,65 +139,6 @@ function solve(pixels, opts = {}) {
   return best.paths ? best.paths.map((p) => p.map((i) => nodes[i])) : [];
 }
 
-// Wrapper around the core solver that introduces two heuristics for large
-// graphs:
-// 1. Split the graph at degree-2 vertices and stitch the solutions.
-// 2. Handle clusters of high degree (>=6) pixels separately and insert their
-//    paths back into the base solution.
-function solveTiled(pixels, opts = {}) {
-  const split = splitByDegreeTwo(pixels);
-  if (split) {
-    const left = solve([...split.tiles[0], split.pivot], { end: split.pivot });
-    const right = solve([...split.tiles[1], split.pivot], { start: split.pivot });
-    if (left.length && right.length) {
-      const stitched = [left[0].concat(right[0].slice(1))];
-      stitched.push(...left.slice(1));
-      stitched.push(...right.slice(1));
-      return stitched;
-    }
-  }
-
-  const { nodes, neighbors, degrees } = buildGraph(pixels);
-  const high = new Set();
-  for (let i = 0; i < nodes.length; i++) if (degrees[i] >= 6) high.add(i);
-  if (high.size) {
-    const visited = new Set();
-    const tilePixels = [];
-    const tileIndexSet = new Set();
-    for (const i of high) {
-      if (visited.has(i)) continue;
-      const stack = [i];
-      visited.add(i);
-      const comp = [];
-      while (stack.length) {
-        const v = stack.pop();
-        comp.push(v);
-        for (const nb of neighbors[v]) {
-          if (high.has(nb) && !visited.has(nb)) {
-            visited.add(nb);
-            stack.push(nb);
-          }
-        }
-      }
-      const filtered = comp.filter((idx) => degrees[idx] >= 3);
-      if (filtered.length) {
-        filtered.forEach((idx) => tileIndexSet.add(idx));
-        tilePixels.push(filtered.map((idx) => nodes[idx]));
-      }
-    }
-
-    const basePixels = nodes.filter((_, idx) => !tileIndexSet.has(idx));
-    let result = solve(basePixels, opts);
-    for (const t of tilePixels) {
-      const tPaths = solve(t);
-      result.splice(1, 0, ...tPaths);
-    }
-    return result;
-  }
-
-  return solve(pixels, opts);
-}
-
 export const useHamiltonianService = () => {
   function traverseWithStart(pixels, start) {
     const { nodes, neighbors, indexMap } = buildGraph(pixels);
@@ -228,9 +150,9 @@ export const useHamiltonianService = () => {
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
       if (compIndex[startIdx] === i) {
-        result.push(...solveTiled(compPixels, { start }));
+        result.push(...solve(compPixels, { start }));
       } else {
-        result.push(...solveTiled(compPixels));
+        result.push(...solve(compPixels));
       }
     }
     return result;
@@ -250,9 +172,9 @@ export const useHamiltonianService = () => {
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
       if (compIndex[startIdx] === i) {
-        result.push(...solveTiled(compPixels, { start, end }));
+        result.push(...solve(compPixels, { start, end }));
       } else {
-        result.push(...solveTiled(compPixels));
+        result.push(...solve(compPixels));
       }
     }
     return result;
@@ -264,7 +186,7 @@ export const useHamiltonianService = () => {
     const result = [];
     for (const comp of components) {
       const compPixels = comp.map((idx) => nodes[idx]);
-      result.push(...solveTiled(compPixels));
+      result.push(...solve(compPixels));
     }
     return result;
   }
