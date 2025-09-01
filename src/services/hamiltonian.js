@@ -64,6 +64,80 @@ function getComponents(neighbors) {
   return { components, compIndex };
 }
 
+// Try to split graph at a degree-2 articulation point.
+// Returns { node, left, right } where left/right are arrays of indices
+// belonging to each side of the split. If no such split exists, returns null.
+function findDegree2Split(neighbors) {
+  const n = neighbors.length;
+  for (let v = 0; v < n; v++) {
+    if (neighbors[v].length !== 2) continue;
+    const [a, b] = neighbors[v];
+    const visited = new Set([v]);
+
+    // explore from first neighbor without crossing v
+    const left = [];
+    const stack = [a];
+    visited.add(a);
+    while (stack.length) {
+      const node = stack.pop();
+      left.push(node);
+      for (const nb of neighbors[node]) {
+        if (nb === v || visited.has(nb)) continue;
+        visited.add(nb);
+        stack.push(nb);
+      }
+    }
+    // if second neighbor reached, not a valid split
+    if (visited.has(b)) continue;
+
+    // explore from second neighbor
+    const right = [];
+    stack.push(b);
+    visited.add(b);
+    while (stack.length) {
+      const node = stack.pop();
+      right.push(node);
+      for (const nb of neighbors[node]) {
+        if (nb === v || visited.has(nb)) continue;
+        visited.add(nb);
+        stack.push(nb);
+      }
+    }
+
+    // ensure all nodes accounted for
+    if (visited.size === n) {
+      return { node: v, left, right };
+    }
+  }
+  return null;
+}
+
+// Extract clusters of high degree nodes to solve separately.
+// threshold: minimum degree to consider a node part of a cluster
+// keep: only nodes with degree >= keep are included in clusters
+function extractHighDegreeClusters(neighbors, degrees, threshold = 6, keep = 3) {
+  const n = neighbors.length;
+  const visited = new Uint8Array(n);
+  const clusters = [];
+  for (let i = 0; i < n; i++) {
+    if (visited[i] || degrees[i] < threshold) continue;
+    const stack = [i];
+    const cluster = [];
+    visited[i] = 1;
+    while (stack.length) {
+      const node = stack.pop();
+      if (degrees[node] >= keep) cluster.push(node);
+      for (const nb of neighbors[node]) {
+        if (visited[nb] || degrees[nb] < threshold) continue;
+        visited[nb] = 1;
+        stack.push(nb);
+      }
+    }
+    if (cluster.length) clusters.push(cluster);
+  }
+  return clusters;
+}
+
 // Core solver using backtracking to find minimum path cover
 function solve(pixels, opts = {}) {
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
@@ -76,6 +150,73 @@ function solve(pixels, opts = {}) {
 
   if (opts.start != null && start === undefined) throw new Error('Start pixel missing');
   if (opts.end != null && end === undefined) throw new Error('End pixel missing');
+
+  // Pre-processing: split at degree-2 articulation points when no start/end specified
+  if (!opts.skipDegree2 && opts.start == null && opts.end == null) {
+    const split = findDegree2Split(neighbors);
+    if (split) {
+      const nodePixel = nodes[split.node];
+      const leftPixels = split.left.map((i) => nodes[i]).concat(nodePixel);
+      const rightPixels = split.right.map((i) => nodes[i]).concat(nodePixel);
+      const leftPaths = solve(leftPixels, { skipClusters: opts.skipClusters });
+      const rightPaths = solve(rightPixels, { skipClusters: opts.skipClusters });
+      let l = leftPaths.shift() || [nodePixel];
+      if (l[0] !== nodePixel) l = l.slice().reverse();
+      let r = rightPaths.shift() || [nodePixel];
+      if (r[0] !== nodePixel) r = r.slice().reverse();
+      const stitched = l.concat(r.slice(1));
+      return [stitched, ...leftPaths, ...rightPaths];
+    }
+  }
+
+  // Pre-processing: extract clusters of high degree nodes
+  if (!opts.skipClusters && opts.start == null && opts.end == null) {
+    const clusters = extractHighDegreeClusters(neighbors, degrees);
+    if (clusters.length) {
+      const clusterSet = new Set();
+      for (const c of clusters) for (const v of c) clusterSet.add(v);
+      const mainPixels = [];
+      for (let i = 0; i < nodes.length; i++) if (!clusterSet.has(i)) mainPixels.push(nodes[i]);
+      let mainPaths = mainPixels.length ? solve(mainPixels, opts) : [];
+
+      clusters.forEach((cluster) => {
+        const clusterPixels = cluster.map((i) => nodes[i]);
+        const clusterPaths = solve(clusterPixels, { ...opts, skipClusters: true });
+        if (!clusterPaths.length) return;
+        const clusterIndexSet = new Set(cluster);
+        let inserted = false;
+        for (const ci of cluster) {
+          for (const nb of neighbors[ci]) {
+            if (clusterIndexSet.has(nb)) continue;
+            const outsidePixel = nodes[nb];
+            let idx = clusterPaths.findIndex((p) => p.includes(nodes[ci]));
+            let primary = idx !== -1 ? clusterPaths.splice(idx, 1)[0] : clusterPaths.shift();
+            if (primary[0] !== nodes[ci]) {
+              if (primary[primary.length - 1] === nodes[ci]) primary = primary.slice().reverse();
+              else primary.unshift(nodes[ci]);
+            }
+            for (const path of mainPaths) {
+              const pos = path.indexOf(outsidePixel);
+              if (pos !== -1) {
+                path.splice(pos + 1, 0, ...primary);
+                inserted = true;
+                break;
+              }
+            }
+            if (!inserted) {
+              mainPaths.push(primary);
+            }
+            inserted = true;
+            break;
+          }
+          if (inserted) break;
+        }
+        if (!inserted) mainPaths.push(...clusterPaths);
+        else if (clusterPaths.length) mainPaths.push(...clusterPaths);
+      });
+      return mainPaths;
+    }
+  }
 
   const best = { paths: null };
 
