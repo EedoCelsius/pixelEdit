@@ -65,7 +65,7 @@ function getComponents(neighbors) {
 }
 
 // Core solver using backtracking to find minimum path cover
-function solve(pixels, opts = {}) {
+function solveExact(pixels, opts = {}) {
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
   const total = nodes.length;
   const remaining = new Uint8Array(total);
@@ -137,6 +137,122 @@ function solve(pixels, opts = {}) {
 
   search(total, []);
   return best.paths ? best.paths.map((p) => p.map((i) => nodes[i])) : [];
+}
+
+// Apply heuristics before resorting to exact solver
+function solve(pixels, opts = {}) {
+  if (opts.start != null || opts.end != null) return solveExact(pixels, opts);
+
+  const { nodes, neighbors, degrees } = buildGraph(pixels);
+
+  const split = splitByDegreeTwo(nodes, neighbors, degrees);
+  if (split) return split;
+
+  const tiled = splitHighDegreeTiles(nodes, neighbors, degrees);
+  if (tiled) return tiled;
+
+  return solveExact(pixels, opts);
+}
+
+function splitByDegreeTwo(nodes, neighbors, degrees) {
+  for (let i = 0; i < nodes.length; i++) {
+    if (degrees[i] !== 2) continue;
+    const visited = new Array(nodes.length).fill(false);
+    visited[i] = true;
+    const comps = [];
+    for (let j = 0; j < nodes.length; j++) {
+      if (visited[j]) continue;
+      const stack = [j];
+      visited[j] = true;
+      const comp = [];
+      while (stack.length) {
+        const node = stack.pop();
+        comp.push(node);
+        for (const nb of neighbors[node]) {
+          if (nb === i || visited[nb]) continue;
+          visited[nb] = true;
+          stack.push(nb);
+        }
+      }
+      comps.push(comp);
+    }
+    if (comps.length === 2) {
+      const center = nodes[i];
+      const left = comps[0].map((idx) => nodes[idx]);
+      const right = comps[1].map((idx) => nodes[idx]);
+      const leftPaths = solve(left);
+      const rightPaths = solve(right);
+      return [...leftPaths, [center], ...rightPaths];
+    }
+  }
+  return null;
+}
+
+function splitHighDegreeTiles(nodes, neighbors, degrees) {
+  const high = new Set();
+  for (let i = 0; i < nodes.length; i++) if (degrees[i] >= 6) high.add(i);
+  if (high.size === 0) return null;
+
+  const visited = new Array(nodes.length).fill(false);
+  const clusters = [];
+  for (const i of high) {
+    if (visited[i]) continue;
+    const stack = [i];
+    visited[i] = true;
+    const comp = [];
+    while (stack.length) {
+      const node = stack.pop();
+      comp.push(node);
+      for (const nb of neighbors[node]) {
+        if (visited[nb]) continue;
+        if (degrees[nb] >= 3) {
+          visited[nb] = true;
+          stack.push(nb);
+        }
+      }
+    }
+    clusters.push(comp);
+  }
+  if (!clusters.length) return null;
+
+  const clusterSet = new Set(clusters.flat());
+  const remaining = [];
+  for (let i = 0; i < nodes.length; i++) {
+    if (!clusterSet.has(i)) remaining.push(nodes[i]);
+  }
+
+  let basePaths = solve(remaining);
+
+  for (const comp of clusters) {
+    const tilePixels = comp.map((idx) => nodes[idx]);
+    const tilePaths = solve(tilePixels);
+    let external = null;
+    for (const idx of comp) {
+      for (const nb of neighbors[idx]) {
+        if (!clusterSet.has(nb)) {
+          external = nodes[nb];
+          break;
+        }
+      }
+      if (external) break;
+    }
+    let inserted = false;
+    if (external != null) {
+      for (const path of basePaths) {
+        const pos = path.indexOf(external);
+        if (pos !== -1) {
+          const main = tilePaths.shift() || [];
+          if (main.length) path.splice(pos + 1, 0, ...main);
+          if (tilePaths.length) basePaths.push(...tilePaths);
+          inserted = true;
+          break;
+        }
+      }
+    }
+    if (!inserted) basePaths.push(...tilePaths);
+  }
+
+  return basePaths;
 }
 
 export const useHamiltonianService = () => {
