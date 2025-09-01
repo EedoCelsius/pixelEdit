@@ -64,81 +64,6 @@ function getComponents(neighbors) {
   return { components, compIndex };
 }
 
-const DP_THRESHOLD = 20;
-
-// Dynamic programming solver for Hamiltonian path using bitmasks
-// Returns an array with a single path (or empty if no path exists)
-function solveDP(pixels, opts = {}) {
-  const { nodes, neighbors, indexMap } = buildGraph(pixels);
-  const n = nodes.length;
-  if (n === 0) return [];
-
-  const start = opts.start != null ? indexMap.get(opts.start) : null;
-  const end = opts.end != null ? indexMap.get(opts.end) : null;
-
-  if (opts.start != null && start === undefined) throw new Error('Start pixel missing');
-  if (opts.end != null && end === undefined) throw new Error('End pixel missing');
-
-  const size = 1 << n;
-  const INF = 1e9;
-  const dist = new Int32Array(size * n);
-  dist.fill(INF);
-  const prev = new Int16Array(size * n);
-  prev.fill(-1);
-
-  if (start != null) {
-    dist[(1 << start) * n + start] = 0;
-  } else {
-    for (let i = 0; i < n; i++) dist[(1 << i) * n + i] = 0;
-  }
-
-  for (let mask = 0; mask < size; mask++) {
-    for (let v = 0; v < n; v++) {
-      const idx = mask * n + v;
-      if (!(mask & (1 << v)) || dist[idx] === INF) continue;
-      for (const nb of neighbors[v]) {
-        const bit = 1 << nb;
-        if (mask & bit) continue;
-        const nextMask = mask | bit;
-        const nextIdx = nextMask * n + nb;
-        const nd = dist[idx] + 1;
-        if (nd < dist[nextIdx]) {
-          dist[nextIdx] = nd;
-          prev[nextIdx] = v;
-        }
-      }
-    }
-  }
-
-  const fullMask = size - 1;
-  let endV = end;
-  if (endV == null) {
-    let best = INF;
-    for (let v = 0; v < n; v++) {
-      const d = dist[fullMask * n + v];
-      if (d < best) {
-        best = d;
-        endV = v;
-      }
-    }
-    if (best === INF) return [];
-  } else if (dist[fullMask * n + endV] === INF) {
-    return [];
-  }
-
-  const path = [];
-  let mask = fullMask;
-  let v = endV;
-  while (v !== -1) {
-    path.push(v);
-    const pv = prev[mask * n + v];
-    mask ^= 1 << v;
-    v = pv;
-  }
-  path.reverse();
-  return [path.map((i) => nodes[i])];
-}
-
 // Core solver using backtracking to find minimum path cover
 function solve(pixels, opts = {}) {
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
@@ -224,11 +149,10 @@ export const useHamiltonianService = () => {
     const result = [];
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
-      const solver = compPixels.length <= DP_THRESHOLD ? solveDP : solve;
       if (compIndex[startIdx] === i) {
-        result.push(...solver(compPixels, { start }));
+        result.push(...solve(compPixels, { start }));
       } else {
-        result.push(...solver(compPixels));
+        result.push(...solve(compPixels));
       }
     }
     return result;
@@ -247,11 +171,10 @@ export const useHamiltonianService = () => {
     const result = [];
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
-      const solver = compPixels.length <= DP_THRESHOLD ? solveDP : solve;
       if (compIndex[startIdx] === i) {
-        result.push(...solver(compPixels, { start, end }));
+        result.push(...solve(compPixels, { start, end }));
       } else {
-        result.push(...solver(compPixels));
+        result.push(...solve(compPixels));
       }
     }
     return result;
@@ -263,8 +186,7 @@ export const useHamiltonianService = () => {
     const result = [];
     for (const comp of components) {
       const compPixels = comp.map((idx) => nodes[idx]);
-      const solver = compPixels.length <= DP_THRESHOLD ? solveDP : solve;
-      result.push(...solver(compPixels));
+      result.push(...solve(compPixels));
     }
     return result;
   }
