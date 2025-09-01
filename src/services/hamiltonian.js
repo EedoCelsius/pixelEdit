@@ -34,153 +34,6 @@ function buildGraph(pixels) {
   return { nodes, neighbors, degrees, indexMap };
 }
 
-// Remove leaf nodes and collapse degree-2 chains while keeping
-// mapping back to the original pixel indices.  Returns the reduced
-// graph along with structures to reconstruct paths.
-function reduceGraph(graph) {
-  const { nodes, neighbors, degrees } = graph;
-  const n = nodes.length;
-  const active = new Uint8Array(n);
-  active.fill(1);
-  const deg = degrees.slice();
-
-  // For each active node we keep the chains from removed leaves that end here.
-  const chains = Array.from({ length: n }, () => []);
-  const queue = [];
-  for (let i = 0; i < n; i++) if (deg[i] === 1) queue.push(i);
-
-  // Peel off degree-1 nodes, propagating chains toward the core graph.
-  while (queue.length) {
-    const u = queue.pop();
-    if (!active[u] || deg[u] !== 1) continue;
-    let v = -1;
-    for (const nb of neighbors[u]) if (active[nb]) v = nb;
-    if (v === -1) {
-      active[u] = 0;
-      continue;
-    }
-
-    let uChains = chains[u];
-    if (uChains.length === 0) uChains = [[nodes[u]]];
-    else uChains = uChains.map((c) => c.concat(nodes[u]));
-    for (const c of uChains) chains[v].push(c.concat(nodes[v]));
-
-    active[u] = 0;
-    deg[u] = 0;
-    neighbors[v] = neighbors[v].filter((nb) => nb !== u);
-    deg[v]--;
-    if (deg[v] === 1) queue.push(v);
-  }
-
-  // Build mapping for remaining nodes
-  const mapOldToNew = new Map();
-  const newNodes = [];
-  for (let i = 0; i < n; i++) {
-    if (active[i]) {
-      mapOldToNew.set(i, newNodes.length);
-      newNodes.push(nodes[i]);
-    }
-  }
-
-  const newNeighbors = newNodes.map(() => []);
-  const edgeMap = new Map();
-  const edgeKey = (a, b) => (a < b ? `${a},${b}` : `${b},${a}`);
-  const visited = new Set();
-
-  // Traverse remaining structure collapsing degree-2 chains.
-  for (let i = 0; i < n; i++) {
-    if (!active[i]) continue;
-    const ni = mapOldToNew.get(i);
-    for (const nb of neighbors[i]) {
-      if (!active[nb]) continue;
-      const key = edgeKey(i, nb);
-      if (visited.has(key)) continue;
-      visited.add(key);
-
-      let path = [nodes[i]];
-      let prev = i;
-      let curr = nb;
-      while (active[curr] && deg[curr] === 2 && curr !== i) {
-        path.push(nodes[curr]);
-        const [a, b] = neighbors[curr];
-        const next = a === prev ? b : a;
-        prev = curr;
-        curr = next;
-      }
-      path.push(nodes[curr]);
-
-      const nj = mapOldToNew.get(curr);
-      if (nj === undefined) continue;
-
-      newNeighbors[ni].push(nj);
-      newNeighbors[nj].push(ni);
-      edgeMap.set(`${nodes[i]},${nodes[curr]}`, path.slice());
-      edgeMap.set(`${nodes[curr]},${nodes[i]}`, path.slice().reverse());
-    }
-  }
-
-  const leafMap = new Map();
-  for (let i = 0; i < n; i++) {
-    if (!active[i]) continue;
-    const ni = mapOldToNew.get(i);
-    if (chains[i].length) leafMap.set(ni, chains[i]);
-  }
-
-  const indexMap = new Map(newNodes.map((p, i) => [p, i]));
-
-  // Map any removed pixel to its root index for start/end lookups.
-  for (const [ni, arr] of leafMap.entries()) {
-    for (const chain of arr) {
-      for (let k = 0; k < chain.length - 1; k++) indexMap.set(chain[k], ni);
-    }
-  }
-  for (const path of edgeMap.values()) {
-    const ni = indexMap.get(path[0]);
-    for (let k = 1; k < path.length - 1; k++) indexMap.set(path[k], ni);
-  }
-
-  const degs = newNeighbors.map((nbs) => nbs.length);
-  for (const nbs of newNeighbors) nbs.sort((a, b) => degs[a] - degs[b]);
-
-  return { nodes: newNodes, neighbors: newNeighbors, degrees: degs, indexMap, edgeMap, leafMap };
-}
-
-// Expand paths on the reduced graph back to the original pixels.
-function expandPaths(paths, nodes, edgeMap, leafMap) {
-  const expanded = paths.map((p) => {
-    const res = [nodes[p[0]]];
-    for (let i = 1; i < p.length; i++) {
-      const a = nodes[p[i - 1]];
-      const b = nodes[p[i]];
-      const edge = edgeMap.get(`${a},${b}`);
-      if (edge) {
-        for (let j = 1; j < edge.length; j++) res.push(edge[j]);
-      } else {
-        res.push(b);
-      }
-    }
-    return res;
-  });
-
-  for (const [idx, chains] of leafMap.entries()) {
-    const root = nodes[idx];
-    let attached = false;
-    for (const path of expanded) {
-      if (path[0] === root) {
-        for (const c of chains) path.unshift(...c.slice(0, -1).reverse());
-        attached = true;
-        break;
-      } else if (path[path.length - 1] === root) {
-        for (const c of chains) path.push(...c.slice(0, -1));
-        attached = true;
-        break;
-      }
-    }
-    if (!attached) for (const c of chains) expanded.push(c);
-  }
-  return expanded;
-}
-
 // Find connected components from an adjacency list
 function getComponents(neighbors) {
   const n = neighbors.length;
@@ -213,8 +66,7 @@ function getComponents(neighbors) {
 
 // Core solver using backtracking to find minimum path cover
 function solve(pixels, opts = {}) {
-  const reduced = reduceGraph(buildGraph(pixels));
-  const { nodes, neighbors, degrees, indexMap, edgeMap, leafMap } = reduced;
+  const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
   const total = nodes.length;
   const remaining = new Uint8Array(total);
   remaining.fill(1);
@@ -284,7 +136,7 @@ function solve(pixels, opts = {}) {
   }
 
   search(total, []);
-  return best.paths ? expandPaths(best.paths, nodes, edgeMap, leafMap) : [];
+  return best.paths ? best.paths.map((p) => p.map((i) => nodes[i])) : [];
 }
 
 export const useHamiltonianService = () => {
