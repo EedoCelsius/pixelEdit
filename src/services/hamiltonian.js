@@ -64,11 +64,12 @@ function getComponents(neighbors) {
   return { components, compIndex };
 }
 
-// Core solver using beam search based Viterbi-style DP
-// Returns an array containing the best path found
+// Core solver using backtracking to find minimum path cover
 function solve(pixels, opts = {}) {
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
   const total = nodes.length;
+  const remaining = new Uint8Array(total);
+  remaining.fill(1);
 
   const start = opts.start != null ? indexMap.get(opts.start) : null;
   const end = opts.end != null ? indexMap.get(opts.end) : null;
@@ -76,63 +77,66 @@ function solve(pixels, opts = {}) {
   if (opts.start != null && start === undefined) throw new Error('Start pixel missing');
   if (opts.end != null && end === undefined) throw new Error('End pixel missing');
 
-  const beamWidth = opts.beamWidth != null ? opts.beamWidth : 50;
+  const best = { paths: null };
 
-  // Initialise beam with either the provided start or all possible starts
-  let beam = [];
-  if (start != null) {
-    beam.push({ node: start, mask: 1n << BigInt(start), path: [start], score: degrees[start] });
-  } else {
-    for (let i = 0; i < total; i++) {
-      beam.push({ node: i, mask: 1n << BigInt(i), path: [i], score: degrees[i] });
-    }
+  function remove(node) {
+    remaining[node] = 0;
+    for (const nb of neighbors[node]) if (remaining[nb]) degrees[nb]--;
   }
 
-  // Main DP loop
-  for (let step = 1; step < total; step++) {
-    const next = [];
-    for (const state of beam) {
-      for (const nb of neighbors[state.node]) {
-        const bit = 1n << BigInt(nb);
-        if ((state.mask & bit) !== 0n) continue;
-        next.push({
-          node: nb,
-          mask: state.mask | bit,
-          path: [...state.path, nb],
-          score: state.score + degrees[nb],
-        });
+  function restore(node) {
+    for (const nb of neighbors[node]) if (remaining[nb]) degrees[nb]++;
+    remaining[node] = 1;
+  }
+
+  function chooseStart() {
+    let bestIdx = -1;
+    let min = Infinity;
+    for (let i = 0; i < degrees.length; i++) {
+      if (!remaining[i]) continue;
+      const d = degrees[i];
+      if (d < min) {
+        min = d;
+        bestIdx = i;
       }
     }
-    if (next.length === 0) break;
-    next.sort((a, b) => a.score - b.score);
-    beam = next.slice(0, beamWidth);
+    return bestIdx;
   }
 
-  // Select best candidate: longest path, respecting end if provided
-  let best = null;
-  for (const state of beam) {
-    if (!best) {
-      best = state;
-      continue;
+  function search(activeCount, acc) {
+    if (best.paths && acc.length >= best.paths.length) return;
+    if (activeCount === 0) {
+      best.paths = acc.map((p) => p.slice());
+      return;
     }
-    if (state.path.length > best.path.length) {
-      best = state;
-    } else if (state.path.length === best.path.length) {
-      if (end != null) {
-        if (state.node === end && best.node !== end) best = state;
-      } else if (state.score < best.score) {
-        best = state;
-      }
+    const isFirst = acc.length === 0;
+    const startNode = isFirst && start != null ? start : chooseStart();
+    remove(startNode);
+    extend(startNode, [startNode], activeCount - 1, acc, isFirst);
+    restore(startNode);
+  }
+
+  function extend(node, path, activeCount, acc, isFirst) {
+    if (best.paths && acc.length + 1 >= best.paths.length) return;
+
+    for (const nb of neighbors[node]) {
+      if (!remaining[nb]) continue;
+      remove(nb);
+      path.push(nb);
+      extend(nb, path, activeCount - 1, acc, isFirst);
+      path.pop();
+      restore(nb);
+    }
+
+    if (!isFirst || end == null || node === end) {
+      acc.push(path.slice());
+      search(activeCount, acc);
+      acc.pop();
     }
   }
 
-  if (!best) return [];
-  if (end != null && best.node !== end) {
-    const candidate = beam.find((s) => s.node === end && s.path.length === best.path.length);
-    if (candidate) best = candidate;
-  }
-
-  return [best.path.map((i) => nodes[i])];
+  search(total, []);
+  return best.paths ? best.paths.map((p) => p.map((i) => nodes[i])) : [];
 }
 
 export const useHamiltonianService = () => {
