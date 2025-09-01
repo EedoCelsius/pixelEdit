@@ -3,8 +3,6 @@ import { MAX_DIMENSION } from '../utils';
 // Build adjacency info for pixels with 8-way connectivity
 // Returns { nodes, neighbors, degrees, indexMap }
 function buildGraph(pixels) {
-  const start = performance.now()
-  console.log("start", start)
   const set = new Set(pixels);
   const nodes = Array.from(set);
   const indexMap = new Map(nodes.map((p, i) => [p, i]));
@@ -33,7 +31,6 @@ function buildGraph(pixels) {
   const degrees = neighbors.map((nbs) => nbs.length);
   for (const nbs of neighbors) nbs.sort((a, b) => degrees[a] - degrees[b]);
 
-  console.log("end", performance.now() - start)
   return { nodes, neighbors, degrees, indexMap };
 }
 
