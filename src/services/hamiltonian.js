@@ -216,6 +216,25 @@ function solve(pixels, opts = {}) {
 
   const best = { paths: null };
 
+  function lowerBound() {
+    let remainingCount = 0;
+    let oddCount = 0;
+    let isolated = 0;
+    for (let i = 0; i < degrees.length; i++) {
+      if (!remaining[i]) continue;
+      remainingCount++;
+      const d = degrees[i];
+      if (d === 0) isolated++;
+      else if (d & 1) oddCount++;
+    }
+    let bound = isolated;
+    const nonIsolated = remainingCount - isolated;
+    if (nonIsolated > 0) {
+      bound += Math.max(1, Math.ceil(oddCount / 2));
+    }
+    return bound;
+  }
+
   function remove(node) {
     remaining[node] = 0;
     for (const nb of neighbors[node]) if (remaining[nb]) degrees[nb]--;
@@ -241,7 +260,7 @@ function solve(pixels, opts = {}) {
   }
 
   function search(activeCount, acc) {
-    if (best.paths && acc.length >= best.paths.length) return;
+    if (best.paths && acc.length + lowerBound() >= best.paths.length) return;
     if (activeCount === 0) {
       best.paths = acc.map((p) => p.slice());
       return;
@@ -256,7 +275,8 @@ function solve(pixels, opts = {}) {
   function extend(node, path, activeCount, acc, isFirst) {
     if (best.paths && acc.length + 1 >= best.paths.length) return;
 
-    for (const nb of neighbors[node]) {
+    const nbs = neighbors[node].slice().sort((a, b) => degrees[a] - degrees[b]);
+    for (const nb of nbs) {
       if (!remaining[nb]) continue;
       remove(nb);
       path.push(nb);
