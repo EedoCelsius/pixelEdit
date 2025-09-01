@@ -4,6 +4,9 @@
 const MAX_DIMENSION:i32 = 65536;
 const DP_THRESHOLD:i32 = 20;
 
+// Export ArrayBufferView ID for Int32Array so JS can allocate typed arrays
+export const Int32Array_ID = idof<Int32Array>();
+
 class Graph {
   nodes:Int32Array;
   neighbors:Array<Array<i32>>;
