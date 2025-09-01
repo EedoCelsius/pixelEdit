@@ -1,5 +1,5 @@
 import { instantiate } from '@assemblyscript/loader';
-import wasmUrl from '../wasm/hamiltonian.wasm?url';
+import wasmUrl from '../wasm/hamiltonian.wasm';
 
 const { exports: wasm } = await instantiate(fetch(wasmUrl));
 
