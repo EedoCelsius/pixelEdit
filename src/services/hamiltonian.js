@@ -224,7 +224,7 @@ export const useHamiltonianService = () => {
     const result = [];
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
-      const solver = compPixels.length <= DP_THRESHOLD ? solve : solveDP;
+      const solver = compPixels.length <= DP_THRESHOLD ? solveDP : solve;
       if (compIndex[startIdx] === i) {
         result.push(...solver(compPixels, { start }));
       } else {
