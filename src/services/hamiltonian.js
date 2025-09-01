@@ -216,7 +216,10 @@ function solve(pixels, opts = {}) {
 
 export const useHamiltonianService = () => {
   function traverseWithStart(pixels, start) {
+    const start = performance.now()
+    console.log("start", start)
     const { nodes, neighbors, indexMap } = buildGraph(pixels);
+    console.log("end", performance.now() - start)
     const { components, compIndex } = getComponents(neighbors);
     const startIdx = indexMap.get(start);
     if (startIdx === undefined) throw new Error('Start pixel missing');
