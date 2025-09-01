@@ -64,24 +64,8 @@ function getComponents(neighbors) {
   return { components, compIndex };
 }
 
-function stitch(a, pivot, b) {
-  const res = [];
-  res.push(...a);
-  res.push([pivot]);
-  res.push(...b);
-  return res;
-}
-
-function filterOpts(pixels, opts) {
-  const set = new Set(pixels);
-  const sub = {};
-  if (opts.start != null && set.has(opts.start)) sub.start = opts.start;
-  if (opts.end != null && set.has(opts.end)) sub.end = opts.end;
-  return sub;
-}
-
 // Core solver using backtracking to find minimum path cover
-function coreSolve(pixels, opts = {}) {
+function solve(pixels, opts = {}) {
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
   const total = nodes.length;
   const remaining = new Uint8Array(total);
@@ -153,77 +137,6 @@ function coreSolve(pixels, opts = {}) {
 
   search(total, []);
   return best.paths ? best.paths.map((p) => p.map((i) => nodes[i])) : [];
-}
-
-// Wrapper solver that tiles complex regions before using the core solver
-function solve(pixels, opts = {}) {
-  const { nodes, neighbors, degrees } = buildGraph(pixels);
-
-  // Split around a degree-2 vertex into two tiles and stitch results
-  for (let i = 0; i < nodes.length; i++) {
-    if (degrees[i] === 2) {
-      const [na, nb] = neighbors[i];
-      const visited = new Uint8Array(nodes.length);
-      visited[i] = 1;
-
-      function collect(startIdx, acc) {
-        const stack = [startIdx];
-        visited[startIdx] = 1;
-        while (stack.length) {
-          const v = stack.pop();
-          acc.push(nodes[v]);
-          for (const nb2 of neighbors[v]) {
-            if (nb2 === i || visited[nb2]) continue;
-            visited[nb2] = 1;
-            stack.push(nb2);
-          }
-        }
-      }
-
-      const compA = [];
-      const compB = [];
-      collect(na, compA);
-      collect(nb, compB);
-
-      const pathsA = solve(compA, filterOpts(compA, opts));
-      const pathsB = solve(compB, filterOpts(compB, opts));
-      return stitch(pathsA, nodes[i], pathsB);
-    }
-  }
-
-  // Group adjacent high-degree nodes (>=6) as tiles including neighbors with degree >=3
-  const visited = new Uint8Array(nodes.length);
-  const tilePaths = [];
-  let hasTile = false;
-  for (let i = 0; i < nodes.length; i++) {
-    if (degrees[i] >= 6 && !visited[i]) {
-      hasTile = true;
-      const stack = [i];
-      const tileIdxs = [];
-      visited[i] = 1;
-      while (stack.length) {
-        const v = stack.pop();
-        tileIdxs.push(v);
-        for (const nb of neighbors[v]) {
-          if (!visited[nb] && degrees[nb] >= 3) {
-            visited[nb] = 1;
-            stack.push(nb);
-          }
-        }
-      }
-      const tilePixels = tileIdxs.map((idx) => nodes[idx]);
-      tilePaths.push(...solve(tilePixels, filterOpts(tilePixels, opts)));
-    }
-  }
-
-  if (hasTile) {
-    const remain = [];
-    for (let i = 0; i < nodes.length; i++) if (!visited[i]) remain.push(nodes[i]);
-    const mainPaths = remain.length ? coreSolve(remain, opts) : [];
-    return [...mainPaths, ...tilePaths];
-  }
-
-  return coreSolve(pixels, opts);
 }
 
 export const useHamiltonianService = () => {
