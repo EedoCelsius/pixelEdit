@@ -3,6 +3,8 @@ import { MAX_DIMENSION } from '../utils';
 // Build adjacency info for pixels with 8-way connectivity
 // Returns { nodes, neighbors, degrees, indexMap }
 function buildGraph(pixels) {
+  const start = performance.now()
+  console.log("start", start)
   const set = new Set(pixels);
   const nodes = Array.from(set);
   const indexMap = new Map(nodes.map((p, i) => [p, i]));
@@ -31,6 +33,7 @@ function buildGraph(pixels) {
   const degrees = neighbors.map((nbs) => nbs.length);
   for (const nbs of neighbors) nbs.sort((a, b) => degrees[a] - degrees[b]);
 
+  console.log("end", performance.now() - start)
   return { nodes, neighbors, degrees, indexMap };
 }
 
@@ -216,10 +219,7 @@ function solve(pixels, opts = {}) {
 
 export const useHamiltonianService = () => {
   function traverseWithStart(pixels, start) {
-    const start = performance.now()
-    console.log("start", start)
     const { nodes, neighbors, indexMap } = buildGraph(pixels);
-    console.log("end", performance.now() - start)
     const { components, compIndex } = getComponents(neighbors);
     const startIdx = indexMap.get(start);
     if (startIdx === undefined) throw new Error('Start pixel missing');
