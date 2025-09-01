@@ -64,6 +64,70 @@ function getComponents(neighbors) {
   return { components, compIndex };
 }
 
+// Identify if removing a degree-2 vertex splits the graph into two parts
+// Returns { pivot, left, right } with index arrays or null if no split found
+function findDegree2Split(nodes, neighbors, degrees) {
+  const n = nodes.length;
+
+  function collect(start, avoid) {
+    const stack = [start];
+    const comp = new Set([start]);
+    while (stack.length) {
+      const node = stack.pop();
+      for (const nb of neighbors[node]) {
+        if (nb === avoid || comp.has(nb)) continue;
+        comp.add(nb);
+        stack.push(nb);
+      }
+    }
+    return comp;
+  }
+
+  for (let i = 0; i < n; i++) {
+    if (degrees[i] !== 2) continue;
+    const [a, b] = neighbors[i];
+    // Check if a and b are connected without i
+    const compA = collect(a, i);
+    if (compA.has(b)) continue; // still connected, not a split point
+    // Found articulation at i
+    const compB = collect(b, i);
+    compA.delete(i);
+    compB.delete(i);
+    return {
+      pivot: i,
+      left: Array.from(compA),
+      right: Array.from(compB),
+    };
+  }
+  return null;
+}
+
+// Group adjacent high-degree (>=7) vertices into clusters
+function extractHighDegreeClusters(nodes, neighbors, degrees) {
+  const n = nodes.length;
+  const used = new Uint8Array(n);
+  const clusters = [];
+
+  for (let i = 0; i < n; i++) {
+    if (used[i] || degrees[i] < 7) continue;
+    const stack = [i];
+    used[i] = 1;
+    const cluster = [];
+    while (stack.length) {
+      const node = stack.pop();
+      cluster.push(node);
+      for (const nb of neighbors[node]) {
+        if (!used[nb] && degrees[nb] >= 7) {
+          used[nb] = 1;
+          stack.push(nb);
+        }
+      }
+    }
+    clusters.push(cluster);
+  }
+  return clusters;
+}
+
 // Core solver using backtracking to find minimum path cover
 function solve(pixels, opts = {}) {
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
@@ -139,6 +203,68 @@ function solve(pixels, opts = {}) {
   return best.paths ? best.paths.map((p) => p.map((i) => nodes[i])) : [];
 }
 
+// Wrapper that tiles the graph based on heuristics before invoking solve
+function solveTiled(pixels, opts = {}) {
+  const { nodes, neighbors, degrees } = buildGraph(pixels);
+
+  // 1. Split along degree-2 articulation points
+  const split = findDegree2Split(nodes, neighbors, degrees);
+  if (split) {
+    const pivotPixel = nodes[split.pivot];
+    const leftPixels = split.left.map((i) => nodes[i]);
+    const rightPixels = split.right.map((i) => nodes[i]);
+
+    const leftSet = new Set(leftPixels);
+    const rightSet = new Set(rightPixels);
+
+    const leftOpts = {};
+    const rightOpts = {};
+    if (opts.start != null) {
+      if (leftSet.has(opts.start)) leftOpts.start = opts.start;
+      if (rightSet.has(opts.start)) rightOpts.start = opts.start;
+    }
+    if (opts.end != null) {
+      if (leftSet.has(opts.end)) leftOpts.end = opts.end;
+      if (rightSet.has(opts.end)) rightOpts.end = opts.end;
+    }
+
+    leftOpts.end = pivotPixel;
+    rightOpts.start = pivotPixel;
+
+    const leftPaths = solveTiled([...leftPixels, pivotPixel], leftOpts);
+    const rightPaths = solveTiled([...rightPixels, pivotPixel], rightOpts);
+
+    const stitched = leftPaths.pop().concat(rightPaths.shift().slice(1));
+    return [...leftPaths, stitched, ...rightPaths];
+  }
+
+  // 2. Extract clusters of high degree nodes
+  const clusters = extractHighDegreeClusters(nodes, neighbors, degrees);
+  if (clusters.length) {
+    const used = new Set();
+    const result = [];
+    for (const cluster of clusters) {
+      const pixelsSub = cluster.map((i) => nodes[i]);
+      for (const idx of cluster) used.add(nodes[idx]);
+      const subOpts = {};
+      if (opts.start != null && pixelsSub.includes(opts.start)) subOpts.start = opts.start;
+      if (opts.end != null && pixelsSub.includes(opts.end)) subOpts.end = opts.end;
+      result.push(...solve(pixelsSub, subOpts));
+    }
+    const remaining = nodes.filter((p) => !used.has(p));
+    if (remaining.length) {
+      const restOpts = {};
+      if (opts.start != null && remaining.includes(opts.start)) restOpts.start = opts.start;
+      if (opts.end != null && remaining.includes(opts.end)) restOpts.end = opts.end;
+      result.push(...solveTiled(remaining, restOpts));
+    }
+    return result;
+  }
+
+  // fallback to core solver
+  return solve(pixels, opts);
+}
+
 export const useHamiltonianService = () => {
   function traverseWithStart(pixels, start) {
     const { nodes, neighbors, indexMap } = buildGraph(pixels);
@@ -150,9 +276,9 @@ export const useHamiltonianService = () => {
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
       if (compIndex[startIdx] === i) {
-        result.push(...solve(compPixels, { start }));
+        result.push(...solveTiled(compPixels, { start }));
       } else {
-        result.push(...solve(compPixels));
+        result.push(...solveTiled(compPixels));
       }
     }
     return result;
@@ -172,9 +298,9 @@ export const useHamiltonianService = () => {
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
       if (compIndex[startIdx] === i) {
-        result.push(...solve(compPixels, { start, end }));
+        result.push(...solveTiled(compPixels, { start, end }));
       } else {
-        result.push(...solve(compPixels));
+        result.push(...solveTiled(compPixels));
       }
     }
     return result;
@@ -186,7 +312,7 @@ export const useHamiltonianService = () => {
     const result = [];
     for (const comp of components) {
       const compPixels = comp.map((idx) => nodes[idx]);
-      result.push(...solve(compPixels));
+      result.push(...solveTiled(compPixels));
     }
     return result;
   }
