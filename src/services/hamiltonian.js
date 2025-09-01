@@ -1,7 +1,7 @@
 import { instantiate } from '@assemblyscript/loader';
 
 // Load wasm module at module initialization time
-const wasmModule = await instantiate(fetch('hamiltonian.wasm'));
+const wasmModule = await instantiate(fetch('/hamiltonian.wasm'));
 const {
   traverseWithStart: wasmTraverseWithStart,
   traverseWithStartEnd: wasmTraverseWithStartEnd,
