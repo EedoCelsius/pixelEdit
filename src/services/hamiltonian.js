@@ -1,6 +1,6 @@
 import { instantiate } from '@assemblyscript/loader';
 
-// Load wasm module at module initialization time
+// Load wasm module at module initialization time using a relative path
 const wasmModule = await instantiate(fetch('hamiltonian.wasm'));
 const {
   traverseWithStart: wasmTraverseWithStart,
@@ -8,13 +8,15 @@ const {
   traverseFree: wasmTraverseFree,
   __newArray,
   __getArray,
+  __getInt32Array,
   __pin,
   __unpin,
   Int32Array_ID,
 } = wasmModule.exports;
 
 function unwrap(ptr) {
-  return __getArray(ptr).map((p) => __getArray(p));
+  if (!ptr) return [];
+  return __getArray(ptr).map((p) => __getInt32Array(p));
 }
 
 export const useHamiltonianService = () => {
