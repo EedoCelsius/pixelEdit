@@ -1,5 +1,6 @@
 import { instantiate } from '@assemblyscript/loader';
 
+// Load wasm module at module initialization time
 const wasmModule = await instantiate(fetch('hamiltonian.wasm'));
 const {
   traverseWithStart: wasmTraverseWithStart,
@@ -7,22 +8,20 @@ const {
   traverseFree: wasmTraverseFree,
   __newArray,
   __getArray,
-  __getInt32Array,
   __pin,
   __unpin,
   Int32Array_ID,
 } = wasmModule.exports;
 
 function unwrap(ptr) {
-  if (!ptr) return [];
-  return __getArray(ptr).map((p) => __getInt32Array(p));
+  return __getArray(ptr).map((p) => __getArray(p));
 }
 
 export const useHamiltonianService = () => {
   return {
     traverseWithStart(pixels, start) {
       const pPtr = __pin(__newArray(Int32Array_ID, pixels));
-      const rPtr = __pin(wasmTraverseWithStart(pPtr, start));
+      const rPtr = wasmTraverseWithStart(pPtr, start);
       const result = unwrap(rPtr);
       __unpin(pPtr);
       __unpin(rPtr);
@@ -30,7 +29,7 @@ export const useHamiltonianService = () => {
     },
     traverseWithStartEnd(pixels, start, end) {
       const pPtr = __pin(__newArray(Int32Array_ID, pixels));
-      const rPtr = __pin(wasmTraverseWithStartEnd(pPtr, start, end));
+      const rPtr = wasmTraverseWithStartEnd(pPtr, start, end);
       const result = unwrap(rPtr);
       __unpin(pPtr);
       __unpin(rPtr);
@@ -38,7 +37,7 @@ export const useHamiltonianService = () => {
     },
     traverseFree(pixels) {
       const pPtr = __pin(__newArray(Int32Array_ID, pixels));
-      const rPtr = __pin(wasmTraverseFree(pPtr));
+      const rPtr = wasmTraverseFree(pPtr);
       const result = unwrap(rPtr);
       __unpin(pPtr);
       __unpin(rPtr);
