@@ -65,10 +65,7 @@ function getComponents(neighbors) {
 }
 
 // Core solver using backtracking to find minimum path cover
-// Core backtracking solver. This is kept isolated so that
-// higher level helpers can pre-process the pixel set before
-// delegating to the expensive search.
-function baseSolve(pixels, opts = {}) {
+function solve(pixels, opts = {}) {
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
   const total = nodes.length;
   const remaining = new Uint8Array(total);
@@ -140,127 +137,6 @@ function baseSolve(pixels, opts = {}) {
 
   search(total, []);
   return best.paths ? best.paths.map((p) => p.map((i) => nodes[i])) : [];
-}
-
-// Attempt to split the graph at a degree-2 vertex. Each side
-// is solved independently and then stitched back together.
-function splitOnDegreeTwo(nodes, neighbors, degrees, opts) {
-  for (let i = 0; i < nodes.length; i++) {
-    if (degrees[i] !== 2) continue;
-    const [a, b] = neighbors[i];
-
-    // Explore each side while ignoring the split vertex
-    const visit = (start, forbidden) => {
-      const stack = [start];
-      const seen = new Set([start]);
-      while (stack.length) {
-        const n = stack.pop();
-        for (const nb of neighbors[n]) {
-          if (nb === forbidden || seen.has(nb)) continue;
-          seen.add(nb);
-          stack.push(nb);
-        }
-      }
-      return seen;
-    };
-
-    const left = visit(a, i);
-    const right = visit(b, i);
-    if (left.has(b) || right.has(a)) continue;
-    if (left.size + right.size + 1 !== nodes.length) continue; // not a clean split
-
-    const pixelsLeft = Array.from(left, (idx) => nodes[idx]).concat(nodes[i]);
-    const pixelsRight = Array.from(right, (idx) => nodes[idx]).concat(nodes[i]);
-
-    const resLeft = baseSolve(pixelsLeft, { end: nodes[i] });
-    const resRight = baseSolve(pixelsRight, { start: nodes[i] });
-    if (!resLeft.length || !resRight.length) continue;
-
-    const stitched = [...resLeft[0], ...resRight[0].slice(1)];
-    return [stitched, ...resLeft.slice(1), ...resRight.slice(1)];
-  }
-  return null;
-}
-
-// Group clusters of high-degree (>=6) pixels. Only pixels with
-// degree >=3 are kept inside the tile. We first solve the rest of
-// the pixels and afterwards expand each tile's solution inside the
-// main path.
-function solveWithHighDegreeTiles(pixels) {
-  const { nodes, neighbors, degrees } = buildGraph(pixels);
-
-  const tileIndex = new Int32Array(nodes.length).fill(-1);
-  const tiles = [];
-  let tid = 0;
-  for (let i = 0; i < nodes.length; i++) {
-    if (degrees[i] < 6 || tileIndex[i] !== -1) continue;
-    const stack = [i];
-    tileIndex[i] = tid;
-    const cluster = [];
-    while (stack.length) {
-      const n = stack.pop();
-      cluster.push(n);
-      for (const nb of neighbors[n]) {
-        if (tileIndex[nb] !== -1) continue;
-        if (degrees[nb] >= 3) {
-          tileIndex[nb] = tid;
-          stack.push(nb);
-        }
-      }
-    }
-    tiles.push(cluster);
-    tid++;
-  }
-
-  if (!tiles.length) return null;
-
-  // Build the pixel set excluding tiles but keeping one anchor from each tile
-  const baseSet = new Set(nodes);
-  const anchors = [];
-  for (const tile of tiles) {
-    const anchor = nodes[tile[0]];
-    anchors.push(anchor);
-    for (const idx of tile) baseSet.delete(nodes[idx]);
-    baseSet.add(anchor); // ensure anchor remains
-  }
-
-  const baseRes = baseSolve(Array.from(baseSet));
-  if (!baseRes.length) return null;
-
-  let mainPath = baseRes[0];
-  const extraPaths = baseRes.slice(1);
-
-  tiles.forEach((tile, idx) => {
-    const tilePixels = tile.map((i) => nodes[i]);
-    const tRes = baseSolve(tilePixels);
-    if (!tRes.length) return; // skip if unsolved
-    const anchor = anchors[idx];
-    const pos = mainPath.indexOf(anchor);
-    if (pos !== -1) {
-      mainPath = [
-        ...mainPath.slice(0, pos),
-        ...tRes[0],
-        ...mainPath.slice(pos + 1),
-      ];
-    }
-    extraPaths.push(...tRes.slice(1));
-  });
-
-  return [mainPath, ...extraPaths];
-}
-
-// High level solver that tries to partition the graph for better
-// performance before falling back to the full backtracking search.
-function solve(pixels, opts = {}) {
-  // Do not attempt optimisations when explicit start/end are given
-  if (opts.start == null && opts.end == null) {
-    const { nodes, neighbors, degrees } = buildGraph(pixels);
-    const splitRes = splitOnDegreeTwo(nodes, neighbors, degrees, opts);
-    if (splitRes) return splitRes;
-    const tileRes = solveWithHighDegreeTiles(pixels);
-    if (tileRes) return tileRes;
-  }
-  return baseSolve(pixels, opts);
 }
 
 export const useHamiltonianService = () => {
