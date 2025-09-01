@@ -64,8 +64,139 @@ function getComponents(neighbors) {
   return { components, compIndex };
 }
 
+// Split pixels into two sets if removing a degree-2 vertex disconnects the graph
+function splitByDegreeTwo(pixels, opts = {}) {
+  const { nodes, neighbors, degrees } = buildGraph(pixels);
+  const n = nodes.length;
+  for (let i = 0; i < n; i++) {
+    if (degrees[i] !== 2) continue;
+    const [a, b] = neighbors[i];
+    const visited = new Uint8Array(n);
+    visited[i] = 1;
+    const stack = [a];
+    visited[a] = 1;
+    while (stack.length) {
+      const v = stack.pop();
+      for (const nb of neighbors[v]) {
+        if (nb === i || visited[nb]) continue;
+        visited[nb] = 1;
+        stack.push(nb);
+      }
+    }
+    if (!visited[b]) {
+      const left = [];
+      const right = [];
+      for (let j = 0; j < n; j++) {
+        if (j === i) continue;
+        if (visited[j]) left.push(nodes[j]);
+        else right.push(nodes[j]);
+      }
+      const mid = nodes[i];
+      const leftOpts = {};
+      const rightOpts = {};
+      if (opts.start != null) {
+        if (left.includes(opts.start)) leftOpts.start = opts.start;
+        else if (opts.start === mid) rightOpts.start = mid;
+        else rightOpts.start = opts.start;
+      }
+      if (opts.end != null) {
+        if (left.includes(opts.end)) leftOpts.end = opts.end;
+        else if (opts.end === mid) leftOpts.end = mid;
+        else rightOpts.end = opts.end;
+      }
+      const leftPaths = solve(left, leftOpts);
+      const rightPaths = solve(right, rightOpts);
+      if (leftPaths.length) {
+        leftPaths[leftPaths.length - 1].push(mid);
+      } else {
+        leftPaths.push([mid]);
+      }
+      if (rightPaths.length) {
+        leftPaths[leftPaths.length - 1].push(...rightPaths[0]);
+        for (let k = 1; k < rightPaths.length; k++) leftPaths.push(rightPaths[k]);
+      }
+      return leftPaths;
+    }
+  }
+  return null;
+}
+
+// Extract tiles made of high degree pixels
+function extractHighDegreeTiles(pixels) {
+  const { nodes, neighbors, degrees } = buildGraph(pixels);
+  const n = nodes.length;
+  const visited = new Uint8Array(n);
+  const baseSet = new Set(nodes);
+  const tiles = [];
+
+  for (let i = 0; i < n; i++) {
+    if (visited[i] || degrees[i] < 6) continue;
+    const stack = [i];
+    const tileIdxs = new Set();
+    visited[i] = 1;
+    while (stack.length) {
+      const v = stack.pop();
+      tileIdxs.add(v);
+      baseSet.delete(nodes[v]);
+      for (const nb of neighbors[v]) {
+        if (degrees[nb] >= 3 && !visited[nb]) {
+          visited[nb] = 1;
+          stack.push(nb);
+        }
+      }
+    }
+
+    let attachInside = null;
+    let attachOutside = null;
+    for (const v of tileIdxs) {
+      for (const nb of neighbors[v]) {
+        if (!tileIdxs.has(nb)) {
+          attachInside = nodes[v];
+          attachOutside = nodes[nb];
+          break;
+        }
+      }
+      if (attachInside != null) break;
+    }
+
+    tiles.push({
+      pixels: Array.from(tileIdxs).map((idx) => nodes[idx]),
+      attachInside,
+      attachOutside,
+    });
+  }
+
+  return { basePixels: Array.from(baseSet), tiles };
+}
+
+function insertTilePaths(paths, tilePaths, outside, inside) {
+  if (!outside) {
+    paths.push(...tilePaths);
+    return paths;
+  }
+  for (let i = 0; i < paths.length; i++) {
+    const seg = paths[i];
+    const idx = seg.indexOf(outside);
+    if (idx !== -1) {
+      const insertSeg = seg.slice(0, idx + 1);
+      if (tilePaths.length) {
+        if (tilePaths[0][0] !== inside) {
+          tilePaths[0] = tilePaths[0].slice().reverse();
+        }
+        insertSeg.push(...tilePaths[0]);
+        if (tilePaths.length > 1) paths.splice(i + 1, 0, ...tilePaths.slice(1));
+      }
+      insertSeg.push(...seg.slice(idx + 1));
+      paths[i] = insertSeg;
+      return paths;
+    }
+  }
+  paths.push(...tilePaths);
+  return paths;
+}
+
 // Core solver using backtracking to find minimum path cover
-function solve(pixels, opts = {}) {
+function solveBasic(pixels, opts = {}) {
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
   const total = nodes.length;
   const remaining = new Uint8Array(total);
@@ -137,6 +268,24 @@ function solve(pixels, opts = {}) {
 
   search(total, []);
   return best.paths ? best.paths.map((p) => p.map((i) => nodes[i])) : [];
+}
+
+// High level solver applying preprocessing steps
+function solve(pixels, opts = {}) {
+  const split = splitByDegreeTwo(pixels, opts);
+  if (split) return split;
+
+  const { basePixels, tiles } = extractHighDegreeTiles(pixels);
+  if (tiles.length) {
+    let paths = solve(basePixels, opts);
+    for (const tile of tiles) {
+      const tilePaths = solve(tile.pixels, { start: tile.attachInside });
+      paths = insertTilePaths(paths, tilePaths, tile.attachOutside, tile.attachInside);
+    }
+    return paths;
+  }
+
+  return solveBasic(pixels, opts);
 }
 
 export const useHamiltonianService = () => {
