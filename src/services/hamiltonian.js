@@ -1,4 +1,5 @@
 import { MAX_DIMENSION } from '../utils';
+import { TIME_LIMIT } from '../constants';
 
 // Build adjacency info for pixels with 8-way connectivity
 // Returns { nodes, neighbors, degrees, indexMap }
@@ -34,6 +35,62 @@ function buildGraph(pixels) {
   return { nodes, neighbors, degrees, indexMap };
 }
 
+// Attempt to find a degree-2 articulation vertex.
+// Returns the index of the cut vertex or null if none found.
+function findDegree2Cut(neighbors, degrees) {
+  for (let i = 0; i < neighbors.length; i++) {
+    if (degrees[i] !== 2) continue;
+    const [a, b] = neighbors[i];
+    const visited = new Uint8Array(neighbors.length);
+    const stack = [a];
+    visited[a] = 1;
+    while (stack.length) {
+      const node = stack.pop();
+      for (const nb of neighbors[node]) {
+        if (nb === i || visited[nb]) continue;
+        visited[nb] = 1;
+        stack.push(nb);
+      }
+    }
+    if (!visited[b]) return i;
+  }
+  return null;
+}
+
+// Partition graph around a cut vertex into two sets of indices
+function partitionAtCut(neighbors, cut) {
+  const res = [];
+  for (const nb of neighbors[cut]) {
+    const comp = [cut];
+    const stack = [nb];
+    const visited = new Set([cut]);
+    visited.add(nb);
+    while (stack.length) {
+      const node = stack.pop();
+      comp.push(node);
+      for (const n of neighbors[node]) {
+        if (visited.has(n)) continue;
+        visited.add(n);
+        stack.push(n);
+      }
+    }
+    res.push(comp);
+  }
+  return res;
+}
+
+// Merge two path covers using the shared cut pixel
+function stitchPaths(left, right, cutPixel) {
+  const li = left.findIndex((p) => p.includes(cutPixel));
+  const ri = right.findIndex((p) => p.includes(cutPixel));
+  const lPath = left.splice(li, 1)[0];
+  const rPath = right.splice(ri, 1)[0];
+  if (lPath[lPath.length - 1] !== cutPixel) lPath.reverse();
+  if (rPath[0] !== cutPixel) rPath.reverse();
+  const joined = lPath.concat(rPath.slice(1));
+  return [...left, ...right, joined];
+}
+
 // Find connected components from an adjacency list
 function getComponents(neighbors) {
   const n = neighbors.length;
@@ -67,6 +124,30 @@ function getComponents(neighbors) {
 // Core solver using backtracking to find minimum path cover
 function solve(pixels, opts = {}) {
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
+
+  const cut = findDegree2Cut(neighbors, degrees);
+  if (cut != null) {
+    const parts = partitionAtCut(neighbors, cut);
+    const cutPixel = nodes[cut];
+    const [leftIdxs, rightIdxs] = parts;
+    const leftPixels = leftIdxs.map((i) => nodes[i]);
+    const rightPixels = rightIdxs.map((i) => nodes[i]);
+    const leftOpts = {};
+    const rightOpts = {};
+    if (opts.start != null) {
+      const idx = indexMap.get(opts.start);
+      if (leftIdxs.includes(idx)) leftOpts.start = opts.start;
+      if (rightIdxs.includes(idx)) rightOpts.start = opts.start;
+    }
+    if (opts.end != null) {
+      const idx = indexMap.get(opts.end);
+      if (leftIdxs.includes(idx)) leftOpts.end = opts.end;
+      if (rightIdxs.includes(idx)) rightOpts.end = opts.end;
+    }
+    const left = solve(leftPixels, leftOpts);
+    const right = solve(rightPixels, rightOpts);
+    return stitchPaths(left, right, cutPixel);
+  }
   const total = nodes.length;
   const remaining = new Uint8Array(total);
   remaining.fill(1);
@@ -78,6 +159,19 @@ function solve(pixels, opts = {}) {
   if (opts.end != null && end === undefined) throw new Error('End pixel missing');
 
   const best = { paths: null };
+  const memo = new Map();
+  const startTime = Date.now();
+  let timeExceeded = false;
+
+  function checkTime(acc) {
+    if (Date.now() - startTime > TIME_LIMIT) {
+      if (!best.paths || acc.length < best.paths.length)
+        best.paths = acc.map((p) => p.slice());
+      timeExceeded = true;
+      return true;
+    }
+    return false;
+  }
 
   function remove(node) {
     remaining[node] = 0;
@@ -103,7 +197,17 @@ function solve(pixels, opts = {}) {
     return bestIdx;
   }
 
+  function key() {
+    return remaining.join('');
+  }
+
   function search(activeCount, acc) {
+    if (timeExceeded) return;
+    if (checkTime(acc)) return;
+    const k = key();
+    const prev = memo.get(k);
+    if (prev != null && acc.length >= prev) return;
+    memo.set(k, acc.length);
     if (best.paths && acc.length >= best.paths.length) return;
     if (activeCount === 0) {
       best.paths = acc.map((p) => p.slice());
@@ -117,6 +221,8 @@ function solve(pixels, opts = {}) {
   }
 
   function extend(node, path, activeCount, acc, isFirst) {
+    if (timeExceeded) return;
+    if (checkTime(acc)) return;
     if (best.paths && acc.length + 1 >= best.paths.length) return;
 
     for (const nb of neighbors[node]) {
@@ -126,6 +232,7 @@ function solve(pixels, opts = {}) {
       extend(nb, path, activeCount - 1, acc, isFirst);
       path.pop();
       restore(nb);
+      if (timeExceeded) return;
     }
 
     if (!isFirst || end == null || node === end) {
