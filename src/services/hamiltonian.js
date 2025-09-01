@@ -65,7 +65,9 @@ function getComponents(neighbors) {
 }
 
 // Core solver using backtracking to find minimum path cover
-function solve(pixels, opts = {}) {
+// This low-level solver assumes the pixel set is small enough to handle
+// directly without any of the tiling heuristics.
+function solveRaw(pixels, opts = {}) {
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
   const total = nodes.length;
   const remaining = new Uint8Array(total);
@@ -137,6 +139,123 @@ function solve(pixels, opts = {}) {
 
   search(total, []);
   return best.paths ? best.paths.map((p) => p.map((i) => nodes[i])) : [];
+}
+
+// Split the problem around a degree-2 vertex if possible. The two sides are
+// solved separately and then stitched through the degree-2 vertex. This helps
+// reduce the search space for snake-like regions.
+function splitAtDegreeTwo(pixels, opts) {
+  const { nodes, neighbors, degrees } = buildGraph(pixels);
+
+  // Find a vertex with degree exactly 2.
+  const idx = degrees.findIndex((d) => d === 2);
+  if (idx === -1) return null;
+
+  const centerPixel = nodes[idx];
+
+  // If the start/end is on the splitting vertex, fall back to the raw solver
+  // to preserve semantics.
+  if (opts.start === centerPixel || opts.end === centerPixel) {
+    return solveRaw(pixels, opts);
+  }
+
+  const [na, nb] = neighbors[idx];
+  const visited = new Set([idx]);
+
+  function collect(seed) {
+    const stack = [seed];
+    const part = [];
+    while (stack.length) {
+      const v = stack.pop();
+      if (visited.has(v)) continue;
+      visited.add(v);
+      part.push(nodes[v]);
+      for (const n of neighbors[v]) {
+        if (!visited.has(n)) stack.push(n);
+      }
+    }
+    return part;
+  }
+
+  const partA = collect(na);
+  const partB = collect(nb);
+
+  const optsA = {};
+  const optsB = {};
+  if (partA.includes(opts.start)) optsA.start = opts.start;
+  if (partA.includes(opts.end)) optsA.end = opts.end;
+  if (partB.includes(opts.start)) optsB.start = opts.start;
+  if (partB.includes(opts.end)) optsB.end = opts.end;
+
+  const resA = solve(partA, optsA);
+  const resB = solve(partB, optsB);
+
+  // Stitch the first path from both sides through the center pixel.
+  const path = resA.shift().concat([centerPixel], resB.shift());
+  return [path, ...resA, ...resB];
+}
+
+// Group adjacent pixels whose degrees are 7 or 8. These dense clusters are
+// solved as independent tiles to avoid exploring them repeatedly.
+function getHighDegreeTiles(nodes, neighbors, degrees) {
+  const visited = new Uint8Array(nodes.length);
+  const tiles = [];
+
+  for (let i = 0; i < nodes.length; i++) {
+    if (visited[i] || degrees[i] < 7) continue;
+    visited[i] = 1;
+    const stack = [i];
+    const tile = [nodes[i]];
+    while (stack.length) {
+      const v = stack.pop();
+      for (const nb of neighbors[v]) {
+        if (!visited[nb] && degrees[nb] >= 7) {
+          visited[nb] = 1;
+          stack.push(nb);
+          tile.push(nodes[nb]);
+        }
+      }
+    }
+    tiles.push(tile);
+  }
+  return tiles;
+}
+
+// High-level solver applying tiling heuristics before falling back to the
+// exhaustive search.
+function solve(pixels, opts = {}) {
+  // Attempt to split at a degree-2 vertex. If successful the recursion handles
+  // any further splits inside the partitions.
+  const split = splitAtDegreeTwo(pixels, opts);
+  if (split) return split;
+
+  // Group high-degree clusters and solve them individually.
+  const { nodes, neighbors, degrees } = buildGraph(pixels);
+  const tiles = getHighDegreeTiles(nodes, neighbors, degrees);
+
+  if (tiles.length && tiles.reduce((a, t) => a + t.length, 0) < nodes.length) {
+    const covered = new Set();
+    const result = [];
+    for (const tile of tiles) {
+      tile.forEach((p) => covered.add(p));
+      const tOpts = {};
+      if (tile.includes(opts.start)) tOpts.start = opts.start;
+      if (tile.includes(opts.end)) tOpts.end = opts.end;
+      result.push(...solve(tile, tOpts));
+    }
+
+    const remaining = nodes.filter((p) => !covered.has(p));
+    if (remaining.length) {
+      const remOpts = {};
+      if (remaining.includes(opts.start)) remOpts.start = opts.start;
+      if (remaining.includes(opts.end)) remOpts.end = opts.end;
+      result.push(...solve(remaining, remOpts));
+    }
+    return result;
+  }
+
+  // No tiling heuristics applicable, fall back to the raw solver.
+  return solveRaw(pixels, opts);
 }
 
 export const useHamiltonianService = () => {
