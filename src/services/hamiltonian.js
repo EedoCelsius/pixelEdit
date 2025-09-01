@@ -65,7 +65,7 @@ function getComponents(neighbors) {
 }
 
 // Core solver using backtracking to find minimum path cover
-function solve(pixels, opts = {}) {
+function backtrackingSolve(pixels, opts = {}) {
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
   const total = nodes.length;
   const remaining = new Uint8Array(total);
@@ -137,6 +137,155 @@ function solve(pixels, opts = {}) {
 
   search(total, []);
   return best.paths ? best.paths.map((p) => p.map((i) => nodes[i])) : [];
+}
+
+// DP based solver that processes the grid row by row using bitmask states.
+// The algorithm keeps track of which cells in the current row have open paths
+// that continue into the next row.  For large images the pixels are split into
+// tiles so the state space remains manageable.  This is a simple Viterbi style
+// solver that stores back pointers for reconstruction of the individual paths.
+
+const TILE_SIZE = 32;
+
+function dpSolveTile(pixels, offsetX, offsetY, width, height) {
+  // Build grid for the tile
+  const grid = Array.from({ length: height }, () => new Uint8Array(width));
+  for (const p of pixels) {
+    const x = (p % MAX_DIMENSION) - offsetX;
+    const y = Math.floor(p / MAX_DIMENSION) - offsetY;
+    if (x >= 0 && x < width && y >= 0 && y < height) grid[y][x] = 1;
+  }
+
+  // DP over rows with bitmask state of open paths
+  let prev = new Map();
+  prev.set(0, { cost: 0, prev: null });
+  const back = []; // back pointers per row
+
+  for (let y = 0; y < height; y++) {
+    const row = grid[y];
+    const next = new Map();
+    const rowBack = new Map();
+    for (const [state, info] of prev.entries()) {
+      let newState = state;
+      let cost = info.cost;
+      for (let x = 0; x < width; x++) {
+        const bit = 1 << x;
+        const hasPixel = row[x] === 1;
+        const open = (newState & bit) !== 0;
+        if (hasPixel) {
+          if (!open) {
+            // start a new path
+            cost++;
+            newState |= bit;
+          }
+        } else if (open) {
+          // close the path since pixel missing
+          newState &= ~bit;
+        }
+      }
+      const entry = next.get(newState);
+      if (!entry || entry.cost > cost) {
+        next.set(newState, { cost, prev: state });
+        rowBack.set(newState, state);
+      }
+    }
+    prev = next;
+    back.push(rowBack);
+  }
+
+  // choose best final state (no additional cost for closing remaining paths)
+  let bestState = 0;
+  let bestCost = Infinity;
+  for (const [state, info] of prev.entries()) {
+    if (info.cost < bestCost) {
+      bestCost = info.cost;
+      bestState = state;
+    }
+  }
+
+  // Reconstruct state per row
+  const states = new Array(height);
+  let currState = bestState;
+  for (let y = height - 1; y >= 0; y--) {
+    states[y] = currState;
+    const prevState = back[y].get(currState);
+    currState = prevState ?? 0;
+  }
+
+  // Build actual paths by following open columns
+  const openIds = new Int32Array(width);
+  openIds.fill(-1);
+  const paths = [];
+
+  for (let y = 0; y < height; y++) {
+    const row = grid[y];
+    const state = states[y];
+    for (let x = 0; x < width; x++) {
+      if (!row[x]) {
+        if (openIds[x] !== -1) openIds[x] = -1;
+        continue;
+      }
+      if (openIds[x] === -1) {
+        openIds[x] = paths.length;
+        paths.push([]);
+      }
+      const globalPixel = (y + offsetY) * MAX_DIMENSION + (x + offsetX);
+      paths[openIds[x]].push(globalPixel);
+      if (((state >> x) & 1) === 0) {
+        openIds[x] = -1; // path ends here
+      }
+    }
+  }
+
+  return paths;
+}
+
+function dpSolve(pixels) {
+  if (pixels.length === 0) return [];
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const p of pixels) {
+    const x = p % MAX_DIMENSION;
+    const y = Math.floor(p / MAX_DIMENSION);
+    if (x < minX) minX = x;
+    if (y < minY) minY = y;
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+  }
+
+  const width = maxX - minX + 1;
+  const height = maxY - minY + 1;
+
+  const allPaths = [];
+  for (let ty = minY; ty <= maxY; ty += TILE_SIZE) {
+    for (let tx = minX; tx <= maxX; tx += TILE_SIZE) {
+      const tilePixels = [];
+      for (const p of pixels) {
+        const x = p % MAX_DIMENSION;
+        const y = Math.floor(p / MAX_DIMENSION);
+        if (x >= tx && x < tx + TILE_SIZE && y >= ty && y < ty + TILE_SIZE) {
+          tilePixels.push(p);
+        }
+      }
+      if (tilePixels.length === 0) continue;
+      const tw = Math.min(TILE_SIZE, width - (tx - minX));
+      const th = Math.min(TILE_SIZE, height - (ty - minY));
+      allPaths.push(
+        ...dpSolveTile(tilePixels, tx, ty, tw, th)
+      );
+    }
+  }
+  return allPaths;
+}
+
+function solve(pixels, opts = {}) {
+  const LARGE_THRESHOLD = 256;
+  if (opts.start == null && opts.end == null && pixels.length > LARGE_THRESHOLD) {
+    return dpSolve(pixels);
+  }
+  return backtrackingSolve(pixels, opts);
 }
 
 export const useHamiltonianService = () => {
