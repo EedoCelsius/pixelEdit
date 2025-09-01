@@ -9,17 +9,14 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "asbuild": "asc src/wasm/hamiltonian.ts --target release --exportRuntime --outFile public/hamiltonian.wasm",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@assemblyscript/loader": "^0.28.5",
     "pinia": "^3.0.3",
     "vue": "^3.5.18"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
-    "assemblyscript": "^0.28.5",
     "vite": "^7.0.6",
     "vite-plugin-vue-devtools": "^8.0.0"
   }
