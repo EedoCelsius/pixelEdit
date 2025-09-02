@@ -51,10 +51,13 @@
           <div class="text-xs text-slate-400">
             <template v-if="pixelStore.disconnectedCountOfLayer(item.id) > 1">
               <span class="cursor-pointer" @click.stop="onDisconnectedClick(item.id)">⚠️</span>
-              <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(item.id)">{{ pixelStore.disconnectedCountOfLayer(item.id) }} piece</span>
+              <span class="cursor-pointer" @click.stop="onPixelCountClick(item.id)" title="같은 크기의 모든 레이어 선택">{{ item.props.pixels.length }}px</span>
               <span class="mx-1">|</span>
+              <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(item.id)">{{ pixelStore.disconnectedCountOfLayer(item.id) }} piece</span>
             </template>
-            <span class="cursor-pointer" @click.stop="onPixelCountClick(item.id)" title="같은 크기의 모든 레이어 선택">{{ item.props.pixels.length }}px</span>
+            <template v-else>
+              <span class="cursor-pointer" @click.stop="onPixelCountClick(item.id)" title="같은 크기의 모든 레이어 선택">{{ item.props.pixels.length }}px</span>
+            </template>
           </div>
         </div>
         <!-- 액션 -->
