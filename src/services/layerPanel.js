@@ -199,7 +199,6 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
             anchor: state.anchorId,
             tailId: state.tailId,
             scrollRule: state.scrollRule,
-            folded: { ...folded },
         };
     }
 
@@ -211,8 +210,6 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
             enableWatch();
         }
         state.scrollRule = payload?.scrollRule;
-        for (const id of Object.keys(folded)) delete folded[id];
-        Object.assign(folded, payload?.folded || {});
     }
 
     return {
