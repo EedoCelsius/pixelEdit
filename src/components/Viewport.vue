@@ -10,8 +10,9 @@
          :style="{
            width: stage.width+'px',
            height: stage.height+'px',
-           transform: `translate(${stage.offset.x}px, ${stage.offset.y}px) scale(${stage.scale})`,
-           transformOrigin: 'top left'
+           transform: `translate3d(${stage.offset.x}px, ${stage.offset.y}px, 0) scale(${stage.scale})`,
+           transformOrigin: 'top left',
+           willChange: 'transform'
          }"
          @contextmenu.prevent>
       <!-- 체커보드 -->
