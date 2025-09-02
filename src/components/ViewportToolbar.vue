@@ -54,7 +54,7 @@ import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS, TOOL_MODIFIERS } from '@
 import stageIcons from '../image/stage_toolbar';
 
 const { viewport: viewportStore, nodeTree, input, output, keyboardEvent: keyboardEvents } = useStore();
-const { toolSelection: toolSelectionService, stageResize: stageResizeService } = useService();
+const { toolSelection: toolSelectionService, stageResize: stageResizeService, imageLoad: imageLoadService } = useService();
 
 const fileInput = ref(null);
 function openFileDialog() {
@@ -64,7 +64,7 @@ async function onFileChange(e) {
   const file = e.target.files?.[0];
   if (!file) return;
   await input.loadFile(file);
-  input.initialize();
+  imageLoadService.open();
   e.target.value = '';
 }
 

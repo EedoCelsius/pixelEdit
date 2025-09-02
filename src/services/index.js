@@ -7,6 +7,7 @@ import { useToolSelectionService } from './toolSelection';
 import { useViewportService } from './viewport';
 import { useStageResizeService } from './stageResize';
 import { useHamiltonianService } from './hamiltonian';
+import { useImageLoadService } from './imageLoad';
 
 export {
     useLayerPanelService,
@@ -24,7 +25,8 @@ export {
     useToolSelectionService,
     useViewportService,
     useStageResizeService,
-    useHamiltonianService
+    useHamiltonianService,
+    useImageLoadService
 };
 
 export const useService = () => ({
@@ -45,5 +47,6 @@ export const useService = () => ({
     toolSelection: useToolSelectionService(),
     viewport: useViewportService(),
     stageResize: useStageResizeService(),
-    hamiltonian: useHamiltonianService()
+    hamiltonian: useHamiltonianService(),
+    imageLoad: useImageLoadService()
 });

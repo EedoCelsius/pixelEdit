@@ -29,12 +29,14 @@
       </aside>
     </div>
     <StageResizePopup />
+    <ImageLoadPopup />
     <ContextMenu />
 </template>
 
 <script setup>
 import { onMounted, ref, computed, onUnmounted } from 'vue';
 import { useStore } from './stores';
+import { useService } from './services';
 
 import Viewport from './components/Viewport.vue';
 import ViewportInfo from './components/ViewportInfo.vue';
@@ -43,8 +45,10 @@ import LayersPanel from './components/LayersPanel.vue';
 import ExportPanel from './components/ExportPanel.vue';
 import ViewportToolbar from './components/ViewportToolbar.vue';
 import StageResizePopup from './components/StageResizePopup.vue';
+import ImageLoadPopup from './components/ImageLoadPopup.vue';
 import ContextMenu from './components/ContextMenu.vue';
 const { input } = useStore();
+const { imageLoad: imageLoadService } = useService();
 
 // Width control between display and layers
 const container = ref(null);
@@ -76,7 +80,7 @@ onMounted(async () => {
     await input.loadFromQuery();
   } catch {}
   if (input.isLoaded) {
-    input.initialize();
+    imageLoadService.open();
   }
   window.addEventListener('mousemove', onDrag);
   window.addEventListener('mouseup', stopDrag);
