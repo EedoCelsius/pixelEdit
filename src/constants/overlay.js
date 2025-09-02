@@ -1,6 +1,6 @@
 export const OVERLAY_STYLES = {
     SELECTED: {
-        FILL_COLOR: 'rgba(56, 189, 248, 0.1)',
+        FILL_COLOR: 'rgba(56, 189, 248, 0.0)',
         STROKE_COLOR: 'rgba(56, 189, 248, 1.0)',
         STROKE_WIDTH_SCALE: 3,
         FILL_RULE: 'nonzero',
