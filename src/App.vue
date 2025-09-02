@@ -54,8 +54,7 @@ const { imageLoad: imageLoadService } = useService();
 
 // Width control between display and layers
 const container = ref(null);
-// Display starts at 2/3 of the width (66.67%), leaving 1/3 for layers
-const leftWidth = ref((2 / 3) * 100);
+const leftWidth = ref((3 / 4) * 100);
 const isDragging = ref(false);
 
 const displayStyle = computed(() => ({ width: `${leftWidth.value}%` }));
