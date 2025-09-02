@@ -403,28 +403,22 @@ export const usePathToolService = defineStore('pathToolService', () => {
         const target = layerQuery.topVisibleAt(pixel);
         if (nodeTree.selectedLayerIds.includes(target)) {
             if (prevPixel == null) {
-                pixelStore.cycleKind(target, pixel);
-            }
-            else {
+                pixelStore.setKind(target, pixel);
+            } else {
                 const [px, py] = indexToCoord(pixel);
                 const [prevX, prevY] = indexToCoord(prevPixel);
                 if (prevX === px) {
+                    pixelStore.setKind(target, pixel, 'vertical');
                     if (prevY < py) {
-                        pixelStore.changeKind(target, pixel, 'down');
                         tool.setCursor({ stroke: CURSOR_STYLE.DOWN, rect: CURSOR_STYLE.DOWN });
-                    }
-                    else {
-                        pixelStore.changeKind(target, pixel, 'up');
+                    } else {
                         tool.setCursor({ stroke: CURSOR_STYLE.UP, rect: CURSOR_STYLE.UP });
                     }
-                }
-                else {
+                } else {
+                    pixelStore.setKind(target, pixel, 'horizontal');
                     if (prevX < px) {
-                        pixelStore.changeKind(target, pixel, 'right');
                         tool.setCursor({ stroke: CURSOR_STYLE.RIGHT, rect: CURSOR_STYLE.RIGHT });
-                    }
-                    else {
-                        pixelStore.changeKind(target, pixel, 'left');
+                    } else {
                         tool.setCursor({ stroke: CURSOR_STYLE.LEFT, rect: CURSOR_STYLE.LEFT });
                     }
                 }

@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 import { coordToIndex, indexToCoord, pixelsToUnionPath, groupConnectedPixels } from '../utils';
 
-export const PIXEL_KINDS = ['bltl', 'brtr', 'tltr', 'blbr', 'tlbl', 'trbr', 'trtl', 'brbl'];
+// available pixel orientations
+export const PIXEL_KINDS = ['none', 'vertical', 'horizontal'];
 const DEFAULT_KIND = PIXEL_KINDS[0];
 
 function unionSet(state, id) {
@@ -16,14 +17,9 @@ function unionSet(state, id) {
 
 export const usePixelStore = defineStore('pixels', {
     state: () => ({
-        'bltl': {},
-        'brtr': {},
-        'tltr': {},
-        'blbr': {},
-        'tlbl': {},
-        'trbr': {},
-        'trtl': {},
-        'brbl': {}
+        'none': {},
+        'vertical': {},
+        'horizontal': {}
     }),
     getters: {
         get: (state) => (id) => {
@@ -79,7 +75,20 @@ export const usePixelStore = defineStore('pixels', {
                 for (const pixel of pixels) set.delete(pixel);
             }
         },
-        cycleKind(id, pixel) {
+        setKind(id, pixel, kind) {
+            // if a specific kind is provided, replace with that orientation
+            if (kind) {
+                const idx = PIXEL_KINDS.findIndex(k => this[k][id]?.has(pixel));
+                if (idx >= 0) {
+                    const current = PIXEL_KINDS[idx];
+                    this[current][id].delete(pixel);
+                }
+                if (!this[kind][id]) this[kind][id] = new Set();
+                this[kind][id].add(pixel);
+                return;
+            }
+
+            // otherwise cycle through available kinds
             const idx = PIXEL_KINDS.findIndex(k => this[k][id]?.has(pixel));
             if (idx >= 0) {
                 const current = PIXEL_KINDS[idx];
@@ -87,25 +96,10 @@ export const usePixelStore = defineStore('pixels', {
                 const next = PIXEL_KINDS[(idx + 1) % PIXEL_KINDS.length];
                 if (!this[next][id]) this[next][id] = new Set();
                 this[next][id].add(pixel);
-            }
-            else {
+            } else {
                 const target = this[DEFAULT_KIND][id];
                 if (target) target.add(pixel);
             }
-        },
-        changeKind(id, pixel, kind) {
-            switch (kind) {
-                case 'up': kind = 'bltl'; break;
-                case 'right': kind = 'tltr'; break;
-                case 'down': kind = 'tlbl'; break;
-                case 'left': kind = 'trtl'; break;
-            }
-            const idx = PIXEL_KINDS.findIndex(k => this[k][id]?.has(pixel));
-            if (idx === -1) return;
-            const current = PIXEL_KINDS[idx];
-            this[current][id].delete(pixel);
-            if (!this[kind][id]) this[kind][id] = new Set();
-            this[kind][id].add(pixel);
         },
         togglePixel(id, pixel) {
             for (const kind of PIXEL_KINDS) {

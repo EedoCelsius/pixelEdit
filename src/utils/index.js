@@ -80,68 +80,61 @@ export function ensurePathPattern(kind, target = document.body) {
     pattern.setAttribute('patternUnits', 'userSpaceOnUse');
 
     const cornerSize = 0.1;
-    const cornerPos = {
-        tl: [0, 0],
-        tr: [1 - cornerSize, 0],
-        bl: [0, 1 - cornerSize],
-        br: [1 - cornerSize, 1 - cornerSize]
-    };
-    const opposite = { tl: 'br', tr: 'bl', bl: 'tr', br: 'tl' };
-    const directions = {
-        tltr: 'right',
-        tlbl: 'down',
-        trtl: 'left',
-        trbr: 'down',
-        bltl: 'up',
-        blbr: 'right',
-        brtr: 'up',
-        brbl: 'left'
-    };
     const arrowPath = {
-        right: 'M.6.7.8.5.6.3M.8.5H.2',
-        left: 'M.4.3.2.5.4.7M.2.5H.8',
-        down: 'M.3.6.5.8.7.6M.5.8V.2',
-        up: 'M.7.4.5.2.3.4M.5.2V.8'
+        horizontal: 'M.6.7.8.5.6.3M.8.5H.2',
+        vertical: 'M.3.6.5.8.7.6M.5.8V.2'
     };
 
-    const start = cornerPos[kind.slice(0, 2)];
-    const end = cornerPos[opposite[kind.slice(0, 2)]];
-    const direction = directions[kind];
+    if (kind === 'none') {
+        const c = document.createElementNS(SVG_NAMESPACE, 'rect');
+        const pos = 0.5 - cornerSize / 2;
+        c.setAttribute('x', String(pos));
+        c.setAttribute('y', String(pos));
+        c.setAttribute('width', String(cornerSize));
+        c.setAttribute('height', String(cornerSize));
+        c.setAttribute('fill', '#00ff00');
+        c.setAttribute('stroke-width', String(cornerSize / 15));
+        c.setAttribute('stroke', '#000000');
+        pattern.appendChild(c);
+    } else {
+        const start = kind === 'vertical' ? [0.5 - cornerSize / 2, 0] : [0, 0.5 - cornerSize / 2];
+        const end = kind === 'vertical' ? [0.5 - cornerSize / 2, 1 - cornerSize] : [1 - cornerSize, 0.5 - cornerSize / 2];
 
-    const s = document.createElementNS(SVG_NAMESPACE, 'rect');
-    s.setAttribute('x', String(start[0]));
-    s.setAttribute('y', String(start[1]));
-    s.setAttribute('width', String(cornerSize));
-    s.setAttribute('height', String(cornerSize));
-    s.setAttribute('fill', '#00ff00');
-    s.setAttribute('stroke-width', String(cornerSize / 15));
-    s.setAttribute('stroke', '#000000');
+        const s = document.createElementNS(SVG_NAMESPACE, 'rect');
+        s.setAttribute('x', String(start[0]));
+        s.setAttribute('y', String(start[1]));
+        s.setAttribute('width', String(cornerSize));
+        s.setAttribute('height', String(cornerSize));
+        s.setAttribute('fill', '#00ff00');
+        s.setAttribute('stroke-width', String(cornerSize / 15));
+        s.setAttribute('stroke', '#000000');
 
-    const e = document.createElementNS(SVG_NAMESPACE, 'rect');
-    e.setAttribute('x', String(end[0]));
-    e.setAttribute('y', String(end[1]));
-    e.setAttribute('width', String(cornerSize));
-    e.setAttribute('height', String(cornerSize));
-    e.setAttribute('fill', '#ff0000');
-    e.setAttribute('stroke-width', String(cornerSize / 15));
-    e.setAttribute('stroke', '#000000');
+        const e = document.createElementNS(SVG_NAMESPACE, 'rect');
+        e.setAttribute('x', String(end[0]));
+        e.setAttribute('y', String(end[1]));
+        e.setAttribute('width', String(cornerSize));
+        e.setAttribute('height', String(cornerSize));
+        e.setAttribute('fill', '#ff0000');
+        e.setAttribute('stroke-width', String(cornerSize / 15));
+        e.setAttribute('stroke', '#000000');
 
-    const ba = document.createElementNS(SVG_NAMESPACE, 'path');
-    ba.setAttribute('d', arrowPath[direction]);
-    ba.setAttribute('stroke-width', String(cornerSize / 1.5));
-    ba.setAttribute('fill', 'none');
-    ba.setAttribute('stroke', '#000000');
+        const ba = document.createElementNS(SVG_NAMESPACE, 'path');
+        ba.setAttribute('d', arrowPath[kind]);
+        ba.setAttribute('stroke-width', String(cornerSize / 1.5));
+        ba.setAttribute('fill', 'none');
+        ba.setAttribute('stroke', '#000000');
 
-    const a = document.createElementNS(SVG_NAMESPACE, 'path');
-    a.setAttribute('d', arrowPath[direction]);
-    a.setAttribute('stroke-width', String(cornerSize / 2));
-    a.setAttribute('fill', 'none');
-    a.setAttribute('stroke', '#ffffff');
+        const a = document.createElementNS(SVG_NAMESPACE, 'path');
+        a.setAttribute('d', arrowPath[kind]);
+        a.setAttribute('stroke-width', String(cornerSize / 2));
+        a.setAttribute('fill', 'none');
+        a.setAttribute('stroke', '#ffffff');
 
-    pattern.appendChild(s);
-    pattern.appendChild(e);
-    pattern.appendChild(ba);
-    pattern.appendChild(a);
+        pattern.appendChild(s);
+        pattern.appendChild(e);
+        pattern.appendChild(ba);
+        pattern.appendChild(a);
+    }
     defs.appendChild(pattern);
     svg.appendChild(defs);
     target.appendChild(svg);
