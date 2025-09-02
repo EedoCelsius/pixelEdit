@@ -7,7 +7,7 @@ import { useLayerQueryService } from './layerQuery';
 import { useHamiltonianService } from './hamiltonian';
 import { useStore } from '../stores';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
-import { indexToCoord, ensurePathPattern } from '../utils';
+import { indexToCoord, ensureDirectionPattern } from '../utils';
 import { PIXEL_DIRECTIONS } from '../stores/pixels';
 
 export const useDrawToolService = defineStore('drawToolService', () => {
@@ -206,19 +206,19 @@ export const useTopToolService = defineStore('topToolService', () => {
     return {};
 });
 
-export const useHamStartToolService = defineStore('hamStartToolService', () => {
+export const usePathToolService = defineStore('pathToolService', () => {
     const tool = useToolSelectionService();
     const hamiltonian = useHamiltonianService();
     const layerQuery = useLayerQueryService();
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
 
-    watch(() => tool.prepared === 'hamStart', (isActive) => {
+    watch(() => tool.prepared === 'path', (isActive) => {
         if (!isActive) return;
         tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
 
     watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.prepared !== 'hamStart' || nodeTree.selectedLayerCount !== 1) return;
+        if (tool.prepared !== 'path' || nodeTree.selectedLayerCount !== 1) return;
         if (pixels.length !== 1) return;
 
         const startPixel = pixels[0];
@@ -357,15 +357,15 @@ export const useSelectService = defineStore('selectService', () => {
     return {};
 });
 
-export const usePathToolService = defineStore('pathToolService', () => {
-    const { nodeTree, pixels: pixelStore } = useStore();
+export const useDirectionToolService = defineStore('directionToolService', () => {
+    const { nodeTree, nodes, pixels: pixelStore } = useStore();
     const tool = useToolSelectionService();
     const layerQuery = useLayerQueryService();
     const overlayService = useOverlayService();
     const overlays = PIXEL_DIRECTIONS.map(direction => {
         const id = overlayService.createOverlay();
         overlayService.setStyles(id, {
-            FILL_COLOR: `url(#${ensurePathPattern(direction)})`,
+            FILL_COLOR: `url(#${ensureDirectionPattern(direction)})`,
             STROKE_COLOR: 'none',
             STROKE_WIDTH_SCALE: 0,
             FILL_RULE: 'evenodd'
@@ -373,21 +373,38 @@ export const usePathToolService = defineStore('pathToolService', () => {
         return id;
     });
     function rebuild() {
-        if (tool.prepared !== 'path') return;
+        if (tool.prepared !== 'direction') return;
         const layerIds = nodeTree.selectedLayerIds;
+        const showAll = layerIds.length === 0;
         PIXEL_DIRECTIONS.forEach((direction, idx) => {
             const overlayId = overlays[idx];
             overlayService.clear(overlayId);
-            for (const id of layerIds) {
-                const set = pixelStore[direction][id];
-                if (!set) continue;
-                overlayService.addPixels(overlayId, [...set]);
+            if (showAll) {
+                const add = new Set();
+                for (let i = nodeTree.layerOrder.length - 1; i >= 0; i--) {
+                    const id = nodeTree.layerOrder[i];
+                    if (!nodes.getProperty(id, 'visibility')) continue;
+                    const set = pixelStore[direction][id];
+                    if (!set) continue;
+                    for (const pixel of set) {
+                        if (layerQuery.topVisibleAt(pixel) === id) {
+                            add.add(pixel);
+                        }
+                    }
+                }
+                overlayService.addPixels(overlayId, [...add]);
+            }
+            else {
+                for (const id of layerIds) {
+                    const set = pixelStore[direction][id];
+                    if (!set) continue;
+                    overlayService.addPixels(overlayId, [...set]);
+                }
             }
         });
     }
-    watch(() => tool.prepared === 'path', (isPath) => {
-        console.log(0)
-        if (!isPath) {
+    watch(() => tool.prepared === 'direction', (isDirection) => {
+        if (!isDirection) {
             overlays.forEach(id => overlayService.clear(id));
             return;
         }
@@ -395,13 +412,18 @@ export const usePathToolService = defineStore('pathToolService', () => {
         tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
     watch(() => tool.hoverPixel, (pixel) => {
-        if (tool.prepared !== 'path' || !pixel) return;
+        if (tool.prepared !== 'direction' || !pixel) return;
         tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
     watch(() => tool.dragPixel, (pixel, prevPixel) => {
-        if (tool.prepared !== 'path' || pixel == null) return;
+        if (tool.prepared !== 'direction' || pixel == null) return;
         const target = layerQuery.topVisibleAt(pixel);
-        if (nodeTree.selectedLayerIds.includes(target)) {
+        const editable = nodeTree.selectedLayerIds.length === 0 || nodeTree.selectedLayerIds.includes(target);
+        if (target != null && editable) {
+            if (nodes.getProperty(target, 'locked')) {
+                tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
+                return;
+            }
             if (prevPixel == null) {
                 const idx = PIXEL_DIRECTIONS.findIndex(k => pixelStore[k][target]?.has(pixel));
                 const current = idx >= 0 ? PIXEL_DIRECTIONS[idx] : 'none';
