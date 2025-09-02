@@ -14,7 +14,7 @@
             <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
           </div>
           <div class="text-xs text-slate-400">
-            <span>{{ nodeTree.descendantLayerIds(item.id).length }} Layers ({{ getPixelUnion(descendantPixels(item.id)).length }}px)</span>
+            <span>{{ getPixelUnion(descendantPixels(item.id)).length }}px - {{ nodeTree.descendantLayerIds(item.id).length }}L</span>
           </div>
         </div>
         <div class="absolute inset-y-0 right-0 flex items-center gap-1 pr-2 pl-6 bg-gradient-to-l from-sky-950/80 to-sky-950/0 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity">
