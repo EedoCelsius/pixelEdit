@@ -14,7 +14,7 @@
             <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
           </div>
           <div class="text-xs text-slate-400">
-            <span>{{ nodeTree.descendantLayerIds(item.id).length }} layers ({{ descendantPixelCount(item.id) }} px)</span>
+            <span>{{ nodeTree.descendantLayerIds(item.id).length }} layers ({{ getPixelUnion(descendantProps(item.id)).length }}px)</span>
           </div>
         </div>
         <div class="flex gap-1 justify-end">
@@ -52,7 +52,7 @@
               <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(item.id)">{{ pixelStore.disconnectedCountOfLayer(item.id) }} piece</span>
               <span class="mx-1">|</span>
             </template>
-            <span class="cursor-pointer" @click.stop="onPixelCountClick(item.id)" title="같은 크기의 모든 레이어 선택">{{ item.props.pixels.length }} px</span>
+            <span class="cursor-pointer" @click.stop="onPixelCountClick(item.id)" title="같은 크기의 모든 레이어 선택">{{ item.props.pixels.length }}px</span>
           </div>
         </div>
         <!-- 액션 -->
@@ -136,14 +136,6 @@ function descendantProps(id) {
   const ids = nodeTree.descendantLayerIds(id);
   return nodes.getProperties(ids);
 }
-
-function descendantPixelCount(id) {
-  const ids = nodeTree.descendantLayerIds(id);
-  let total = 0;
-  for (const layerId of ids) total += pixelStore.get(layerId).length;
-  return total;
-}
-
 
   function onThumbnailClick(id) {
       const color = nodes.getProperty(id, 'color');
