@@ -15,13 +15,8 @@
          }"
          @contextmenu.prevent>
       <!-- 체커보드 -->
-      <svg
-        class="absolute top-0 left-0 pointer-events-none block"
-        :style="{ width: stage.width + 'px', height: stage.height + 'px' }"
-        :viewBox="viewportStore.viewBox"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        <rect x="0" y="0" :width="stage.width" :height="stage.height" :fill="patternUrl" />
+      <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
+        <rect x="0" y="0" :width="stage.width" :height="stage.height" :fill="patternUrl"/>
       </svg>
       <!-- 원본 -->
       <img v-show="viewportStore.display==='original'"
@@ -31,65 +26,34 @@
            :style="{ left: image.x + 'px', top: image.y + 'px', width: image.width + 'px', height: image.height + 'px' }"
            @load="onImageLoad" />
       <!-- 결과 레이어 -->
-      <svg
-        v-show="viewportStore.display==='result'"
-        class="absolute top-0 left-0 pointer-events-none block"
-        :style="{ width: stage.width + 'px', height: stage.height + 'px' }"
-        :viewBox="viewportStore.viewBox"
-        preserveAspectRatio="xMidYMid meet"
-      >
+      <svg v-show="viewportStore.display==='result'" class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
         <g>
-          <path
-            v-for="props in nodes.getProperties(nodeTree.layerIdsBottomToTop)"
-            :key="'pix-'+props.id"
-            :d="pixelStore.pathOfLayer(props.id)"
-            fill-rule="evenodd"
-            shape-rendering="crispEdges"
-            :fill="rgbaCssU32(props.color)"
-            :visibility="props.visibility ? 'visible' : 'hidden'"
-          ></path>
+            <path v-for="props in nodes.getProperties(nodeTree.layerIdsBottomToTop)" :key="'pix-'+props.id" :d="pixelStore.pathOfLayer(props.id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(props.color)" :visibility="props.visibility?'visible':'hidden'"></path>
         </g>
       </svg>
       <!-- 그리드 -->
-      <svg
-        class="absolute top-0 left-0 pointer-events-none block"
-        :style="{ width: stage.width + 'px', height: stage.height + 'px' }"
-        :viewBox="viewportStore.viewBox"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        <g :stroke="GRID_STROKE_COLOR" :stroke-width="1/Math.max(1, stage.scale)">
-          <path v-for="x in stage.width + 1" :key="'gx' + x" :d="'M ' + (x - 1) + ' 0 V ' + stage.height"></path>
-          <path v-for="y in stage.height + 1" :key="'gy' + y" :d="'M 0 ' + (y - 1) + ' H ' + stage.width"></path>
+      <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
+        <g :stroke="GRID_STROKE_COLOR" :stroke-width="1/Math.max(1,stage.scale)">
+          <path v-for="x in (stage.width+1)" :key="'gx'+x" :d="'M '+(x-1)+' 0 V '+stage.height"></path>
+          <path v-for="y in (stage.height+1)" :key="'gy'+y" :d="'M 0 '+(y-1)+' H '+stage.width"></path>
         </g>
       </svg>
         <!-- 오버레이 -->
-      <svg
-        class="absolute top-0 left-0 pointer-events-none block"
-        :style="{ width: stage.width + 'px', height: stage.height + 'px' }"
-        :viewBox="viewportStore.viewBox"
-        preserveAspectRatio="xMidYMid meet"
-      >
+      <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
         <template v-for="ov in overlay.list" :key="ov.id">
-          <path
-            v-if="ov.path"
-            :id="ov.id + 'Overlay'"
-            :d="ov.path"
-            :fill="ov.styles.FILL_COLOR"
-            :stroke="ov.styles.STROKE_COLOR"
-            :stroke-width="ov.styles.STROKE_WIDTH_SCALE / Math.max(1, stage.scale)"
-            :fill-rule="ov.styles.FILL_RULE"
-            shape-rendering="crispEdges"
-          />
+          <path v-if="ov.path"
+                :id="ov.id + 'Overlay'"
+                :d="ov.path"
+              :fill="ov.styles.FILL_COLOR"
+                :stroke="ov.styles.STROKE_COLOR"
+                :stroke-width="ov.styles.STROKE_WIDTH_SCALE / Math.max(1, stage.scale)"
+                :fill-rule="ov.styles.FILL_RULE"
+                shape-rendering="crispEdges" />
         </template>
       </svg>
       </div>
       <!-- Marquee overlay -->
-      <svg
-        class="absolute top-0 left-0 pointer-events-none block"
-        :style="{ width: viewportStore.content.width + 'px', height: viewportStore.content.height + 'px' }"
-        :viewBox="viewportViewBox"
-        preserveAspectRatio="none"
-      >
+      <svg class="absolute top-0 left-0 w-full h-full pointer-events-none block" :viewBox="viewportViewBox" preserveAspectRatio="none">
           <rect id="marqueeRect"
                 :x="marqueeRect.x"
                 :y="marqueeRect.y"
