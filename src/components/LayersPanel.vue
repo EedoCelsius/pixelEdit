@@ -1,6 +1,6 @@
 <template>
   <div v-memo="[output.commitVersion, nodeTree.selectedLayerIds, nodeTree.layerCount, foldedMemo]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
-    <div v-for="item in flatNodes" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.selectedNodeIds.includes(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id, 'descendant-selected': ancestorsOfSelected.has(item.id) }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)" @contextmenu.prevent="onContextMenu(item,$event)">
+    <div v-for="item in flatNodes" class="layer group relative flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.selectedNodeIds.includes(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id, 'descendant-selected': ancestorsOfSelected.has(item.id) }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)" @contextmenu.prevent="onContextMenu(item,$event)">
       <template v-if="item.isGroup">
         <div class="w-4 text-center cursor-pointer" @click.stop="toggleFold(item.id)">{{ folded[item.id] ? '▶' : '▼' }}</div>
         <div class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden" title="그룹 미리보기">
@@ -9,7 +9,7 @@
             <path v-for="child in descendantProps(item.id)" :key="child.id" :d="pixelStore.pathOfLayer(child.id)" :fill="rgbaCssU32(child.color)" :opacity="child.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
           </svg>
         </div>
-        <div class="min-w-0 flex-1">
+        <div class="min-w-0 flex-1 relative overflow-hidden fade-mask">
           <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
             <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
           </div>
@@ -17,7 +17,7 @@
             <span>{{ nodeTree.descendantLayerIds(item.id).length }} Layers ({{ getPixelUnion(descendantPixels(item.id)).length }}px)</span>
           </div>
         </div>
-        <div class="flex gap-1 justify-end">
+        <div class="absolute inset-y-0 right-0 flex items-center gap-1 pr-2 pl-6 bg-gradient-to-l from-sky-950 via-sky-950 to-sky-950/0 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity">
           <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
             <img :src="(item.props.visibility?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(item.id)" />
           </div>
@@ -42,7 +42,7 @@
           <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :class="{ 'cursor-not-allowed': item.props.locked }" :disabled="item.props.locked" :value="rgbaToHexU32(item.props.color)" @pointerdown.stop @mousedown.stop @click.stop="onColorDown()" @input.stop="onColorInput(item.id, $event)" @change.stop="onColorChange()" title="색상 변경" />
         </div>
         <!-- 이름/픽셀 -->
-        <div class="min-w-0 flex-1">
+        <div class="min-w-0 flex-1 relative overflow-hidden fade-mask">
           <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
             <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
           </div>
@@ -56,7 +56,7 @@
           </div>
         </div>
         <!-- 액션 -->
-        <div class="flex gap-1 justify-end">
+        <div class="absolute inset-y-0 right-0 flex items-center gap-1 pr-2 pl-6 bg-gradient-to-l from-sky-950 via-sky-950 to-sky-950/0 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity">
           <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
             <img :src="(item.props.visibility?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(item.id)" />
           </div>
@@ -624,6 +624,15 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 텍스트 그라데이션 마스킹 */
+.fade-mask{
+  -webkit-mask-image:none;
+  mask-image:none;
+}
+.group:hover .fade-mask{
+  -webkit-mask-image:linear-gradient(to right,#000,#000 calc(100% - 8rem),transparent);
+  mask-image:linear-gradient(to right,#000,#000 calc(100% - 8rem),transparent);
+}
 /* 레이어 재정렬 표시 */
 .insert-before{box-shadow:inset 0 3px 0 0 rgba(56,189,248,.7)}
 .insert-after{box-shadow:inset 0 -3px 0 0 rgba(56,189,248,.7)}
