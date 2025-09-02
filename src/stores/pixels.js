@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { coordToIndex, indexToCoord, pixelsToUnionPath, groupConnectedPixels } from '../utils';
 
 export const PIXEL_DIRECTIONS = ['none', 'vertical', 'horizontal'];
-const DEFAULT_DIRECTION = PIXEL_DIRECTIONS[0];
+export const PIXEL_DEFAULT_DIRECTIONS = [...PIXEL_DIRECTIONS, 'checkerboard'];
 
 function unionSet(state, id) {
     const merged = new Set();
@@ -18,7 +18,8 @@ export const usePixelStore = defineStore('pixels', {
     state: () => ({
         'none': {},
         'vertical': {},
-        'horizontal': {}
+        'horizontal': {},
+        defaultDirection: PIXEL_DEFAULT_DIRECTIONS[0]
     }),
     getters: {
         get: (state) => (id) => {
@@ -53,18 +54,31 @@ export const usePixelStore = defineStore('pixels', {
     actions: {
         set(id, pixels = []) {
             for (const direction of PIXEL_DIRECTIONS) delete this[direction][id];
-            this[DEFAULT_DIRECTION][id] = new Set(pixels);
+            this.addPixels(id, pixels, this.defaultDirection);
         },
         remove(ids = []) {
             for (const id of ids) {
                 for (const direction of PIXEL_DIRECTIONS) delete this[direction][id];
             }
         },
-        addPixels(id, pixels, direction = DEFAULT_DIRECTION) {
-            if (!this[direction][id]) this[direction][id] = new Set();
-            for (const pixel of pixels) {
-                for (const dir of PIXEL_DIRECTIONS) this[dir][id]?.delete(pixel);
-                this[direction][id].add(pixel);
+        addPixels(id, pixels, direction) {
+            direction = direction ?? this.defaultDirection;
+            if (direction === 'checkerboard') {
+                if (!this['vertical'][id]) this['vertical'][id] = new Set();
+                if (!this['horizontal'][id]) this['horizontal'][id] = new Set();
+                for (const pixel of pixels) {
+                    for (const dir of PIXEL_DIRECTIONS) this[dir][id]?.delete(pixel);
+                    const [x, y] = indexToCoord(pixel);
+                    const orientation = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
+                    this[orientation][id].add(pixel);
+                }
+            }
+            else {
+                if (!this[direction][id]) this[direction][id] = new Set();
+                for (const pixel of pixels) {
+                    for (const dir of PIXEL_DIRECTIONS) this[dir][id]?.delete(pixel);
+                    this[direction][id].add(pixel);
+                }
             }
         },
         removePixels(id, pixels) {
@@ -90,8 +104,16 @@ export const usePixelStore = defineStore('pixels', {
                     return;
                 }
             }
-            const target = this[DEFAULT_DIRECTION][id];
-            if (target) target.add(pixel);
+            if (this.defaultDirection === 'checkerboard') {
+                const [x, y] = indexToCoord(pixel);
+                const dir = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
+                if (!this[dir][id]) this[dir][id] = new Set();
+                this[dir][id].add(pixel);
+            }
+            else {
+                const target = this[this.defaultDirection][id];
+                if (target) target.add(pixel);
+            }
         },
         translateAll(dx = 0, dy = 0) {
             dx |= 0; dy |= 0;
@@ -123,8 +145,11 @@ export const usePixelStore = defineStore('pixels', {
         applySerialized(byId = {}) {
             for (const direction of PIXEL_DIRECTIONS) this[direction] = {};
             for (const id of Object.keys(byId)) {
-                this[DEFAULT_DIRECTION][id] = new Set(byId[id]);
+                this.addPixels(id, byId[id], this.defaultDirection);
             }
+        },
+        setDefaultDirection(direction) {
+            if (PIXEL_DEFAULT_DIRECTIONS.includes(direction)) this.defaultDirection = direction;
         }
     }
 });
