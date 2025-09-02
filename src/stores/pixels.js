@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
 import { coordToIndex, indexToCoord, pixelsToUnionPath, groupConnectedPixels } from '../utils';
 
-export const PIXEL_DIRECTIONS = ['none', 'vertical', 'horizontal'];
-export const PIXEL_DEFAULT_DIRECTIONS = [...PIXEL_DIRECTIONS, 'checkerboard'];
+export const PIXEL_DIRECTIONS = ['none', 'horizontal', 'downSlope', 'vertical', 'upSlope'];
+export const PIXEL_DEFAULT_DIRECTIONS = [...PIXEL_DIRECTIONS, 'checkerboard', 'slopeCheckerboard'];
 
 function unionSet(state, id) {
     const merged = new Set();
@@ -17,8 +17,10 @@ function unionSet(state, id) {
 export const usePixelStore = defineStore('pixels', {
     state: () => ({
         'none': {},
-        'vertical': {},
         'horizontal': {},
+        'downSlope': {},
+        'vertical': {},
+        'upSlope': {},
         defaultDirection: localStorage.getItem('settings.defaultDirection') || PIXEL_DEFAULT_DIRECTIONS[0]
     }),
     getters: {
@@ -73,6 +75,16 @@ export const usePixelStore = defineStore('pixels', {
                     this[orientation][id].add(pixel);
                 }
             }
+            else if (direction === 'slopeCheckerboard') {
+                if (!this['downSlope'][id]) this['downSlope'][id] = new Set();
+                if (!this['upSlope'][id]) this['upSlope'][id] = new Set();
+                for (const pixel of pixels) {
+                    for (const dir of PIXEL_DIRECTIONS) this[dir][id]?.delete(pixel);
+                    const [x, y] = indexToCoord(pixel);
+                    const orientation = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
+                    this[orientation][id].add(pixel);
+                }
+            }
             else {
                 if (!this[direction][id]) this[direction][id] = new Set();
                 for (const pixel of pixels) {
@@ -107,6 +119,12 @@ export const usePixelStore = defineStore('pixels', {
             if (this.defaultDirection === 'checkerboard') {
                 const [x, y] = indexToCoord(pixel);
                 const dir = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
+                if (!this[dir][id]) this[dir][id] = new Set();
+                this[dir][id].add(pixel);
+            }
+            else if (this.defaultDirection === 'slopeCheckerboard') {
+                const [x, y] = indexToCoord(pixel);
+                const dir = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
                 if (!this[dir][id]) this[dir][id] = new Set();
                 this[dir][id].add(pixel);
             }

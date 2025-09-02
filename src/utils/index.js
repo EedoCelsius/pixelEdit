@@ -78,7 +78,7 @@ export function ensureDirectionPattern(direction, target = document.body) {
     pattern.setAttribute('width', '1');
     pattern.setAttribute('height', '1');
     pattern.setAttribute('patternUnits', 'userSpaceOnUse');
-    if (direction === 'vertical' || direction === 'horizontal') {
+    if (direction === 'vertical' || direction === 'horizontal' || direction === 'downSlope' || direction === 'upSlope') {
         const border = document.createElementNS(SVG_NAMESPACE, 'line');
         const line = document.createElementNS(SVG_NAMESPACE, 'line');
         if (direction === 'vertical') {
@@ -91,7 +91,7 @@ export function ensureDirectionPattern(direction, target = document.body) {
             line.setAttribute('x2', '.5');
             line.setAttribute('y2', '1');
         }
-        else {
+        else if (direction === 'horizontal') {
             border.setAttribute('x1', '0');
             border.setAttribute('y1', '.5');
             border.setAttribute('x2', '1');
@@ -100,6 +100,26 @@ export function ensureDirectionPattern(direction, target = document.body) {
             line.setAttribute('y1', '.5');
             line.setAttribute('x2', '1');
             line.setAttribute('y2', '.5');
+        }
+        else if (direction === 'downSlope') {
+            border.setAttribute('x1', '0');
+            border.setAttribute('y1', '0');
+            border.setAttribute('x2', '1');
+            border.setAttribute('y2', '1');
+            line.setAttribute('x1', '0');
+            line.setAttribute('y1', '0');
+            line.setAttribute('x2', '1');
+            line.setAttribute('y2', '1');
+        }
+        else { // upSlope
+            border.setAttribute('x1', '0');
+            border.setAttribute('y1', '1');
+            border.setAttribute('x2', '1');
+            border.setAttribute('y2', '0');
+            line.setAttribute('x1', '0');
+            line.setAttribute('y1', '1');
+            line.setAttribute('x2', '1');
+            line.setAttribute('y2', '0');
         }
         border.setAttribute('stroke', '#000000');
         border.setAttribute('stroke-width', '.1');
