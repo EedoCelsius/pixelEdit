@@ -95,7 +95,7 @@ export const useClipboardService = defineStore('clipboardService', () => {
         const attach = (info) => {
             if (info.children.length) {
                 const ids = info.children.map(c => c.id);
-                nodeTree.append(ids, info.id, false);
+                nodeTree.append(ids, info.id);
                 info.children.forEach(attach);
             }
         };
