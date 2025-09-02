@@ -6,5 +6,5 @@ export const CHECKERBOARD_CONFIG = {
     PATTERN_ID: 'chk',
     COLOR_A: '#0a1f33',
     COLOR_B: '#0c2742',
-    REPEAT: 1,
+    REPEAT: Number(localStorage.getItem('settings.checkerboardRepeat')) || 1,
 };

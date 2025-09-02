@@ -1,10 +1,15 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useStore } from '../stores';
 
 export const useImageLoadService = defineStore('imageLoadService', () => {
   const show = ref(false);
-  const { input, pixels } = useStore();
+  const { input } = useStore();
+  const initialize = ref(localStorage.getItem('imageLoad.initialize') !== 'false');
+  const tolerance = ref(Number(localStorage.getItem('imageLoad.tolerance')) || 40);
+
+  watch(initialize, v => localStorage.setItem('imageLoad.initialize', v));
+  watch(tolerance, v => localStorage.setItem('imageLoad.tolerance', v));
 
   function open() {
     show.value = true;
@@ -19,11 +24,10 @@ export const useImageLoadService = defineStore('imageLoadService', () => {
     close();
   }
 
-  function apply({ direction, initialize, tolerance }) {
-    pixels.setDefaultDirection(direction);
-    input.initialize({ initializeLayers: initialize, segmentTolerance: tolerance });
+  function apply() {
+    input.initialize({ initializeLayers: initialize.value, segmentTolerance: tolerance.value });
     close();
   }
 
-  return { show, open, close, apply, cancel };
+  return { show, open, close, apply, cancel, initialize, tolerance };
 });
