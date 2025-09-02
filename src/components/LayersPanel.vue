@@ -56,7 +56,7 @@
           </div>
         </div>
         <!-- 액션 -->
-        <div class="absolute inset-y-0 right-0 flex items-center gap-1 pr-2 pl-6 bg-gradient-to-l from-sky-950 via-sky-950 to-sky-950/0 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity">
+        <div class="absolute inset-y-0 right-0 flex items-center gap-1 pr-2 pl-6 bg-gradient-to-l from-sky-950/80 to-sky-950/0 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity">
           <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
             <img :src="(item.props.visibility?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(item.id)" />
           </div>
@@ -630,8 +630,8 @@ onUnmounted(() => {
   mask-image:none;
 }
 .group:hover .fade-mask{
-  -webkit-mask-image:linear-gradient(to right,#000,#000 calc(100% - 10rem),transparent);
-  mask-image:linear-gradient(to right,#000,#000 calc(100% - 10rem),transparent);
+  -webkit-mask-image:linear-gradient(to right,#000,#000 calc(100% - 10rem),transparent calc(100% - 5rem),transparent);
+  mask-image:linear-gradient(to right,#000,#000 calc(100% - 10rem),transparent calc(100% - 5rem),transparent);
 }
 /* 레이어 재정렬 표시 */
 .insert-before{box-shadow:inset 0 3px 0 0 rgba(56,189,248,.7)}
