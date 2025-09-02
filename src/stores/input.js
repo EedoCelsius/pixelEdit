@@ -67,18 +67,50 @@ export const useInputStore = defineStore('input', {
             if (initializeLayers) {
                 const autoSegments = this.segment(segmentTolerance);
                 if (autoSegments.length) {
-                    const ids = [];
-                    for (let i = 0; i < autoSegments.length; i++) {
-                        const segment = autoSegments[i];
-                        const id = nodes.createLayer({
-                            name: `Auto ${i + 1}`,
-                            color: segment.colorU32,
-                            visibility: true
-                        });
-                        if (segment.pixels?.length) pixelStore.set(id, segment.pixels);
-                        ids.push(id);
+                    const groups = new Map();
+                    autoSegments.forEach((seg, idx) => {
+                        const color = seg.colorU32 >>> 0;
+                        if (!groups.has(color)) groups.set(color, { segments: [], firstIndex: idx });
+                        groups.get(color).segments.push(seg);
+                    });
+                    const sortedGroups = [...groups.entries()].sort((a, b) => a[1].firstIndex - b[1].firstIndex);
+                    const topIds = [];
+                    const groupLayerMap = [];
+                    let layerCounter = 1;
+                    let groupCounter = 1;
+                    for (const [color, info] of sortedGroups) {
+                        const { segments } = info;
+                        if (segments.length > 1) {
+                            const groupId = nodes.createGroup({
+                                name: `Auto Group ${groupCounter++}`,
+                                color,
+                                visibility: true
+                            });
+                            topIds.push(groupId);
+                            const layerIds = [];
+                            for (const segment of segments) {
+                                const layerId = nodes.createLayer({
+                                    name: `Auto ${layerCounter++}`,
+                                    color: segment.colorU32,
+                                    visibility: true
+                                });
+                                if (segment.pixels?.length) pixelStore.set(layerId, segment.pixels);
+                                layerIds.push(layerId);
+                            }
+                            groupLayerMap.push({ groupId, layerIds });
+                        } else {
+                            const segment = segments[0];
+                            const id = nodes.createLayer({
+                                name: `Auto ${layerCounter++}`,
+                                color: segment.colorU32,
+                                visibility: true
+                            });
+                            if (segment.pixels?.length) pixelStore.set(id, segment.pixels);
+                            topIds.push(id);
+                        }
                     }
-                    nodeTree.insert(ids);
+                    nodeTree.insert(topIds);
+                    for (const { groupId, layerIds } of groupLayerMap) nodeTree.append(layerIds, groupId, false);
                 } else {
                     const ids = [nodes.createLayer({}), nodes.createLayer({})];
                     nodeTree.insert(ids);
