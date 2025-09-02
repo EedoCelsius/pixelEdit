@@ -22,7 +22,7 @@
             <img :src="(item.props.locked?icons.lock:icons.unlock)" alt="lock/unlock" class="w-4 h-4 cursor-pointer" @error="icons.lock=icons.unlock=''" @click.stop="toggleLock(item.id)" />
           </div>
           <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
-            <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(item.id)" />
+            <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteNode(item.id)" />
           </div>
         </div>
       </template>
@@ -61,7 +61,7 @@
             <img :src="(item.props.locked?icons.lock:icons.unlock)" alt="lock/unlock" class="w-4 h-4 cursor-pointer" @error="icons.lock=icons.unlock=''" @click.stop="toggleLock(item.id)" />
           </div>
           <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
-            <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(item.id)" />
+            <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteNode(item.id)" />
           </div>
         </div>
       </template>
@@ -80,7 +80,7 @@ import { useService } from '../services';
 import { useContextMenuStore } from '../stores/contextMenu';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output, keyboardEvent: keyboardEvents } = useStore();
-const { layerPanel, layerQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc } = useService();
+const { layerPanel, layerQuery, nodeQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc } = useService();
 const contextMenu = useContextMenuStore();
 
 const dragging = ref(false);
@@ -326,35 +326,58 @@ function onContextMenu(item, event) {
     contextMenu.open(event, items);
 }
 
-function deleteLayer(id) {
+function deleteNode(id) {
     output.setRollbackPoint();
-    const targets = nodeTree.selectedNodeIds.includes(id) ? nodeTree.selectedNodeIds : [id];
-    const belowId = layerQuery.below(layerQuery.lowermost(targets));
+    const targets = nodeTree.selectedNodeIds.includes(id) ? nodeTree.selectedIds : [id];
+    const lowermostTarget = nodeQuery.lowermost(targets);
+    const parentId = nodeQuery.parentOf(lowermostTarget);
+    const belowId = nodeQuery.below(lowermostTarget);
     const removed = nodeTree.remove(targets);
     nodes.remove(removed);
     pixelStore.remove(removed);
-    const newSelectId = nodeTree.has(belowId) ? belowId : layerQuery.lowermost();
+    let newSelectId = null;
+    if (nodeTree.has(belowId)) {
+        newSelectId = belowId;
+    } else {
+        const siblings = nodeQuery.childrenOf(parentId);
+        const lowermostSibling = nodeQuery.lowermost(siblings);
+        if (nodeTree.has(lowermostSibling)) {
+            newSelectId = lowermostSibling;
+        } else if (nodeTree.has(parentId)) {
+            newSelectId = parentId;
+        }
+    }
     layerPanel.setRange(newSelectId, newSelectId);
     if (newSelectId) {
-        layerPanel.setScrollRule({
-            type: "follow",
-            target: newSelectId
-        });
+        layerPanel.setScrollRule({ type: 'follow', target: newSelectId });
     }
     output.commit();
 }
 
 function deleteSelection() {
-    if (!nodeTree.layerSelectionExists) return;
+    if (!nodeTree.selectedNodeCount) return;
     output.setRollbackPoint();
-    const belowId = layerQuery.below(layerQuery.lowermost(nodeTree.selectedLayerIds));
-    const ids = nodeTree.selectedLayerIds;
+    const ids = nodeTree.selectedIds;
+    const lowermostTarget = nodeQuery.lowermost(ids);
+    const parentId = nodeQuery.parentOf(lowermostTarget);
+    const belowId = nodeQuery.below(lowermostTarget);
     const removed = nodeTree.remove(ids);
     nodes.remove(removed);
     pixelStore.remove(removed);
-    const newSelect = nodeTree.has(belowId) ? belowId : layerQuery.lowermost();
+    let newSelect = null;
+    if (nodeTree.has(belowId)) {
+        newSelect = belowId;
+    } else {
+        const siblings = nodeQuery.childrenOf(parentId);
+        const lowermostSibling = nodeQuery.lowermost(siblings);
+        if (nodeTree.has(lowermostSibling)) {
+            newSelect = lowermostSibling;
+        } else if (nodeTree.has(parentId)) {
+            newSelect = parentId;
+        }
+    }
     layerPanel.setRange(newSelect, newSelect);
-    layerPanel.setScrollRule({ type: 'follow', target: newSelect });
+    if (newSelect) layerPanel.setScrollRule({ type: 'follow', target: newSelect });
     output.commit();
 }
 
