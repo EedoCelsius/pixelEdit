@@ -94,10 +94,10 @@ export const useViewportStore = defineStore('viewport', {
             const paddingBottom = parseFloat(style.paddingBottom) || 0;
             const left = rect.left + paddingLeft;
             const top = rect.top + paddingTop;
-            const width = rect.width - paddingLeft - paddingRight;
-            const height = rect.height - paddingTop - paddingBottom;
-            const right = left + width;
-            const bottom = top + height;
+            const right = rect.right - paddingRight;
+            const bottom = rect.bottom - paddingBottom;
+            const width = (this._element.clientWidth || 0) - paddingLeft - paddingRight;
+            const height = (this._element.clientHeight || 0) - paddingTop - paddingBottom;
             this._content = { top, right, bottom, left, width, height };
             const containScale = Math.min(
                 width / Math.max(1, this._stage.width),
