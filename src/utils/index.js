@@ -79,21 +79,32 @@ export function ensurePathPattern(direction, target = document.body) {
     pattern.setAttribute('height', '1');
     pattern.setAttribute('patternUnits', 'userSpaceOnUse');
     if (direction === 'vertical' || direction === 'horizontal') {
+        const border = document.createElementNS(SVG_NAMESPACE, 'line');
         const line = document.createElementNS(SVG_NAMESPACE, 'line');
         if (direction === 'vertical') {
+            border.setAttribute('x1', '.5');
+            border.setAttribute('y1', '0');
+            border.setAttribute('x2', '.5');
+            border.setAttribute('y2', '1');
             line.setAttribute('x1', '.5');
             line.setAttribute('y1', '0');
             line.setAttribute('x2', '.5');
             line.setAttribute('y2', '1');
         }
         else {
+            border.setAttribute('x1', '0');
+            border.setAttribute('y1', '.5');
+            border.setAttribute('x2', '1');
+            border.setAttribute('y2', '.5');
             line.setAttribute('x1', '0');
             line.setAttribute('y1', '.5');
             line.setAttribute('x2', '1');
             line.setAttribute('y2', '.5');
         }
-        line.setAttribute('stroke', '#000000');
-        line.setAttribute('stroke-width', '.1');
+        border.setAttribute('stroke', '#000000');
+        border.setAttribute('stroke-width', '.1');
+        line.setAttribute('stroke', '#FFFFFF');
+        line.setAttribute('stroke-width', '.8');
         pattern.appendChild(line);
     }
     defs.appendChild(pattern);
