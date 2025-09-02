@@ -1,6 +1,12 @@
 <template>
   <ul v-if="visible" class="context-menu" :style="{ left: x + 'px', top: y + 'px' }">
-    <li v-for="(item, i) in items" :key="i" @click="select(item)" class="menu-item">
+    <li
+      v-for="(item, i) in items"
+      :key="i"
+      @click="select(item)"
+      class="menu-item"
+      :class="{ disabled: item.disabled }"
+    >
       {{ item.label }}
     </li>
   </ul>
@@ -14,6 +20,7 @@ const menuStore = useContextMenuStore();
 const { visible, x, y, items } = storeToRefs(menuStore);
 
 function select(item) {
+  if (item.disabled) return;
   menuStore.close();
   item.action && item.action();
 }
@@ -35,5 +42,12 @@ function select(item) {
 }
 .menu-item:hover {
   background: rgba(255, 255, 255, 0.1);
+}
+.menu-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.menu-item.disabled:hover {
+  background: transparent;
 }
 </style>

@@ -143,12 +143,33 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         return groupIds;
     }
 
+    function flipOrderSelected() {
+        const selected = nodeTree.selectedIds;
+        if (selected.length === 1 && nodes.getProperty(selected[0], 'type') === 'group') {
+            const info = nodeTree._findNode(selected[0]);
+            if (info?.node.children) info.node.children.reverse();
+            return;
+        }
+        if (selected.length < 2) return;
+        const infos = selected.map(id => nodeTree._findNode(id)).filter(Boolean);
+        if (!infos.length) return;
+        const parent = infos[0].parent ?? null;
+        if (!infos.every(info => (info.parent ?? null) === parent)) return;
+        const parentArr = parent ? parent.children : nodeTree._tree;
+        const sorted = infos.slice().sort((a, b) => a.index - b.index);
+        const nodesReversed = sorted.map(info => info.node).reverse();
+        sorted.forEach((info, idx) => {
+            parentArr[info.index] = nodesReversed[idx];
+        });
+    }
+
     return {
         mergeSelected,
         copySelected,
         splitSelected,
         groupSelected,
         ungroupSelected,
+        flipOrderSelected,
     };
 });
 
