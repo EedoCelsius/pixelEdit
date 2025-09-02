@@ -43,26 +43,46 @@ export const useLayerToolService = defineStore('layerToolService', () => {
     }
 
     function copySelected() {
-        if (!nodeTree.selectedLayerCount) return [];
-        const sorted = nodeTree.selectedLayerIds
-            .slice()
-            .sort((a, b) => nodeTree.indexOfLayer(a) - nodeTree.indexOfLayer(b));
-        const newLayerIds = [];
-        for (const id of sorted) {
-            const layer = nodes.getProperties(id);
-            const px = pixels.get(id);
-            const attrs = layer.attributes;
-            const newLayerId = nodes.createLayer({
-                name: `Copy of ${layer.name}`,
-                color: layer.color,
-                visibility: layer.visibility,
-                attributes: attrs,
-            });
-            if (px.length) pixels.set(newLayerId, px);
-            newLayerIds.push(newLayerId);
+        const selected = nodeTree.selectedIds;
+        if (!selected.length) return [];
+
+        const copyInto = (srcId, parentId = null, prefix = true) => {
+            const props = nodes.getProperties(srcId);
+            const name = prefix ? `Copy of ${props.name}` : props.name;
+            let newId;
+            if (props.type === 'layer') {
+                newId = nodes.createLayer({
+                    name,
+                    color: props.color,
+                    visibility: props.visibility,
+                    attributes: props.attributes,
+                });
+                const px = pixels.get(srcId);
+                if (px.length) pixels.set(newId, px);
+                if (parentId == null) nodeTree.insert([newId], srcId, false);
+                else nodeTree.append([newId], parentId, false);
+            } else if (props.type === 'group') {
+                newId = nodes.createGroup({
+                    name,
+                    color: props.color,
+                    visibility: props.visibility,
+                    attributes: props.attributes,
+                });
+                if (parentId == null) nodeTree.insert([newId], srcId, false);
+                else nodeTree.append([newId], parentId, false);
+                const info = nodeTree._findNode(srcId);
+                const children = info?.node.children || [];
+                for (const child of children) copyInto(child.id, newId, false);
+            }
+            return newId;
+        };
+
+        const newIds = [];
+        for (const id of selected) {
+            const nid = copyInto(id);
+            if (nid != null) newIds.push(nid);
         }
-        nodeTree.insert(newLayerIds, layerQuery.uppermost(sorted), false);
-        return newLayerIds;
+        return newIds;
     }
 
     function splitSelected() {
