@@ -13,6 +13,9 @@
           <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
             <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
           </div>
+          <div class="text-xs text-slate-400">
+            <span>{{ item.props.pixels.length }} px</span>
+          </div>
         </div>
         <div class="flex gap-1 justify-end">
           <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
