@@ -87,6 +87,7 @@ export const useInputStore = defineStore('input', {
                                 visibility: true
                             });
                             topIds.push(groupId);
+                            layerPanel.folded[groupId] = true;
                             const layerIds = [];
                             for (const segment of segments) {
                                 const layerId = nodes.createLayer({
