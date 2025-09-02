@@ -22,7 +22,7 @@
             <img :src="(item.props.locked?icons.lock:icons.unlock)" alt="lock/unlock" class="w-4 h-4 cursor-pointer" @error="icons.lock=icons.unlock=''" @click.stop="toggleLock(item.id)" />
           </div>
           <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
-            <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteNode(item.id)" />
+            <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(item.id)" />
           </div>
         </div>
       </template>
@@ -61,7 +61,7 @@
             <img :src="(item.props.locked?icons.lock:icons.unlock)" alt="lock/unlock" class="w-4 h-4 cursor-pointer" @error="icons.lock=icons.unlock=''" @click.stop="toggleLock(item.id)" />
           </div>
           <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="삭제">
-            <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteNode(item.id)" />
+            <img :src="icons.del" alt="delete" class="w-4 h-4 cursor-pointer" @error="icons.del=''" @click.stop="deleteLayer(item.id)" />
           </div>
         </div>
       </template>
@@ -80,7 +80,7 @@ import { useService } from '../services';
 import { useContextMenuStore } from '../stores/contextMenu';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output, keyboardEvent: keyboardEvents } = useStore();
-const { layerPanel, layerQuery, nodeQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc } = useService();
+const { layerPanel, layerQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc } = useService();
 const contextMenu = useContextMenuStore();
 
 const dragging = ref(false);
@@ -326,40 +326,35 @@ function onContextMenu(item, event) {
     contextMenu.open(event, items);
 }
 
-function deleteNode(id) {
+function deleteLayer(id) {
     output.setRollbackPoint();
-    const targets = nodeTree.selectedNodeIds.includes(id) ? nodeTree.selectedIds : [id];
-    const lowermostTarget = nodeQuery.lowermost(targets);
-    const parentId = nodeQuery.parentOf(lowermostTarget);
-    const belowId = nodeQuery.below(lowermostTarget);
+    const targets = nodeTree.selectedNodeIds.includes(id) ? nodeTree.selectedNodeIds : [id];
+    const belowId = layerQuery.below(layerQuery.lowermost(targets));
     const removed = nodeTree.remove(targets);
     nodes.remove(removed);
     pixelStore.remove(removed);
-    let newSelectId = null;
-    if (nodeTree.has(belowId)) newSelectId = belowId;
-    else if (nodeTree.has(parentId)) newSelectId = parentId;
+    const newSelectId = nodeTree.has(belowId) ? belowId : layerQuery.lowermost();
     layerPanel.setRange(newSelectId, newSelectId);
     if (newSelectId) {
-        layerPanel.setScrollRule({ type: 'follow', target: newSelectId });
+        layerPanel.setScrollRule({
+            type: "follow",
+            target: newSelectId
+        });
     }
     output.commit();
 }
 
 function deleteSelection() {
-    if (!nodeTree.selectedNodeCount) return;
+    if (!nodeTree.layerSelectionExists) return;
     output.setRollbackPoint();
-    const ids = nodeTree.selectedIds;
-    const lowermostTarget = nodeQuery.lowermost(ids);
-    const parentId = nodeQuery.parentOf(lowermostTarget);
-    const belowId = nodeQuery.below(lowermostTarget);
+    const belowId = layerQuery.below(layerQuery.lowermost(nodeTree.selectedLayerIds));
+    const ids = nodeTree.selectedLayerIds;
     const removed = nodeTree.remove(ids);
     nodes.remove(removed);
     pixelStore.remove(removed);
-    let newSelect = null;
-    if (nodeTree.has(belowId)) newSelect = belowId;
-    else if (nodeTree.has(parentId)) newSelect = parentId;
+    const newSelect = nodeTree.has(belowId) ? belowId : layerQuery.lowermost();
     layerPanel.setRange(newSelect, newSelect);
-    if (newSelect) layerPanel.setScrollRule({ type: 'follow', target: newSelect });
+    layerPanel.setScrollRule({ type: 'follow', target: newSelect });
     output.commit();
 }
 
