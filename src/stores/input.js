@@ -59,10 +59,14 @@ export const useInputStore = defineStore('input', {
         async loadFromQuery() {
             await this.load(new URL(location.href).searchParams.get('pixel'));
         },
-        initialize({ initializeLayers = true, segmentTolerance = 40 } = {}) {
+        initialize({ initializeLayers = true, segmentTolerance = 40, canvasWidth, canvasHeight } = {}) {
             const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore } = useStore();
             const layerPanel = useLayerPanelService();
-            viewportStore.setSize(this.width, this.height);
+            const width = canvasWidth ?? this.width;
+            const height = canvasHeight ?? this.height;
+            const ox = Math.floor((width - this.width) / 2);
+            const oy = Math.floor((height - this.height) / 2);
+            viewportStore.setSize(width, height);
             viewportStore.setImage(this.src || '', this.width, this.height);
             if (initializeLayers) {
                 const autoSegments = this.segment(segmentTolerance);
@@ -121,6 +125,10 @@ export const useInputStore = defineStore('input', {
                 nodeTree.insert(ids);
             }
             layerPanel.setScrollRule({ type: 'follow', target: nodeTree.layerOrder[nodeTree.layerOrder.length - 1] });
+            if (ox || oy) {
+                pixelStore.translateAll(ox, oy);
+                viewportStore.setImagePosition(ox, oy);
+            }
         },
         isWithin(pixel) {
             const [x, y] = indexToCoord(pixel);

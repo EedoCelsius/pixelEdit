@@ -55,6 +55,10 @@ export const useViewportStore = defineStore('viewport', {
             if (width != null) this._image.width = width;
             if (height != null) this._image.height = height;
         },
+        setImagePosition(x, y) {
+            if (x != null) this._image.x = x;
+            if (y != null) this._image.y = y;
+        },
         setScale(newScale) {
             this._stage.scale = Math.max(this._stage.minScale, newScale);
         },

@@ -6,9 +6,22 @@
           <input type="checkbox" v-model="imageLoadService.initialize" class="rounded bg-slate-700" />
           <span>Initialize Layers</span>
         </label>
-        <label class="block">
+        <label class="block" :class="{ 'opacity-50': !imageLoadService.initialize }">
           <span>Segment Tolerance</span>
-          <input type="number" v-model.number="imageLoadService.tolerance" :disabled="!imageLoadService.initialize" class="mt-1 w-full rounded bg-slate-700 px-2 py-1" />
+          <input
+            type="number"
+            v-model.number="imageLoadService.tolerance"
+            :disabled="!imageLoadService.initialize"
+            class="mt-1 w-full rounded bg-slate-700 px-2 py-1 disabled:cursor-not-allowed"
+          />
+        </label>
+        <label class="block">
+          <span>Canvas Width</span>
+          <input type="number" v-model.number="imageLoadService.canvasWidth" class="mt-1 w-full rounded bg-slate-700 px-2 py-1" />
+        </label>
+        <label class="block">
+          <span>Canvas Height</span>
+          <input type="number" v-model.number="imageLoadService.canvasHeight" class="mt-1 w-full rounded bg-slate-700 px-2 py-1" />
         </label>
       </div>
       <div class="flex justify-end gap-2">
