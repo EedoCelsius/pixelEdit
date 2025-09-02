@@ -99,6 +99,10 @@ export const useNodeTreeStore = defineStore('nodeTree', {
         _selectedNodeIdSet(state) { return new Set(this._selectedNodeIds) },
         tree(state) { return readonly(state._tree) },
         selectedIds(state) { return [...state._selection] },
+        orderedSelection(state) {
+            const index = new Map(this._nodeIds.map((id, idx) => [id, idx]));
+            return [...state._selection].sort((a, b) => index.get(a) - index.get(b));
+        },
         exists(state) { return this._nodeIds.length > 0 },
         has(state) { return (id) => findNode(state._tree, id) != null },
         layerOrder(state) { return readonly(this._layerIds) },
