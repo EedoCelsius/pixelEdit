@@ -225,8 +225,13 @@ export const usePathToolService = defineStore('pathToolService', () => {
         const layerId = nodeTree.selectedLayerIds[0];
         if (!pixelStore.has(layerId, startPixel)) return;
 
+        tool.setCursor({ stroke: CURSOR_STYLE.WAIT, rect: CURSOR_STYLE.WAIT });
+
         const allPixels = pixelStore.get(layerId);
         const paths = hamiltonian.traverseWithStart(allPixels, startPixel);
+
+        tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
+
         if (!paths.length) return;
 
         const color = nodes.getProperty(layerId, 'color');
