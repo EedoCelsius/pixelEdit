@@ -64,8 +64,8 @@ export function ensureCheckerboardPattern(target = document.body) {
     return id;
 }
 
-export function ensurePathPattern(kind, target = document.body) {
-    const id = `pixel-kind-${kind}`;
+export function ensurePathPattern(direction, target = document.body) {
+    const id = `pixel-direction-${direction}`;
     if (document.getElementById(id)) return id;
     const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
     svg.setAttribute('width', '0');
@@ -78,70 +78,24 @@ export function ensurePathPattern(kind, target = document.body) {
     pattern.setAttribute('width', '1');
     pattern.setAttribute('height', '1');
     pattern.setAttribute('patternUnits', 'userSpaceOnUse');
-
-    const cornerSize = 0.1;
-    const cornerPos = {
-        tl: [0, 0],
-        tr: [1 - cornerSize, 0],
-        bl: [0, 1 - cornerSize],
-        br: [1 - cornerSize, 1 - cornerSize]
-    };
-    const opposite = { tl: 'br', tr: 'bl', bl: 'tr', br: 'tl' };
-    const directions = {
-        tltr: 'right',
-        tlbl: 'down',
-        trtl: 'left',
-        trbr: 'down',
-        bltl: 'up',
-        blbr: 'right',
-        brtr: 'up',
-        brbl: 'left'
-    };
-    const arrowPath = {
-        right: 'M.6.7.8.5.6.3M.8.5H.2',
-        left: 'M.4.3.2.5.4.7M.2.5H.8',
-        down: 'M.3.6.5.8.7.6M.5.8V.2',
-        up: 'M.7.4.5.2.3.4M.5.2V.8'
-    };
-
-    const start = cornerPos[kind.slice(0, 2)];
-    const end = cornerPos[opposite[kind.slice(0, 2)]];
-    const direction = directions[kind];
-
-    const s = document.createElementNS(SVG_NAMESPACE, 'rect');
-    s.setAttribute('x', String(start[0]));
-    s.setAttribute('y', String(start[1]));
-    s.setAttribute('width', String(cornerSize));
-    s.setAttribute('height', String(cornerSize));
-    s.setAttribute('fill', '#00ff00');
-    s.setAttribute('stroke-width', String(cornerSize / 15));
-    s.setAttribute('stroke', '#000000');
-
-    const e = document.createElementNS(SVG_NAMESPACE, 'rect');
-    e.setAttribute('x', String(end[0]));
-    e.setAttribute('y', String(end[1]));
-    e.setAttribute('width', String(cornerSize));
-    e.setAttribute('height', String(cornerSize));
-    e.setAttribute('fill', '#ff0000');
-    e.setAttribute('stroke-width', String(cornerSize / 15));
-    e.setAttribute('stroke', '#000000');
-
-    const ba = document.createElementNS(SVG_NAMESPACE, 'path');
-    ba.setAttribute('d', arrowPath[direction]);
-    ba.setAttribute('stroke-width', String(cornerSize / 1.5));
-    ba.setAttribute('fill', 'none');
-    ba.setAttribute('stroke', '#000000');
-
-    const a = document.createElementNS(SVG_NAMESPACE, 'path');
-    a.setAttribute('d', arrowPath[direction]);
-    a.setAttribute('stroke-width', String(cornerSize / 2));
-    a.setAttribute('fill', 'none');
-    a.setAttribute('stroke', '#ffffff');
-
-    pattern.appendChild(s);
-    pattern.appendChild(e);
-    pattern.appendChild(ba);
-    pattern.appendChild(a);
+    if (direction === 'vertical' || direction === 'horizontal') {
+        const line = document.createElementNS(SVG_NAMESPACE, 'line');
+        if (direction === 'vertical') {
+            line.setAttribute('x1', '.5');
+            line.setAttribute('y1', '0');
+            line.setAttribute('x2', '.5');
+            line.setAttribute('y2', '1');
+        }
+        else {
+            line.setAttribute('x1', '0');
+            line.setAttribute('y1', '.5');
+            line.setAttribute('x2', '1');
+            line.setAttribute('y2', '.5');
+        }
+        line.setAttribute('stroke', '#000000');
+        line.setAttribute('stroke-width', '.1');
+        pattern.appendChild(line);
+    }
     defs.appendChild(pattern);
     svg.appendChild(defs);
     target.appendChild(svg);

@@ -8,7 +8,7 @@ import { useHamiltonianService } from './hamiltonian';
 import { useStore } from '../stores';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
 import { indexToCoord, ensurePathPattern } from '../utils';
-import { PIXEL_KINDS } from '../stores/pixels';
+import { PIXEL_DIRECTIONS } from '../stores/pixels';
 
 export const useDrawToolService = defineStore('drawToolService', () => {
     const tool = useToolSelectionService();
@@ -362,10 +362,10 @@ export const usePathToolService = defineStore('pathToolService', () => {
     const tool = useToolSelectionService();
     const layerQuery = useLayerQueryService();
     const overlayService = useOverlayService();
-    const overlays = PIXEL_KINDS.map(kind => {
+    const overlays = PIXEL_DIRECTIONS.map(direction => {
         const id = overlayService.createOverlay();
         overlayService.setStyles(id, {
-            FILL_COLOR: `url(#${ensurePathPattern(kind)})`,
+            FILL_COLOR: `url(#${ensurePathPattern(direction)})`,
             STROKE_COLOR: 'none',
             STROKE_WIDTH_SCALE: 0,
             FILL_RULE: 'evenodd'
@@ -375,11 +375,11 @@ export const usePathToolService = defineStore('pathToolService', () => {
     function rebuild() {
         if (tool.prepared !== 'path') return;
         const layerIds = nodeTree.selectedLayerIds;
-        PIXEL_KINDS.forEach((kind, idx) => {
+        PIXEL_DIRECTIONS.forEach((direction, idx) => {
             const overlayId = overlays[idx];
             overlayService.clear(overlayId);
             for (const id of layerIds) {
-                const set = pixelStore[kind][id];
+                const set = pixelStore[direction][id];
                 if (!set) continue;
                 overlayService.addPixels(overlayId, [...set]);
             }
@@ -403,30 +403,27 @@ export const usePathToolService = defineStore('pathToolService', () => {
         const target = layerQuery.topVisibleAt(pixel);
         if (nodeTree.selectedLayerIds.includes(target)) {
             if (prevPixel == null) {
-                pixelStore.cycleKind(target, pixel);
+                const idx = PIXEL_DIRECTIONS.findIndex(k => pixelStore[k][target]?.has(pixel));
+                const current = idx >= 0 ? PIXEL_DIRECTIONS[idx] : 'none';
+                const next = PIXEL_DIRECTIONS[(PIXEL_DIRECTIONS.indexOf(current) + 1) % PIXEL_DIRECTIONS.length];
+                pixelStore.addPixels(target, [pixel], next);
             }
             else {
                 const [px, py] = indexToCoord(pixel);
                 const [prevX, prevY] = indexToCoord(prevPixel);
                 if (prevX === px) {
-                    if (prevY < py) {
-                        pixelStore.changeKind(target, pixel, 'down');
+                    pixelStore.setDirection(target, pixel, 'vertical');
+                    if (prevY < py)
                         tool.setCursor({ stroke: CURSOR_STYLE.DOWN, rect: CURSOR_STYLE.DOWN });
-                    }
-                    else {
-                        pixelStore.changeKind(target, pixel, 'up');
+                    else
                         tool.setCursor({ stroke: CURSOR_STYLE.UP, rect: CURSOR_STYLE.UP });
-                    }
                 }
                 else {
-                    if (prevX < px) {
-                        pixelStore.changeKind(target, pixel, 'right');
+                    pixelStore.setDirection(target, pixel, 'horizontal');
+                    if (prevX < px)
                         tool.setCursor({ stroke: CURSOR_STYLE.RIGHT, rect: CURSOR_STYLE.RIGHT });
-                    }
-                    else {
-                        pixelStore.changeKind(target, pixel, 'left');
+                    else
                         tool.setCursor({ stroke: CURSOR_STYLE.LEFT, rect: CURSOR_STYLE.LEFT });
-                    }
                 }
             }
         }
