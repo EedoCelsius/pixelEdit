@@ -103,8 +103,9 @@ export function ensurePathPattern(direction, target = document.body) {
         }
         border.setAttribute('stroke', '#000000');
         border.setAttribute('stroke-width', '.1');
+        pattern.appendChild(border);
         line.setAttribute('stroke', '#FFFFFF');
-        line.setAttribute('stroke-width', '.8');
+        line.setAttribute('stroke-width', '.08');
         pattern.appendChild(line);
     }
     defs.appendChild(pattern);
