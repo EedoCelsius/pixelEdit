@@ -7,13 +7,7 @@
        @pointerup="viewportEvents.setPointerUp"
        @pointercancel="viewportEvents.setPointerUp">
     <div id="stage" class="absolute select-none touch-none"
-         :style="{
-           width: stage.width+'px',
-           height: stage.height+'px',
-           transform: `translate3d(${stage.offset.x}px, ${stage.offset.y}px, 0) scale(${stage.scale})`,
-           transformOrigin: 'top left',
-           willChange: 'transform'
-         }"
+         :style="stageStyle"
          @contextmenu.prevent>
       <!-- 체커보드 -->
       <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
@@ -24,7 +18,7 @@
            class="absolute pointer-events-none block"
            :src="viewportStore.imageSrc"
            alt="source image"
-           :style="{ left: image.x + 'px', top: image.y + 'px', width: image.width + 'px', height: image.height + 'px' }"
+           :style="imageStyle"
            @load="onImageLoad" />
       <!-- 결과 레이어 -->
       <svg v-show="viewportStore.display==='result'" class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
@@ -81,6 +75,26 @@ const { overlay, toolSelection: toolSelectionService, viewport } = useService();
 const viewportEl = useTemplateRef('viewportEl');
 const stage = viewportStore.stage;
 const image = viewportStore.imageRect;
+const dpr = window.devicePixelRatio || 1;
+
+const stageStyle = computed(() => {
+    const width = stage.width / dpr;
+    const height = stage.height / dpr;
+    return {
+        width: width + 'px',
+        height: height + 'px',
+        transform: `translate3d(${stage.offset.x}px, ${stage.offset.y}px, 0) scale(${stage.scale * dpr})`,
+        transformOrigin: 'top left',
+        willChange: 'transform'
+    };
+});
+
+const imageStyle = computed(() => ({
+    left: image.x / dpr + 'px',
+    top: image.y / dpr + 'px',
+    width: image.width / dpr + 'px',
+    height: image.height / dpr + 'px'
+}));
 
 const viewportViewBox = computed(() => `0 0 ${viewportStore.content.width} ${viewportStore.content.height}`);
 const marqueeRect = computed(() => {
