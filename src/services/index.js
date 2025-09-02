@@ -11,6 +11,7 @@ import { useHamiltonianService } from './hamiltonian';
 import { useImageLoadService } from './imageLoad';
 import { useSettingsService } from './settings';
 import { useShortcutService } from './shortcut';
+import { useClipboardService } from './clipboard';
 
 export {
     useLayerPanelService,
@@ -32,7 +33,8 @@ export {
     useHamiltonianService,
     useImageLoadService,
     useSettingsService,
-    useShortcutService
+    useShortcutService,
+    useClipboardService
 };
 
 export const useService = () => ({
@@ -57,5 +59,6 @@ export const useService = () => ({
     hamiltonian: useHamiltonianService(),
     imageLoad: useImageLoadService(),
     settings: useSettingsService(),
-    shortcut: useShortcutService()
+    shortcut: useShortcutService(),
+    clipboard: useClipboardService()
 });

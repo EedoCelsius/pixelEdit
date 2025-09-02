@@ -5,6 +5,7 @@ import { useLayerPanelService } from './layerPanel';
 import { useLayerToolService } from './layerTool';
 import { useNodeQueryService } from './nodeQuery';
 import { useToolSelectionService } from './toolSelection';
+import { useClipboardService } from './clipboard';
 import { TOOL_MODIFIERS } from '@/constants';
 
 export const useShortcutService = defineStore('shortcutService', () => {
@@ -13,6 +14,7 @@ export const useShortcutService = defineStore('shortcutService', () => {
     const layerSvc = useLayerToolService();
     const nodeQuery = useNodeQueryService();
     const toolSelectionService = useToolSelectionService();
+    const clipboard = useClipboardService();
 
     let previousTool = toolSelectionService.prepared;
     let modifierActive = false;
@@ -60,6 +62,16 @@ export const useShortcutService = defineStore('shortcutService', () => {
                 if (lower === 'y' || (lower === 'z' && e.shiftKey)) {
                     e.preventDefault();
                     output.redo();
+                    continue;
+                }
+                if (lower === 'c') {
+                    e.preventDefault();
+                    clipboard.copySelection();
+                    continue;
+                }
+                if (lower === 'v') {
+                    e.preventDefault();
+                    clipboard.paste();
                     continue;
                 }
             }

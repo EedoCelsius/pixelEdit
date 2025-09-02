@@ -88,7 +88,7 @@ import { useService } from '../services';
 import { useContextMenuStore } from '../stores/contextMenu';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output } = useStore();
-const { layerPanel, layerQuery, nodeQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc } = useService();
+const { layerPanel, layerQuery, nodeQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc, clipboard } = useService();
 const contextMenu = useContextMenuStore();
 
 const dragging = ref(false);
@@ -324,11 +324,13 @@ function onContextMenu(item, event) {
         {
             label: 'Copy',
             action: () => {
-                output.setRollbackPoint();
-                const ids = layerSvc.copySelected();
-                nodeTree.replaceSelection(ids);
-                layerPanel.setScrollRule({ type: 'follow', target: ids[0] });
-                output.commit();
+                clipboard.copySelection();
+            }
+        },
+        {
+            label: 'Paste',
+            action: () => {
+                clipboard.paste();
             }
         },
         {
