@@ -273,6 +273,14 @@ function onContextMenu(item, event) {
     if (!nodeTree.selectedIds.includes(item.id)) {
         layerPanel.setRange(item.id, item.id);
     }
+    const selected = nodeTree.selectedIds;
+    let flipEnabled = false;
+    if (selected.length === 1) {
+        flipEnabled = nodes.getProperty(selected[0], 'type') === 'group';
+    } else if (selected.length > 1) {
+        const infos = selected.map(id => nodeTree._findNode(id));
+        if (infos.every(info => info && info.parent === infos[0].parent)) flipEnabled = true;
+    }
     const items = [
         {
             label: 'Group',
@@ -291,6 +299,16 @@ function onContextMenu(item, event) {
                 const ids = layerSvc.copySelected();
                 nodeTree.replaceSelection(ids);
                 layerPanel.setScrollRule({ type: 'follow', target: ids[0] });
+                output.commit();
+            }
+        },
+        {
+            label: 'Flip Order',
+            disabled: !flipEnabled,
+            action: () => {
+                if (!flipEnabled) return;
+                output.setRollbackPoint();
+                layerSvc.flipOrderSelected();
                 output.commit();
             }
         }
