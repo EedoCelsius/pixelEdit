@@ -1,6 +1,6 @@
 <template>
   <div v-memo="[output.commitVersion, nodeTree.selectedLayerIds, nodeTree.layerCount, foldedMemo]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
-    <div v-for="item in flatNodes" class="layer group relative flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.selectedNodeIds.includes(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id, 'descendant-selected': ancestorsOfSelected.has(item.id) }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)" @contextmenu.prevent="onContextMenu(item,$event)">
+    <div v-for="item in flatNodes" class="layer group relative flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none overflow-hidden" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.selectedNodeIds.includes(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id, 'descendant-selected': ancestorsOfSelected.has(item.id) }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)" @contextmenu.prevent="onContextMenu(item,$event)">
       <template v-if="item.isGroup">
         <div class="w-4 text-center cursor-pointer" @click.stop="toggleFold(item.id)">{{ folded[item.id] ? '▶' : '▼' }}</div>
         <div class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden" title="그룹 미리보기">
@@ -17,7 +17,7 @@
             <span>{{ nodeTree.descendantLayerIds(item.id).length }} Layers ({{ getPixelUnion(descendantPixels(item.id)).length }}px)</span>
           </div>
         </div>
-        <div class="absolute inset-y-0 right-0 flex items-center gap-1 pr-2 pl-6 bg-gradient-to-l from-sky-950 via-sky-950 to-sky-950/0 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity">
+        <div class="absolute inset-y-0 right-0 flex items-center gap-1 pr-2 pl-6 bg-gradient-to-l from-sky-950/80 to-sky-950/0 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity">
           <div class="inline-flex items-center justify-center w-7 h-7 rounded-md" title="보이기/숨기기">
             <img :src="(item.props.visibility?icons.show:icons.hide)" alt="show/hide" class="w-4 h-4 cursor-pointer" @error="icons.show=icons.hide=''" @click.stop="toggleVisibility(item.id)" />
           </div>
@@ -630,8 +630,8 @@ onUnmounted(() => {
   mask-image:none;
 }
 .group:hover .fade-mask{
-  -webkit-mask-image:linear-gradient(to right,#000,#000 calc(100% - 8rem),transparent);
-  mask-image:linear-gradient(to right,#000,#000 calc(100% - 8rem),transparent);
+  -webkit-mask-image:linear-gradient(to right,#000,#000 calc(100% - 10rem),transparent);
+  mask-image:linear-gradient(to right,#000,#000 calc(100% - 10rem),transparent);
 }
 /* 레이어 재정렬 표시 */
 .insert-before{box-shadow:inset 0 3px 0 0 rgba(56,189,248,.7)}
