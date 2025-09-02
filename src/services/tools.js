@@ -389,9 +389,9 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
                 for (let i = nodeTree.layerOrder.length - 1; i >= 0; i--) {
                     const id = nodeTree.layerOrder[i];
                     if (!nodes.getProperty(id, 'visibility')) continue;
-                    const set = pixelStore[direction][id];
-                    if (!set) continue;
-                    for (const pixel of set) {
+                    const pixels = pixelStore.getDirectionPixels(direction, id);
+                    if (!pixels.length) continue;
+                    for (const pixel of pixels) {
                         if (layerQuery.topVisibleAt(pixel) === id) {
                             add.add(pixel);
                         }
@@ -401,9 +401,9 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
             }
             else {
                 for (const id of layerIds) {
-                    const set = pixelStore[direction][id];
-                    if (!set) continue;
-                    overlayService.addPixels(overlayId, [...set]);
+                    const pixels = pixelStore.getDirectionPixels(direction, id);
+                    if (!pixels.length) continue;
+                    overlayService.addPixels(overlayId, pixels);
                 }
             }
         });
@@ -430,9 +430,9 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
                 return;
             }
             if (prevPixel == null) {
-                const idx = PIXEL_DIRECTIONS.findIndex(k => pixelStore[k][target]?.has(pixel));
-                const current = idx >= 0 ? PIXEL_DIRECTIONS[idx] : 'none';
-                const next = PIXEL_DIRECTIONS[(PIXEL_DIRECTIONS.indexOf(current) + 1) % PIXEL_DIRECTIONS.length];
+                const current = pixelStore.directionOf(target, pixel);
+                const idx = PIXEL_DIRECTIONS.indexOf(current);
+                const next = PIXEL_DIRECTIONS[(idx + 1) % PIXEL_DIRECTIONS.length];
                 pixelStore.addPixels(target, [pixel], next);
             }
             else {

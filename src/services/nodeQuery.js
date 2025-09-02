@@ -17,6 +17,19 @@ export const useNodeQueryService = defineStore('nodeQueryService', () => {
         return isFinite(index) ? order[index] : null;
     }
 
+    function uppermost(ids) {
+        const order = nodeTree.allNodeIds;
+        if (ids == null) {
+            return order[order.length - 1] ?? null;
+        }
+        const idSet = new Set(ids);
+        if (!idSet.size) return null;
+        const index = Math.max(
+            ...order.map((id, idx) => (idSet.has(id) ? idx : -Infinity))
+        );
+        return isFinite(index) ? order[index] : null;
+    }
+
     function below(id) {
         if (id == null) return null;
         const info = nodeTree._findNode(id);
@@ -39,6 +52,6 @@ export const useNodeQueryService = defineStore('nodeQueryService', () => {
         return children ? children.map(n => n.id) : [];
     }
 
-    return { lowermost, below, parentOf, childrenOf };
+    return { lowermost, uppermost, below, parentOf, childrenOf };
 });
 

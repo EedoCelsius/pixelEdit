@@ -10,6 +10,8 @@ import { useStageResizeService } from './stageResize';
 import { useHamiltonianService } from './hamiltonian';
 import { useImageLoadService } from './imageLoad';
 import { useSettingsService } from './settings';
+import { useShortcutService } from './shortcut';
+import { useClipboardService } from './clipboard';
 
 export {
     useLayerPanelService,
@@ -30,7 +32,9 @@ export {
     useStageResizeService,
     useHamiltonianService,
     useImageLoadService,
-    useSettingsService
+    useSettingsService,
+    useShortcutService,
+    useClipboardService
 };
 
 export const useService = () => ({
@@ -54,5 +58,7 @@ export const useService = () => ({
     stageResize: useStageResizeService(),
     hamiltonian: useHamiltonianService(),
     imageLoad: useImageLoadService(),
-    settings: useSettingsService()
+    settings: useSettingsService(),
+    shortcut: useShortcutService(),
+    clipboard: useClipboardService()
 });

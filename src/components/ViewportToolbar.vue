@@ -52,10 +52,10 @@
 import { ref, watch } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
-import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS, TOOL_MODIFIERS } from '@/constants';
+import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 
-const { viewport: viewportStore, nodeTree, input, output, keyboardEvent: keyboardEvents } = useStore();
+const { viewport: viewportStore, nodeTree, input, output } = useStore();
 const { toolSelection: toolSelectionService, stageResize: stageResizeService, imageLoad: imageLoadService, settings: settingsService } = useService();
 
 const fileInput = ref(null);
@@ -70,70 +70,23 @@ async function onFileChange(e) {
   e.target.value = '';
 }
 
-let previousTool = null;
 let lastSingleTool = 'draw';
 let lastMultiTool = 'select';
 const selectables = ref(MULTI_SELECTION_TOOLS);
 toolSelectionService.setPrepared(lastMultiTool);
 toolSelectionService.setShape('stroke');
-
-watch(() => keyboardEvents.recent.down, (downs) => {
-    for (const e of downs) {
-        const key = e.key.toLowerCase();
-        if (e.ctrlKey || e.metaKey) {
-            if (key === 'z' && !e.shiftKey) {
-                e.preventDefault();
-                output.undo();
-                continue;
-            }
-            if (key === 'y' || (key === 'z' && e.shiftKey)) {
-                e.preventDefault();
-                output.redo();
-                continue;
-            }
-        }
-        const map = TOOL_MODIFIERS[e.key];
-        if (!map || e.repeat) continue;
-        const change = map[toolSelectionService.prepared] ?? map.default;
-        if (change) {
-            previousTool = toolSelectionService.prepared;
-            toolSelectionService.setPrepared(change);
-            break;
-        }
-    }
-});
-watch(() => keyboardEvents.recent.up, (ups) => {
-    for (const e of ups) {
-        if (e.key === 'Shift') {
-            if (toolSelectionService.prepared !== previousTool) {
-                toolSelectionService.setPrepared(previousTool);
-                break;
-            }
-        }
-        if (e.key === 'Control' || e.key === 'Meta') {
-            const down = keyboardEvents.get("keydown", e.key);
-            if (!down || !down.repeat) continue;
-            if (toolSelectionService.prepared !== previousTool) {
-                toolSelectionService.setPrepared(previousTool);
-                break;
-            }
-        }
-    }
-});
 watch(() => nodeTree.selectedLayerCount, (size, prev) => {
     if (size === 1) {
         if (prev !== 1) lastMultiTool = toolSelectionService.prepared;
         selectables.value = SINGLE_SELECTION_TOOLS;
         const tool = lastSingleTool;
         toolSelectionService.setPrepared(tool);
-        previousTool = tool;
     }
     else if (prev === 1) {
         lastSingleTool = toolSelectionService.prepared;
         selectables.value = MULTI_SELECTION_TOOLS;
         const tool = lastMultiTool;
         toolSelectionService.setPrepared(tool);
-        previousTool = tool;
     }
 });
 
