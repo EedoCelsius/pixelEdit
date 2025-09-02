@@ -14,7 +14,7 @@
             <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
           </div>
           <div class="text-xs text-slate-400">
-            <span>↳ {{ descendantLayerCount(item.id) }} | {{ descendantPixelCount(item.id) }} px</span>
+            <span>{{ nodeTree.descendantLayerIds(item.id).length }} layers | {{ descendantPixelCount(item.id) }} px</span>
           </div>
         </div>
         <div class="flex gap-1 justify-end">
@@ -135,11 +135,6 @@ function toggleFold(id) {
 function descendantProps(id) {
   const ids = nodeTree.descendantLayerIds(id);
   return nodes.getProperties(ids);
-}
-
-
-function descendantLayerCount(id) {
-  return nodeTree.descendantLayerIds(id).length;
 }
 
 function descendantPixelCount(id) {
