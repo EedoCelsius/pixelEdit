@@ -20,5 +20,6 @@ export const CURSOR_STYLE = {
     RIGHT: `url("${cursorIcons.right}") 8 8, crosshair`,
     CHANGE: `url("${cursorIcons.change}") 8 8, crosshair`,
     LOCKED: `url("${cursorIcons.locked}") 8 8, not-allowed`,
+    WAIT: 'wait',
     NOT_ALLOWED: 'not-allowed',
 };
