@@ -7,11 +7,7 @@
       <button @click="stageResizeService.open" title="Resize Canvas" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
         <img :src="stageIcons.resize" alt="resize" class="w-4 h-4">
       </button>
-      <button @click="settingsService.open" title="Settings" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
-        <img :src="stageIcons.settings" alt="settings" class="w-4 h-4">
-      </button>
-
-      <div class="h-4 w-px bg-white/10 mx-1"></div>
+        <div class="h-4 w-px bg-white/10 mx-1"></div>
 
       <!-- Shape toggle -->
       <div class="inline-flex rounded-md overflow-hidden border border-white/15">
@@ -43,11 +39,14 @@
       <button @click="output.undo" title="Undo" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
         <img :src="stageIcons.undo" alt="Undo" class="w-4 h-4">
       </button>
-      <button @click="output.redo" title="Redo" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
-        <img :src="stageIcons.redo" alt="Redo" class="w-4 h-4">
-      </button>
-    </div>
-  </template>
+        <button @click="output.redo" title="Redo" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
+          <img :src="stageIcons.redo" alt="Redo" class="w-4 h-4">
+        </button>
+        <button @click="settingsService.open" title="Settings" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
+          <img :src="stageIcons.settings" alt="settings" class="w-4 h-4">
+        </button>
+      </div>
+    </template>
 
 <script setup>
 import { ref, watch } from 'vue';

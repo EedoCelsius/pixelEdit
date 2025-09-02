@@ -64,7 +64,7 @@ export function ensureCheckerboardPattern(target = document.body) {
     return id;
 }
 
-export function ensurePathPattern(direction, target = document.body) {
+export function ensureDirectionPattern(direction, target = document.body) {
     const id = `pixel-direction-${direction}`;
     if (document.getElementById(id)) return id;
     const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
@@ -111,8 +111,8 @@ export function ensurePathPattern(direction, target = document.body) {
     defs.appendChild(pattern);
     svg.appendChild(defs);
     target.appendChild(svg);
-    return id;
-}
+      return id;
+  }
 
 // --- color helpers (32-bit unsigned RGBA packed as 0xAABBGGRR) ---
 export const packRGBA = (color) => {
