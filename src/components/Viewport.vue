@@ -6,7 +6,7 @@
        @pointermove="viewportEvents.setPointerMove"
        @pointerup="viewportEvents.setPointerUp"
        @pointercancel="viewportEvents.setPointerUp">
-    <div id="stage" class="absolute shadow-inner select-none touch-none overflow-hidden"
+    <div id="stage" class="absolute select-none touch-none"
          :style="{
            width: stage.width+'px',
            height: stage.height+'px',
