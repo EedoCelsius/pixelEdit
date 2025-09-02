@@ -380,7 +380,6 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
             const overlayId = overlays[idx];
             overlayService.clear(overlayId);
             if (showAll) {
-                const seen = new Set();
                 const add = new Set();
                 for (let i = nodeTree.layerOrder.length - 1; i >= 0; i--) {
                     const id = nodeTree.layerOrder[i];
@@ -388,10 +387,8 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
                     const set = pixelStore[direction][id];
                     if (!set) continue;
                     for (const pixel of set) {
-                        if (seen.has(pixel)) continue;
                         if (layerQuery.topVisibleAt(pixel) === id) {
                             add.add(pixel);
-                            seen.add(pixel);
                         }
                     }
                 }
