@@ -7,7 +7,13 @@
        @pointerup="viewportEvents.setPointerUp"
        @pointercancel="viewportEvents.setPointerUp">
     <div id="stage" class="absolute select-none touch-none"
-         :style="stageStyle"
+         :style="{
+           width: stage.width+'px',
+           height: stage.height+'px',
+           transform: `translate3d(${stage.offset.x}px, ${stage.offset.y}px, 0) scale(${stage.scale})`,
+           transformOrigin: 'top left',
+           willChange: 'transform'
+         }"
          @contextmenu.prevent>
       <!-- 체커보드 -->
       <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
@@ -75,19 +81,6 @@ const { overlay, toolSelection: toolSelectionService, viewport } = useService();
 const viewportEl = useTemplateRef('viewportEl');
 const stage = viewportStore.stage;
 const image = viewportStore.imageRect;
-const dpr = window.devicePixelRatio || 1;
-
-const stageStyle = computed(() => {
-    const width = stage.width / dpr;
-    const height = stage.height / dpr;
-    return {
-        width: width + 'px',
-        height: height + 'px',
-        transform: `translate3d(${stage.offset.x}px, ${stage.offset.y}px, 0) scale(${stage.scale * dpr})`,
-        transformOrigin: 'top left',
-        willChange: 'transform'
-    };
-});
 
 const viewportViewBox = computed(() => `0 0 ${viewportStore.content.width} ${viewportStore.content.height}`);
 const marqueeRect = computed(() => {
