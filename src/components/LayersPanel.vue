@@ -9,7 +9,7 @@
             <path v-for="child in descendantProps(item.id)" :key="child.id" :d="pixelStore.pathOfLayer(child.id)" :fill="rgbaCssU32(child.color)" :opacity="child.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
           </svg>
         </div>
-        <div class="min-w-0 flex-1">
+        <div class="min-w-0 flex-1 py-2">
           <div class="name font-semibold truncate text-sm pointer-events-none" title="더블클릭으로 이름 편집">
             <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
           </div>
