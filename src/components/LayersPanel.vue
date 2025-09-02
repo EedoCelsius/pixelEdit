@@ -214,7 +214,7 @@ function onDrop(item, event) {
     row.classList.remove('insert-before', 'insert-after', 'insert-into');
     const rect = row.getBoundingClientRect();
     const y = event.clientY - rect.top;
-    const ids = nodeTree.selectedIds;
+    const ids = nodeTree.orderedSelection;
     if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
         nodeTree.append(ids, item.id, true);
     } else {
@@ -286,6 +286,8 @@ function onContextMenu(item, event) {
             label: 'Group',
             action: () => {
                 output.setRollbackPoint();
+                const ordered = nodeTree.orderedSelection;
+                nodeTree.replaceSelection(ordered);
                 const id = layerSvc.groupSelected();
                 layerPanel.setRange(id, id);
                 layerPanel.setScrollRule({ type: 'follow', target: id });
@@ -498,6 +500,8 @@ function ensureBlockVisibility({
             } else if (lower === 'g') {
                 e.preventDefault();
                 output.setRollbackPoint();
+                const ordered = nodeTree.orderedSelection;
+                nodeTree.replaceSelection(ordered);
                 const id = layerSvc.groupSelected();
                 layerPanel.setRange(id, id);
                 layerPanel.setScrollRule({ type: 'follow', target: id });
