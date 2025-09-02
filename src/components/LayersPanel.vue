@@ -1,6 +1,6 @@
 <template>
   <div v-memo="[output.commitVersion, nodeTree.selectedLayerIds, nodeTree.layerCount, foldedMemo]" ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
-    <div v-for="item in flatNodes" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.selectedNodeIds.includes(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)" @contextmenu.prevent="onContextMenu(item,$event)">
+    <div v-for="item in flatNodes" class="layer flex items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.selectedNodeIds.includes(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id, 'descendant-selected': selectedAncestors.has(item.id) }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)" @contextmenu.prevent="onContextMenu(item,$event)">
       <template v-if="item.isGroup">
         <div class="w-4 text-center cursor-pointer" @click.stop="toggleFold(item.id)">{{ folded[item.id] ? '▶' : '▼' }}</div>
         <div class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden" title="그룹 미리보기">
@@ -106,6 +106,21 @@ const flatNodes = computed(() => {
   const propsList = nodes.getProperties(ids);
   const pixelList = pixelStore.getProperties(ids);
   return ids.map((id, i) => ({ id, depth: depths[i], isGroup: propsList[i].type === 'group', props: { ...propsList[i], pixels: pixelList[i].pixels } }));
+});
+
+const selectedAncestors = computed(() => {
+  nodeTree.tree;
+  const selected = new Set(nodeTree.selectedNodeIds);
+  const result = new Set();
+  for (const id of selected) {
+    let info = nodeTree._findNode(id);
+    let parent = info?.parent;
+    while (parent) {
+      if (!selected.has(parent.id)) result.add(parent.id);
+      parent = nodeTree._findNode(parent.id)?.parent;
+    }
+  }
+  return result;
 });
 
 const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
@@ -617,6 +632,10 @@ onUnmounted(() => {
   outline:3px solid rgba(56,189,248,.95);
   background:linear-gradient(180deg,rgba(56,189,248,.18),rgba(56,189,248,.07));
   border-color:rgba(56,189,248,.6)
+}
+
+.layer.descendant-selected{
+  border-color:rgba(56,189,248,.25)
 }
 
 /* 드래그/이름편집 UX */

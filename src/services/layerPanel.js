@@ -96,6 +96,32 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
     }
 
     function setScrollRule(rule) {
+        if (rule?.target != null) {
+            const info = nodeTree._findNode(rule.target);
+            if (info) {
+                const path = [];
+                let cur = info;
+                while (cur) {
+                    path.unshift(cur.node);
+                    if (!cur.parent) break;
+                    cur = nodeTree._findNode(cur.parent.id);
+                }
+                for (let i = 0; i < path.length - 1; i++) {
+                    const anc = path[i];
+                    const next = path[i + 1];
+                    if (folded[anc.id]) {
+                        folded[anc.id] = false;
+                        if (anc.children) {
+                            for (const child of anc.children) {
+                                if (child.id !== next.id && child.children) {
+                                    folded[child.id] = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         state.scrollRule = rule;
     }
 
