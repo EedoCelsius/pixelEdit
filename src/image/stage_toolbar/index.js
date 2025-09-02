@@ -10,6 +10,7 @@ import resize from './resize.svg';
 import undo from './undo.svg';
 import redo from './redo.svg';
 import path from './path.svg';
+import settings from './settings.svg';
 
 export default {
   stroke,
@@ -24,4 +25,5 @@ export default {
   resize,
   undo,
   redo,
+  settings,
 };

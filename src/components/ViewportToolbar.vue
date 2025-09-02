@@ -7,6 +7,9 @@
       <button @click="stageResizeService.open" title="Resize Canvas" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
         <img :src="stageIcons.resize" alt="resize" class="w-4 h-4">
       </button>
+      <button @click="settingsService.open" title="Settings" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
+        <img :src="stageIcons.settings" alt="settings" class="w-4 h-4">
+      </button>
 
       <div class="h-4 w-px bg-white/10 mx-1"></div>
 
@@ -54,7 +57,7 @@ import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS, TOOL_MODIFIERS } from '@
 import stageIcons from '../image/stage_toolbar';
 
 const { viewport: viewportStore, nodeTree, input, output, keyboardEvent: keyboardEvents } = useStore();
-const { toolSelection: toolSelectionService, stageResize: stageResizeService, imageLoad: imageLoadService } = useService();
+const { toolSelection: toolSelectionService, stageResize: stageResizeService, imageLoad: imageLoadService, settings: settingsService } = useService();
 
 const fileInput = ref(null);
 function openFileDialog() {

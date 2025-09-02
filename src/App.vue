@@ -30,6 +30,7 @@
     </div>
     <StageResizePopup />
     <ImageLoadPopup />
+    <SettingsPopup />
     <ContextMenu />
 </template>
 
@@ -46,6 +47,7 @@ import ExportPanel from './components/ExportPanel.vue';
 import ViewportToolbar from './components/ViewportToolbar.vue';
 import StageResizePopup from './components/StageResizePopup.vue';
 import ImageLoadPopup from './components/ImageLoadPopup.vue';
+import SettingsPopup from './components/SettingsPopup.vue';
 import ContextMenu from './components/ContextMenu.vue';
 const { input } = useStore();
 const { imageLoad: imageLoadService } = useService();

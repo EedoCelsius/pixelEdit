@@ -19,7 +19,7 @@ export const usePixelStore = defineStore('pixels', {
         'none': {},
         'vertical': {},
         'horizontal': {},
-        defaultDirection: PIXEL_DEFAULT_DIRECTIONS[0]
+        defaultDirection: localStorage.getItem('settings.defaultDirection') || PIXEL_DEFAULT_DIRECTIONS[0]
     }),
     getters: {
         get: (state) => (id) => {
@@ -149,7 +149,10 @@ export const usePixelStore = defineStore('pixels', {
             }
         },
         setDefaultDirection(direction) {
-            if (PIXEL_DEFAULT_DIRECTIONS.includes(direction)) this.defaultDirection = direction;
+            if (PIXEL_DEFAULT_DIRECTIONS.includes(direction)) {
+                this.defaultDirection = direction;
+                localStorage.setItem('settings.defaultDirection', direction);
+            }
         }
     }
 });
