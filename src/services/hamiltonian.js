@@ -399,7 +399,7 @@ function solveSequential(input, opts = {}) {
 }
 
 async function runWorker(input, opts) {
-  if (typeof window === 'undefined' || typeof Worker === 'undefined') {
+  if (typeof Worker === 'undefined') {
     return Promise.resolve(solveSequential(input, opts));
   }
   return new Promise((resolve, reject) => {
@@ -425,11 +425,7 @@ async function solveCore(input, opts = {}) {
   if (cutSet && cutSet.length) {
     const parts = partitionAtCut(nodes, neighbors, cutSet);
     const cutPixels = cutSet.map((i) => nodes[i]);
-    const useWorkers =
-      typeof window !== 'undefined' &&
-      typeof Worker !== 'undefined' &&
-      !opts.worker;
-    if (useWorkers) {
+    if (typeof Worker !== 'undefined') {
       const promises = parts.map((part) =>
         runWorker(part, preparePartOpts(part, opts, cutPixels))
       );
@@ -454,18 +450,18 @@ async function solveCore(input, opts = {}) {
 }
 
 export async function solve(input, opts = {}) {
+  const canUseWorker = typeof Worker !== 'undefined' && !opts.worker;
   if (opts.start != null && opts.end != null) {
     const base = {
       degreeOrder: opts.degreeOrder,
-      worker: opts.worker,
       yieldEvery: opts.yieldEvery,
     };
     let graph = input;
     if (!(graph && graph.nodes && graph.neighbors && graph.degrees)) {
       graph = buildGraph(input);
     }
-
     const copyGraph = () => ({ ...graph, degrees: graph.degrees.slice() });
+
     const best = { paths: null, priority: Infinity, anchors: 0 };
 
     function evalCandidate(paths) {
@@ -502,22 +498,30 @@ export async function solve(input, opts = {}) {
       return priority;
     }
 
+    const runAnchor = (anchor) => {
+      const anchorOpts = { ...base, start: anchor };
+      return canUseWorker
+        ? runWorker(copyGraph(), anchorOpts)
+        : solveCore(copyGraph(), anchorOpts);
+    };
+
     return await new Promise((resolve) => {
       let finished = 0;
       const handle = (paths) => {
         const priority = update(paths);
         finished++;
-        if (priority === 1) {
-          resolve(best.paths);
-        } else if (finished === 2) {
+        if (priority === 1 || finished === 2) {
           resolve(best.paths);
         }
       };
-      solveCore(copyGraph(), { ...base, start: opts.start }).then(handle);
-      solveCore(copyGraph(), { ...base, start: opts.end }).then(handle);
+      runAnchor(opts.start).then(handle);
+      runAnchor(opts.end).then(handle);
     });
   }
 
+  if (canUseWorker) {
+    return runWorker(input, opts);
+  }
   return solveCore(input, opts);
 }
 
