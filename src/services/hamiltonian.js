@@ -449,11 +449,12 @@ async function solveCore(input, opts = {}) {
           .map(([cp, nb]) => [Number(cp), nb])
           .sort((a, b) => a[0] - b[0]);
         return runWorker(part, preparePartOpts(part, opts)).then((res) => {
-          for (const path of res) {
+          const segs = res || [];
+          for (const path of segs) {
             if (cpList[0]) path.unshift(cpList[0][0]);
             if (cpList[1]) path.push(cpList[1][0]);
           }
-          return res;
+          return segs;
         });
       });
       const results = await Promise.all(promises);
@@ -518,7 +519,7 @@ export async function solve(input, opts = {}) {
 
     function update(paths) {
       const { priority, anchors } = evalCandidate(paths);
-      if (priority === 4) return priority;
+      if (priority === 4 && best.paths) return priority;
       if (
         !best.paths ||
         priority < best.priority ||
