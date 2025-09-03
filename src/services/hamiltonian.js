@@ -1,5 +1,5 @@
-import { MAX_DIMENSION } from '../utils';
-import { TIME_LIMIT } from '../constants';
+const MAX_DIMENSION = 65536; // from utils
+const TIME_LIMIT = 7500; // from constants/hamiltonian.js
 
 // Build adjacency info for pixels with 8-way connectivity
 // Returns { nodes, neighbors, degrees, indexMap }
@@ -35,46 +35,87 @@ function buildGraph(pixels) {
   return { nodes, neighbors, degrees, indexMap };
 }
 
-// Attempt to find a degree-2 articulation vertex.
-// Returns the index of the cut vertex or null if none found.
-function findDegree2Cut(neighbors, degrees) {
-  for (let i = 0; i < neighbors.length; i++) {
-    if (degrees[i] !== 2) continue;
-    const [a, b] = neighbors[i];
-    const visited = new Uint8Array(neighbors.length);
-    const stack = [a];
-    visited[a] = 1;
+// Attempt to find a minimal set of degree-2 vertices whose removal
+// disconnects the graph. Returns an array of vertex indices or null if
+// no such cut set exists.
+function findDegree2CutSet(neighbors, degrees) {
+  const degree2 = [];
+  for (let i = 0; i < degrees.length; i++) if (degrees[i] === 2) degree2.push(i);
+  const total = neighbors.length;
+
+  function isCut(rem) {
+    const blocked = new Uint8Array(total);
+    for (const r of rem) blocked[r] = 1;
+    let start = -1;
+    for (let i = 0; i < total; i++) {
+      if (!blocked[i]) {
+        start = i;
+        break;
+      }
+    }
+    if (start === -1) return false;
+    const stack = [start];
+    blocked[start] = 1;
     while (stack.length) {
       const node = stack.pop();
       for (const nb of neighbors[node]) {
-        if (nb === i || visited[nb]) continue;
-        visited[nb] = 1;
+        if (blocked[nb]) continue;
+        blocked[nb] = 1;
         stack.push(nb);
       }
     }
-    if (!visited[b]) return i;
+    for (let i = 0; i < total; i++) if (!blocked[i]) return true;
+    return false;
+  }
+
+  const k = degree2.length;
+  const combo = [];
+  function search(start, depth, target) {
+    if (depth === target) return isCut(combo) ? combo.slice() : null;
+    for (let i = start; i < k; i++) {
+      combo[depth] = degree2[i];
+      const res = search(i + 1, depth + 1, target);
+      if (res) return res;
+    }
+    return null;
+  }
+
+  for (let r = 1; r <= k; r++) {
+    const res = search(0, 0, r);
+    if (res) return res;
   }
   return null;
 }
 
-// Partition graph around a cut vertex into two sets of indices
-function partitionAtCut(neighbors, cut) {
+// Partition graph around a cut set. Returns arrays of indices for each
+// component, including the cut vertices adjacent to that component.
+function partitionAtCut(neighbors, cutSet) {
+  const cuts = Array.isArray(cutSet) ? cutSet : [cutSet];
+  const cutLookup = new Set(cuts);
+  const visited = new Uint8Array(neighbors.length);
+  for (const c of cuts) visited[c] = 1;
   const res = [];
-  for (const nb of neighbors[cut]) {
-    const comp = [cut];
-    const stack = [nb];
-    const visited = new Set([cut]);
-    visited.add(nb);
+
+  for (let i = 0; i < neighbors.length; i++) {
+    if (visited[i]) continue;
+    const stack = [i];
+    visited[i] = 1;
+    const comp = [];
+    const adjCuts = new Set();
     while (stack.length) {
       const node = stack.pop();
       comp.push(node);
-      for (const n of neighbors[node]) {
-        if (visited.has(n)) continue;
-        visited.add(n);
-        stack.push(n);
+      for (const nb of neighbors[node]) {
+        if (cutLookup.has(nb)) {
+          adjCuts.add(nb);
+          continue;
+        }
+        if (visited[nb]) continue;
+        visited[nb] = 1;
+        stack.push(nb);
       }
     }
-    res.push(comp);
+    res.push([...comp, ...adjCuts]);
   }
   return res;
 }
@@ -125,28 +166,40 @@ function getComponents(neighbors) {
 function solve(pixels, opts = {}) {
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
 
-  const cut = findDegree2Cut(neighbors, degrees);
-  if (cut != null) {
-    const parts = partitionAtCut(neighbors, cut);
-    const cutPixel = nodes[cut];
-    const [leftIdxs, rightIdxs] = parts;
-    const leftPixels = leftIdxs.map((i) => nodes[i]);
-    const rightPixels = rightIdxs.map((i) => nodes[i]);
-    const leftOpts = {};
-    const rightOpts = {};
-    if (opts.start != null) {
-      const idx = indexMap.get(opts.start);
-      if (leftIdxs.includes(idx)) leftOpts.start = opts.start;
-      if (rightIdxs.includes(idx)) rightOpts.start = opts.start;
+  const cutSet = findDegree2CutSet(neighbors, degrees);
+  if (cutSet && cutSet.length) {
+    const parts = partitionAtCut(neighbors, cutSet);
+    const cutPixels = cutSet.map((i) => nodes[i]);
+    const results = [];
+    for (const idxs of parts) {
+      const partPixels = idxs.map((i) => nodes[i]);
+      const partOpts = {};
+      if (opts.start != null) {
+        const idx = indexMap.get(opts.start);
+        if (idxs.includes(idx)) partOpts.start = opts.start;
+      }
+      if (opts.end != null) {
+        const idx = indexMap.get(opts.end);
+        if (idxs.includes(idx)) partOpts.end = opts.end;
+      }
+      results.push(solve(partPixels, partOpts));
     }
-    if (opts.end != null) {
-      const idx = indexMap.get(opts.end);
-      if (leftIdxs.includes(idx)) leftOpts.end = opts.end;
-      if (rightIdxs.includes(idx)) rightOpts.end = opts.end;
+    let combined = results.shift();
+    for (const res of results) {
+      let merged = false;
+      for (const cp of cutPixels) {
+        if (
+          combined.some((p) => p.includes(cp)) &&
+          res.some((p) => p.includes(cp))
+        ) {
+          combined = stitchPaths(combined, res, cp);
+          merged = true;
+          break;
+        }
+      }
+      if (!merged) combined = combined.concat(res);
     }
-    const left = solve(leftPixels, leftOpts);
-    const right = solve(rightPixels, rightOpts);
-    return stitchPaths(left, right, cutPixel);
+    return combined;
   }
   const total = nodes.length;
   const remaining = new Uint8Array(total);
@@ -312,3 +365,5 @@ export const useHamiltonianService = () => {
     traverseFree,
   };
 };
+
+export { buildGraph, findDegree2CutSet, solve };
