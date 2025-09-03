@@ -133,6 +133,19 @@ const pixels = [A, B, C, D];
   assert.deepStrictEqual(merged, [[20, 2, 10, 1, 30]]);
 }
 
+// Test mergeCutPaths returns multiple paths when stitching cannot create one
+// continuous path around a cut pixel
+{
+  const paths = [
+    [0, 1],
+    [0, 2],
+    [0, 3],
+  ];
+  const merged = mergeCutPaths(paths, [0]);
+  assert.strictEqual(merged.length, 2);
+  for (const p of merged) assert(Array.isArray(p));
+}
+
 // Test removing duplicate endpoints in a circular path
 {
   const paths = [

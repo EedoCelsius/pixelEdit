@@ -174,13 +174,16 @@ function mergeCutPaths(paths, cutPixels) {
     for (const cp of cutPixels) {
       const group = res.filter((p) => p.includes(cp));
       if (group.length > 1) {
+        const initial = group.length;
         let merged = [group.shift()];
         for (const p of group) {
           merged = stitchPaths(merged, [p], cp);
         }
         res = res.filter((p) => !p.includes(cp));
         res.push(...merged);
-        changed = true;
+        if (merged.filter((p) => p.includes(cp)).length < initial) {
+          changed = true;
+        }
       }
     }
   }
