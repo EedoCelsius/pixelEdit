@@ -30,7 +30,29 @@ function buildGraph(pixels) {
   }
 
   const degrees = neighbors.map((nbs) => nbs.length);
-  for (const nbs of neighbors) nbs.sort((a, b) => degrees[a] - degrees[b]);
+  function dirOrder(dx, dy) {
+    if (dx === 0 && dy === -1) return 0; // up
+    if (dx === 1 && dy === 0) return 1; // right
+    if (dx === 0 && dy === 1) return 2; // down
+    if (dx === -1 && dy === 0) return 3; // left
+    if (dx === -1 && dy === -1) return 4; // left-up
+    if (dx === -1 && dy === 1) return 5; // left-down
+    if (dx === 1 && dy === 1) return 6; // right-down
+    if (dx === 1 && dy === -1) return 7; // right-up
+    return 8;
+  }
+
+  for (let i = 0; i < neighbors.length; i++) {
+    const nbs = neighbors[i];
+    nbs.sort((a, b) => {
+      const da = degrees[a];
+      const db = degrees[b];
+      if (da !== db) return da - db;
+      const orderA = dirOrder(xs[a] - xs[i], ys[a] - ys[i]);
+      const orderB = dirOrder(xs[b] - xs[i], ys[b] - ys[i]);
+      return orderA - orderB;
+    });
+  }
 
   return { nodes, neighbors, degrees, indexMap };
 }
