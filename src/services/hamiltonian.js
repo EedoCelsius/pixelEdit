@@ -142,25 +142,8 @@ function partitionAtCut(nodes, neighbors, cutSet) {
 function stitchPaths(left, right, cutPixel) {
   const li = left.findIndex((p) => p.includes(cutPixel));
   const ri = right.findIndex((p) => p.includes(cutPixel));
-  let lPath = left.splice(li, 1)[0];
-  let rPath = right.splice(ri, 1)[0];
-
-  // Split left path if cut pixel is internal
-  const lIdx = lPath.indexOf(cutPixel);
-  if (lIdx !== lPath.length - 1) {
-    const extra = lPath.slice(lIdx + 1);
-    lPath = lPath.slice(0, lIdx + 1);
-    if (extra.length) left.push(extra);
-  }
-
-  // Split right path if cut pixel is internal
-  const rIdx = rPath.indexOf(cutPixel);
-  if (rIdx !== 0) {
-    const extra = rPath.slice(0, rIdx);
-    rPath = rPath.slice(rIdx);
-    if (extra.length) right.push(extra);
-  }
-
+  const lPath = left.splice(li, 1)[0];
+  const rPath = right.splice(ri, 1)[0];
   if (lPath[lPath.length - 1] !== cutPixel) lPath.reverse();
   if (rPath[0] !== cutPixel) rPath.reverse();
   const joined = lPath.concat(rPath.slice(1));
@@ -212,7 +195,6 @@ function solve(input, opts = {}) {
     const parts = partitionAtCut(nodes, neighbors, cutSet);
     const cutPixels = cutSet.map((i) => nodes[i]);
     const results = [];
-    const cpToggle = new Map();
     for (const part of parts) {
       const partOpts = {};
       if (opts.start != null && part.nodes.includes(opts.start))
@@ -220,37 +202,24 @@ function solve(input, opts = {}) {
       if (opts.end != null && part.nodes.includes(opts.end))
         partOpts.end = opts.end;
       if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
-
-      for (const cp of cutPixels) {
-        if (!part.nodes.includes(cp)) continue;
-        if (cp === partOpts.start || cp === partOpts.end) continue;
-        const t = cpToggle.get(cp) || 0;
-        if (t === 0) {
-          if (partOpts.start == null) partOpts.start = cp;
-          else partOpts.end = cp;
-        } else {
-          if (partOpts.end == null) partOpts.end = cp;
-          else partOpts.start = cp;
-        }
-        cpToggle.set(cp, 1 - t);
-      }
       results.push(solve(part, partOpts));
     }
-
-    let paths = results.flat();
-    for (const cp of cutPixels) {
-      const group = paths.filter((p) => p.includes(cp));
-      if (group.length <= 1) continue;
-      paths = paths.filter((p) => !p.includes(cp));
-      let idx = group.findIndex((p) => p[p.length - 1] === cp);
-      const start = idx >= 0 ? [group.splice(idx, 1)[0]] : [group.shift()];
-      let merged = start;
-      for (const path of group) {
-        merged = stitchPaths(merged, [path], cp);
+    let combined = results.shift();
+    for (const res of results) {
+      let merged = false;
+      for (const cp of cutPixels) {
+        if (
+          combined.some((p) => p.includes(cp)) &&
+          res.some((p) => p.includes(cp))
+        ) {
+          combined = stitchPaths(combined, res, cp);
+          merged = true;
+          break;
+        }
       }
-      paths.push(...merged);
+      if (!merged) combined = combined.concat(res);
     }
-    return paths;
+    return combined;
   }
 
   const xs = new Int32Array(nodes.length);
@@ -447,4 +416,4 @@ export const useHamiltonianService = () => {
   };
 };
 
-export { buildGraph, findCornerCutSet, solve, stitchPaths };
+export { buildGraph, findCornerCutSet, solve };
