@@ -112,3 +112,14 @@ const pixels = [A, B, C, D];
   const merged = mergeCutPaths(paths, [1, 2]);
   assert.deepStrictEqual(merged, [[20, 2, 10, 1, 30]]);
 }
+
+// Test removing duplicate endpoints in a circular path
+{
+  const paths = [
+    [1, 2],
+    [2, 3],
+    [3, 1],
+  ];
+  const merged = mergeCutPaths(paths, [1, 2, 3]);
+  assert.deepStrictEqual(merged, [[3, 2, 1]]);
+}

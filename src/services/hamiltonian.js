@@ -172,6 +172,9 @@ function mergeCutPaths(paths, cutPixels) {
       }
     }
   }
+  for (const p of res) {
+    if (p.length > 1 && p[0] === p[p.length - 1]) p.pop();
+  }
   return res;
 }
 
