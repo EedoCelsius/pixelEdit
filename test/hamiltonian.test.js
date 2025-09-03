@@ -5,6 +5,7 @@ import {
   useHamiltonianService,
   solve,
   stitchPaths,
+  mergeCutPaths,
 } from '../src/services/hamiltonian.js';
 
 const MAX_DIMENSION = 65536;
@@ -99,4 +100,15 @@ const pixels = [A, B, C, D];
     [0, 2],
     [1, 0, 3],
   ]);
+}
+
+// Test merging paths across multiple cut pixels to avoid duplication
+{
+  const paths = [
+    [1, 10, 2],
+    [2, 20],
+    [1, 30],
+  ];
+  const merged = mergeCutPaths(paths, [1, 2]);
+  assert.deepStrictEqual(merged, [[20, 2, 10, 1, 30]]);
 }

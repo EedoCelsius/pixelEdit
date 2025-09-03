@@ -153,6 +153,28 @@ function stitchPaths(left, right, cutPixel) {
   return [...left, ...right, joined];
 }
 
+// Merge all paths sharing any cut pixel until none remain duplicated
+function mergeCutPaths(paths, cutPixels) {
+  let res = paths.slice();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const cp of cutPixels) {
+      const group = res.filter((p) => p.includes(cp));
+      if (group.length > 1) {
+        let merged = [group.shift()];
+        for (const p of group) {
+          merged = stitchPaths(merged, [p], cp);
+        }
+        res = res.filter((p) => !p.includes(cp));
+        res.push(...merged);
+        changed = true;
+      }
+    }
+  }
+  return res;
+}
+
 // Find connected components from an adjacency list
 function getComponents(neighbors) {
   const n = neighbors.length;
@@ -214,31 +236,7 @@ function solveSequential(input, opts = {}) {
       results.push(solveSequential(part, partOpts));
     }
 
-    const allPaths = results.flat();
-    const groups = new Map(cutPixels.map((cp) => [cp, []]));
-    const others = [];
-    for (const path of allPaths) {
-      let assigned = false;
-      for (const cp of cutPixels) {
-        if (path.includes(cp)) {
-          groups.get(cp).push(path);
-          assigned = true;
-          break;
-        }
-      }
-      if (!assigned) others.push(path);
-    }
-
-    for (const [cp, paths] of groups.entries()) {
-      if (!paths.length) continue;
-      let merged = [paths.shift()];
-      for (const p of paths) {
-        merged = stitchPaths(merged, [p], cp);
-      }
-      others.push(...merged);
-    }
-
-    return others;
+    return mergeCutPaths(results.flat(), cutPixels);
   }
 
   const xs = new Int32Array(nodes.length);
@@ -424,29 +422,7 @@ export async function solve(input, opts = {}) {
       return runWorker(part, partOpts);
     });
     const results = await Promise.all(promises);
-    const allPaths = results.flat();
-    const groups = new Map(cutPixels.map((cp) => [cp, []]));
-    const others = [];
-    for (const path of allPaths) {
-      let assigned = false;
-      for (const cp of cutPixels) {
-        if (path.includes(cp)) {
-          groups.get(cp).push(path);
-          assigned = true;
-          break;
-        }
-      }
-      if (!assigned) others.push(path);
-    }
-    for (const [cp, paths] of groups.entries()) {
-      if (!paths.length) continue;
-      let merged = [paths.shift()];
-      for (const p of paths) {
-        merged = stitchPaths(merged, [p], cp);
-      }
-      others.push(...merged);
-    }
-    return others;
+    return mergeCutPaths(results.flat(), cutPixels);
   }
   return solveSequential(input, opts);
 }
@@ -515,4 +491,4 @@ export const useHamiltonianService = () => {
   };
 };
 
-export { buildGraph, findDegree2CutSet, stitchPaths };
+export { buildGraph, findDegree2CutSet, stitchPaths, mergeCutPaths };
