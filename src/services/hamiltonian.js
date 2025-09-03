@@ -168,23 +168,14 @@ function stitchPaths(left, right, cutPixel) {
 // Merge all paths sharing any cut pixel until none remain duplicated
 function mergeCutPaths(paths, cutPixels) {
   let res = paths.slice();
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const cp of cutPixels) {
-      const group = res.filter((p) => p.includes(cp));
-      if (group.length > 1) {
-        const initial = group.length;
-        let merged = [group.shift()];
-        for (const p of group) {
-          merged = stitchPaths(merged, [p], cp);
-        }
-        res = res.filter((p) => !p.includes(cp));
-        res.push(...merged);
-        if (merged.filter((p) => p.includes(cp)).length < initial) {
-          changed = true;
-        }
-      }
+  for (const cp of cutPixels) {
+    const withCp = res.filter((p) => p.includes(cp));
+    const withoutCp = res.filter((p) => !p.includes(cp));
+    if (withCp.length === 2) {
+      const merged = stitchPaths([withCp[0]], [withCp[1]], cp);
+      res = withoutCp.concat(merged);
+    } else {
+      res = withoutCp.concat(withCp);
     }
   }
   for (const p of res) {
