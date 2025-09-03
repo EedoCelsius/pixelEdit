@@ -126,14 +126,56 @@ function partitionAtCut(nodes, neighbors, cutSet) {
 
 // Merge two path covers using the shared cut pixel
 function stitchPaths(left, right, cutPixel) {
-  const li = left.findIndex((p) => p.includes(cutPixel));
-  const ri = right.findIndex((p) => p.includes(cutPixel));
-  const lPath = left.splice(li, 1)[0];
-  const rPath = right.splice(ri, 1)[0];
-  if (lPath[lPath.length - 1] !== cutPixel) lPath.reverse();
-  if (rPath[0] !== cutPixel) rPath.reverse();
+  function extract(paths, needEnd) {
+    const idx = paths.findIndex((p) => p.includes(cutPixel));
+    const path = paths.splice(idx, 1)[0];
+    const pos = path.indexOf(cutPixel);
+    if (needEnd) {
+      if (pos === path.length - 1) return path;
+      if (pos === 0) return path.reverse();
+      const before = path.slice(0, pos + 1); // ends with cutPixel
+      const after = path.slice(pos); // starts with cutPixel
+      paths.push(after);
+      return before;
+    }
+    // need cutPixel at start
+    if (pos === 0) return path;
+    if (pos === path.length - 1) return path.reverse();
+    const before = path.slice(0, pos + 1); // ends with cutPixel
+    const after = path.slice(pos); // starts with cutPixel
+    paths.push(before);
+    return after;
+  }
+
+  const lPath = extract(left, true); // ends with cutPixel
+  const rPath = extract(right, false); // starts with cutPixel
   const joined = lPath.concat(rPath.slice(1));
   return [...left, ...right, joined];
+}
+
+// Merge all paths sharing any cut pixel until none remain duplicated
+function mergeCutPaths(paths, cutPixels) {
+  let res = paths.slice();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const cp of cutPixels) {
+      const group = res.filter((p) => p.includes(cp));
+      if (group.length > 1) {
+        let merged = [group.shift()];
+        for (const p of group) {
+          merged = stitchPaths(merged, [p], cp);
+        }
+        res = res.filter((p) => !p.includes(cp));
+        res.push(...merged);
+        changed = true;
+      }
+    }
+  }
+  for (const p of res) {
+    if (p.length > 1 && p[0] === p[p.length - 1]) p.pop();
+  }
+  return res;
 }
 
 // Find connected components from an adjacency list
@@ -167,7 +209,7 @@ function getComponents(neighbors) {
 }
 
 // Core solver using backtracking to find minimum path cover
-function solve(input, opts = {}) {
+function solveSequential(input, opts = {}) {
   let nodes, neighbors, degrees, indexMap;
   if (input && input.nodes && input.neighbors && input.degrees) {
     ({ nodes, neighbors, degrees } = input);
@@ -188,24 +230,16 @@ function solve(input, opts = {}) {
       if (opts.end != null && part.nodes.includes(opts.end))
         partOpts.end = opts.end;
       if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
-      results.push(solve(part, partOpts));
-    }
-    let combined = results.shift();
-    for (const res of results) {
-      let merged = false;
-      for (const cp of cutPixels) {
-        if (
-          combined.some((p) => p.includes(cp)) &&
-          res.some((p) => p.includes(cp))
-        ) {
-          combined = stitchPaths(combined, res, cp);
-          merged = true;
-          break;
-        }
+      const partCuts = cutPixels.filter((cp) => part.nodes.includes(cp));
+      for (const cp of partCuts) {
+        if (partOpts.start == null && cp !== partOpts.end) partOpts.start = cp;
+        else if (partOpts.end == null && cp !== partOpts.start)
+          partOpts.end = cp;
       }
-      if (!merged) combined = combined.concat(res);
+      results.push(solveSequential(part, partOpts));
     }
-    return combined;
+
+    return mergeCutPaths(results.flat(), cutPixels);
   }
 
   const xs = new Int32Array(nodes.length);
@@ -343,8 +377,81 @@ function solve(input, opts = {}) {
   return paths;
 }
 
+async function runWorker(input, opts) {
+  if (typeof window === 'undefined' || typeof Worker === 'undefined') {
+    return Promise.resolve(solveSequential(input, opts));
+  }
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./hamiltonianWorker.js', import.meta.url), {
+      type: 'module',
+    });
+    worker.onmessage = (e) => resolve(e.data);
+    worker.onerror = reject;
+    worker.postMessage({ input, opts });
+  });
+}
+
+export async function solve(input, opts = {}) {
+  let nodes, neighbors, degrees;
+  if (input && input.nodes && input.neighbors && input.degrees) {
+    ({ nodes, neighbors, degrees } = input);
+  } else {
+    ({ nodes, neighbors, degrees } = buildGraph(input));
+  }
+
+  const cutSet = findDegree2CutSet(neighbors, degrees);
+  if (cutSet && cutSet.length) {
+    const parts = partitionAtCut(nodes, neighbors, cutSet);
+    const cutPixels = cutSet.map((i) => nodes[i]);
+    if (
+      typeof window !== 'undefined' &&
+      typeof Worker !== 'undefined' &&
+      !opts.worker
+    ) {
+      const promises = parts.map((part) => {
+        const partOpts = {};
+        if (opts.start != null && part.nodes.includes(opts.start))
+          partOpts.start = opts.start;
+        if (opts.end != null && part.nodes.includes(opts.end))
+          partOpts.end = opts.end;
+        if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
+        const partCuts = cutPixels.filter((cp) => part.nodes.includes(cp));
+        for (const cp of partCuts) {
+          if (partOpts.start == null && cp !== partOpts.end) partOpts.start = cp;
+          else if (partOpts.end == null && cp !== partOpts.start)
+            partOpts.end = cp;
+        }
+        return runWorker(part, partOpts);
+      });
+      const results = await Promise.all(promises);
+      return mergeCutPaths(results.flat(), cutPixels);
+    }
+    const results = [];
+    const batch = opts.yieldEvery || 1;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const partOpts = {};
+      if (opts.start != null && part.nodes.includes(opts.start))
+        partOpts.start = opts.start;
+      if (opts.end != null && part.nodes.includes(opts.end))
+        partOpts.end = opts.end;
+      if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
+      const partCuts = cutPixels.filter((cp) => part.nodes.includes(cp));
+      for (const cp of partCuts) {
+        if (partOpts.start == null && cp !== partOpts.end) partOpts.start = cp;
+        else if (partOpts.end == null && cp !== partOpts.start)
+          partOpts.end = cp;
+      }
+      results.push(solveSequential(part, partOpts));
+      if ((i + 1) % batch === 0) await new Promise((r) => setTimeout(r));
+    }
+    return mergeCutPaths(results.flat(), cutPixels);
+  }
+  return solveSequential(input, opts);
+}
+
 export const useHamiltonianService = () => {
-  function traverseWithStart(pixels, start) {
+  async function traverseWithStart(pixels, start) {
     const { nodes, neighbors, indexMap } = buildGraph(pixels);
     const { components, compIndex } = getComponents(neighbors);
     const startIdx = indexMap.get(start);
@@ -354,43 +461,74 @@ export const useHamiltonianService = () => {
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
       if (compIndex[startIdx] === i) {
-        result.push(...solve(compPixels, { start }));
+        const paths = await solve(compPixels, { start });
+        result.push(...paths);
       } else {
-        result.push(...solve(compPixels));
+        const paths = await solve(compPixels);
+        result.push(...paths);
       }
     }
     return result;
   }
 
-  function traverseWithStartEnd(pixels, start, end) {
+  async function traverseWithStartEnd(pixels, start, end) {
     const { nodes, neighbors, indexMap } = buildGraph(pixels);
     const { components, compIndex } = getComponents(neighbors);
     const startIdx = indexMap.get(start);
     const endIdx = indexMap.get(end);
     if (startIdx === undefined) throw new Error('Start pixel missing');
     if (endIdx === undefined) throw new Error('End pixel missing');
-    if (compIndex[startIdx] !== compIndex[endIdx])
-      throw new Error('Start and end pixels are disconnected');
 
     const result = [];
+    if (compIndex[startIdx] !== compIndex[endIdx]) {
+      for (let i = 0; i < components.length; i++) {
+        const compPixels = components[i].map((idx) => nodes[idx]);
+        if (compIndex[startIdx] === i) {
+          const paths = await solve(compPixels, { start });
+          result.push(...paths);
+        } else if (compIndex[endIdx] === i) {
+          const paths = await solve(compPixels, { start: end });
+          result.push(...paths);
+        } else {
+          const paths = await solve(compPixels);
+          result.push(...paths);
+        }
+      }
+      return result;
+    }
+
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
       if (compIndex[startIdx] === i) {
-        result.push(...solve(compPixels, { start, end }));
+        let paths = await solve(compPixels, { start, end });
+        const singlePath =
+          paths.length === 1 &&
+          ((paths[0][0] === start &&
+            paths[0][paths[0].length - 1] === end) ||
+            (paths[0][0] === end &&
+              paths[0][paths[0].length - 1] === start));
+        if (!singlePath) {
+          const startOnly = await solve(compPixels, { start });
+          const endOnly = await solve(compPixels, { start: end });
+          paths = startOnly.length <= endOnly.length ? startOnly : endOnly;
+        }
+        result.push(...paths);
       } else {
-        result.push(...solve(compPixels));
+        const paths = await solve(compPixels);
+        result.push(...paths);
       }
     }
     return result;
   }
 
-  function traverseFree(pixels) {
+  async function traverseFree(pixels) {
     const { nodes, neighbors } = buildGraph(pixels);
     const { components } = getComponents(neighbors);
     const result = [];
     for (const comp of components) {
       const compPixels = comp.map((idx) => nodes[idx]);
-      result.push(...solve(compPixels));
+      const paths = await solve(compPixels);
+      result.push(...paths);
     }
     return result;
   }
@@ -402,4 +540,4 @@ export const useHamiltonianService = () => {
   };
 };
 
-export { buildGraph, findDegree2CutSet, solve };
+export { buildGraph, findDegree2CutSet, stitchPaths, mergeCutPaths };
