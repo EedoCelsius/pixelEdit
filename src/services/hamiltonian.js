@@ -128,6 +128,10 @@ function partitionAtCut(nodes, neighbors, cutSet) {
 function stitchPaths(left, right, cutPixel) {
   function extract(paths, needEnd) {
     const idx = paths.findIndex((p) => p.includes(cutPixel));
+    if (idx === -1) {
+      const path = paths.shift();
+      return needEnd ? path.concat(cutPixel) : [cutPixel, ...path];
+    }
     const path = paths.splice(idx, 1)[0];
     const pos = path.indexOf(cutPixel);
     if (needEnd) {
@@ -231,10 +235,22 @@ function solveSequential(input, opts = {}) {
         partOpts.end = opts.end;
       if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
       const partCuts = cutPixels.filter((cp) => part.nodes.includes(cp));
+      // Replace any cut anchors with their unique neighbor inside the partition
+      if (partOpts.start != null && partCuts.includes(partOpts.start)) {
+        const cpIdx = part.nodes.indexOf(partOpts.start);
+        const nb = part.nodes[part.neighbors[cpIdx][0]];
+        partOpts.start = nb;
+      }
+      if (partOpts.end != null && partCuts.includes(partOpts.end)) {
+        const cpIdx = part.nodes.indexOf(partOpts.end);
+        const nb = part.nodes[part.neighbors[cpIdx][0]];
+        partOpts.end = nb;
+      }
       for (const cp of partCuts) {
-        if (partOpts.start == null && cp !== partOpts.end) partOpts.start = cp;
-        else if (partOpts.end == null && cp !== partOpts.start)
-          partOpts.end = cp;
+        const cpIdx = part.nodes.indexOf(cp);
+        const nb = part.nodes[part.neighbors[cpIdx][0]];
+        if (partOpts.start == null && nb !== partOpts.end) partOpts.start = nb;
+        else if (partOpts.end == null && nb !== partOpts.start) partOpts.end = nb;
       }
       results.push(solveSequential(part, partOpts));
     }

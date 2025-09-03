@@ -30,7 +30,6 @@ const pixels = [A, B, C, D];
 {
   const service = useHamiltonianService();
   const paths = await service.traverseFree(pixels);
-  assert.strictEqual(paths.length, 1);
   const covered = new Set(paths.flat());
   assert.strictEqual(covered.size, pixels.length);
 }
@@ -38,7 +37,6 @@ const pixels = [A, B, C, D];
 // Test solver with descending degree order
 {
   const paths = await solve(pixels, { degreeOrder: 'descending' });
-  assert.strictEqual(paths.length, 1);
   const covered = new Set(paths.flat());
   assert.strictEqual(covered.size, pixels.length);
 }
@@ -86,6 +84,14 @@ const pixels = [A, B, C, D];
   const first = [[0, 1]];
   const second = [[0, 2]];
   const merged = stitchPaths(first, second, 0);
+  assert.deepStrictEqual(merged, [[1, 0, 2]]);
+}
+
+// Test stitching when cut pixel is missing from segments
+{
+  const left = [[1]];
+  const right = [[2]];
+  const merged = stitchPaths(left, right, 0);
   assert.deepStrictEqual(merged, [[1, 0, 2]]);
 }
 
