@@ -178,7 +178,7 @@ function getComponents(neighbors) {
 }
 
 // Core solver using backtracking to find minimum path cover
-function solve(input, opts = {}) {
+async function solve(input, opts = {}) {
   let nodes, neighbors, degrees, indexMap;
   if (input && input.nodes && input.neighbors && input.degrees) {
     ({ nodes, neighbors, degrees } = input);
@@ -194,7 +194,11 @@ function solve(input, opts = {}) {
       const cutPixels = cutSet.map((i) => nodes[i]);
       const groups = new Map(cutPixels.map((cp) => [cp, []]));
       const merged = [];
-      for (const part of parts) {
+      const defer = () => new Promise((resolve) => setImmediate(resolve));
+
+      async function process(idx) {
+        if (idx >= parts.length) return;
+        const part = parts[idx];
         const partOpts = {};
         if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
 
@@ -213,14 +217,18 @@ function solve(input, opts = {}) {
           }
         }
 
-        const res = solve(part, partOpts);
+        await defer();
+        const res = await solve(part, partOpts);
         if (!part.cutAdj.length) {
           merged.push(...res);
-          continue;
+        } else {
+          const { cutPixel, neighborPixel } = part.cutAdj[0];
+          groups.get(cutPixel).push({ paths: res, neighbor: neighborPixel });
         }
-        const { cutPixel, neighborPixel } = part.cutAdj[0];
-        groups.get(cutPixel).push({ paths: res, neighbor: neighborPixel });
+        await process(idx + 1);
       }
+
+      await process(0);
 
       for (const [cp, arr] of groups.entries()) {
         if (!arr.length) continue;
@@ -271,15 +279,39 @@ function solve(input, opts = {}) {
   if (opts.start != null && start === undefined) throw new Error('Start pixel missing');
   if (opts.end != null && end === undefined) throw new Error('End pixel missing');
 
-  const best = { paths: null };
+  const best = { paths: null, anchors: 0 };
   const memo = new Map();
   const startTime = Date.now();
   let timeExceeded = false;
+  const totalAnchors = (start != null ? 1 : 0) + (end != null ? 1 : 0);
+
+  function anchorsSatisfied(acc) {
+    let count = 0;
+    if (start != null) {
+      if (acc.some((p) => p[0] === start || p[p.length - 1] === start)) count++;
+    }
+    if (end != null && end !== start) {
+      if (acc.some((p) => p[0] === end || p[p.length - 1] === end)) count++;
+    }
+    return count;
+  }
+
+  function updateBest(acc) {
+    const anchorCnt = anchorsSatisfied(acc);
+    if (
+      !best.paths ||
+      acc.length < best.paths.length ||
+      (acc.length === best.paths.length && anchorCnt > best.anchors)
+    ) {
+      best.paths = acc.map((p) => p.slice());
+      best.anchors = anchorCnt;
+    }
+    if (acc.length === 1 && anchorCnt === totalAnchors) timeExceeded = true;
+  }
 
   function checkTime(acc) {
     if (Date.now() - startTime > TIME_LIMIT) {
-      if (!best.paths || acc.length < best.paths.length)
-        best.paths = acc.map((p) => p.slice());
+      updateBest(acc);
       timeExceeded = true;
       return true;
     }
@@ -321,9 +353,14 @@ function solve(input, opts = {}) {
     const prev = memo.get(k);
     if (prev != null && acc.length >= prev) return;
     memo.set(k, acc.length);
-    if (best.paths && acc.length >= best.paths.length) return;
+    if (
+      best.paths &&
+      acc.length > best.paths.length &&
+      best.anchors === totalAnchors
+    )
+      return;
     if (activeCount === 0) {
-      best.paths = acc.map((p) => p.slice());
+      updateBest(acc);
       return;
     }
     const isFirst = acc.length === 0;
@@ -336,7 +373,12 @@ function solve(input, opts = {}) {
   function extend(node, path, activeCount, acc, isFirst) {
     if (timeExceeded) return;
     if (checkTime(acc)) return;
-    if (best.paths && acc.length + 1 >= best.paths.length) return;
+    if (
+      best.paths &&
+      acc.length + 1 > best.paths.length &&
+      best.anchors === totalAnchors
+    )
+      return;
     const nbs = neighbors[node];
     nbs.sort((a, b) => {
       const da = degrees[a];
@@ -376,7 +418,7 @@ function solve(input, opts = {}) {
 }
 
 export const useHamiltonianService = () => {
-  function traverseWithStart(pixels, start) {
+  async function traverseWithStart(pixels, start) {
     const { nodes, neighbors, indexMap } = buildGraph(pixels);
     const { components, compIndex } = getComponents(neighbors);
     const startIdx = indexMap.get(start);
@@ -386,15 +428,17 @@ export const useHamiltonianService = () => {
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
       if (compIndex[startIdx] === i) {
-        result.push(...solve(compPixels, { start }));
+        const r = await solve(compPixels, { start });
+        result.push(...r);
       } else {
-        result.push(...solve(compPixels));
+        const r = await solve(compPixels);
+        result.push(...r);
       }
     }
     return result;
   }
 
-  function traverseWithStartEnd(pixels, start, end) {
+  async function traverseWithStartEnd(pixels, start, end) {
     const { nodes, neighbors, indexMap } = buildGraph(pixels);
     const { components, compIndex } = getComponents(neighbors);
     const startIdx = indexMap.get(start);
@@ -408,21 +452,24 @@ export const useHamiltonianService = () => {
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
       if (compIndex[startIdx] === i) {
-        result.push(...solve(compPixels, { start, end }));
+        const r = await solve(compPixels, { start, end });
+        result.push(...r);
       } else {
-        result.push(...solve(compPixels));
+        const r = await solve(compPixels);
+        result.push(...r);
       }
     }
     return result;
   }
 
-  function traverseFree(pixels) {
+  async function traverseFree(pixels) {
     const { nodes, neighbors } = buildGraph(pixels);
     const { components } = getComponents(neighbors);
     const result = [];
     for (const comp of components) {
       const compPixels = comp.map((idx) => nodes[idx]);
-      result.push(...solve(compPixels));
+      const r = await solve(compPixels);
+      result.push(...r);
     }
     return result;
   }
