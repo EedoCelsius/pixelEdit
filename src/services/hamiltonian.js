@@ -1,6 +1,8 @@
 import { MAX_DIMENSION } from '../utils';
 import { TIME_LIMIT } from '../constants';
 
+// Cache solved subgraphs keyed by pixel set and optional start/end
+const solvedCache = new Map();
 // Build adjacency info for pixels with 8-way connectivity
 // Returns { nodes, neighbors, degrees, indexMap }
 function buildGraph(pixels) {
@@ -35,35 +37,91 @@ function buildGraph(pixels) {
   return { nodes, neighbors, degrees, indexMap };
 }
 
-// Attempt to find a degree-2 articulation vertex.
-// Returns the index of the cut vertex or null if none found.
-function findDegree2Cut(neighbors, degrees) {
-  for (let i = 0; i < neighbors.length; i++) {
-    if (degrees[i] !== 2) continue;
-    const [a, b] = neighbors[i];
-    const visited = new Uint8Array(neighbors.length);
-    const stack = [a];
-    visited[a] = 1;
-    while (stack.length) {
-      const node = stack.pop();
-      for (const nb of neighbors[node]) {
-        if (nb === i || visited[nb]) continue;
-        visited[nb] = 1;
-        stack.push(nb);
+// Contract chains of degree-2 vertices into single edges for cut detection
+function buildSkeletonGraph(neighbors) {
+  const n = neighbors.length;
+  const degrees = neighbors.map((nbs) => nbs.length);
+  const hubs = [];
+  const origToSk = new Int32Array(n).fill(-1);
+  for (let i = 0; i < n; i++) {
+    if (degrees[i] !== 2) {
+      origToSk[i] = hubs.length;
+      hubs.push(i);
+    }
+  }
+
+  const skNeighbors = hubs.map(() => []);
+  const seen = hubs.map(() => new Set());
+  for (const hi of hubs) {
+    const skI = origToSk[hi];
+    for (const nb of neighbors[hi]) {
+      let prev = hi;
+      let cur = nb;
+      while (degrees[cur] === 2) {
+        const [a, b] = neighbors[cur];
+        const next = a === prev ? b : a;
+        prev = cur;
+        cur = next;
+      }
+      if (cur === hi) continue;
+      const skJ = origToSk[cur];
+      if (skJ === -1) continue;
+      if (!seen[skI].has(skJ)) {
+        skNeighbors[skI].push(skJ);
+        skNeighbors[skJ].push(skI);
+        seen[skI].add(skJ);
+        seen[skJ].add(skI);
       }
     }
-    if (!visited[b]) return i;
   }
-  return null;
+  return { skNeighbors, hubs };
 }
 
-// Partition graph around a cut vertex into two sets of indices
+// Find an articulation vertex using Tarjan's algorithm on the skeleton graph.
+// Returns the index of the original cut vertex or null if none found.
+function findArticulationCut(neighbors) {
+  const { skNeighbors, hubs } = buildSkeletonGraph(neighbors);
+  const n = skNeighbors.length;
+  const disc = new Int32Array(n).fill(-1);
+  const low = new Int32Array(n);
+  let time = 0;
+  let cut = null;
+
+  function dfs(u, parent) {
+    disc[u] = low[u] = time++;
+    let childCount = 0;
+    for (const v of skNeighbors[u]) {
+      if (cut != null) return;
+      if (disc[v] === -1) {
+        childCount++;
+        dfs(v, u);
+        low[u] = Math.min(low[u], low[v]);
+        if (parent !== -1 && low[v] >= disc[u]) {
+          cut = u;
+          return;
+        }
+      } else if (v !== parent) {
+        low[u] = Math.min(low[u], disc[v]);
+      }
+    }
+    if (parent === -1 && childCount > 1) cut = u;
+  }
+
+  for (let i = 0; i < n && cut == null; i++) {
+    if (disc[i] === -1) dfs(i, -1);
+  }
+  return cut == null ? null : hubs[cut];
+}
+
+// Partition graph around a cut vertex into unique components
+// Each returned component contains the cut index followed by all nodes in that component
 function partitionAtCut(neighbors, cut) {
+  const visited = new Set([cut]);
   const res = [];
   for (const nb of neighbors[cut]) {
+    if (visited.has(nb)) continue;
     const comp = [cut];
     const stack = [nb];
-    const visited = new Set([cut]);
     visited.add(nb);
     while (stack.length) {
       const node = stack.pop();
@@ -79,16 +137,45 @@ function partitionAtCut(neighbors, cut) {
   return res;
 }
 
-// Merge two path covers using the shared cut pixel
-function stitchPaths(left, right, cutPixel) {
-  const li = left.findIndex((p) => p.includes(cutPixel));
-  const ri = right.findIndex((p) => p.includes(cutPixel));
-  const lPath = left.splice(li, 1)[0];
-  const rPath = right.splice(ri, 1)[0];
-  if (lPath[lPath.length - 1] !== cutPixel) lPath.reverse();
-  if (rPath[0] !== cutPixel) rPath.reverse();
-  const joined = lPath.concat(rPath.slice(1));
-  return [...left, ...right, joined];
+// Merge path covers from multiple components around the shared cut pixel
+function stitchPaths(parts, cutPixel) {
+  const nonCut = [];
+  const cutPaths = [];
+  for (const paths of parts) {
+    const idx = paths.findIndex((p) => p.includes(cutPixel));
+    const cutPath = paths.splice(idx, 1)[0];
+    cutPaths.push(cutPath);
+    nonCut.push(...paths);
+  }
+
+  if (cutPaths.length === 0) return nonCut;
+
+  // Orient paths so they start with the cut pixel for consistent ordering
+  const oriented = cutPaths.map((p) => {
+    if (p[0] === cutPixel) return p.slice();
+    if (p[p.length - 1] === cutPixel) return p.slice().reverse();
+    return p.slice();
+  });
+
+  // Order by the neighbor following the cut for determinism
+  oriented.sort((a, b) => (a[1] ?? Infinity) - (b[1] ?? Infinity));
+
+  let base = oriented.shift();
+  if (base[base.length - 1] !== cutPixel) base.reverse();
+
+  if (oriented.length) {
+    let next = oriented.shift();
+    if (next[0] !== cutPixel) next.reverse();
+    base = base.concat(next.slice(1));
+    for (const p of oriented) {
+      if (p[0] === cutPixel) nonCut.push(p.slice(1));
+      else if (p[p.length - 1] === cutPixel) nonCut.push(p.slice(0, -1));
+      else nonCut.push(p.slice());
+    }
+  }
+
+  nonCut.push(base);
+  return nonCut;
 }
 
 // Find connected components from an adjacency list
@@ -123,30 +210,33 @@ function getComponents(neighbors) {
 
 // Core solver using backtracking to find minimum path cover
 function solve(pixels, opts = {}) {
+  const keyBase = pixels.slice().sort((a, b) => a - b).join(',');
+  const cacheKey = `${keyBase}|${opts.start ?? ''}|${opts.end ?? ''}`;
+  if (solvedCache.has(cacheKey)) {
+    const cached = solvedCache.get(cacheKey);
+    return cached.map((p) => p.slice());
+  }
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
 
-  const cut = findDegree2Cut(neighbors, degrees);
+  const cut = findArticulationCut(neighbors);
   if (cut != null) {
     const parts = partitionAtCut(neighbors, cut);
     const cutPixel = nodes[cut];
-    const [leftIdxs, rightIdxs] = parts;
-    const leftPixels = leftIdxs.map((i) => nodes[i]);
-    const rightPixels = rightIdxs.map((i) => nodes[i]);
-    const leftOpts = {};
-    const rightOpts = {};
-    if (opts.start != null) {
-      const idx = indexMap.get(opts.start);
-      if (leftIdxs.includes(idx)) leftOpts.start = opts.start;
-      if (rightIdxs.includes(idx)) rightOpts.start = opts.start;
+    const subResults = [];
+    for (const idxs of parts) {
+      const partPixels = idxs.map((i) => nodes[i]);
+      const partOpts = {};
+      if (opts.start != null) {
+        const idx = indexMap.get(opts.start);
+        if (idxs.includes(idx)) partOpts.start = opts.start;
+      }
+      if (opts.end != null) {
+        const idx = indexMap.get(opts.end);
+        if (idxs.includes(idx)) partOpts.end = opts.end;
+      }
+      subResults.push(solve(partPixels, partOpts));
     }
-    if (opts.end != null) {
-      const idx = indexMap.get(opts.end);
-      if (leftIdxs.includes(idx)) leftOpts.end = opts.end;
-      if (rightIdxs.includes(idx)) rightOpts.end = opts.end;
-    }
-    const left = solve(leftPixels, leftOpts);
-    const right = solve(rightPixels, rightOpts);
-    return stitchPaths(left, right, cutPixel);
+    return stitchPaths(subResults, cutPixel);
   }
   const total = nodes.length;
   const remaining = new Uint8Array(total);
@@ -251,6 +341,7 @@ function solve(pixels, opts = {}) {
   for (const node of nodes) {
     if (!covered.has(node)) paths.push([node]);
   }
+  solvedCache.set(cacheKey, paths.map((p) => p.slice()));
   return paths;
 }
 
