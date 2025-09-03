@@ -1,5 +1,10 @@
 import assert from 'assert';
-import { buildGraph, findDegree2CutSet, useHamiltonianService } from '../src/services/hamiltonian.js';
+import {
+  buildGraph,
+  findDegree2CutSet,
+  useHamiltonianService,
+  solve,
+} from '../src/services/hamiltonian.js';
 
 const MAX_DIMENSION = 65536;
 const coordToIndex = (x, y) => x + MAX_DIMENSION * y;
@@ -28,7 +33,15 @@ const pixels = [A, B, C, D];
   assert.strictEqual(covered.size, pixels.length);
 }
 
-// Test neighbor order when degrees are equal
+// Test solver with descending degree order
+{
+  const paths = solve(pixels, { degreeOrder: 'descending' });
+  assert.strictEqual(paths.length, 1);
+  const covered = new Set(paths.flat());
+  assert.strictEqual(covered.size, pixels.length);
+}
+
+// Test neighbor coverage without assuming order
 {
   const center = coordToIndex(2, 2);
   const grid = [];
@@ -39,7 +52,9 @@ const pixels = [A, B, C, D];
   }
   const { nodes, neighbors, indexMap } = buildGraph(grid);
   const centerIdx = indexMap.get(center);
-  const neighborPixels = neighbors[centerIdx].map((i) => nodes[i]);
+  const neighborPixels = neighbors[centerIdx]
+    .map((i) => nodes[i])
+    .sort((a, b) => a - b);
   const expected = [
     coordToIndex(2, 1), // up
     coordToIndex(3, 2), // right
@@ -49,6 +64,6 @@ const pixels = [A, B, C, D];
     coordToIndex(1, 3), // left-down
     coordToIndex(3, 3), // right-down
     coordToIndex(3, 1), // right-up
-  ];
+  ].sort((a, b) => a - b);
   assert.deepStrictEqual(neighborPixels, expected);
 }
