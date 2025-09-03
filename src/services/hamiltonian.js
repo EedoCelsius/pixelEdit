@@ -1,8 +1,6 @@
 import { MAX_DIMENSION } from '../utils';
 import { TIME_LIMIT } from '../constants';
 
-// Cache solved subgraphs keyed by pixel set and optional start/end
-const solvedCache = new Map();
 // Build adjacency info for pixels with 8-way connectivity
 // Returns { nodes, neighbors, degrees, indexMap }
 function buildGraph(pixels) {
@@ -37,39 +35,26 @@ function buildGraph(pixels) {
   return { nodes, neighbors, degrees, indexMap };
 }
 
-// Find an articulation vertex using Tarjan's algorithm.
+// Attempt to find a degree-2 articulation vertex.
 // Returns the index of the cut vertex or null if none found.
-function findArticulationCut(neighbors) {
-  const n = neighbors.length;
-  const disc = new Int32Array(n).fill(-1);
-  const low = new Int32Array(n);
-  let time = 0;
-  let cut = null;
-
-  function dfs(u, parent) {
-    disc[u] = low[u] = time++;
-    let childCount = 0;
-    for (const v of neighbors[u]) {
-      if (cut != null) return;
-      if (disc[v] === -1) {
-        childCount++;
-        dfs(v, u);
-        low[u] = Math.min(low[u], low[v]);
-        if (parent !== -1 && low[v] >= disc[u]) {
-          cut = u;
-          return;
-        }
-      } else if (v !== parent) {
-        low[u] = Math.min(low[u], disc[v]);
+function findDegree2Cut(neighbors, degrees) {
+  for (let i = 0; i < neighbors.length; i++) {
+    if (degrees[i] !== 2) continue;
+    const [a, b] = neighbors[i];
+    const visited = new Uint8Array(neighbors.length);
+    const stack = [a];
+    visited[a] = 1;
+    while (stack.length) {
+      const node = stack.pop();
+      for (const nb of neighbors[node]) {
+        if (nb === i || visited[nb]) continue;
+        visited[nb] = 1;
+        stack.push(nb);
       }
     }
-    if (parent === -1 && childCount > 1) cut = u;
+    if (!visited[b]) return i;
   }
-
-  for (let i = 0; i < n && cut == null; i++) {
-    if (disc[i] === -1) dfs(i, -1);
-  }
-  return cut;
+  return null;
 }
 
 // Partition graph around a cut vertex into two sets of indices
@@ -138,15 +123,9 @@ function getComponents(neighbors) {
 
 // Core solver using backtracking to find minimum path cover
 function solve(pixels, opts = {}) {
-  const keyBase = pixels.slice().sort((a, b) => a - b).join(',');
-  const cacheKey = `${keyBase}|${opts.start ?? ''}|${opts.end ?? ''}`;
-  if (solvedCache.has(cacheKey)) {
-    const cached = solvedCache.get(cacheKey);
-    return cached.map((p) => p.slice());
-  }
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
 
-  const cut = findArticulationCut(neighbors);
+  const cut = findDegree2Cut(neighbors, degrees);
   if (cut != null) {
     const parts = partitionAtCut(neighbors, cut);
     const cutPixel = nodes[cut];
@@ -272,7 +251,6 @@ function solve(pixels, opts = {}) {
   for (const node of nodes) {
     if (!covered.has(node)) paths.push([node]);
   }
-  solvedCache.set(cacheKey, paths.map((p) => p.slice()));
   return paths;
 }
 
