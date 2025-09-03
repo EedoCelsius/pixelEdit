@@ -6,6 +6,7 @@ import {
   solve,
   stitchPaths,
   mergeCutPaths,
+  partitionAtCut,
 } from '../src/services/hamiltonian.js';
 
 const MAX_DIMENSION = 65536;
@@ -24,6 +25,19 @@ const pixels = [A, B, C, D];
   const cut = findDegree2CutSet(neighbors, degrees);
   assert(Array.isArray(cut));
   assert.strictEqual(cut.length, 2);
+}
+
+// Test partitionAtCut removes cut pixels from components
+{
+  const { nodes, neighbors, degrees } = buildGraph(pixels);
+  const cut = findDegree2CutSet(neighbors, degrees);
+  const parts = partitionAtCut(nodes, neighbors, cut);
+  const cutPixels = cut.map((i) => nodes[i]);
+  for (const part of parts) {
+    for (const cp of cutPixels) {
+      assert(!part.nodes.includes(cp));
+    }
+  }
 }
 
 // Test solver on the same graph
@@ -174,4 +188,13 @@ assert(eqStart || eqEnd);
   assert.strictEqual(result.length, 1);
   assert.strictEqual(result[0][0], start);
   assert.strictEqual(result[0][result[0].length - 1], end);
+}
+
+// Test unanchored solve merges partitions without duplicating cut pixel
+{
+  const idx = (x, y) => x + MAX_DIMENSION * y;
+  const pixels = [idx(0, 0), idx(1, 0), idx(2, 0)];
+  const result = await solve(pixels);
+  assert.strictEqual(result.length, 1);
+  assert.strictEqual(result[0].length, 3);
 }

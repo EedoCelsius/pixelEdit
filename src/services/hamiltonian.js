@@ -93,13 +93,14 @@ function partitionAtCut(nodes, neighbors, cutSet) {
     const stack = [i];
     visited[i] = 1;
     const comp = [];
-    const adjCuts = new Set();
+    const cutMap = new Map(); // cutPixel -> neighbor pixel inside this component
     while (stack.length) {
       const node = stack.pop();
       comp.push(node);
       for (const nb of neighbors[node]) {
         if (cutLookup.has(nb)) {
-          adjCuts.add(nb);
+          // record which pixel inside this component touches the cut pixel
+          cutMap.set(nodes[nb], nodes[node]);
           continue;
         }
         if (visited[nb]) continue;
@@ -107,19 +108,26 @@ function partitionAtCut(nodes, neighbors, cutSet) {
         stack.push(nb);
       }
     }
-    const partIndices = [...comp, ...adjCuts];
-    const indexMap = new Map(partIndices.map((idx, j) => [idx, j]));
-    const partNeighbors = partIndices.map((origIdx) => {
+    const indexMap = new Map(comp.map((idx, j) => [idx, j]));
+    const partNeighbors = comp.map((origIdx) => {
       const list = [];
       for (const nb of neighbors[origIdx]) {
+        if (cutLookup.has(nb)) continue;
         const mapped = indexMap.get(nb);
         if (mapped != null) list.push(mapped);
       }
       return list;
     });
     const partDegrees = partNeighbors.map((nbs) => nbs.length);
-    const partNodes = partIndices.map((idx) => nodes[idx]);
-    res.push({ nodes: partNodes, neighbors: partNeighbors, degrees: partDegrees });
+    const partNodes = comp.map((idx) => nodes[idx]);
+    const cutNeighbors = {};
+    for (const [cp, nbPixel] of cutMap.entries()) cutNeighbors[cp] = nbPixel;
+    res.push({
+      nodes: partNodes,
+      neighbors: partNeighbors,
+      degrees: partDegrees,
+      cutNeighbors,
+    });
   }
   return res;
 }
@@ -215,29 +223,27 @@ function getComponents(neighbors) {
 // Prepare options for a partition, swapping any cut anchor with its
 // unique neighbor inside the partition and ensuring each cut has an anchor
 // to connect against during merging.
-function preparePartOpts(part, opts, cutPixels) {
+function preparePartOpts(part, opts) {
   const partOpts = {};
-  if (opts.start != null && part.nodes.includes(opts.start))
-    partOpts.start = opts.start;
-  if (opts.end != null && part.nodes.includes(opts.end)) partOpts.end = opts.end;
+  if (opts.start != null) {
+    if (part.cutNeighbors && part.cutNeighbors[opts.start] != null)
+      partOpts.start = part.cutNeighbors[opts.start];
+    else if (part.nodes.includes(opts.start)) partOpts.start = opts.start;
+  }
+  if (opts.end != null) {
+    if (part.cutNeighbors && part.cutNeighbors[opts.end] != null)
+      partOpts.end = part.cutNeighbors[opts.end];
+    else if (part.nodes.includes(opts.end)) partOpts.end = opts.end;
+  }
   if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
-  const partCuts = cutPixels.filter((cp) => part.nodes.includes(cp));
-  // Replace any cut anchors with their unique neighbor inside the partition
-  if (partOpts.start != null && partCuts.includes(partOpts.start)) {
-    const cpIdx = part.nodes.indexOf(partOpts.start);
-    const nb = part.nodes[part.neighbors[cpIdx][0]];
-    partOpts.start = nb;
-  }
-  if (partOpts.end != null && partCuts.includes(partOpts.end)) {
-    const cpIdx = part.nodes.indexOf(partOpts.end);
-    const nb = part.nodes[part.neighbors[cpIdx][0]];
-    partOpts.end = nb;
-  }
-  for (const cp of partCuts) {
-    const cpIdx = part.nodes.indexOf(cp);
-    const nb = part.nodes[part.neighbors[cpIdx][0]];
-    if (partOpts.start == null && nb !== partOpts.end) partOpts.start = nb;
-    else if (partOpts.end == null && nb !== partOpts.start) partOpts.end = nb;
+  if (part.cutNeighbors) {
+    const cpList = Object.entries(part.cutNeighbors)
+      .map(([cp, nb]) => [Number(cp), nb])
+      .sort((a, b) => a[0] - b[0]);
+    for (const [, nb] of cpList) {
+      if (partOpts.start == null) partOpts.start = nb;
+      else if (partOpts.end == null && nb !== partOpts.start) partOpts.end = nb;
+    }
   }
   return partOpts;
 }
@@ -256,9 +262,18 @@ function solveSequential(input, opts = {}) {
   if (cutSet && cutSet.length) {
     const parts = partitionAtCut(nodes, neighbors, cutSet);
     const cutPixels = cutSet.map((i) => nodes[i]);
-    const results = parts.map((part) =>
-      solveSequential(part, preparePartOpts(part, opts, cutPixels))
-    );
+    const results = [];
+    for (const part of parts) {
+      const partRes = solveSequential(part, preparePartOpts(part, opts));
+      const cpList = Object.entries(part.cutNeighbors)
+        .map(([cp, nb]) => [Number(cp), nb])
+        .sort((a, b) => a[0] - b[0]);
+      for (const path of partRes) {
+        if (cpList[0]) path.unshift(cpList[0][0]);
+        if (cpList[1]) path.push(cpList[1][0]);
+      }
+      results.push(partRes);
+    }
     return mergeCutPaths(results.flat(), cutPixels);
   }
 
@@ -426,9 +441,18 @@ async function solveCore(input, opts = {}) {
     const parts = partitionAtCut(nodes, neighbors, cutSet);
     const cutPixels = cutSet.map((i) => nodes[i]);
     if (typeof Worker !== 'undefined') {
-      const promises = parts.map((part) =>
-        runWorker(part, preparePartOpts(part, opts, cutPixels))
-      );
+      const promises = parts.map((part) => {
+        const cpList = Object.entries(part.cutNeighbors)
+          .map(([cp, nb]) => [Number(cp), nb])
+          .sort((a, b) => a[0] - b[0]);
+        return runWorker(part, preparePartOpts(part, opts)).then((res) => {
+          for (const path of res) {
+            if (cpList[0]) path.unshift(cpList[0][0]);
+            if (cpList[1]) path.push(cpList[1][0]);
+          }
+          return res;
+        });
+      });
       const results = await Promise.all(promises);
       paths = mergeCutPaths(results.flat(), cutPixels);
     } else {
@@ -436,8 +460,16 @@ async function solveCore(input, opts = {}) {
       const batch = opts.yieldEvery || 1;
       for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
-        const partOpts = preparePartOpts(part, opts, cutPixels);
-        results.push(solveSequential(part, partOpts));
+        const cpList = Object.entries(part.cutNeighbors)
+          .map(([cp, nb]) => [Number(cp), nb])
+          .sort((a, b) => a[0] - b[0]);
+        const partOpts = preparePartOpts(part, opts);
+        const partRes = solveSequential(part, partOpts);
+        for (const path of partRes) {
+          if (cpList[0]) path.unshift(cpList[0][0]);
+          if (cpList[1]) path.push(cpList[1][0]);
+        }
+        results.push(partRes);
         if ((i + 1) % batch === 0) await new Promise((r) => setTimeout(r));
       }
       paths = mergeCutPaths(results.flat(), cutPixels);
@@ -593,4 +625,10 @@ export const useHamiltonianService = () => {
   };
 };
 
-export { buildGraph, findDegree2CutSet, stitchPaths, mergeCutPaths };
+export {
+  buildGraph,
+  findDegree2CutSet,
+  stitchPaths,
+  mergeCutPaths,
+  partitionAtCut,
+};
