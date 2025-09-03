@@ -4,6 +4,7 @@ import {
   findCornerCutSet,
   useHamiltonianService,
   solve,
+  stitchPaths,
 } from '../src/services/hamiltonian.js';
 
 const MAX_DIMENSION = 65536;
@@ -77,4 +78,28 @@ const diamond = [A, B, C, D];
     coordToIndex(3, 1), // right-up
   ].sort((a, b) => a - b);
   assert.deepStrictEqual(neighborPixels, expected);
+}
+
+// Stitching should split paths when cut pixel is internal
+{
+  const cp = 3;
+  const left = [[1, 2, cp, 4]];
+  const right = [[cp, 5]];
+  const merged = stitchPaths(left, right, cp);
+  assert.deepStrictEqual(merged, [[4], [1, 2, cp, 5]]);
+}
+
+// Merging three paths sharing a cut pixel produces minimal paths
+{
+  const cp = 0;
+  let paths = [[1, cp], [cp, 2], [cp, 3]];
+  const group = paths.filter((p) => p.includes(cp));
+  paths = paths.filter((p) => !p.includes(cp));
+  let idx = group.findIndex((p) => p[p.length - 1] === cp);
+  let merged = idx >= 0 ? [group.splice(idx, 1)[0]] : [group.shift()];
+  for (const p of group) merged = stitchPaths(merged, [p], cp);
+  paths.push(...merged);
+  assert.strictEqual(paths.length, 2);
+  const cpPath = paths.find((p) => p.includes(cp));
+  assert(cpPath[0] !== cp && cpPath[cpPath.length - 1] !== cp);
 }
