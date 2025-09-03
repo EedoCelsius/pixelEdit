@@ -478,6 +478,18 @@ export async function solve(input, opts = {}) {
     ) {
       return startOnly;
     }
+
+    const startEnd = await solveCore(
+      { ...graph, degrees: graph.degrees.slice() },
+      { ...base, start: opts.start, end: opts.end }
+    );
+    const sePath = startEnd.find(
+      (p) => p[0] === opts.start && p[p.length - 1] === opts.end
+    );
+    if (startEnd.length === 1 && sePath) {
+      return startEnd;
+    }
+
     const endOnly = await solveCore(
       { ...graph, degrees: graph.degrees.slice() },
       { ...base, start: opts.end }
