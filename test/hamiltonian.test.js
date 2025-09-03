@@ -4,6 +4,7 @@ import {
   findDegree2CutSet,
   useHamiltonianService,
   solve,
+  stitchPaths,
 } from '../src/services/hamiltonian.js';
 
 const MAX_DIMENSION = 65536;
@@ -66,4 +67,25 @@ const pixels = [A, B, C, D];
     coordToIndex(3, 1), // right-up
   ].sort((a, b) => a - b);
   assert.deepStrictEqual(neighborPixels, expected);
+}
+
+// Ensure cut pixel is excluded and neighbor becomes start
+{
+  const cut = coordToIndex(1, 1);
+  const left = coordToIndex(0, 1);
+  const right = coordToIndex(2, 1);
+  const path = solve([left, cut, right], { start: cut })[0];
+  assert.strictEqual(path.length, 3);
+  assert.strictEqual(path[1], cut);
+  assert.notStrictEqual(path[0], cut);
+  assert.notStrictEqual(path[2], cut);
+}
+
+// Verify stitching joins paths using neighbor endpoints
+{
+  const cut = 42;
+  const left = [[1]];
+  const right = [[3]];
+  const merged = stitchPaths(left, right, cut, 1, 3);
+  assert.deepStrictEqual(merged, [[1, cut, 3]]);
 }
