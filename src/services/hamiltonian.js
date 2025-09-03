@@ -212,6 +212,36 @@ function getComponents(neighbors) {
   return { components, compIndex };
 }
 
+// Prepare options for a partition, swapping any cut anchor with its
+// unique neighbor inside the partition and ensuring each cut has an anchor
+// to connect against during merging.
+function preparePartOpts(part, opts, cutPixels) {
+  const partOpts = {};
+  if (opts.start != null && part.nodes.includes(opts.start))
+    partOpts.start = opts.start;
+  if (opts.end != null && part.nodes.includes(opts.end)) partOpts.end = opts.end;
+  if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
+  const partCuts = cutPixels.filter((cp) => part.nodes.includes(cp));
+  // Replace any cut anchors with their unique neighbor inside the partition
+  if (partOpts.start != null && partCuts.includes(partOpts.start)) {
+    const cpIdx = part.nodes.indexOf(partOpts.start);
+    const nb = part.nodes[part.neighbors[cpIdx][0]];
+    partOpts.start = nb;
+  }
+  if (partOpts.end != null && partCuts.includes(partOpts.end)) {
+    const cpIdx = part.nodes.indexOf(partOpts.end);
+    const nb = part.nodes[part.neighbors[cpIdx][0]];
+    partOpts.end = nb;
+  }
+  for (const cp of partCuts) {
+    const cpIdx = part.nodes.indexOf(cp);
+    const nb = part.nodes[part.neighbors[cpIdx][0]];
+    if (partOpts.start == null && nb !== partOpts.end) partOpts.start = nb;
+    else if (partOpts.end == null && nb !== partOpts.start) partOpts.end = nb;
+  }
+  return partOpts;
+}
+
 // Core solver using backtracking to find minimum path cover
 function solveSequential(input, opts = {}) {
   let nodes, neighbors, degrees, indexMap;
@@ -226,35 +256,9 @@ function solveSequential(input, opts = {}) {
   if (cutSet && cutSet.length) {
     const parts = partitionAtCut(nodes, neighbors, cutSet);
     const cutPixels = cutSet.map((i) => nodes[i]);
-    const results = [];
-    for (const part of parts) {
-      const partOpts = {};
-      if (opts.start != null && part.nodes.includes(opts.start))
-        partOpts.start = opts.start;
-      if (opts.end != null && part.nodes.includes(opts.end))
-        partOpts.end = opts.end;
-      if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
-      const partCuts = cutPixels.filter((cp) => part.nodes.includes(cp));
-      // Replace any cut anchors with their unique neighbor inside the partition
-      if (partOpts.start != null && partCuts.includes(partOpts.start)) {
-        const cpIdx = part.nodes.indexOf(partOpts.start);
-        const nb = part.nodes[part.neighbors[cpIdx][0]];
-        partOpts.start = nb;
-      }
-      if (partOpts.end != null && partCuts.includes(partOpts.end)) {
-        const cpIdx = part.nodes.indexOf(partOpts.end);
-        const nb = part.nodes[part.neighbors[cpIdx][0]];
-        partOpts.end = nb;
-      }
-      for (const cp of partCuts) {
-        const cpIdx = part.nodes.indexOf(cp);
-        const nb = part.nodes[part.neighbors[cpIdx][0]];
-        if (partOpts.start == null && nb !== partOpts.end) partOpts.start = nb;
-        else if (partOpts.end == null && nb !== partOpts.start) partOpts.end = nb;
-      }
-      results.push(solveSequential(part, partOpts));
-    }
-
+    const results = parts.map((part) =>
+      solveSequential(part, preparePartOpts(part, opts, cutPixels))
+    );
     return mergeCutPaths(results.flat(), cutPixels);
   }
 
@@ -421,26 +425,14 @@ async function solveCore(input, opts = {}) {
   if (cutSet && cutSet.length) {
     const parts = partitionAtCut(nodes, neighbors, cutSet);
     const cutPixels = cutSet.map((i) => nodes[i]);
-    if (
+    const useWorkers =
       typeof window !== 'undefined' &&
       typeof Worker !== 'undefined' &&
-      !opts.worker
-    ) {
-      const promises = parts.map((part) => {
-        const partOpts = {};
-        if (opts.start != null && part.nodes.includes(opts.start))
-          partOpts.start = opts.start;
-        if (opts.end != null && part.nodes.includes(opts.end))
-          partOpts.end = opts.end;
-        if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
-        const partCuts = cutPixels.filter((cp) => part.nodes.includes(cp));
-        for (const cp of partCuts) {
-          if (partOpts.start == null && cp !== partOpts.end) partOpts.start = cp;
-          else if (partOpts.end == null && cp !== partOpts.start)
-            partOpts.end = cp;
-        }
-        return runWorker(part, partOpts);
-      });
+      !opts.worker;
+    if (useWorkers) {
+      const promises = parts.map((part) =>
+        runWorker(part, preparePartOpts(part, opts, cutPixels))
+      );
       const results = await Promise.all(promises);
       paths = mergeCutPaths(results.flat(), cutPixels);
     } else {
@@ -448,18 +440,7 @@ async function solveCore(input, opts = {}) {
       const batch = opts.yieldEvery || 1;
       for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
-        const partOpts = {};
-        if (opts.start != null && part.nodes.includes(opts.start))
-          partOpts.start = opts.start;
-        if (opts.end != null && part.nodes.includes(opts.end))
-          partOpts.end = opts.end;
-        if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
-        const partCuts = cutPixels.filter((cp) => part.nodes.includes(cp));
-        for (const cp of partCuts) {
-          if (partOpts.start == null && cp !== partOpts.end) partOpts.start = cp;
-          else if (partOpts.end == null && cp !== partOpts.start)
-            partOpts.end = cp;
-        }
+        const partOpts = preparePartOpts(part, opts, cutPixels);
         results.push(solveSequential(part, partOpts));
         if ((i + 1) % batch === 0) await new Promise((r) => setTimeout(r));
       }
