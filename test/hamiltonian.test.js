@@ -124,9 +124,8 @@ const pixels = [A, B, C, D];
   assert.deepStrictEqual(merged, [[3, 2, 1]]);
 }
 
-// Test fallback when start-end path cannot cover all pixels
+// Test solver-level fallback when start-end path cannot cover all pixels
 {
-  const service = useHamiltonianService();
   const coords = [
     [1, 1], // center
     [0, 2], // left arm
@@ -136,9 +135,9 @@ const pixels = [A, B, C, D];
   const pixels = coords.map(([x, y]) => coordToIndex(x, y));
   const start = coordToIndex(0, 2);
   const end = coordToIndex(2, 2);
-  const result = await service.traverseWithStartEnd(pixels, start, end);
-  const startOnly = await service.traverseWithStart(pixels, start);
-  const endOnly = await service.traverseWithStart(pixels, end);
+  const result = await solve(pixels, { start, end });
+  const startOnly = await solve(pixels, { start });
+  const endOnly = await solve(pixels, { start: end });
   const eqStart = JSON.stringify(result) === JSON.stringify(startOnly);
   const eqEnd = JSON.stringify(result) === JSON.stringify(endOnly);
   assert(eqStart || eqEnd);
