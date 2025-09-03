@@ -27,3 +27,28 @@ const pixels = [A, B, C, D];
   const covered = new Set(paths.flat());
   assert.strictEqual(covered.size, pixels.length);
 }
+
+// Test neighbor order when degrees are equal
+{
+  const center = coordToIndex(2, 2);
+  const grid = [];
+  for (let x = 0; x <= 4; x++) {
+    for (let y = 0; y <= 4; y++) {
+      grid.push(coordToIndex(x, y));
+    }
+  }
+  const { nodes, neighbors, indexMap } = buildGraph(grid);
+  const centerIdx = indexMap.get(center);
+  const neighborPixels = neighbors[centerIdx].map((i) => nodes[i]);
+  const expected = [
+    coordToIndex(2, 1), // up
+    coordToIndex(3, 2), // right
+    coordToIndex(2, 3), // down
+    coordToIndex(1, 2), // left
+    coordToIndex(1, 1), // left-up
+    coordToIndex(1, 3), // left-down
+    coordToIndex(3, 3), // right-down
+    coordToIndex(3, 1), // right-up
+  ];
+  assert.deepStrictEqual(neighborPixels, expected);
+}
