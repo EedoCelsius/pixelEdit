@@ -391,7 +391,7 @@ async function runWorker(input, opts) {
   });
 }
 
-export async function solve(input, opts = {}) {
+async function solveCore(input, opts = {}) {
   let nodes, neighbors, degrees;
   if (input && input.nodes && input.neighbors && input.degrees) {
     ({ nodes, neighbors, degrees } = input);
@@ -452,26 +452,40 @@ export async function solve(input, opts = {}) {
     paths = solveSequential(input, opts);
   }
 
+  return paths;
+}
+
+export async function solve(input, opts = {}) {
   if (opts.start != null && opts.end != null) {
-    const singlePath =
-      paths.length === 1 &&
-      ((paths[0][0] === opts.start &&
-        paths[0][paths[0].length - 1] === opts.end) ||
-        (paths[0][0] === opts.end &&
-          paths[0][paths[0].length - 1] === opts.start));
-    if (!singlePath) {
-      const common = {
-        degreeOrder: opts.degreeOrder,
-        worker: opts.worker,
-        yieldEvery: opts.yieldEvery,
-      };
-      const startOnly = await solve(input, { ...common, start: opts.start });
-      const endOnly = await solve(input, { ...common, start: opts.end });
-      paths = startOnly.length <= endOnly.length ? startOnly : endOnly;
+    const base = {
+      degreeOrder: opts.degreeOrder,
+      worker: opts.worker,
+      yieldEvery: opts.yieldEvery,
+    };
+    let graph = input;
+    if (!(graph && graph.nodes && graph.neighbors && graph.degrees)) {
+      graph = buildGraph(input);
     }
+    const startOnly = await solveCore(
+      { ...graph, degrees: graph.degrees.slice() },
+      { ...base, start: opts.start }
+    );
+    const startPath = startOnly.find((p) => p[0] === opts.start);
+    if (
+      startOnly.length === 1 &&
+      startPath &&
+      startPath[startPath.length - 1] === opts.end
+    ) {
+      return startOnly;
+    }
+    const endOnly = await solveCore(
+      { ...graph, degrees: graph.degrees.slice() },
+      { ...base, start: opts.end }
+    );
+    return startOnly.length <= endOnly.length ? startOnly : endOnly;
   }
 
-  return paths;
+  return solveCore(input, opts);
 }
 
 export const useHamiltonianService = () => {
