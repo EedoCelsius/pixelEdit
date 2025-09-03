@@ -9,17 +9,10 @@ function buildGraph(pixels) {
   const indexMap = new Map(nodes.map((p, i) => [p, i]));
   const neighbors = nodes.map(() => []);
 
-  const xs = new Int32Array(nodes.length);
-  const ys = new Int32Array(nodes.length);
   for (let i = 0; i < nodes.length; i++) {
     const p = nodes[i];
-    xs[i] = p % MAX_DIMENSION;
-    ys[i] = Math.floor(p / MAX_DIMENSION);
-  }
-
-  for (let i = 0; i < nodes.length; i++) {
-    const x = xs[i];
-    const y = ys[i];
+    const x = p % MAX_DIMENSION;
+    const y = Math.floor(p / MAX_DIMENSION);
     for (let dx = -1; dx <= 1; dx++) {
       for (let dy = -1; dy <= 1; dy++) {
         if (dx === 0 && dy === 0) continue;
@@ -30,29 +23,6 @@ function buildGraph(pixels) {
   }
 
   const degrees = neighbors.map((nbs) => nbs.length);
-  function dirOrder(dx, dy) {
-    if (dx === 0 && dy === -1) return 0; // up
-    if (dx === 1 && dy === 0) return 1; // right
-    if (dx === 0 && dy === 1) return 2; // down
-    if (dx === -1 && dy === 0) return 3; // left
-    if (dx === -1 && dy === -1) return 4; // left-up
-    if (dx === -1 && dy === 1) return 5; // left-down
-    if (dx === 1 && dy === 1) return 6; // right-down
-    if (dx === 1 && dy === -1) return 7; // right-up
-    return 8;
-  }
-
-  for (let i = 0; i < neighbors.length; i++) {
-    const nbs = neighbors[i];
-    nbs.sort((a, b) => {
-      const da = degrees[a];
-      const db = degrees[b];
-      if (da !== db) return da - db;
-      const orderA = dirOrder(xs[a] - xs[i], ys[a] - ys[i]);
-      const orderB = dirOrder(xs[b] - xs[i], ys[b] - ys[i]);
-      return orderA - orderB;
-    });
-  }
 
   return { nodes, neighbors, degrees, indexMap };
 }
@@ -204,6 +174,7 @@ function solve(pixels, opts = {}) {
         const idx = indexMap.get(opts.end);
         if (idxs.includes(idx)) partOpts.end = opts.end;
       }
+      if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
       results.push(solve(partPixels, partOpts));
     }
     let combined = results.shift();
@@ -223,12 +194,34 @@ function solve(pixels, opts = {}) {
     }
     return combined;
   }
+
+  const xs = new Int32Array(nodes.length);
+  const ys = new Int32Array(nodes.length);
+  for (let i = 0; i < nodes.length; i++) {
+    const p = nodes[i];
+    xs[i] = p % MAX_DIMENSION;
+    ys[i] = Math.floor(p / MAX_DIMENSION);
+  }
+
+  function dirOrder(dx, dy) {
+    if (dx === 0 && dy === -1) return 0; // up
+    if (dx === 1 && dy === 0) return 1; // right
+    if (dx === 0 && dy === 1) return 2; // down
+    if (dx === -1 && dy === 0) return 3; // left
+    if (dx === -1 && dy === -1) return 4; // left-up
+    if (dx === -1 && dy === 1) return 5; // left-down
+    if (dx === 1 && dy === 1) return 6; // right-down
+    if (dx === 1 && dy === -1) return 7; // right-up
+    return 8;
+  }
+
   const total = nodes.length;
   const remaining = new Uint8Array(total);
   remaining.fill(1);
 
   const start = opts.start != null ? indexMap.get(opts.start) : null;
   const end = opts.end != null ? indexMap.get(opts.end) : null;
+  const isAscending = opts.degreeOrder !== 'descending';
 
   if (opts.start != null && start === undefined) throw new Error('Start pixel missing');
   if (opts.end != null && end === undefined) throw new Error('End pixel missing');
@@ -260,12 +253,12 @@ function solve(pixels, opts = {}) {
 
   function chooseStart() {
     let bestIdx = -1;
-    let min = Infinity;
+    let best = isAscending ? Infinity : -1;
     for (let i = 0; i < degrees.length; i++) {
       if (!remaining[i]) continue;
       const d = degrees[i];
-      if (d < min) {
-        min = d;
+      if (isAscending ? d < best : d > best) {
+        best = d;
         bestIdx = i;
       }
     }
@@ -299,8 +292,16 @@ function solve(pixels, opts = {}) {
     if (timeExceeded) return;
     if (checkTime(acc)) return;
     if (best.paths && acc.length + 1 >= best.paths.length) return;
-
-    for (const nb of neighbors[node]) {
+    const nbs = neighbors[node];
+    nbs.sort((a, b) => {
+      const da = degrees[a];
+      const db = degrees[b];
+      if (da !== db) return isAscending ? da - db : db - da;
+      const orderA = dirOrder(xs[a] - xs[node], ys[a] - ys[node]);
+      const orderB = dirOrder(xs[b] - xs[node], ys[b] - ys[node]);
+      return orderA - orderB;
+    });
+    for (const nb of nbs) {
       if (!remaining[nb]) continue;
       remove(nb);
       path.push(nb);
