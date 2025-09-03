@@ -78,3 +78,53 @@ const diamond = [A, B, C, D];
   ].sort((a, b) => a - b);
   assert.deepStrictEqual(neighborPixels, expected);
 }
+
+// Test stitching when a cut pixel lies in the middle of a path
+{
+  const Q0 = coordToIndex(0, 0);
+  const Q1 = coordToIndex(1, 1);
+  const Q2 = coordToIndex(2, 2);
+  const Q3 = coordToIndex(3, 3);
+  const Q4 = coordToIndex(1, 3);
+  const Q5 = coordToIndex(3, 1);
+  const star = [Q0, Q1, Q2, Q3, Q4, Q5];
+  const paths = solve(star);
+  assert.strictEqual(paths.length, 2);
+  const covered = new Set(paths.flat());
+  assert.strictEqual(covered.size, star.length);
+  const pathWithQ2 = paths.find((p) => p.includes(Q2));
+  const occurrences = pathWithQ2.filter((p) => p === Q2).length;
+  assert.strictEqual(occurrences, 2);
+  for (let i = 1; i < pathWithQ2.length; i++) {
+    const a = pathWithQ2[i - 1];
+    const b = pathWithQ2[i];
+    const ax = a % MAX_DIMENSION;
+    const ay = Math.floor(a / MAX_DIMENSION);
+    const bx = b % MAX_DIMENSION;
+    const by = Math.floor(b / MAX_DIMENSION);
+    assert(Math.abs(ax - bx) <= 1 && Math.abs(ay - by) <= 1);
+  }
+}
+
+// Regression: ensure paths touching multiple cut pixels merge correctly
+{
+  const R0 = coordToIndex(0, 0);
+  const R1 = coordToIndex(0, 1);
+  const R2 = coordToIndex(1, 0);
+  const R3 = coordToIndex(2, 0);
+  const pixels = [R0, R1, R2, R3];
+  const paths = solve(pixels);
+  assert.strictEqual(paths.length, 1);
+  const path = paths[0];
+  const set = new Set(path);
+  assert.strictEqual(set.size, pixels.length);
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1];
+    const b = path[i];
+    const ax = a % MAX_DIMENSION;
+    const ay = Math.floor(a / MAX_DIMENSION);
+    const bx = b % MAX_DIMENSION;
+    const by = Math.floor(b / MAX_DIMENSION);
+    assert(Math.abs(ax - bx) <= 1 && Math.abs(ay - by) <= 1);
+  }
+}
