@@ -95,7 +95,7 @@ function findCornerCutSet(nodes, neighbors) {
 
 // Partition graph around a cut set. Returns arrays of indices for each
 // component, including the cut vertices adjacent to that component.
-function partitionAtCut(neighbors, cutSet) {
+function partitionAtCut(nodes, neighbors, cutSet) {
   const cuts = Array.isArray(cutSet) ? cutSet : [cutSet];
   const cutLookup = new Set(cuts);
   const visited = new Uint8Array(neighbors.length);
@@ -121,7 +121,19 @@ function partitionAtCut(neighbors, cutSet) {
         stack.push(nb);
       }
     }
-    res.push([...comp, ...adjCuts]);
+    const partIndices = [...comp, ...adjCuts];
+    const indexMap = new Map(partIndices.map((idx, j) => [idx, j]));
+    const partNeighbors = partIndices.map((origIdx) => {
+      const list = [];
+      for (const nb of neighbors[origIdx]) {
+        const mapped = indexMap.get(nb);
+        if (mapped != null) list.push(mapped);
+      }
+      return list;
+    });
+    const partDegrees = partNeighbors.map((nbs) => nbs.length);
+    const partNodes = partIndices.map((idx) => nodes[idx]);
+    res.push({ nodes: partNodes, neighbors: partNeighbors, degrees: partDegrees });
   }
   return res;
 }
@@ -169,27 +181,28 @@ function getComponents(neighbors) {
 }
 
 // Core solver using backtracking to find minimum path cover
-function solve(pixels, opts = {}) {
-  const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
+function solve(input, opts = {}) {
+  let nodes, neighbors, degrees, indexMap;
+  if (input && input.nodes && input.neighbors && input.degrees) {
+    ({ nodes, neighbors, degrees } = input);
+    indexMap = new Map(nodes.map((p, i) => [p, i]));
+  } else {
+    ({ nodes, neighbors, degrees, indexMap } = buildGraph(input));
+  }
 
   const cutSet = findCornerCutSet(nodes, neighbors);
   if (cutSet && cutSet.length) {
-    const parts = partitionAtCut(neighbors, cutSet);
+    const parts = partitionAtCut(nodes, neighbors, cutSet);
     const cutPixels = cutSet.map((i) => nodes[i]);
     const results = [];
-    for (const idxs of parts) {
-      const partPixels = idxs.map((i) => nodes[i]);
+    for (const part of parts) {
       const partOpts = {};
-      if (opts.start != null) {
-        const idx = indexMap.get(opts.start);
-        if (idxs.includes(idx)) partOpts.start = opts.start;
-      }
-      if (opts.end != null) {
-        const idx = indexMap.get(opts.end);
-        if (idxs.includes(idx)) partOpts.end = opts.end;
-      }
+      if (opts.start != null && part.nodes.includes(opts.start))
+        partOpts.start = opts.start;
+      if (opts.end != null && part.nodes.includes(opts.end))
+        partOpts.end = opts.end;
       if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
-      results.push(solve(partPixels, partOpts));
+      results.push(solve(part, partOpts));
     }
     let combined = results.shift();
     for (const res of results) {
