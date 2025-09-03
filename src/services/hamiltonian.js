@@ -377,18 +377,8 @@ function solveSequential(input, opts = {}) {
 }
 
 async function runWorker(input, opts) {
-  if (typeof window === 'undefined') {
-    const { Worker } = await import('node:worker_threads');
-    const worker = new Worker(new URL('./hamiltonianWorker.js', import.meta.url), {
-      workerData: { input, opts },
-    });
-    return new Promise((resolve, reject) => {
-      worker.on('message', resolve);
-      worker.on('error', reject);
-      worker.on('exit', (code) => {
-        if (code !== 0) reject(new Error(`Worker exited with code ${code}`));
-      });
-    });
+  if (typeof window === 'undefined' || typeof Worker === 'undefined') {
+    return Promise.resolve(solveSequential(input, opts));
   }
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL('./hamiltonianWorker.js', import.meta.url), {
@@ -409,7 +399,13 @@ export async function solve(input, opts = {}) {
   }
 
   const cutSet = findDegree2CutSet(neighbors, degrees);
-  if (cutSet && cutSet.length && !opts.worker) {
+  if (
+    cutSet &&
+    cutSet.length &&
+    typeof window !== 'undefined' &&
+    typeof Worker !== 'undefined' &&
+    !opts.worker
+  ) {
     const parts = partitionAtCut(nodes, neighbors, cutSet);
     const cutPixels = cutSet.map((i) => nodes[i]);
     const promises = parts.map((part) => {
