@@ -467,35 +467,58 @@ export async function solve(input, opts = {}) {
     if (!(graph && graph.nodes && graph.neighbors && graph.degrees)) {
       graph = buildGraph(input);
     }
-    const startOnly = await solveCore(
-      { ...graph, degrees: graph.degrees.slice() },
-      { ...base, start: opts.start }
-    );
-    const startPath = startOnly.find((p) => p[0] === opts.start);
-    if (
-      startOnly.length === 1 &&
-      startPath &&
-      startPath[startPath.length - 1] === opts.end
-    ) {
-      return startOnly;
+
+    const copyGraph = () => ({ ...graph, degrees: graph.degrees.slice() });
+    const best = { paths: null, priority: Infinity, anchors: 0 };
+
+    function evalCandidate(paths) {
+      const full = paths.length === 1;
+      let startHit = false,
+        endHit = false;
+      for (const p of paths) {
+        if (p[0] === opts.start || p[p.length - 1] === opts.start) startHit = true;
+        if (p[0] === opts.end || p[p.length - 1] === opts.end) endHit = true;
+      }
+      const anchors = (startHit ? 1 : 0) + (endHit ? 1 : 0);
+      let priority;
+      if (full && startHit && endHit) priority = 1;
+      else if (full && anchors > 0) priority = 2;
+      else if (anchors > 0) priority = 3;
+      else priority = 4;
+      return { priority, anchors };
     }
 
-    const startEnd = await solveCore(
-      { ...graph, degrees: graph.degrees.slice() },
-      { ...base, start: opts.start, end: opts.end }
-    );
-    const sePath = startEnd.find(
-      (p) => p[0] === opts.start && p[p.length - 1] === opts.end
-    );
-    if (startEnd.length === 1 && sePath) {
-      return startEnd;
+    function update(paths) {
+      const { priority, anchors } = evalCandidate(paths);
+      if (priority === 4) return priority;
+      if (
+        !best.paths ||
+        priority < best.priority ||
+        (priority === best.priority &&
+          (paths.length < best.paths.length ||
+            (paths.length === best.paths.length && anchors > best.anchors)))
+      ) {
+        best.paths = paths;
+        best.priority = priority;
+        best.anchors = anchors;
+      }
+      return priority;
     }
 
-    const endOnly = await solveCore(
-      { ...graph, degrees: graph.degrees.slice() },
-      { ...base, start: opts.end }
-    );
-    return startOnly.length <= endOnly.length ? startOnly : endOnly;
+    return await new Promise((resolve) => {
+      let finished = 0;
+      const handle = (paths) => {
+        const priority = update(paths);
+        finished++;
+        if (priority === 1) {
+          resolve(best.paths);
+        } else if (finished === 2) {
+          resolve(best.paths);
+        }
+      };
+      solveCore(copyGraph(), { ...base, start: opts.start }).then(handle);
+      solveCore(copyGraph(), { ...base, start: opts.end }).then(handle);
+    });
   }
 
   return solveCore(input, opts);

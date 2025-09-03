@@ -157,3 +157,15 @@ assert(eqStart || eqEnd);
     Date.now = origNow;
   }
 }
+
+// Test solver returns start-to-end path when available using concurrent anchors
+{
+  const idx = (x, y) => x + MAX_DIMENSION * y;
+  const pixels = [idx(0, 0), idx(1, 0), idx(2, 0)];
+  const start = idx(0, 0);
+  const end = idx(2, 0);
+  const result = await solve(pixels, { start, end });
+  assert.strictEqual(result.length, 1);
+  assert.strictEqual(result[0][0], start);
+  assert.strictEqual(result[0][result[0].length - 1], end);
+}
