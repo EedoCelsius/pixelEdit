@@ -1,7 +1,7 @@
 import assert from 'assert';
 import {
   buildGraph,
-  findDegree2CutSet,
+  findCornerCutSet,
   useHamiltonianService,
   solve,
 } from '../src/services/hamiltonian.js';
@@ -9,36 +9,47 @@ import {
 const MAX_DIMENSION = 65536;
 const coordToIndex = (x, y) => x + MAX_DIMENSION * y;
 
+// Construct a diagonal chain: P0(0,0), P1(1,1), P2(2,2), P3(3,3)
+const P0 = coordToIndex(0, 0);
+const P1 = coordToIndex(1, 1);
+const P2 = coordToIndex(2, 2);
+const P3 = coordToIndex(3, 3);
+const diagonal = [P0, P1, P2, P3];
+
+// Test corner-based cut detection
+{
+  const { nodes, neighbors, indexMap } = buildGraph(diagonal);
+  const cut = findCornerCutSet(nodes, neighbors);
+  assert(Array.isArray(cut));
+  const idx1 = indexMap.get(P1);
+  const idx2 = indexMap.get(P2);
+  assert.strictEqual(cut.length, 2);
+  assert(cut.includes(idx1));
+  assert(cut.includes(idx2));
+}
+
 // Construct diamond graph: A(1,0), B(0,1), C(2,1), D(1,2)
 const A = coordToIndex(1, 0);
 const B = coordToIndex(0, 1);
 const C = coordToIndex(2, 1);
 const D = coordToIndex(1, 2);
-const pixels = [A, B, C, D];
+const diamond = [A, B, C, D];
 
-// Test cut detection
-{
-  const { neighbors, degrees } = buildGraph(pixels);
-  const cut = findDegree2CutSet(neighbors, degrees);
-  assert(Array.isArray(cut));
-  assert.strictEqual(cut.length, 2);
-}
-
-// Test solver on the same graph
+// Test solver on the diamond graph
 {
   const service = useHamiltonianService();
-  const paths = service.traverseFree(pixels);
+  const paths = service.traverseFree(diamond);
   assert.strictEqual(paths.length, 1);
   const covered = new Set(paths.flat());
-  assert.strictEqual(covered.size, pixels.length);
+  assert.strictEqual(covered.size, diamond.length);
 }
 
 // Test solver with descending degree order
 {
-  const paths = solve(pixels, { degreeOrder: 'descending' });
+  const paths = solve(diamond, { degreeOrder: 'descending' });
   assert.strictEqual(paths.length, 1);
   const covered = new Set(paths.flat());
-  assert.strictEqual(covered.size, pixels.length);
+  assert.strictEqual(covered.size, diamond.length);
 }
 
 // Test neighbor coverage without assuming order

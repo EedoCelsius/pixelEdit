@@ -27,14 +27,34 @@ function buildGraph(pixels) {
   return { nodes, neighbors, degrees, indexMap };
 }
 
-// Attempt to find a minimal set of degree-2 vertices whose removal
-// disconnects the graph. Returns an array of vertex indices or null if
-// no such cut set exists.
-function findDegree2CutSet(neighbors, degrees) {
-  const degree2 = [];
-  for (let i = 0; i < degrees.length; i++) if (degrees[i] === 2) degree2.push(i);
-  const total = neighbors.length;
+// Attempt to find a set of vertices adjacent to a corner that contains
+// exactly two pixels. Removing both vertices should disconnect the
+// graph. Returns the pair of vertex indices or null if no such cut set
+// exists.
+function findCornerCutSet(nodes, neighbors) {
+  const cornerMap = new Map();
+  for (let i = 0; i < nodes.length; i++) {
+    const p = nodes[i];
+    const x = p % MAX_DIMENSION;
+    const y = Math.floor(p / MAX_DIMENSION);
+    const corners = [
+      [x, y],
+      [x + 1, y],
+      [x, y + 1],
+      [x + 1, y + 1],
+    ];
+    for (const [cx, cy] of corners) {
+      const key = `${cx},${cy}`;
+      let arr = cornerMap.get(key);
+      if (!arr) {
+        arr = [];
+        cornerMap.set(key, arr);
+      }
+      arr.push(i);
+    }
+  }
 
+  const total = neighbors.length;
   function isCut(rem) {
     const blocked = new Uint8Array(total);
     for (const r of rem) blocked[r] = 1;
@@ -60,21 +80,15 @@ function findDegree2CutSet(neighbors, degrees) {
     return false;
   }
 
-  const k = degree2.length;
-  const combo = [];
-  function search(start, depth, target) {
-    if (depth === target) return isCut(combo) ? combo.slice() : null;
-    for (let i = start; i < k; i++) {
-      combo[depth] = degree2[i];
-      const res = search(i + 1, depth + 1, target);
-      if (res) return res;
+  const seen = new Set();
+  for (const arr of cornerMap.values()) {
+    if (arr.length === 2) {
+      const [a, b] = arr;
+      const key = a < b ? `${a},${b}` : `${b},${a}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (isCut(arr)) return arr.slice();
     }
-    return null;
-  }
-
-  for (let r = 1; r <= k; r++) {
-    const res = search(0, 0, r);
-    if (res) return res;
   }
   return null;
 }
@@ -158,7 +172,7 @@ function getComponents(neighbors) {
 function solve(pixels, opts = {}) {
   const { nodes, neighbors, degrees, indexMap } = buildGraph(pixels);
 
-  const cutSet = findDegree2CutSet(neighbors, degrees);
+  const cutSet = findCornerCutSet(nodes, neighbors);
   if (cutSet && cutSet.length) {
     const parts = partitionAtCut(neighbors, cutSet);
     const cutPixels = cutSet.map((i) => nodes[i]);
@@ -389,4 +403,4 @@ export const useHamiltonianService = () => {
   };
 };
 
-export { buildGraph, findDegree2CutSet, solve };
+export { buildGraph, findCornerCutSet, solve };
