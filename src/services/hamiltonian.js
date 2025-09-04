@@ -94,13 +94,13 @@ function partitionAtDegree2Cut(nodes, neighbors, degrees) {
     const stack = [i];
     visited[i] = 1;
     const comp = [];
-    const adjCuts = new Set();
+    const adjCuts = new Map();
     while (stack.length) {
       const node = stack.pop();
       comp.push(node);
       for (const nb of neighbors[node]) {
         if (cutLookup.has(nb)) {
-          adjCuts.add(nb);
+          if (!adjCuts.has(nb)) adjCuts.set(nb, node);
           continue;
         }
         if (visited[nb]) continue;
@@ -108,35 +108,75 @@ function partitionAtDegree2Cut(nodes, neighbors, degrees) {
         stack.push(nb);
       }
     }
-    const partIndices = [...comp, ...adjCuts];
-    const indexMap = new Map(partIndices.map((idx, j) => [idx, j]));
-    const partNeighbors = partIndices.map((origIdx) => {
+    const compIndices = [...comp];
+    const indexMap = new Map(compIndices.map((idx, j) => [idx, j]));
+    const partNeighbors = compIndices.map((origIdx) => {
       const list = [];
       for (const nb of neighbors[origIdx]) {
+        if (cutLookup.has(nb)) continue;
         const mapped = indexMap.get(nb);
         if (mapped != null) list.push(mapped);
       }
       return list;
     });
     const partDegrees = partNeighbors.map((nbs) => nbs.length);
-    const partNodes = partIndices.map((idx) => nodes[idx]);
-    parts.push({ nodes: partNodes, neighbors: partNeighbors, degrees: partDegrees });
+    const partNodes = compIndices.map((idx) => nodes[idx]);
+    const cutNeighborPixels = {};
+    for (const [cutIdx, nodeIdx] of adjCuts.entries()) {
+      cutNeighborPixels[nodes[cutIdx]] = nodes[nodeIdx];
+    }
+    parts.push({
+      nodes: partNodes,
+      neighbors: partNeighbors,
+      degrees: partDegrees,
+      cutNeighbors: cutNeighborPixels,
+    });
   }
 
   const [left, right] = parts;
   return { cut, left, right };
 }
 
-// Merge two path covers using the shared cut pixel
-function stitchPaths(left, right, cutPixel) {
-  const li = left.findIndex((p) => p.includes(cutPixel));
-  const ri = right.findIndex((p) => p.includes(cutPixel));
-  const lPath = left.splice(li, 1)[0];
-  const rPath = right.splice(ri, 1)[0];
-  if (lPath[lPath.length - 1] !== cutPixel) lPath.reverse();
-  if (rPath[0] !== cutPixel) rPath.reverse();
-  const joined = lPath.concat(rPath.slice(1));
-  return [...left, ...right, joined];
+// Merge path covers across cut pixels using neighbor information.
+// `cutInfos` is an array of { cutPixel, leftNeighbor, rightNeighbor }.
+function stitchPaths(left, right, cutInfos) {
+  const combined = [...left, ...right];
+  for (const info of cutInfos) {
+    const { cutPixel, leftNeighbor, rightNeighbor } = info;
+    const li = combined.findIndex(
+      (p) => p[0] === leftNeighbor || p[p.length - 1] === leftNeighbor,
+    );
+    const ri = combined.findIndex(
+      (p) => p[0] === rightNeighbor || p[p.length - 1] === rightNeighbor,
+    );
+    if (li !== -1 && ri !== -1 && li !== ri) {
+      const lPath = combined.splice(li, 1)[0];
+      const rIndex = ri > li ? ri - 1 : ri;
+      const rPath = combined.splice(rIndex, 1)[0];
+      if (lPath[lPath.length - 1] !== leftNeighbor) lPath.reverse();
+      if (rPath[0] !== rightNeighbor) rPath.reverse();
+      combined.push([...lPath, cutPixel, ...rPath]);
+    } else if (li !== -1 && li === ri) {
+      const path = combined[li];
+      if (path[path.length - 1] === leftNeighbor || path[path.length - 1] === rightNeighbor) {
+        path.push(cutPixel);
+      } else if (path[0] === leftNeighbor || path[0] === rightNeighbor) {
+        path.unshift(cutPixel);
+      } else {
+        combined.push([cutPixel]);
+      }
+    } else if (li !== -1 || ri !== -1) {
+      const idx = li !== -1 ? li : ri;
+      const path = combined[idx];
+      const neighbor = li !== -1 ? leftNeighbor : rightNeighbor;
+      if (path[path.length - 1] === neighbor) path.push(cutPixel);
+      else if (path[0] === neighbor) path.unshift(cutPixel);
+      else combined.push([cutPixel]);
+    } else {
+      combined.push([cutPixel]);
+    }
+  }
+  return combined;
 }
 
 // Find connected components from an adjacency list
@@ -331,29 +371,37 @@ function solve(input, opts = {}) {
   if (partition) {
     const { cut, left, right } = partition;
     const cutPixels = cut.map((i) => nodes[i]);
-    const parts = [left, right].filter(Boolean);
+    const parts = [left, right];
     const results = [];
     for (const part of parts) {
+      if (!part) {
+        results.push([]);
+        continue;
+      }
       const partOpts = {};
-      if (opts.start != null && part.nodes.includes(opts.start)) partOpts.start = opts.start;
-      if (opts.end != null && part.nodes.includes(opts.end)) partOpts.end = opts.end;
+      const mandatory = Object.values(part.cutNeighbors || {});
+      if (mandatory[0] != null) partOpts.start = mandatory[0];
+      if (mandatory[1] != null) partOpts.end = mandatory[1];
+      if (opts.start != null && part.nodes.includes(opts.start)) {
+        if (partOpts.start == null) partOpts.start = opts.start;
+        else if (partOpts.end == null && opts.start !== partOpts.start)
+          partOpts.end = opts.start;
+      }
+      if (opts.end != null && part.nodes.includes(opts.end)) {
+        if (partOpts.end == null && opts.end !== partOpts.start) partOpts.end = opts.end;
+        else if (partOpts.start == null) partOpts.start = opts.end;
+      }
       if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
       results.push(solve(part, partOpts));
     }
-    let combined = results[0];
-    const res = results[1];
-    if (res) {
-      let merged = false;
-      for (const cp of cutPixels) {
-        if (combined.some((p) => p.includes(cp)) && res.some((p) => p.includes(cp))) {
-          combined = stitchPaths(combined, res, cp);
-          merged = true;
-          break;
-        }
-      }
-      if (!merged) combined = combined.concat(res);
-    }
-    return combined;
+    const leftRes = results[0] || [];
+    const rightRes = results[1] || [];
+    const cutInfos = cutPixels.map((cp) => ({
+      cutPixel: cp,
+      leftNeighbor: left?.cutNeighbors?.[cp],
+      rightNeighbor: right?.cutNeighbors?.[cp],
+    }));
+    return stitchPaths(leftRes, rightRes, cutInfos);
   }
 
   const solver = new PathCoverSolver(nodes, neighbors, degrees, indexMap, opts);
