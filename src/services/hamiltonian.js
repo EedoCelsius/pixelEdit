@@ -27,152 +27,113 @@ function buildGraph(pixels) {
   return { nodes, neighbors, degrees, indexMap };
 }
 
-// Check if removing specific vertices disconnects the graph
-function isGraphDisconnected(neighbors, total, removed) {
-  const blocked = new Uint8Array(total);
-  for (const r of removed) blocked[r] = 1;
-  let start = -1;
-  for (let i = 0; i < total; i++) {
-    if (!blocked[i]) {
-      start = i;
-      break;
-    }
+// Check if removing specific edges disconnects the graph
+function isGraphDisconnectedByEdges(neighbors, total, edges) {
+  const blocked = new Map();
+  for (const [a, b] of edges) {
+    if (!blocked.has(a)) blocked.set(a, new Set());
+    if (!blocked.has(b)) blocked.set(b, new Set());
+    blocked.get(a).add(b);
+    blocked.get(b).add(a);
   }
-  if (start === -1) return false;
-  const stack = [start];
-  blocked[start] = 1;
+  const visited = new Uint8Array(total);
+  const stack = [0];
+  visited[0] = 1;
   while (stack.length) {
     const node = stack.pop();
     for (const nb of neighbors[node]) {
-      if (blocked[nb]) continue;
-      blocked[nb] = 1;
+      if (blocked.get(node)?.has(nb)) continue;
+      if (visited[nb]) continue;
+      visited[nb] = 1;
       stack.push(nb);
     }
   }
-  for (let i = 0; i < total; i++) if (!blocked[i]) return true;
+  for (let i = 0; i < total; i++) if (!visited[i]) return true;
   return false;
 }
 
-// Locate a degree-2 cut set and partition the graph around it.
-// Returns { cut, parts } where cut is an array of vertex indices
-// and parts are subgraphs in the same format as buildGraph.
-function partitionAtDegree2Cut(nodes, neighbors, degrees) {
-  const degree2 = [];
-  for (let i = 0; i < degrees.length; i++) if (degrees[i] === 2) degree2.push(i);
+// Partition graph by cutting edges connecting adjacent pixels that
+// share no common neighbor. Up to two edges are considered.
+// Returns { cutEdges, parts } where parts are subgraphs in the same format as buildGraph.
+function partitionAtEdgeCut(nodes, neighbors) {
   const total = neighbors.length;
-
-  let cut = null;
-  for (const idx of degree2) {
-    if (isGraphDisconnected(neighbors, total, [idx])) {
-      cut = [idx];
-      break;
-    }
-  }
-
-  if (!cut) {
-    for (let i = 0; i < degree2.length; i++) {
-      for (let j = i + 1; j < degree2.length; j++) {
-        const pair = [degree2[i], degree2[j]];
-        if (isGraphDisconnected(neighbors, total, pair)) {
-          cut = pair;
+  const candidateEdges = [];
+  for (let i = 0; i < neighbors.length; i++) {
+    const setI = new Set(neighbors[i]);
+    for (const nb of neighbors[i]) {
+      if (i >= nb) continue;
+      let hasCommon = false;
+      for (const nb2 of neighbors[nb]) {
+        if (nb2 !== i && setI.has(nb2)) {
+          hasCommon = true;
           break;
         }
       }
-      if (cut) break;
+      if (!hasCommon) candidateEdges.push([i, nb]);
     }
   }
 
-  if (!cut) return null;
-
-  const cutLookup = new Set(cut);
-  const visited = new Uint8Array(neighbors.length);
-  for (const c of cut) visited[c] = 1;
-  const parts = [];
-
-  for (let i = 0; i < neighbors.length; i++) {
-    if (visited[i]) continue;
-    const stack = [i];
-    visited[i] = 1;
-    const comp = [];
-    const adjCuts = new Map();
-    while (stack.length) {
-      const node = stack.pop();
-      comp.push(node);
-      for (const nb of neighbors[node]) {
-        if (cutLookup.has(nb)) {
-          if (!adjCuts.has(nb)) adjCuts.set(nb, node);
-          continue;
+  const tryEdges = (edges) => {
+    if (!isGraphDisconnectedByEdges(neighbors, total, edges)) return null;
+    const blocked = new Map();
+    for (const [a, b] of edges) {
+      if (!blocked.has(a)) blocked.set(a, new Set());
+      if (!blocked.has(b)) blocked.set(b, new Set());
+      blocked.get(a).add(b);
+      blocked.get(b).add(a);
+    }
+    const visited = new Uint8Array(total);
+    const parts = [];
+    for (let i = 0; i < total; i++) {
+      if (visited[i]) continue;
+      const stack = [i];
+      visited[i] = 1;
+      const comp = [];
+      while (stack.length) {
+        const node = stack.pop();
+        comp.push(nodes[node]);
+        for (const nb of neighbors[node]) {
+          if (blocked.get(node)?.has(nb)) continue;
+          if (visited[nb]) continue;
+          visited[nb] = 1;
+          stack.push(nb);
         }
-        if (visited[nb]) continue;
-        visited[nb] = 1;
-        stack.push(nb);
       }
+      parts.push(buildGraph(comp));
     }
-    const compIndices = [...comp];
-    const indexMap = new Map(compIndices.map((idx, j) => [idx, j]));
-    const partNeighbors = compIndices.map((origIdx) => {
-      const list = [];
-      for (const nb of neighbors[origIdx]) {
-        if (cutLookup.has(nb)) continue;
-        const mapped = indexMap.get(nb);
-        if (mapped != null) list.push(mapped);
-      }
-      return list;
-    });
-    const partDegrees = partNeighbors.map((nbs) => nbs.length);
-    const partNodes = compIndices.map((idx) => nodes[idx]);
-    const cutNeighborPixels = {};
-    for (const [cutIdx, nodeIdx] of adjCuts.entries()) {
-      cutNeighborPixels[nodes[cutIdx]] = nodes[nodeIdx];
-    }
-    parts.push({
-      nodes: partNodes,
-      neighbors: partNeighbors,
-      degrees: partDegrees,
-      cutNeighbors: cutNeighborPixels,
-    });
-  }
+    return { cutEdges: edges, parts };
+  };
 
-  return { cut, parts };
+  for (const edge of candidateEdges) {
+    const res = tryEdges([edge]);
+    if (res) return res;
+  }
+  for (let i = 0; i < candidateEdges.length; i++) {
+    for (let j = i + 1; j < candidateEdges.length; j++) {
+      const res = tryEdges([candidateEdges[i], candidateEdges[j]]);
+      if (res) return res;
+    }
+  }
+  return null;
 }
 
-// Merge path covers across cut pixels using neighbor information.
-// `cutInfos` is an array of { cutPixel, leftNeighbor, rightNeighbor }.
-function stitchPaths(left, right, cutInfos) {
-  const combined = [...left, ...right];
-  for (const info of cutInfos) {
-    const { cutPixel, leftNeighbor, rightNeighbor } = info;
-    const li = combined.findIndex(
-      (p) => p[0] === leftNeighbor || p[p.length - 1] === leftNeighbor,
+// Merge path covers across cut edges. `anchorPairs` is an array of [aPixel, bPixel].
+function stitchPaths(paths, anchorPairs) {
+  const combined = [...paths];
+  for (const [aPixel, bPixel] of anchorPairs) {
+    const ai = combined.findIndex(
+      (p) => p[0] === aPixel || p[p.length - 1] === aPixel,
     );
-    const ri = combined.findIndex(
-      (p) => p[0] === rightNeighbor || p[p.length - 1] === rightNeighbor,
+    const bi = combined.findIndex(
+      (p) => p[0] === bPixel || p[p.length - 1] === bPixel,
     );
-    if (li !== -1 && ri !== -1 && li !== ri) {
-      const lPath = combined.splice(li, 1)[0];
-      const rIndex = ri > li ? ri - 1 : ri;
-      const rPath = combined.splice(rIndex, 1)[0];
-      if (lPath[lPath.length - 1] !== leftNeighbor) lPath.reverse();
-      if (rPath[0] !== rightNeighbor) rPath.reverse();
-      combined.push([...lPath, cutPixel, ...rPath]);
-    } else if (li !== -1 && li === ri) {
-      const path = combined[li];
-      if (path[path.length - 1] === leftNeighbor || path[path.length - 1] === rightNeighbor) {
-        path.push(cutPixel);
-      } else if (path[0] === leftNeighbor || path[0] === rightNeighbor) {
-        path.unshift(cutPixel);
-      } else {
-        combined.push([cutPixel]);
-      }
-    } else if (li !== -1 || ri !== -1) {
-      const idx = li !== -1 ? li : ri;
-      const path = combined[idx];
-      const neighbor = li !== -1 ? leftNeighbor : rightNeighbor;
-      if (path[path.length - 1] === neighbor) path.push(cutPixel);
-      else if (path[0] === neighbor) path.unshift(cutPixel);
-      else combined.push([cutPixel]);
-    } else {
-      combined.push([cutPixel]);
+    if (ai !== -1 && bi !== -1 && ai !== bi) {
+      const aPath = combined.splice(ai, 1)[0];
+      const bIndex = bi > ai ? bi - 1 : bi;
+      const bPath = combined.splice(bIndex, 1)[0];
+      if (aPath[aPath.length - 1] !== aPixel) aPath.reverse();
+      if (bPath[0] !== bPixel) bPath.reverse();
+      combined.push([...aPath, ...bPath]);
     }
   }
   return combined;
@@ -408,7 +369,7 @@ async function solve(input, opts = {}) {
     ({ nodes, neighbors, degrees, indexMap } = buildGraph(input));
   }
 
-  const partition = partitionAtDegree2Cut(nodes, neighbors, degrees);
+  const partition = partitionAtEdgeCut(nodes, neighbors);
   if (partition) {
     const results = [];
     for (const part of partition.parts) {
@@ -416,25 +377,23 @@ async function solve(input, opts = {}) {
       if (opts.start != null && part.nodes.includes(opts.start)) partOpts.start = opts.start;
       if (opts.end != null && part.nodes.includes(opts.end)) partOpts.end = opts.end;
       if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
-      const neighbors = Object.values(part.cutNeighbors);
-      if (neighbors[0] != null) {
-        if (partOpts.start == null) partOpts.start = neighbors[0];
-        else if (partOpts.end == null) partOpts.end = neighbors[0];
-      }
-      if (neighbors[1] != null) {
-        if (partOpts.end == null) partOpts.end = neighbors[1];
-        else if (partOpts.start == null) partOpts.start = neighbors[1];
+      for (const [aIdx, bIdx] of partition.cutEdges) {
+        const aPixel = nodes[aIdx];
+        const bPixel = nodes[bIdx];
+        if (part.nodes.includes(aPixel)) {
+          if (partOpts.start == null) partOpts.start = aPixel;
+          else if (partOpts.end == null) partOpts.end = aPixel;
+        }
+        if (part.nodes.includes(bPixel)) {
+          if (partOpts.start == null) partOpts.start = bPixel;
+          else if (partOpts.end == null) partOpts.end = bPixel;
+        }
       }
       results.push(solve(part, partOpts));
     }
-    const [leftRes, rightRes] = await Promise.all(results);
-    const cutPixels = partition.cut.map((i) => nodes[i]);
-    const cutInfos = cutPixels.map((cp) => ({
-      cutPixel: cp,
-      leftNeighbor: partition.parts[0].cutNeighbors[cp],
-      rightNeighbor: partition.parts[1].cutNeighbors[cp],
-    }));
-    return stitchPaths(leftRes, rightRes, cutInfos);
+    const paths = (await Promise.all(results)).flat();
+    const anchorPairs = partition.cutEdges.map(([a, b]) => [nodes[a], nodes[b]]);
+    return stitchPaths(paths, anchorPairs);
   }
 
   const solver = new PathCoverSolver(nodes, neighbors, degrees, indexMap, opts);
@@ -460,7 +419,7 @@ class HamiltonianService {
     return result;
   }
 
-  traverseWithStartEnd(pixels, start, end) {
+  async traverseWithStartEnd(pixels, start, end) {
     const { nodes, neighbors, indexMap } = buildGraph(pixels);
     const { components, compIndex } = getComponents(neighbors);
     const startIdx = indexMap.get(start);
@@ -473,21 +432,21 @@ class HamiltonianService {
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
       if (compIndex[startIdx] === i) {
-        result.push(...solve(compPixels, { start, end }));
+        result.push(...await solve(compPixels, { start, end }));
       } else {
-        result.push(...solve(compPixels));
+        result.push(...await solve(compPixels));
       }
     }
     return result;
   }
 
-  traverseFree(pixels) {
+  async traverseFree(pixels) {
     const { nodes, neighbors } = buildGraph(pixels);
     const { components } = getComponents(neighbors);
     const result = [];
     for (const comp of components) {
       const compPixels = comp.map((idx) => nodes[idx]);
-      result.push(...solve(compPixels));
+      result.push(...await solve(compPixels));
     }
     return result;
   }
@@ -495,4 +454,4 @@ class HamiltonianService {
 
 export const useHamiltonianService = () => new HamiltonianService();
 
-export { buildGraph, partitionAtDegree2Cut, solve };
+export { buildGraph, partitionAtEdgeCut, solve };
