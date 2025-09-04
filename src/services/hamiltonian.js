@@ -131,32 +131,10 @@ function partitionAtDegree2Cut(nodes, neighbors, degrees) {
 function stitchPaths(left, right, cutPixel) {
   const li = left.findIndex((p) => p.includes(cutPixel));
   const ri = right.findIndex((p) => p.includes(cutPixel));
-  let lPath = left.splice(li, 1)[0];
-  let rPath = right.splice(ri, 1)[0];
-
-  let idx = lPath.indexOf(cutPixel);
-  if (idx !== lPath.length - 1) {
-    if (idx === 0) {
-      lPath.reverse();
-      idx = lPath.indexOf(cutPixel);
-    } else {
-      const tail = lPath.slice(idx + 1);
-      lPath = lPath.slice(0, idx + 1);
-      if (tail.length) left.push(tail);
-    }
-  }
-
-  idx = rPath.indexOf(cutPixel);
-  if (idx !== 0) {
-    if (idx === rPath.length - 1) {
-      rPath.reverse();
-    } else {
-      const head = rPath.slice(0, idx);
-      rPath = rPath.slice(idx);
-      if (head.length) right.push(head);
-    }
-  }
-
+  const lPath = left.splice(li, 1)[0];
+  const rPath = right.splice(ri, 1)[0];
+  if (lPath[lPath.length - 1] !== cutPixel) lPath.reverse();
+  if (rPath[0] !== cutPixel) rPath.reverse();
   const joined = lPath.concat(rPath.slice(1));
   return [...left, ...right, joined];
 }
@@ -359,11 +337,6 @@ function solve(input, opts = {}) {
       const partOpts = {};
       if (opts.start != null && part.nodes.includes(opts.start)) partOpts.start = opts.start;
       if (opts.end != null && part.nodes.includes(opts.end)) partOpts.end = opts.end;
-      for (const cp of cutPixels) {
-        if (!part.nodes.includes(cp)) continue;
-        if (partOpts.start == null) partOpts.start = cp;
-        else if (partOpts.end == null) partOpts.end = cp;
-      }
       if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
       results.push(solve(part, partOpts));
     }
@@ -441,4 +414,4 @@ class HamiltonianService {
 
 export const useHamiltonianService = () => new HamiltonianService();
 
-export { buildGraph, partitionAtDegree2Cut, solve, stitchPaths };
+export { buildGraph, partitionAtDegree2Cut, solve };

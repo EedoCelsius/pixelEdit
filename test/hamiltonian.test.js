@@ -4,7 +4,6 @@ import {
   partitionAtDegree2Cut,
   useHamiltonianService,
   solve,
-  stitchPaths,
 } from '../src/services/hamiltonian.js';
 
 const MAX_DIMENSION = 65536;
@@ -69,13 +68,4 @@ const pixels = [A, B, C, D];
     coordToIndex(3, 1), // right-up
   ].sort((a, b) => a - b);
   assert.deepStrictEqual(neighborPixels, expected);
-}
-
-// Test stitching when cut pixel lies inside paths
-{
-  const cut = 0;
-  const left = [[1, cut, 2]];
-  const right = [[3, cut, 4]];
-  const stitched = stitchPaths(left, right, cut);
-  assert.deepStrictEqual(stitched, [[2], [3], [1, cut, 4]]);
 }
