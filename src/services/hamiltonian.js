@@ -211,6 +211,9 @@ class PathCoverSolver {
     this.timeExceeded = false;
     this.completed = false;
     this.requiredAnchors = this.anchors.length;
+
+    this.nodeHash = Array.from({ length: this.total }, () => Math.floor(Math.random() * 2 ** 32));
+    this.initialHash = this.nodeHash.reduce((a, b) => a ^ b, 0);
   }
 
   updateBest(acc, activeCount, currentPath = null) {
@@ -258,21 +261,31 @@ class PathCoverSolver {
     }
   }
 
+  isRemaining(ctx, node) {
+    return (ctx.remaining[node >>> 5] & (1 << (node & 31))) !== 0;
+  }
+
   remove(ctx, node) {
-    ctx.remaining[node] = 0;
-    for (const nb of this.neighbors[node]) if (ctx.remaining[nb]) ctx.degrees[nb]--;
+    const word = node >>> 5;
+    const mask = 1 << (node & 31);
+    ctx.remaining[word] &= ~mask;
+    ctx.hash ^= this.nodeHash[node];
+    for (const nb of this.neighbors[node]) if (this.isRemaining(ctx, nb)) ctx.degrees[nb]--;
   }
 
   restore(ctx, node) {
-    for (const nb of this.neighbors[node]) if (ctx.remaining[nb]) ctx.degrees[nb]++;
-    ctx.remaining[node] = 1;
+    for (const nb of this.neighbors[node]) if (this.isRemaining(ctx, nb)) ctx.degrees[nb]++;
+    const word = node >>> 5;
+    const mask = 1 << (node & 31);
+    ctx.remaining[word] |= mask;
+    ctx.hash ^= this.nodeHash[node];
   }
 
   chooseStart(ctx) {
     let bestIdx = -1;
     let best = this.isAscending ? Infinity : -1;
     for (let i = 0; i < ctx.degrees.length; i++) {
-      if (!ctx.remaining[i]) continue;
+      if (!this.isRemaining(ctx, i)) continue;
       const d = ctx.degrees[i];
       if (this.isAscending ? d < best : d > best) {
         best = d;
@@ -283,7 +296,7 @@ class PathCoverSolver {
   }
 
   checkForBetterMemo(ctx, acc) {
-    const k = ctx.remaining.join('');
+    const k = ctx.hash;
     const prev = ctx.memo.get(k);
     if (prev != null && acc.length >= prev) return true;
     ctx.memo.set(k, acc.length);
@@ -323,7 +336,7 @@ class PathCoverSolver {
     this.updateBest(acc, activeCount, path);
     const nbs = this.sortedNeighbor(ctx, node);
     for (const nb of nbs) {
-      if (!ctx.remaining[nb]) continue;
+      if (!this.isRemaining(ctx, nb)) continue;
       this.remove(ctx, nb);
       path.push(nb);
       await this.extend(ctx, nb, path, activeCount - 1, acc, isFirst);
@@ -344,11 +357,16 @@ class PathCoverSolver {
   async run() {
     const starts = this.anchors.length ? this.anchors : [null];
     const tasks = starts.map((start) => {
+      const words = Math.ceil(this.total / 32);
+      const remaining = new Uint32Array(words).fill(0xffffffff);
+      const unused = words * 32 - this.total;
+      if (unused > 0) remaining[words - 1] >>>= unused;
       const ctx = {
-        remaining: new Uint8Array(this.total).fill(1),
+        remaining,
         degrees: Uint8Array.from(this.baseDegrees),
         memo: new Map(),
         start,
+        hash: this.initialHash,
       };
       return this.search(ctx, this.total, []);
     });
