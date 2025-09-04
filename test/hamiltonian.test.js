@@ -1,10 +1,9 @@
 import assert from 'assert';
 import {
   buildGraph,
-  partitionAtDegree2Cut,
+  findDegree2CutSet,
   useHamiltonianService,
   solve,
-  stitchPaths,
 } from '../src/services/hamiltonian.js';
 
 const MAX_DIMENSION = 65536;
@@ -17,14 +16,12 @@ const C = coordToIndex(2, 1);
 const D = coordToIndex(1, 2);
 const pixels = [A, B, C, D];
 
-// Test cut detection and partitioning
+// Test cut detection
 {
-  const { nodes, neighbors, degrees } = buildGraph(pixels);
-  const res = partitionAtDegree2Cut(nodes, neighbors, degrees);
-  assert(res);
-  assert(Array.isArray(res.cut));
-  assert.strictEqual(res.cut.length, 2);
-  assert(res.left && res.right);
+  const { neighbors, degrees } = buildGraph(pixels);
+  const cut = findDegree2CutSet(neighbors, degrees);
+  assert(Array.isArray(cut));
+  assert.strictEqual(cut.length, 2);
 }
 
 // Test solver on the same graph
@@ -69,23 +66,4 @@ const pixels = [A, B, C, D];
     coordToIndex(3, 1), // right-up
   ].sort((a, b) => a - b);
   assert.deepStrictEqual(neighborPixels, expected);
-}
-
-// Ensure stitching splits paths when cut pixel is internal
-{
-  const cp = coordToIndex(1, 1);
-  const left = coordToIndex(0, 1);
-  const right = coordToIndex(2, 1);
-  const down = coordToIndex(1, 2);
-  const merged = stitchPaths(
-    [
-      [left, cp, right],
-      [cp, down],
-    ],
-    cp
-  );
-  assert.deepStrictEqual(merged, [
-    [left, cp, down],
-    [cp, right],
-  ]);
 }
