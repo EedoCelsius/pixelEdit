@@ -8,7 +8,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
     const layerQuery = useLayerQueryService();
 
     function mergeSelected() {
-        if (nodeTree.selectedLayerCount < 2) return;
+        if (nodeTree.selectedLayerCount < 2 && nodeTree.selectedGroupCount === 0) return;
         const pixelUnion = getPixelUnion(pixels.getProperties(nodeTree.selectedLayerIds));
 
         const colors = [];
@@ -24,9 +24,9 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         }
         const colorU32 = averageColorU32(colors);
 
-        const firstId = nodeTree.selectedLayerIds[0];
-        const maintainedName = nodes.getProperty(firstId, 'name') || 'Merged';
-        const maintainedAttrs = nodes.getProperty(firstId, 'attributes');
+        const baseId = nodeTree.selectedLayerIds[0] || nodeTree.selectedGroupIds[0];
+        const maintainedName = nodes.getProperty(baseId, 'name') || 'Merged';
+        const maintainedAttrs = nodes.getProperty(baseId, 'attributes');
         const newLayerId = nodes.createLayer({
             name: `Merged ${maintainedName}`,
             color: colorU32,
@@ -34,8 +34,9 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         });
         const newPixels = pixelUnion;
         if (newPixels.length) pixels.addPixels(newLayerId, newPixels);
-        nodeTree.insert([newLayerId], layerQuery.lowermost(nodeTree.selectedLayerIds), true);
-        const ids = nodeTree.selectedLayerIds;
+        const targetId = nodeTree.orderedSelection[0];
+        nodeTree.insert([newLayerId], targetId, true);
+        const ids = nodeTree.selectedNodeIds;
         const removed = nodeTree.remove(ids);
         nodes.remove(removed);
         pixels.remove(removed);

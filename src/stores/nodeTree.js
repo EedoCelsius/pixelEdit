@@ -116,6 +116,11 @@ export const useNodeTreeStore = defineStore('nodeTree', {
         allNodeIds(state) { return this._nodeIds },
         selectedNodeIds(state) { return this._selectedNodeIds },
         selectedNodeCount(state) { return this._selectedNodeIds.length },
+        selectedGroupIds(state) {
+            const nodeStore = useNodeStore();
+            return [...state._selection].filter(id => nodeStore.getProperty(id, 'type') === 'group');
+        },
+        selectedGroupCount(state) { return this.selectedGroupIds.length },
         descendantLayerIds(state) { return (id) => {
             const info = findNode(state._tree, id);
             return info ? collectLayerIds(info.node, []) : [];

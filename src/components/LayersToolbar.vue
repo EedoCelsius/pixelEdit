@@ -9,7 +9,7 @@
         <button @click="onCopy" :disabled="nodeTree.selectedNodeCount === 0" title="Copy" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
           <img :src="toolbarIcons.copy" alt="Copy" class="w-4 h-4">
         </button>
-        <button @click="onMerge" :disabled="nodes.selectedLayerCount < 2" title="Merge layers" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
+        <button @click="onMerge" :disabled="nodeTree.selectedLayerCount < 2 && nodeTree.selectedGroupCount === 0" title="Merge layers" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
           <img :src="toolbarIcons.merge" alt="Merge layers" class="w-4 h-4">
         </button>
         <button @click="onSplit" :disabled="!canSplit" title="Split disconnected" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed">
