@@ -291,13 +291,17 @@ class PathCoverSolver {
     return false;
   }
 
-  neighborComparator(ctx, node, a, b) {
-    const da = ctx.degrees[a];
-    const db = ctx.degrees[b];
-    if (da !== db) return this.isAscending ? da - db : db - da;
-    const orderA = this.dirOrder(this.xs[a] - this.xs[node], this.ys[a] - this.ys[node]);
-    const orderB = this.dirOrder(this.xs[b] - this.xs[node], this.ys[b] - this.ys[node]);
-    return orderA - orderB;
+  sortedNeighbor(ctx, node) {
+    const nbs = [...this.neighbors[node]];
+    nbs.sort((a, b) => {
+      const da = ctx.degrees[a];
+      const db = ctx.degrees[b];
+      if (da !== db) return this.isAscending ? da - db : db - da;
+      const orderA = this.dirOrder(this.xs[a] - this.xs[node], this.ys[a] - this.ys[node]);
+      const orderB = this.dirOrder(this.xs[b] - this.xs[node], this.ys[b] - this.ys[node]);
+      return orderA - orderB;
+    });
+    return nbs;
   }
 
   async search(ctx, activeCount, acc) {
@@ -313,8 +317,7 @@ class PathCoverSolver {
 
   async extend(ctx, node, path, activeCount, acc, isFirst) {
     this.updateBest(acc, activeCount, path);
-    const nbs = this.neighbors[node];
-    nbs.sort((a, b) => this.neighborComparator(ctx, node, a, b));
+    const nbs = this.sortedNeighbor(ctx, node);
     for (const nb of nbs) {
       if (!ctx.remaining[nb]) continue;
       this.remove(ctx, nb);
@@ -346,16 +349,7 @@ class PathCoverSolver {
       return this.search(ctx, this.total, []);
     });
     await Promise.all(tasks);
-
-    let paths = [];
-    if (this.best.paths) {
-      paths = this.best.paths.map((p) => p.map((i) => this.nodes[i]));
-    }
-    const covered = new Set(paths.flat());
-    for (const node of this.nodes) {
-      if (!covered.has(node)) paths.push([node]);
-    }
-    return paths;
+    return this.best.paths.map((p) => p.map((i) => this.nodes[i]));
   }
 }
 
