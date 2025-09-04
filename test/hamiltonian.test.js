@@ -1,7 +1,7 @@
 import assert from 'assert';
 import {
   buildGraph,
-  findDegree2CutSet,
+  partitionAtDegree2Cut,
   useHamiltonianService,
   solve,
 } from '../src/services/hamiltonian.js';
@@ -16,12 +16,14 @@ const C = coordToIndex(2, 1);
 const D = coordToIndex(1, 2);
 const pixels = [A, B, C, D];
 
-// Test cut detection
+// Test cut detection and partitioning
 {
-  const { neighbors, degrees } = buildGraph(pixels);
-  const cut = findDegree2CutSet(neighbors, degrees);
-  assert(Array.isArray(cut));
-  assert.strictEqual(cut.length, 2);
+  const { nodes, neighbors, degrees } = buildGraph(pixels);
+  const res = partitionAtDegree2Cut(nodes, neighbors, degrees);
+  assert(res);
+  assert(Array.isArray(res.cut));
+  assert.strictEqual(res.cut.length, 2);
+  assert(res.left && res.right);
 }
 
 // Test solver on the same graph
