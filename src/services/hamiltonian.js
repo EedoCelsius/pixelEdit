@@ -194,13 +194,7 @@ import { instantiate } from '@assemblyscript/loader';
 let wasmBytesPromise;
 async function getWasmBytes() {
   if (!wasmBytesPromise) {
-    if (typeof window !== 'undefined' && typeof fetch === 'function') {
-      wasmBytesPromise = fetch('pathCoverSolver.wasm').then((r) => r.arrayBuffer());
-    } else {
-      wasmBytesPromise = import(/* @vite-ignore */ 'node:fs/promises').then((fs) =>
-        fs.readFile(new URL('../../public/pathCoverSolver.wasm', import.meta.url)),
-      );
-    }
+    wasmBytesPromise = fetch('pathCoverSolver.wasm').then((r) => r.arrayBuffer());
   }
   return wasmBytesPromise;
 }
