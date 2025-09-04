@@ -27,54 +27,49 @@ function buildGraph(pixels) {
   return { nodes, neighbors, degrees, indexMap };
 }
 
+// Check if removing specific vertices disconnects the graph
+function isGraphDisconnected(neighbors, total, removed) {
+  const blocked = new Uint8Array(total);
+  for (const r of removed) blocked[r] = 1;
+  let start = -1;
+  for (let i = 0; i < total; i++) {
+    if (!blocked[i]) {
+      start = i;
+      break;
+    }
+  }
+  if (start === -1) return false;
+  const stack = [start];
+  blocked[start] = 1;
+  while (stack.length) {
+    const node = stack.pop();
+    for (const nb of neighbors[node]) {
+      if (blocked[nb]) continue;
+      blocked[nb] = 1;
+      stack.push(nb);
+    }
+  }
+  for (let i = 0; i < total; i++) if (!blocked[i]) return true;
+  return false;
+}
+
 // Attempt to find a minimal set of degree-2 vertices whose removal
-// disconnects the graph. Returns an array of vertex indices or null if
-// no such cut set exists.
+// disconnects the graph. Only single vertices or pairs are considered.
+// Returns an array of vertex indices or null if no such cut set exists.
 function findDegree2CutSet(neighbors, degrees) {
   const degree2 = [];
   for (let i = 0; i < degrees.length; i++) if (degrees[i] === 2) degree2.push(i);
   const total = neighbors.length;
 
-  function isCut(rem) {
-    const blocked = new Uint8Array(total);
-    for (const r of rem) blocked[r] = 1;
-    let start = -1;
-    for (let i = 0; i < total; i++) {
-      if (!blocked[i]) {
-        start = i;
-        break;
-      }
-    }
-    if (start === -1) return false;
-    const stack = [start];
-    blocked[start] = 1;
-    while (stack.length) {
-      const node = stack.pop();
-      for (const nb of neighbors[node]) {
-        if (blocked[nb]) continue;
-        blocked[nb] = 1;
-        stack.push(nb);
-      }
-    }
-    for (let i = 0; i < total; i++) if (!blocked[i]) return true;
-    return false;
+  for (const idx of degree2) {
+    if (isGraphDisconnected(neighbors, total, [idx])) return [idx];
   }
 
-  const k = degree2.length;
-  const combo = [];
-  function search(start, depth, target) {
-    if (depth === target) return isCut(combo) ? combo.slice() : null;
-    for (let i = start; i < k; i++) {
-      combo[depth] = degree2[i];
-      const res = search(i + 1, depth + 1, target);
-      if (res) return res;
+  for (let i = 0; i < degree2.length; i++) {
+    for (let j = i + 1; j < degree2.length; j++) {
+      const pair = [degree2[i], degree2[j]];
+      if (isGraphDisconnected(neighbors, total, pair)) return pair;
     }
-    return null;
-  }
-
-  for (let r = 1; r <= k; r++) {
-    const res = search(0, 0, r);
-    if (res) return res;
   }
   return null;
 }
@@ -167,6 +162,154 @@ function getComponents(neighbors) {
 }
 
 // Core solver using backtracking to find minimum path cover
+class PathCoverSolver {
+  constructor(nodes, neighbors, degrees, indexMap, opts) {
+    this.nodes = nodes;
+    this.neighbors = neighbors;
+    this.degrees = degrees;
+    this.indexMap = indexMap;
+    this.opts = opts;
+
+    this.xs = new Int32Array(nodes.length);
+    this.ys = new Int32Array(nodes.length);
+    for (let i = 0; i < nodes.length; i++) {
+      const p = nodes[i];
+      this.xs[i] = p % MAX_DIMENSION;
+      this.ys[i] = Math.floor(p / MAX_DIMENSION);
+    }
+
+    this.total = nodes.length;
+    this.remaining = new Uint8Array(this.total);
+    this.remaining.fill(1);
+
+    this.start = opts.start != null ? indexMap.get(opts.start) : null;
+    this.end = opts.end != null ? indexMap.get(opts.end) : null;
+    this.isAscending = opts.degreeOrder !== 'descending';
+
+    if (opts.start != null && this.start === undefined) throw new Error('Start pixel missing');
+    if (opts.end != null && this.end === undefined) throw new Error('End pixel missing');
+
+    this.best = { paths: null };
+    this.memo = new Map();
+    this.startTime = Date.now();
+    this.timeExceeded = false;
+  }
+
+  dirOrder(dx, dy) {
+    if (dx === 0 && dy === -1) return 0; // up
+    if (dx === 1 && dy === 0) return 1; // right
+    if (dx === 0 && dy === 1) return 2; // down
+    if (dx === -1 && dy === 0) return 3; // left
+    if (dx === -1 && dy === -1) return 4; // left-up
+    if (dx === -1 && dy === 1) return 5; // left-down
+    if (dx === 1 && dy === 1) return 6; // right-down
+    if (dx === 1 && dy === -1) return 7; // right-up
+    return 8;
+  }
+
+  checkTime(acc) {
+    if (Date.now() - this.startTime > TIME_LIMIT) {
+      if (!this.best.paths || acc.length < this.best.paths.length)
+        this.best.paths = acc.map((p) => p.slice());
+      this.timeExceeded = true;
+      return true;
+    }
+    return false;
+  }
+
+  remove(node) {
+    this.remaining[node] = 0;
+    for (const nb of this.neighbors[node]) if (this.remaining[nb]) this.degrees[nb]--;
+  }
+
+  restore(node) {
+    for (const nb of this.neighbors[node]) if (this.remaining[nb]) this.degrees[nb]++;
+    this.remaining[node] = 1;
+  }
+
+  chooseStart() {
+    let bestIdx = -1;
+    let best = this.isAscending ? Infinity : -1;
+    for (let i = 0; i < this.degrees.length; i++) {
+      if (!this.remaining[i]) continue;
+      const d = this.degrees[i];
+      if (this.isAscending ? d < best : d > best) {
+        best = d;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }
+
+  key() {
+    return this.remaining.join('');
+  }
+
+  neighborComparator(node, a, b) {
+    const da = this.degrees[a];
+    const db = this.degrees[b];
+    if (da !== db) return this.isAscending ? da - db : db - da;
+    const orderA = this.dirOrder(this.xs[a] - this.xs[node], this.ys[a] - this.ys[node]);
+    const orderB = this.dirOrder(this.xs[b] - this.xs[node], this.ys[b] - this.ys[node]);
+    return orderA - orderB;
+  }
+
+  search(activeCount, acc) {
+    if (this.timeExceeded) return;
+    if (this.checkTime(acc)) return;
+    const k = this.key();
+    const prev = this.memo.get(k);
+    if (prev != null && acc.length >= prev) return;
+    this.memo.set(k, acc.length);
+    if (this.best.paths && acc.length >= this.best.paths.length) return;
+    if (activeCount === 0) {
+      this.best.paths = acc.map((p) => p.slice());
+      return;
+    }
+    const isFirst = acc.length === 0;
+    const startNode = isFirst && this.start != null ? this.start : this.chooseStart();
+    this.remove(startNode);
+    this.extend(startNode, [startNode], activeCount - 1, acc, isFirst);
+    this.restore(startNode);
+  }
+
+  extend(node, path, activeCount, acc, isFirst) {
+    if (this.timeExceeded) return;
+    if (this.checkTime(acc)) return;
+    if (this.best.paths && acc.length + 1 >= this.best.paths.length) return;
+    const nbs = this.neighbors[node];
+    nbs.sort(this.neighborComparator.bind(this, node));
+    for (const nb of nbs) {
+      if (!this.remaining[nb]) continue;
+      this.remove(nb);
+      path.push(nb);
+      this.extend(nb, path, activeCount - 1, acc, isFirst);
+      path.pop();
+      this.restore(nb);
+      if (this.timeExceeded) return;
+    }
+
+    if (!isFirst || this.end == null || node === this.end) {
+      acc.push(path.slice());
+      this.search(activeCount, acc);
+      acc.pop();
+    }
+  }
+
+  run() {
+    this.search(this.total, []);
+    let paths = [];
+    if (this.best.paths) {
+      paths = this.best.paths.map((p) => p.map((i) => this.nodes[i]));
+    }
+    const covered = new Set(paths.flat());
+    for (const node of this.nodes) {
+      if (!covered.has(node)) paths.push([node]);
+    }
+    return paths;
+  }
+}
+
 function solve(input, opts = {}) {
   let nodes, neighbors, degrees, indexMap;
   if (input && input.nodes && input.neighbors && input.degrees) {
@@ -183,10 +326,8 @@ function solve(input, opts = {}) {
     const results = [];
     for (const part of parts) {
       const partOpts = {};
-      if (opts.start != null && part.nodes.includes(opts.start))
-        partOpts.start = opts.start;
-      if (opts.end != null && part.nodes.includes(opts.end))
-        partOpts.end = opts.end;
+      if (opts.start != null && part.nodes.includes(opts.start)) partOpts.start = opts.start;
+      if (opts.end != null && part.nodes.includes(opts.end)) partOpts.end = opts.end;
       if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
       results.push(solve(part, partOpts));
     }
@@ -194,10 +335,7 @@ function solve(input, opts = {}) {
     for (const res of results) {
       let merged = false;
       for (const cp of cutPixels) {
-        if (
-          combined.some((p) => p.includes(cp)) &&
-          res.some((p) => p.includes(cp))
-        ) {
+        if (combined.some((p) => p.includes(cp)) && res.some((p) => p.includes(cp))) {
           combined = stitchPaths(combined, res, cp);
           merged = true;
           break;
@@ -208,143 +346,12 @@ function solve(input, opts = {}) {
     return combined;
   }
 
-  const xs = new Int32Array(nodes.length);
-  const ys = new Int32Array(nodes.length);
-  for (let i = 0; i < nodes.length; i++) {
-    const p = nodes[i];
-    xs[i] = p % MAX_DIMENSION;
-    ys[i] = Math.floor(p / MAX_DIMENSION);
-  }
-
-  function dirOrder(dx, dy) {
-    if (dx === 0 && dy === -1) return 0; // up
-    if (dx === 1 && dy === 0) return 1; // right
-    if (dx === 0 && dy === 1) return 2; // down
-    if (dx === -1 && dy === 0) return 3; // left
-    if (dx === -1 && dy === -1) return 4; // left-up
-    if (dx === -1 && dy === 1) return 5; // left-down
-    if (dx === 1 && dy === 1) return 6; // right-down
-    if (dx === 1 && dy === -1) return 7; // right-up
-    return 8;
-  }
-
-  const total = nodes.length;
-  const remaining = new Uint8Array(total);
-  remaining.fill(1);
-
-  const start = opts.start != null ? indexMap.get(opts.start) : null;
-  const end = opts.end != null ? indexMap.get(opts.end) : null;
-  const isAscending = opts.degreeOrder !== 'descending';
-
-  if (opts.start != null && start === undefined) throw new Error('Start pixel missing');
-  if (opts.end != null && end === undefined) throw new Error('End pixel missing');
-
-  const best = { paths: null };
-  const memo = new Map();
-  const startTime = Date.now();
-  let timeExceeded = false;
-
-  function checkTime(acc) {
-    if (Date.now() - startTime > TIME_LIMIT) {
-      if (!best.paths || acc.length < best.paths.length)
-        best.paths = acc.map((p) => p.slice());
-      timeExceeded = true;
-      return true;
-    }
-    return false;
-  }
-
-  function remove(node) {
-    remaining[node] = 0;
-    for (const nb of neighbors[node]) if (remaining[nb]) degrees[nb]--;
-  }
-
-  function restore(node) {
-    for (const nb of neighbors[node]) if (remaining[nb]) degrees[nb]++;
-    remaining[node] = 1;
-  }
-
-  function chooseStart() {
-    let bestIdx = -1;
-    let best = isAscending ? Infinity : -1;
-    for (let i = 0; i < degrees.length; i++) {
-      if (!remaining[i]) continue;
-      const d = degrees[i];
-      if (isAscending ? d < best : d > best) {
-        best = d;
-        bestIdx = i;
-      }
-    }
-    return bestIdx;
-  }
-
-  function key() {
-    return remaining.join('');
-  }
-
-  function search(activeCount, acc) {
-    if (timeExceeded) return;
-    if (checkTime(acc)) return;
-    const k = key();
-    const prev = memo.get(k);
-    if (prev != null && acc.length >= prev) return;
-    memo.set(k, acc.length);
-    if (best.paths && acc.length >= best.paths.length) return;
-    if (activeCount === 0) {
-      best.paths = acc.map((p) => p.slice());
-      return;
-    }
-    const isFirst = acc.length === 0;
-    const startNode = isFirst && start != null ? start : chooseStart();
-    remove(startNode);
-    extend(startNode, [startNode], activeCount - 1, acc, isFirst);
-    restore(startNode);
-  }
-
-  function extend(node, path, activeCount, acc, isFirst) {
-    if (timeExceeded) return;
-    if (checkTime(acc)) return;
-    if (best.paths && acc.length + 1 >= best.paths.length) return;
-    const nbs = neighbors[node];
-    nbs.sort((a, b) => {
-      const da = degrees[a];
-      const db = degrees[b];
-      if (da !== db) return isAscending ? da - db : db - da;
-      const orderA = dirOrder(xs[a] - xs[node], ys[a] - ys[node]);
-      const orderB = dirOrder(xs[b] - xs[node], ys[b] - ys[node]);
-      return orderA - orderB;
-    });
-    for (const nb of nbs) {
-      if (!remaining[nb]) continue;
-      remove(nb);
-      path.push(nb);
-      extend(nb, path, activeCount - 1, acc, isFirst);
-      path.pop();
-      restore(nb);
-      if (timeExceeded) return;
-    }
-
-    if (!isFirst || end == null || node === end) {
-      acc.push(path.slice());
-      search(activeCount, acc);
-      acc.pop();
-    }
-  }
-
-  search(total, []);
-  let paths = [];
-  if (best.paths) {
-    paths = best.paths.map((p) => p.map((i) => nodes[i]));
-  }
-  const covered = new Set(paths.flat());
-  for (const node of nodes) {
-    if (!covered.has(node)) paths.push([node]);
-  }
-  return paths;
+  const solver = new PathCoverSolver(nodes, neighbors, degrees, indexMap, opts);
+  return solver.run();
 }
 
-export const useHamiltonianService = () => {
-  function traverseWithStart(pixels, start) {
+class HamiltonianService {
+  traverseWithStart(pixels, start) {
     const { nodes, neighbors, indexMap } = buildGraph(pixels);
     const { components, compIndex } = getComponents(neighbors);
     const startIdx = indexMap.get(start);
@@ -362,15 +369,14 @@ export const useHamiltonianService = () => {
     return result;
   }
 
-  function traverseWithStartEnd(pixels, start, end) {
+  traverseWithStartEnd(pixels, start, end) {
     const { nodes, neighbors, indexMap } = buildGraph(pixels);
     const { components, compIndex } = getComponents(neighbors);
     const startIdx = indexMap.get(start);
     const endIdx = indexMap.get(end);
     if (startIdx === undefined) throw new Error('Start pixel missing');
     if (endIdx === undefined) throw new Error('End pixel missing');
-    if (compIndex[startIdx] !== compIndex[endIdx])
-      throw new Error('Start and end pixels are disconnected');
+    if (compIndex[startIdx] !== compIndex[endIdx]) throw new Error('Start and end pixels are disconnected');
 
     const result = [];
     for (let i = 0; i < components.length; i++) {
@@ -384,7 +390,7 @@ export const useHamiltonianService = () => {
     return result;
   }
 
-  function traverseFree(pixels) {
+  traverseFree(pixels) {
     const { nodes, neighbors } = buildGraph(pixels);
     const { components } = getComponents(neighbors);
     const result = [];
@@ -394,12 +400,8 @@ export const useHamiltonianService = () => {
     }
     return result;
   }
+}
 
-  return {
-    traverseWithStart,
-    traverseWithStartEnd,
-    traverseFree,
-  };
-};
+export const useHamiltonianService = () => new HamiltonianService();
 
 export { buildGraph, findDegree2CutSet, solve };
