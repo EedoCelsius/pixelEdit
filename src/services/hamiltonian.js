@@ -237,10 +237,11 @@ class PathCoverSolver {
     if (opts.start != null && this.start === undefined) throw new Error('Start pixel missing');
     if (opts.end != null && this.end === undefined) throw new Error('End pixel missing');
 
-    this.best = { paths: null };
+    this.best = { paths: null, pathCount: Infinity, level: -1, anchors: 0 };
     this.memo = new Map();
     this.startTime = Date.now();
     this.timeExceeded = false;
+    this.requiredAnchors = (this.start != null ? 1 : 0) + (this.end != null ? 1 : 0);
   }
 
   dirOrder(dx, dy) {
@@ -255,14 +256,59 @@ class PathCoverSolver {
     return 8;
   }
 
-  checkTime(acc) {
-    if (Date.now() - this.startTime > TIME_LIMIT) {
-      if (!this.best.paths || acc.length < this.best.paths.length)
-        this.best.paths = acc.map((p) => p.slice());
-      this.timeExceeded = true;
-      return true;
+  updateBest(acc, activeCount, currentPath = null) {
+    const candidatePaths = currentPath ? [...acc, currentPath] : acc;
+    const pathsCopy = candidatePaths.map((p) => p.slice());
+    const pathCount = candidatePaths.length + activeCount;
+    let startCovered = false;
+    let endCovered = false;
+    if (this.start != null) {
+      for (const p of candidatePaths) {
+        if (p.includes(this.start)) {
+          startCovered = true;
+          break;
+        }
+      }
     }
-    return false;
+    if (this.end != null) {
+      for (const p of candidatePaths) {
+        if (p.includes(this.end)) {
+          endCovered = true;
+          break;
+        }
+      }
+    }
+    const anchors = (startCovered ? 1 : 0) + (endCovered ? 1 : 0);
+    const isFull = activeCount === 0;
+    const isFullPath = isFull && candidatePaths.length === 1;
+    let level = 0;
+    if (isFullPath) {
+      if (anchors === this.requiredAnchors) level = 3;
+      else if (anchors > 0) level = 2;
+      else level = 1;
+    } else if (anchors > 0) {
+      level = 1;
+    }
+
+    const better =
+      !this.best.paths ||
+      level > this.best.level ||
+      (level === this.best.level &&
+        (pathCount < this.best.pathCount ||
+          (pathCount === this.best.pathCount && anchors > this.best.anchors)));
+
+    if (better) {
+      this.best = { paths: pathsCopy, pathCount, level, anchors };
+      if (level === 3 || (level === 2 && this.requiredAnchors === 1)) {
+        this.timeExceeded = true;
+      }
+    }
+  }
+
+  checkTimeout() {
+    if (Date.now() - this.startTime > TIME_LIMIT) {
+      this.timeExceeded = true;
+    }
   }
 
   remove(node) {
@@ -304,16 +350,15 @@ class PathCoverSolver {
 
   search(activeCount, acc) {
     if (this.timeExceeded) return;
-    if (this.checkTime(acc)) return;
+    this.updateBest(acc, activeCount);
+    this.checkTimeout();
+    if (this.timeExceeded) return;
     const k = this.key();
     const prev = this.memo.get(k);
     if (prev != null && acc.length >= prev) return;
     this.memo.set(k, acc.length);
-    if (this.best.paths && acc.length >= this.best.paths.length) return;
-    if (activeCount === 0) {
-      this.best.paths = acc.map((p) => p.slice());
-      return;
-    }
+    if (this.best.paths && acc.length >= this.best.pathCount) return;
+    if (activeCount === 0) return;
     const isFirst = acc.length === 0;
     const startNode = isFirst && this.start != null ? this.start : this.chooseStart();
     this.remove(startNode);
@@ -323,8 +368,10 @@ class PathCoverSolver {
 
   extend(node, path, activeCount, acc, isFirst) {
     if (this.timeExceeded) return;
-    if (this.checkTime(acc)) return;
-    if (this.best.paths && acc.length + 1 >= this.best.paths.length) return;
+    this.updateBest(acc, activeCount, path);
+    this.checkTimeout();
+    if (this.timeExceeded) return;
+    if (this.best.paths && acc.length + 1 >= this.best.pathCount) return;
     const nbs = this.neighbors[node];
     nbs.sort(this.neighborComparator.bind(this, node));
     for (const nb of nbs) {
