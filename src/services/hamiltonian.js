@@ -187,22 +187,26 @@ class PathCoverSolver {
     }
 
     this.total = nodes.length;
-    this.remaining = new Uint8Array(this.total);
-    this.remaining.fill(1);
 
-    this.start = opts.start != null ? indexMap.get(opts.start) : null;
-    this.end = opts.end != null ? indexMap.get(opts.end) : null;
+    this.anchors = (opts.anchor || []).map((p) => indexMap.get(p));
+    if (this.anchors.some((a) => a === undefined)) {
+      throw new Error('Anchor pixel missing');
+    }
     this.isAscending = opts.degreeOrder !== 'descending';
 
-    if (opts.start != null && this.start === undefined) throw new Error('Start pixel missing');
-    if (opts.end != null && this.end === undefined) throw new Error('End pixel missing');
-
     this.best = { paths: null, pathCount: Infinity, level: -1, anchors: 0 };
-    this.memo = new Map();
     this.startTime = Date.now();
     this.timeExceeded = false;
     this.completed = false;
-    this.requiredAnchors = (this.start != null ? 1 : 0) + (this.end != null ? 1 : 0);
+    this.requiredAnchors = this.anchors.length;
+  }
+
+  createContext() {
+    return {
+      remaining: new Uint8Array(this.total).fill(1),
+      degrees: Int32Array.from(this.degrees),
+      memo: new Map(),
+    };
   }
 
   dirOrder(dx, dy) {
@@ -222,17 +226,9 @@ class PathCoverSolver {
     const pathsCopy = candidatePaths.map((p) => p.slice());
     const pathCount = candidatePaths.length + activeCount;
     let anchors = 0;
-    if (this.start != null) {
+    for (const anchor of this.anchors) {
       for (const p of candidatePaths) {
-        if (p[0] === this.start || p[p.length - 1] === this.start) {
-          anchors++;
-          break;
-        }
-      }
-    }
-    if (this.end != null) {
-      for (const p of candidatePaths) {
-        if (p[0] === this.end || p[p.length - 1] === this.end) {
+        if (p[0] === anchor || p[p.length - 1] === anchor) {
           anchors++;
           break;
         }
@@ -270,22 +266,22 @@ class PathCoverSolver {
     }
   }
 
-  remove(node) {
-    this.remaining[node] = 0;
-    for (const nb of this.neighbors[node]) if (this.remaining[nb]) this.degrees[nb]--;
+  remove(ctx, node) {
+    ctx.remaining[node] = 0;
+    for (const nb of this.neighbors[node]) if (ctx.remaining[nb]) ctx.degrees[nb]--;
   }
 
-  restore(node) {
-    for (const nb of this.neighbors[node]) if (this.remaining[nb]) this.degrees[nb]++;
-    this.remaining[node] = 1;
+  restore(ctx, node) {
+    for (const nb of this.neighbors[node]) if (ctx.remaining[nb]) ctx.degrees[nb]++;
+    ctx.remaining[node] = 1;
   }
 
-  chooseStart() {
+  chooseStart(ctx) {
     let bestIdx = -1;
     let best = this.isAscending ? Infinity : -1;
-    for (let i = 0; i < this.degrees.length; i++) {
-      if (!this.remaining[i]) continue;
-      const d = this.degrees[i];
+    for (let i = 0; i < ctx.degrees.length; i++) {
+      if (!ctx.remaining[i]) continue;
+      const d = ctx.degrees[i];
       if (this.isAscending ? d < best : d > best) {
         best = d;
         bestIdx = i;
@@ -294,60 +290,64 @@ class PathCoverSolver {
     return bestIdx;
   }
 
-  key() {
-    return this.remaining.join('');
+  key(ctx) {
+    return ctx.remaining.join('');
   }
 
-  neighborComparator(node, a, b) {
-    const da = this.degrees[a];
-    const db = this.degrees[b];
+  neighborComparator(ctx, node, a, b) {
+    const da = ctx.degrees[a];
+    const db = ctx.degrees[b];
     if (da !== db) return this.isAscending ? da - db : db - da;
     const orderA = this.dirOrder(this.xs[a] - this.xs[node], this.ys[a] - this.ys[node]);
     const orderB = this.dirOrder(this.xs[b] - this.xs[node], this.ys[b] - this.ys[node]);
     return orderA - orderB;
   }
 
-  async search(activeCount, acc) {
+  async search(ctx, activeCount, acc, startOverride = null) {
     this.updateBest(acc, activeCount);
-    const k = this.key();
-    const prev = this.memo.get(k);
+    const k = this.key(ctx);
+    const prev = ctx.memo.get(k);
     if (prev != null && acc.length >= prev) return;
-    this.memo.set(k, acc.length);
+    ctx.memo.set(k, acc.length);
     if (activeCount === 0) return;
     const isFirst = acc.length === 0;
-    const startNode = isFirst && this.start != null ? this.start : this.chooseStart();
-    this.remove(startNode);
-    await this.extend(startNode, [startNode], activeCount - 1, acc, isFirst);
-    this.restore(startNode);
+    const startNode = isFirst && startOverride != null ? startOverride : this.chooseStart(ctx);
+    this.remove(ctx, startNode);
+    await this.extend(ctx, startNode, [startNode], activeCount - 1, acc, isFirst, startOverride);
+    this.restore(ctx, startNode);
   }
 
-  async extend(node, path, activeCount, acc, isFirst) {
+  async extend(ctx, node, path, activeCount, acc, isFirst, startOverride) {
     this.updateBest(acc, activeCount, path);
     const nbs = this.neighbors[node];
-    nbs.sort(this.neighborComparator.bind(this, node));
+    nbs.sort(this.neighborComparator.bind(this, ctx, node));
     for (const nb of nbs) {
-      if (!this.remaining[nb]) continue;
-      this.remove(nb);
+      if (!ctx.remaining[nb]) continue;
+      this.remove(ctx, nb);
       path.push(nb);
-      await this.extend(nb, path, activeCount - 1, acc, isFirst);
+      await this.extend(ctx, nb, path, activeCount - 1, acc, isFirst, startOverride);
       if (this.timeExceeded || this.completed) return;
       path.pop();
-      this.restore(nb);
+      this.restore(ctx, nb);
     }
 
     this.checkTimeout();
     if (this.timeExceeded || this.completed) return;
-    await new Promise(resolve => setTimeout(resolve));
+    await new Promise((resolve) => setTimeout(resolve));
 
-    if (!isFirst || this.end == null || node === this.end) {
-      acc.push(path.slice());
-      await this.search(activeCount, acc);
-      acc.pop();
-    }
+    acc.push(path.slice());
+    await this.search(ctx, activeCount, acc, startOverride);
+    acc.pop();
   }
 
   async run() {
-    await this.search(this.total, []);
+    const starts = this.anchors.length ? this.anchors : [null];
+    await Promise.all(
+      starts.map((s) => {
+        const ctx = this.createContext();
+        return this.search(ctx, this.total, [], s);
+      })
+    );
     let paths = [];
     if (this.best.paths) {
       paths = this.best.paths.map((p) => p.map((i) => this.nodes[i]));
@@ -373,21 +373,16 @@ async function solve(input, opts = {}) {
   if (partition) {
     const results = [];
     for (const part of partition.parts) {
-      const partOpts = {};
-      if (opts.start != null && part.nodes.includes(opts.start)) partOpts.start = opts.start;
-      if (opts.end != null && part.nodes.includes(opts.end)) partOpts.end = opts.end;
+      const partOpts = { anchor: [] };
+      if (opts.anchor) {
+        for (const a of opts.anchor) if (part.nodes.includes(a)) partOpts.anchor.push(a);
+      }
       if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
       for (const [aIdx, bIdx] of partition.cutEdges) {
         const aPixel = nodes[aIdx];
         const bPixel = nodes[bIdx];
-        if (part.nodes.includes(aPixel)) {
-          if (partOpts.start == null) partOpts.start = aPixel;
-          else if (partOpts.end == null) partOpts.end = aPixel;
-        }
-        if (part.nodes.includes(bPixel)) {
-          if (partOpts.start == null) partOpts.start = bPixel;
-          else if (partOpts.end == null) partOpts.end = bPixel;
-        }
+        if (part.nodes.includes(aPixel) && !partOpts.anchor.includes(aPixel)) partOpts.anchor.push(aPixel);
+        if (part.nodes.includes(bPixel) && !partOpts.anchor.includes(bPixel)) partOpts.anchor.push(bPixel);
       }
       results.push(solve(part, partOpts));
     }
@@ -411,7 +406,7 @@ class HamiltonianService {
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
       if (compIndex[startIdx] === i) {
-        result.push(...await solve(compPixels, { start }));
+        result.push(...await solve(compPixels, { anchor: [start] }));
       } else {
         result.push(...await solve(compPixels));
       }
@@ -432,7 +427,7 @@ class HamiltonianService {
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
       if (compIndex[startIdx] === i) {
-        result.push(...await solve(compPixels, { start, end }));
+        result.push(...await solve(compPixels, { anchor: [start, end] }));
       } else {
         result.push(...await solve(compPixels));
       }
