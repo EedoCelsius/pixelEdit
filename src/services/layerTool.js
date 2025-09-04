@@ -34,10 +34,8 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         });
         const newPixels = pixelUnion;
         if (newPixels.length) pixels.addPixels(newLayerId, newPixels);
-        const targetId = nodeTree.orderedSelection[0];
-        nodeTree.insert([newLayerId], targetId, true);
-        const ids = nodeTree.selectedNodeIds;
-        const removed = nodeTree.remove(ids);
+        nodeTree.insert([newLayerId], nodeTree.orderedSelection[0], true);
+        const removed = nodeTree.remove(nodeTree.selectedNodeIds);
         nodes.remove(removed);
         pixels.remove(removed);
         return newLayerId;
