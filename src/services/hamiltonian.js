@@ -1,6 +1,19 @@
 const MAX_DIMENSION = 65536; // from utils
 const TIME_LIMIT = 7500; // from constants/hamiltonian.js
 
+// Return a direction priority for a given offset.
+function dirPriority(dx, dy) {
+  if (dx === 0 && dy === -1) return 0; // up
+  if (dx === 1 && dy === 0) return 1; // right
+  if (dx === 0 && dy === 1) return 2; // down
+  if (dx === -1 && dy === 0) return 3; // left
+  if (dx === -1 && dy === -1) return 4; // left-up
+  if (dx === -1 && dy === 1) return 5; // left-down
+  if (dx === 1 && dy === 1) return 6; // right-down
+  if (dx === 1 && dy === -1) return 7; // right-up
+  return 8;
+}
+
 // Build adjacency info for pixels with 8-way connectivity
 // Returns { nodes, neighbors, degrees, indexMap }
 function buildGraph(pixels) {
@@ -13,13 +26,19 @@ function buildGraph(pixels) {
     const p = nodes[i];
     const x = p % MAX_DIMENSION;
     const y = Math.floor(p / MAX_DIMENSION);
+    const nbs = [];
     for (let dx = -1; dx <= 1; dx++) {
       for (let dy = -1; dy <= 1; dy++) {
         if (dx === 0 && dy === 0) continue;
         const nPixel = x + dx + MAX_DIMENSION * (y + dy);
-        if (set.has(nPixel)) neighbors[i].push(indexMap.get(nPixel));
+        if (set.has(nPixel)) {
+          const idx = indexMap.get(nPixel);
+          nbs.push({ idx, order: dirPriority(dx, dy) });
+        }
       }
     }
+    nbs.sort((a, b) => a.order - b.order);
+    neighbors[i] = nbs.map((n) => n.idx);
   }
 
   const degrees = neighbors.map((nbs) => nbs.length);
@@ -178,14 +197,6 @@ class PathCoverSolver {
     this.indexMap = indexMap;
     this.opts = opts;
 
-    this.xs = new Int32Array(nodes.length);
-    this.ys = new Int32Array(nodes.length);
-    for (let i = 0; i < nodes.length; i++) {
-      const p = nodes[i];
-      this.xs[i] = p % MAX_DIMENSION;
-      this.ys[i] = Math.floor(p / MAX_DIMENSION);
-    }
-
     this.total = nodes.length;
 
     this.anchors = (opts.anchors || []).map((a) => indexMap.get(a));
@@ -200,18 +211,6 @@ class PathCoverSolver {
     this.timeExceeded = false;
     this.completed = false;
     this.requiredAnchors = this.anchors.length;
-  }
-
-  dirOrder(dx, dy) {
-    if (dx === 0 && dy === -1) return 0; // up
-    if (dx === 1 && dy === 0) return 1; // right
-    if (dx === 0 && dy === 1) return 2; // down
-    if (dx === -1 && dy === 0) return 3; // left
-    if (dx === -1 && dy === -1) return 4; // left-up
-    if (dx === -1 && dy === 1) return 5; // left-down
-    if (dx === 1 && dy === 1) return 6; // right-down
-    if (dx === 1 && dy === -1) return 7; // right-up
-    return 8;
   }
 
   updateBest(acc, activeCount, currentPath = null) {
@@ -292,16 +291,21 @@ class PathCoverSolver {
   }
 
   sortedNeighbor(ctx, node) {
-    const nbs = [...this.neighbors[node]];
-    nbs.sort((a, b) => {
-      const da = ctx.degrees[a];
-      const db = ctx.degrees[b];
-      if (da !== db) return this.isAscending ? da - db : db - da;
-      const orderA = this.dirOrder(this.xs[a] - this.xs[node], this.ys[a] - this.ys[node]);
-      const orderB = this.dirOrder(this.xs[b] - this.xs[node], this.ys[b] - this.ys[node]);
-      return orderA - orderB;
-    });
-    return nbs;
+    const result = [];
+    for (const nb of this.neighbors[node]) {
+      const d = ctx.degrees[nb];
+      let inserted = false;
+      for (let i = 0; i < result.length; i++) {
+        const cd = ctx.degrees[result[i]];
+        if (this.isAscending ? d < cd : d > cd) {
+          result.splice(i, 0, nb);
+          inserted = true;
+          break;
+        }
+      }
+      if (!inserted) result.push(nb);
+    }
+    return result;
   }
 
   async search(ctx, activeCount, acc) {
