@@ -211,6 +211,12 @@ class PathCoverSolver {
     this.timeExceeded = false;
     this.completed = false;
     this.requiredAnchors = this.anchors.length;
+
+    // Precompute bit masks for each node and the full hash representing
+    // all nodes present. These masks allow us to maintain a numeric hash
+    // for the remaining nodes without rebuilding a string on each check.
+    this.nodeMasks = Array.from({ length: this.total }, (_, i) => 1n << BigInt(i));
+    this.fullHash = this.nodeMasks.reduce((acc, m) => acc | m, 0n);
   }
 
   updateBest(acc, activeCount, currentPath = null) {
@@ -261,11 +267,13 @@ class PathCoverSolver {
   remove(ctx, node) {
     ctx.remaining[node] = 0;
     for (const nb of this.neighbors[node]) if (ctx.remaining[nb]) ctx.degrees[nb]--;
+    ctx.hash ^= this.nodeMasks[node];
   }
 
   restore(ctx, node) {
     for (const nb of this.neighbors[node]) if (ctx.remaining[nb]) ctx.degrees[nb]++;
     ctx.remaining[node] = 1;
+    ctx.hash ^= this.nodeMasks[node];
   }
 
   chooseStart(ctx) {
@@ -283,10 +291,9 @@ class PathCoverSolver {
   }
 
   checkForBetterMemo(ctx, acc) {
-    const k = ctx.remaining.join('');
-    const prev = ctx.memo.get(k);
+    const prev = ctx.memo.get(ctx.hash);
     if (prev != null && acc.length >= prev) return true;
-    ctx.memo.set(k, acc.length);
+    ctx.memo.set(ctx.hash, acc.length);
     return false;
   }
 
@@ -349,6 +356,7 @@ class PathCoverSolver {
         degrees: Uint8Array.from(this.baseDegrees),
         memo: new Map(),
         start,
+        hash: this.fullHash,
       };
       return this.search(ctx, this.total, []);
     });
