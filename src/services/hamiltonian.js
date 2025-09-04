@@ -211,6 +211,16 @@ class PathCoverSolver {
     this.timeExceeded = false;
     this.completed = false;
     this.requiredAnchors = this.anchors.length;
+
+    // Precompute a 32-bit hash for each node for Zobrist hashing
+    this.nodeHashes = new Uint32Array(this.total);
+    let initHash = 0;
+    for (let i = 0; i < this.total; i++) {
+      const h = (Math.random() * 0xffffffff) >>> 0;
+      this.nodeHashes[i] = h;
+      initHash ^= h;
+    }
+    this.initialHash = initHash >>> 0;
   }
 
   updateBest(acc, activeCount, currentPath = null) {
@@ -259,6 +269,8 @@ class PathCoverSolver {
   }
 
   remove(ctx, node) {
+    ctx.hash ^= this.nodeHashes[node];
+    ctx.hash >>>= 0;
     ctx.remaining[node] = 0;
     for (const nb of this.neighbors[node]) if (ctx.remaining[nb]) ctx.degrees[nb]--;
   }
@@ -266,6 +278,8 @@ class PathCoverSolver {
   restore(ctx, node) {
     for (const nb of this.neighbors[node]) if (ctx.remaining[nb]) ctx.degrees[nb]++;
     ctx.remaining[node] = 1;
+    ctx.hash ^= this.nodeHashes[node];
+    ctx.hash >>>= 0;
   }
 
   chooseStart(ctx) {
@@ -283,7 +297,7 @@ class PathCoverSolver {
   }
 
   checkForBetterMemo(ctx, acc) {
-    const k = ctx.remaining.join('');
+    const k = ctx.hash;
     const prev = ctx.memo.get(k);
     if (prev != null && acc.length >= prev) return true;
     ctx.memo.set(k, acc.length);
@@ -348,6 +362,7 @@ class PathCoverSolver {
         remaining: new Uint8Array(this.total).fill(1),
         degrees: Uint8Array.from(this.baseDegrees),
         memo: new Map(),
+        hash: this.initialHash,
         start,
       };
       return this.search(ctx, this.total, []);
