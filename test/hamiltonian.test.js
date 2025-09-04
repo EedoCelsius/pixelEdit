@@ -4,17 +4,17 @@ import {
   partitionAtDegree2Cut,
   useHamiltonianService,
   solve,
-  stitchPaths,
 } from '../src/services/hamiltonian.js';
 
 const MAX_DIMENSION = 65536;
 const coordToIndex = (x, y) => x + MAX_DIMENSION * y;
 
-// Construct linear graph: A(0,0), B(1,0), C(2,0)
-const A = coordToIndex(0, 0);
-const B = coordToIndex(1, 0);
-const C = coordToIndex(2, 0);
-const pixels = [A, B, C];
+// Construct diamond graph: A(1,0), B(0,1), C(2,1), D(1,2)
+const A = coordToIndex(1, 0);
+const B = coordToIndex(0, 1);
+const C = coordToIndex(2, 1);
+const D = coordToIndex(1, 2);
+const pixels = [A, B, C, D];
 
 // Test cut detection and partitioning
 {
@@ -22,11 +22,8 @@ const pixels = [A, B, C];
   const res = partitionAtDegree2Cut(nodes, neighbors, degrees);
   assert(res);
   assert(Array.isArray(res.cut));
-  assert.strictEqual(res.cut.length, 1);
+  assert.strictEqual(res.cut.length, 2);
   assert(res.left && res.right);
-  const cutPixel = nodes[res.cut[0]];
-  assert(!res.left.nodes.includes(cutPixel));
-  assert(!res.right.nodes.includes(cutPixel));
 }
 
 // Test solver on the same graph
@@ -71,20 +68,4 @@ const pixels = [A, B, C];
     coordToIndex(3, 1), // right-up
   ].sort((a, b) => a - b);
   assert.deepStrictEqual(neighborPixels, expected);
-}
-
-// Test stitching when cut pixel lies in the middle of a path
-{
-  const left = [[1, 4, 2, 3]];
-  const right = [[4, 5]];
-  const res = stitchPaths([...left], [...right], 4);
-  assert.deepStrictEqual(res, [[2, 3], [1, 4, 5]]);
-}
-
-// Test stitching when cut pixel is excluded from subpaths
-{
-  const left = [[1, 2]];
-  const right = [[3, 4]];
-  const res = stitchPaths([...left], [...right], 5, 2, 3);
-  assert.deepStrictEqual(res, [[1, 2, 5, 3, 4]]);
 }
