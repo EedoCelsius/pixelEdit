@@ -189,6 +189,27 @@ function getComponents(neighbors) {
 }
 
 // Core solver using backtracking to find minimum path cover
+import { instantiate } from '@assemblyscript/loader';
+
+let wasmBytesPromise;
+async function getWasmBytes() {
+  if (!wasmBytesPromise) {
+    if (typeof window !== 'undefined' && typeof fetch === 'function') {
+      wasmBytesPromise = fetch('./pathCoverSolver.wasm').then((r) => r.arrayBuffer());
+    } else {
+      wasmBytesPromise = import(/* @vite-ignore */ 'node:fs/promises').then((fs) =>
+        fs.readFile(new URL('../../public/pathCoverSolver.wasm', import.meta.url)),
+      );
+    }
+  }
+  return wasmBytesPromise;
+}
+
+async function instantiateSolver() {
+  const bytes = await getWasmBytes();
+  return instantiate(bytes);
+}
+
 class PathCoverSolver {
   constructor(nodes, neighbors, degrees, indexMap, opts) {
     this.nodes = nodes;
