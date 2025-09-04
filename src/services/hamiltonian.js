@@ -54,8 +54,8 @@ function isGraphDisconnected(neighbors, total, removed) {
 }
 
 // Locate a degree-2 cut set and partition the graph around it.
-// Returns { cut, left, right } where cut is an array of vertex indices
-// and left/right are subgraphs in the same format as buildGraph.
+// Returns { cut, parts } where cut is an array of vertex indices
+// and parts are subgraphs in the same format as buildGraph.
 function partitionAtDegree2Cut(nodes, neighbors, degrees) {
   const degree2 = [];
   for (let i = 0; i < degrees.length; i++) if (degrees[i] === 2) degree2.push(i);
@@ -133,8 +133,7 @@ function partitionAtDegree2Cut(nodes, neighbors, degrees) {
     });
   }
 
-  const [left, right] = parts;
-  return { cut, left, right };
+  return { cut, parts };
 }
 
 // Merge path covers across cut pixels using neighbor information.
@@ -261,25 +260,23 @@ class PathCoverSolver {
     const candidatePaths = currentPath ? [...acc, currentPath] : acc;
     const pathsCopy = candidatePaths.map((p) => p.slice());
     const pathCount = candidatePaths.length + activeCount;
-    let startCovered = false;
-    let endCovered = false;
+    let anchors = 0;
     if (this.start != null) {
       for (const p of candidatePaths) {
-        if (p.includes(this.start)) {
-          startCovered = true;
+        if (p[0] === this.start || p[p.length - 1] === this.start) {
+          anchors++;
           break;
         }
       }
     }
     if (this.end != null) {
       for (const p of candidatePaths) {
-        if (p.includes(this.end)) {
-          endCovered = true;
+        if (p[0] === this.end || p[p.length - 1] === this.end) {
+          anchors++;
           break;
         }
       }
     }
-    const anchors = (startCovered ? 1 : 0) + (endCovered ? 1 : 0);
     const isFull = activeCount === 0;
     const isFullPath = isFull && candidatePaths.length === 1;
     let level = 0;
@@ -349,12 +346,8 @@ class PathCoverSolver {
     return orderA - orderB;
   }
 
-  search(activeCount, acc) {
-    if (this.timeExceeded || this.completed) return;
+  async search(activeCount, acc) {
     this.updateBest(acc, activeCount);
-    if (this.completed) return;
-    this.checkTimeout();
-    if (this.timeExceeded) return;
     const k = this.key();
     const prev = this.memo.get(k);
     if (prev != null && acc.length >= prev) return;
@@ -363,37 +356,37 @@ class PathCoverSolver {
     const isFirst = acc.length === 0;
     const startNode = isFirst && this.start != null ? this.start : this.chooseStart();
     this.remove(startNode);
-    this.extend(startNode, [startNode], activeCount - 1, acc, isFirst);
+    await this.extend(startNode, [startNode], activeCount - 1, acc, isFirst);
     this.restore(startNode);
   }
 
-  extend(node, path, activeCount, acc, isFirst) {
-    if (this.timeExceeded || this.completed) return;
+  async extend(node, path, activeCount, acc, isFirst) {
     this.updateBest(acc, activeCount, path);
-    if (this.completed) return;
-    this.checkTimeout();
-    if (this.timeExceeded) return;
     const nbs = this.neighbors[node];
     nbs.sort(this.neighborComparator.bind(this, node));
     for (const nb of nbs) {
       if (!this.remaining[nb]) continue;
       this.remove(nb);
       path.push(nb);
-      this.extend(nb, path, activeCount - 1, acc, isFirst);
+      await this.extend(nb, path, activeCount - 1, acc, isFirst);
+      if (this.timeExceeded || this.completed) return;
       path.pop();
       this.restore(nb);
-      if (this.timeExceeded || this.completed) return;
     }
+
+    this.checkTimeout();
+    if (this.timeExceeded || this.completed) return;
+    await new Promise(resolve => setTimeout(resolve));
 
     if (!isFirst || this.end == null || node === this.end) {
       acc.push(path.slice());
-      this.search(activeCount, acc);
+      await this.search(activeCount, acc);
       acc.pop();
     }
   }
 
-  run() {
-    this.search(this.total, []);
+  async run() {
+    await this.search(this.total, []);
     let paths = [];
     if (this.best.paths) {
       paths = this.best.paths.map((p) => p.map((i) => this.nodes[i]));
@@ -406,7 +399,7 @@ class PathCoverSolver {
   }
 }
 
-function solve(input, opts = {}) {
+async function solve(input, opts = {}) {
   let nodes, neighbors, degrees, indexMap;
   if (input && input.nodes && input.neighbors && input.degrees) {
     ({ nodes, neighbors, degrees } = input);
@@ -417,47 +410,39 @@ function solve(input, opts = {}) {
 
   const partition = partitionAtDegree2Cut(nodes, neighbors, degrees);
   if (partition) {
-    const { cut, left, right } = partition;
-    const cutPixels = cut.map((i) => nodes[i]);
-    const parts = [left, right];
     const results = [];
-    for (const part of parts) {
-      if (!part) {
-        results.push([]);
-        continue;
-      }
+    for (const part of partition.parts) {
       const partOpts = {};
-      const mandatory = Object.values(part.cutNeighbors || {});
-      if (mandatory[0] != null) partOpts.start = mandatory[0];
-      if (mandatory[1] != null) partOpts.end = mandatory[1];
-      if (opts.start != null && part.nodes.includes(opts.start)) {
-        if (partOpts.start == null) partOpts.start = opts.start;
-        else if (partOpts.end == null && opts.start !== partOpts.start)
-          partOpts.end = opts.start;
-      }
-      if (opts.end != null && part.nodes.includes(opts.end)) {
-        if (partOpts.end == null && opts.end !== partOpts.start) partOpts.end = opts.end;
-        else if (partOpts.start == null) partOpts.start = opts.end;
-      }
+      if (opts.start != null && part.nodes.includes(opts.start)) partOpts.start = opts.start;
+      if (opts.end != null && part.nodes.includes(opts.end)) partOpts.end = opts.end;
       if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
+      const neighbors = Object.values(part.cutNeighbors);
+      if (neighbors[0] != null) {
+        if (partOpts.start == null) partOpts.start = neighbors[0];
+        else if (partOpts.end == null) partOpts.end = neighbors[0];
+      }
+      if (neighbors[1] != null) {
+        if (partOpts.end == null) partOpts.end = neighbors[1];
+        else if (partOpts.start == null) partOpts.start = neighbors[1];
+      }
       results.push(solve(part, partOpts));
     }
-    const leftRes = results[0] || [];
-    const rightRes = results[1] || [];
+    const [leftRes, rightRes] = await Promise.all(results);
+    const cutPixels = partition.cut.map((i) => nodes[i]);
     const cutInfos = cutPixels.map((cp) => ({
       cutPixel: cp,
-      leftNeighbor: left?.cutNeighbors?.[cp],
-      rightNeighbor: right?.cutNeighbors?.[cp],
+      leftNeighbor: partition.parts[0].cutNeighbors[cp],
+      rightNeighbor: partition.parts[1].cutNeighbors[cp],
     }));
     return stitchPaths(leftRes, rightRes, cutInfos);
   }
 
   const solver = new PathCoverSolver(nodes, neighbors, degrees, indexMap, opts);
-  return solver.run();
+  return await solver.run();
 }
 
 class HamiltonianService {
-  traverseWithStart(pixels, start) {
+  async traverseWithStart(pixels, start) {
     const { nodes, neighbors, indexMap } = buildGraph(pixels);
     const { components, compIndex } = getComponents(neighbors);
     const startIdx = indexMap.get(start);
@@ -467,9 +452,9 @@ class HamiltonianService {
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
       if (compIndex[startIdx] === i) {
-        result.push(...solve(compPixels, { start }));
+        result.push(...await solve(compPixels, { start }));
       } else {
-        result.push(...solve(compPixels));
+        result.push(...await solve(compPixels));
       }
     }
     return result;
