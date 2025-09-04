@@ -217,7 +217,7 @@ export const usePathToolService = defineStore('pathToolService', () => {
         tool.setCursor({ stroke: CURSOR_STYLE.PATH, rect: CURSOR_STYLE.PATH });
     });
 
-    watch(() => tool.affectedPixels, async (pixels) => {
+    watch(() => tool.affectedPixels, (pixels) => {
         if (tool.prepared !== 'path' || nodeTree.selectedLayerCount !== 1) return;
         if (pixels.length !== 1) return;
 
@@ -228,7 +228,7 @@ export const usePathToolService = defineStore('pathToolService', () => {
         tool.setCursor({ stroke: CURSOR_STYLE.WAIT, rect: CURSOR_STYLE.WAIT });
 
         const allPixels = pixelStore.get(layerId);
-        const paths = await hamiltonian.traverseWithStart(allPixels, startPixel);
+        const paths = hamiltonian.traverseWithStart(allPixels, startPixel);
 
         tool.setCursor({ stroke: CURSOR_STYLE.PATH, rect: CURSOR_STYLE.PATH });
 

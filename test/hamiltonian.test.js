@@ -27,21 +27,21 @@ const pixels = [A, B, C, D];
 }
 
 // Test solver on the same graph
-  {
-    const service = useHamiltonianService();
-    const paths = await service.traverseFree(pixels);
-    assert.strictEqual(paths.length, 1);
-    const covered = new Set(paths.flat());
-    assert.strictEqual(covered.size, pixels.length);
-  }
+{
+  const service = useHamiltonianService();
+  const paths = service.traverseFree(pixels);
+  assert.strictEqual(paths.length, 1);
+  const covered = new Set(paths.flat());
+  assert.strictEqual(covered.size, pixels.length);
+}
 
 // Test solver with descending degree order
-  {
-    const paths = await solve(pixels, { degreeOrder: 'descending' });
-    assert.strictEqual(paths.length, 1);
-    const covered = new Set(paths.flat());
-    assert.strictEqual(covered.size, pixels.length);
-  }
+{
+  const paths = solve(pixels, { degreeOrder: 'descending' });
+  assert.strictEqual(paths.length, 1);
+  const covered = new Set(paths.flat());
+  assert.strictEqual(covered.size, pixels.length);
+}
 
 // Test neighbor coverage without assuming order
 {
