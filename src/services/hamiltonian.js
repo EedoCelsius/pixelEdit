@@ -1,4 +1,5 @@
 const MAX_DIMENSION = 65536; // from utils
+const TIME_LIMIT = 7500; // from constants/hamiltonian.js
 
 // Return a direction priority for a given offset.
 function dirPriority(dx, dy) {
@@ -188,27 +189,6 @@ function getComponents(neighbors) {
 }
 
 // Core solver using backtracking to find minimum path cover
-import { instantiate } from '@assemblyscript/loader';
-
-let wasmBytesPromise;
-async function getWasmBytes() {
-  if (!wasmBytesPromise) {
-    if (typeof window !== 'undefined' && typeof fetch === 'function') {
-      wasmBytesPromise = fetch('/pathCoverSolver.wasm').then((r) => r.arrayBuffer());
-    } else {
-      wasmBytesPromise = import(/* @vite-ignore */ 'node:fs/promises').then((fs) =>
-        fs.readFile(new URL('../../public/pathCoverSolver.wasm', import.meta.url)),
-      );
-    }
-  }
-  return wasmBytesPromise;
-}
-
-async function instantiateSolver() {
-  const bytes = await getWasmBytes();
-  return instantiate(bytes);
-}
-
 class PathCoverSolver {
   constructor(nodes, neighbors, degrees, indexMap, opts) {
     this.nodes = nodes;
@@ -218,80 +198,177 @@ class PathCoverSolver {
     this.opts = opts;
 
     this.total = nodes.length;
+
     this.anchors = (opts.anchors || []).map((a) => indexMap.get(a));
     for (const a of opts.anchors || []) {
       if (indexMap.get(a) === undefined) throw new Error('Anchor pixel missing');
     }
+
+    this.isAscending = opts.degreeOrder !== 'descending';
+
+    this.best = { paths: null, pathCount: Infinity, level: -1, anchors: 0 };
+    this.startTime = Date.now();
+    this.timeExceeded = false;
+    this.completed = false;
+    this.requiredAnchors = this.anchors.length;
+
+    // Precompute a 32-bit hash for each node for Zobrist hashing
+    this.nodeHashes = new Uint32Array(this.total);
+    let initHash = 0;
+    for (let i = 0; i < this.total; i++) {
+      const h = (Math.random() * 0xffffffff) >>> 0;
+      this.nodeHashes[i] = h;
+      initHash ^= h;
+    }
+    this.initialHash = initHash >>> 0;
+  }
+
+  updateBest(acc, activeCount, currentPath = null) {
+    const candidatePaths = currentPath ? [...acc, currentPath] : acc;
+    const pathsCopy = candidatePaths.map((p) => p.slice());
+    const pathCount = candidatePaths.length + activeCount;
+    let anchors = 0;
+    for (const a of this.anchors) {
+      for (const p of candidatePaths) {
+        if (p[0] === a || p[p.length - 1] === a) {
+          anchors++;
+          break;
+        }
+      }
+    }
+    const isFull = activeCount === 0;
+    const isFullPath = isFull && candidatePaths.length === 1;
+    let level = 0;
+    if (isFullPath) {
+      if (anchors === this.requiredAnchors) level = 3;
+      else if (anchors > 0) level = 2;
+      else level = 1;
+    } else if (anchors > 0) {
+      level = 1;
+    }
+
+    const better =
+      !this.best.paths ||
+      level > this.best.level ||
+      (level === this.best.level &&
+        (pathCount < this.best.pathCount ||
+          (pathCount === this.best.pathCount && anchors > this.best.anchors)));
+
+    if (better) {
+      this.best = { paths: pathsCopy, pathCount, level, anchors };
+      if (level === 3 || (level === 2 && this.requiredAnchors === 1)) {
+        this.completed = true;
+      }
+    }
+  }
+
+  checkTimeout() {
+    if (Date.now() - this.startTime > TIME_LIMIT) {
+      this.timeExceeded = true;
+    }
+  }
+
+  remove(ctx, node) {
+    ctx.hash ^= this.nodeHashes[node];
+    ctx.hash >>>= 0;
+    ctx.remaining[node] = 0;
+    for (const nb of this.neighbors[node]) if (ctx.remaining[nb]) ctx.degrees[nb]--;
+  }
+
+  restore(ctx, node) {
+    for (const nb of this.neighbors[node]) if (ctx.remaining[nb]) ctx.degrees[nb]++;
+    ctx.remaining[node] = 1;
+    ctx.hash ^= this.nodeHashes[node];
+    ctx.hash >>>= 0;
+  }
+
+  chooseStart(ctx) {
+    let bestIdx = -1;
+    let best = this.isAscending ? Infinity : -1;
+    for (let i = 0; i < ctx.degrees.length; i++) {
+      if (!ctx.remaining[i]) continue;
+      const d = ctx.degrees[i];
+      if (this.isAscending ? d < best : d > best) {
+        best = d;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }
+
+  checkForBetterMemo(ctx, acc) {
+    const k = ctx.hash;
+    const prev = ctx.memo.get(k);
+    if (prev != null && acc.length >= prev) return true;
+    ctx.memo.set(k, acc.length);
+    return false;
+  }
+
+  sortedNeighbor(ctx, node) {
+    const result = [];
+    for (const nb of this.neighbors[node]) {
+      const d = ctx.degrees[nb];
+      let inserted = false;
+      for (let i = 0; i < result.length; i++) {
+        const cd = ctx.degrees[result[i]];
+        if (this.isAscending ? d < cd : d > cd) {
+          result.splice(i, 0, nb);
+          inserted = true;
+          break;
+        }
+      }
+      if (!inserted) result.push(nb);
+    }
+    return result;
+  }
+
+  async search(ctx, activeCount, acc) {
+    this.updateBest(acc, activeCount);
+    if (this.checkForBetterMemo(ctx, acc)) return;
+    if (activeCount === 0) return;
+    const isFirst = acc.length === 0;
+    const startNode = isFirst && ctx.start != null ? ctx.start : this.chooseStart(ctx);
+    this.remove(ctx, startNode);
+    await this.extend(ctx, startNode, [startNode], activeCount - 1, acc, isFirst);
+    this.restore(ctx, startNode);
+  }
+
+  async extend(ctx, node, path, activeCount, acc, isFirst) {
+    this.updateBest(acc, activeCount, path);
+    const nbs = this.sortedNeighbor(ctx, node);
+    for (const nb of nbs) {
+      if (!ctx.remaining[nb]) continue;
+      this.remove(ctx, nb);
+      path.push(nb);
+      await this.extend(ctx, nb, path, activeCount - 1, acc, isFirst);
+      if (this.timeExceeded || this.completed) return;
+      path.pop();
+      this.restore(ctx, nb);
+    }
+
+    this.checkTimeout();
+    if (this.timeExceeded || this.completed) return;
+    await new Promise(resolve => setTimeout(resolve));
+
+    acc.push(path.slice());
+    await this.search(ctx, activeCount, acc);
+    acc.pop();
   }
 
   async run() {
-    const anchorIndices = this.anchors;
-    const anchorPixels = this.opts.anchors || [];
-    const starts = anchorIndices.length ? anchorIndices : [null];
-    const isAscending = this.opts.degreeOrder !== 'descending';
-
-    const tasks = starts.map(async (start) => {
-      const wasm = await instantiateSolver();
-      const {
-        solve,
-        IntArray_ID,
-        IntArrayArray_ID,
-        Uint8Array_ID,
-        __newArray,
-        __getArray,
-      } = wasm.exports;
-
-      const nodesPtr = __newArray(IntArray_ID, this.nodes);
-      const neighborPtrs = this.neighbors.map((n) => __newArray(IntArray_ID, n));
-      const neighborsPtr = __newArray(IntArrayArray_ID, neighborPtrs);
-      const degreesPtr = __newArray(Uint8Array_ID, this.baseDegrees);
-      const anchorsPtr = __newArray(IntArray_ID, anchorIndices);
-
-      const resultPtr = solve(
-        nodesPtr,
-        neighborsPtr,
-        degreesPtr,
-        anchorsPtr,
-        start ?? -1,
-        isAscending ? 1 : 0,
-      );
-      return __getArray(resultPtr).map((p) => __getArray(p));
+    const starts = this.anchors.length ? this.anchors : [null];
+    const tasks = starts.map((start) => {
+      const ctx = {
+        remaining: new Uint8Array(this.total).fill(1),
+        degrees: Uint8Array.from(this.baseDegrees),
+        memo: new Map(),
+        hash: this.initialHash,
+        start,
+      };
+      return this.search(ctx, this.total, []);
     });
-
-    const results = await Promise.all(tasks);
-    const requiredAnchors = anchorPixels.length;
-    let best = null;
-    for (const paths of results) {
-      const pathCount = paths.length;
-      let anchorHits = 0;
-      for (const a of anchorPixels) {
-        for (const p of paths) {
-          if (p[0] === a || p[p.length - 1] === a) {
-            anchorHits++;
-            break;
-          }
-        }
-      }
-      const isFullPath = pathCount === 1;
-      let level = 0;
-      if (isFullPath) {
-        if (anchorHits === requiredAnchors) level = 3;
-        else if (anchorHits > 0) level = 2;
-        else level = 1;
-      } else if (anchorHits > 0) {
-        level = 1;
-      }
-      if (
-        !best ||
-        level > best.level ||
-        (level === best.level &&
-          (pathCount < best.pathCount ||
-            (pathCount === best.pathCount && anchorHits > best.anchors)))
-      ) {
-        best = { paths, pathCount, anchors: anchorHits, level };
-      }
-    }
-    return best.paths;
+    await Promise.all(tasks);
+    return this.best.paths.map((p) => p.map((i) => this.nodes[i]));
   }
 }
 
