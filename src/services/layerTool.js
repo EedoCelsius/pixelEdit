@@ -8,7 +8,10 @@ export const useLayerToolService = defineStore('layerToolService', () => {
     const layerQuery = useLayerQueryService();
 
     function mergeSelected() {
-        if (nodeTree.selectedLayerCount < 2) return;
+        const selected = nodeTree.selectedIds;
+        const hasGroup = selected.some(id => nodes.getProperty(id, 'type') === 'group');
+        if (nodeTree.selectedLayerCount < 2 && !hasGroup) return;
+
         const pixelUnion = getPixelUnion(pixels.getProperties(nodeTree.selectedLayerIds));
 
         const colors = [];
@@ -24,9 +27,10 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         }
         const colorU32 = averageColorU32(colors);
 
-        const firstId = nodeTree.selectedLayerIds[0];
-        const maintainedName = nodes.getProperty(firstId, 'name') || 'Merged';
-        const maintainedAttrs = nodes.getProperty(firstId, 'attributes');
+        const firstLayerId = nodeTree.selectedLayerIds[0];
+        const referenceId = firstLayerId ?? selected[0];
+        const maintainedName = nodes.getProperty(referenceId, 'name') || 'Merged';
+        const maintainedAttrs = nodes.getProperty(referenceId, 'attributes');
         const newLayerId = nodes.createLayer({
             name: `Merged ${maintainedName}`,
             color: colorU32,
@@ -34,8 +38,19 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         });
         const newPixels = pixelUnion;
         if (newPixels.length) pixels.addPixels(newLayerId, newPixels);
-        nodeTree.insert([newLayerId], layerQuery.lowermost(nodeTree.selectedLayerIds), true);
-        const ids = nodeTree.selectedLayerIds;
+        const allNodeIds = nodeTree.allNodeIds;
+        let lowermost = null;
+        let minIndex = Infinity;
+        for (const id of selected) {
+            const idx = allNodeIds.indexOf(id);
+            if (idx !== -1 && idx < minIndex) {
+                minIndex = idx;
+                lowermost = id;
+            }
+        }
+        nodeTree.insert([newLayerId], lowermost, true);
+
+        const ids = selected;
         const removed = nodeTree.remove(ids);
         nodes.remove(removed);
         pixels.remove(removed);
