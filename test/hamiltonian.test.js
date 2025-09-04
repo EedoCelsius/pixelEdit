@@ -43,6 +43,14 @@ const pixels = [A, B, C, D];
   assert.strictEqual(covered.size, pixels.length);
 }
 
+// Test solver with anchors
+{
+  const paths = await solve(pixels, { anchors: [A, D] });
+  assert.strictEqual(paths.length, 1);
+  const covered = new Set(paths.flat());
+  assert.strictEqual(covered.size, pixels.length);
+}
+
 // Test neighbor coverage without assuming order
 {
   const center = coordToIndex(2, 2);
