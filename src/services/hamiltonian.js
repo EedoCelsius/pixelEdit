@@ -193,7 +193,7 @@ import { instantiate } from '@assemblyscript/loader';
 let wasmBytesPromise;
 async function getWasmBytes() {
   if (!wasmBytesPromise) {
-    wasmBytesPromise = fetch('/pathCoverSolver.wasm').then((r) => r.arrayBuffer());
+    wasmBytesPromise = fetch('pathCoverSolver.wasm').then((r) => r.arrayBuffer());
   }
   return wasmBytesPromise;
 }
