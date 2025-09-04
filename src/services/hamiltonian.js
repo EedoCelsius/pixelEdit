@@ -1,11 +1,6 @@
 const MAX_DIMENSION = 65536; // from utils
 const TIME_LIMIT = 7500; // from constants/hamiltonian.js
 
-// Yield control to allow other async tasks to run
-function asyncYield() {
-  return new Promise((resolve) => queueMicrotask(resolve));
-}
-
 // Build adjacency info for pixels with 8-way connectivity
 // Returns { nodes, neighbors, degrees, indexMap }
 function buildGraph(pixels) {
@@ -242,7 +237,7 @@ class PathCoverSolver {
     if (opts.start != null && this.start === undefined) throw new Error('Start pixel missing');
     if (opts.end != null && this.end === undefined) throw new Error('End pixel missing');
 
-    this.best = null;
+    this.best = { paths: null };
     this.memo = new Map();
     this.startTime = Date.now();
     this.timeExceeded = false;
@@ -260,48 +255,14 @@ class PathCoverSolver {
     return 8;
   }
 
-  evaluate(paths) {
-    const pathCount = paths.length;
-    const isFull = pathCount === 1 && paths[0].length === this.total;
-    let anchors = 0;
-    if (this.start != null && paths.some((p) => p.includes(this.start))) anchors++;
-    if (this.end != null && paths.some((p) => p.includes(this.end))) anchors++;
-    let priority;
-    if (isFull && anchors === 2) priority = 0;
-    else if (isFull && anchors >= 1) priority = 1;
-    else priority = 2;
-    return { paths: paths.map((p) => p.slice()), pathCount, anchors, isFull, priority };
-  }
-
-  isBetter(candidate, current) {
-    if (!current) return true;
-    if (candidate.priority !== current.priority)
-      return candidate.priority < current.priority;
-    if (candidate.priority === 2) {
-      if (candidate.pathCount !== current.pathCount)
-        return candidate.pathCount < current.pathCount;
-      if (candidate.anchors !== current.anchors)
-        return candidate.anchors > current.anchors;
+  checkTime(acc) {
+    if (Date.now() - this.startTime > TIME_LIMIT) {
+      if (!this.best.paths || acc.length < this.best.paths.length)
+        this.best.paths = acc.map((p) => p.slice());
+      this.timeExceeded = true;
+      return true;
     }
     return false;
-  }
-
-  async postComparison(acc) {
-    const candidate = this.evaluate(acc);
-    if (this.isBetter(candidate, this.best)) {
-      this.best = candidate;
-      if (
-        candidate.priority === 0 ||
-        (candidate.priority === 1 && (this.start == null || this.end == null))
-      ) {
-        this.timeExceeded = true;
-      }
-    }
-    if (Date.now() - this.startTime > TIME_LIMIT) {
-      this.timeExceeded = true;
-    }
-    await asyncYield();
-    return this.timeExceeded;
   }
 
   remove(node) {
@@ -341,37 +302,36 @@ class PathCoverSolver {
     return orderA - orderB;
   }
 
-  async search(activeCount, acc) {
+  search(activeCount, acc) {
     if (this.timeExceeded) return;
-    if (await this.postComparison(acc)) return;
+    if (this.checkTime(acc)) return;
     const k = this.key();
     const prev = this.memo.get(k);
     if (prev != null && acc.length >= prev) return;
     this.memo.set(k, acc.length);
-    if (this.best && this.best.priority === 2 && acc.length >= this.best.pathCount)
+    if (this.best.paths && acc.length >= this.best.paths.length) return;
+    if (activeCount === 0) {
+      this.best.paths = acc.map((p) => p.slice());
       return;
-    if (this.best && this.best.priority < 2) return;
-    if (activeCount === 0) return;
+    }
     const isFirst = acc.length === 0;
     const startNode = isFirst && this.start != null ? this.start : this.chooseStart();
     this.remove(startNode);
-    await this.extend(startNode, [startNode], activeCount - 1, acc, isFirst);
+    this.extend(startNode, [startNode], activeCount - 1, acc, isFirst);
     this.restore(startNode);
   }
 
-  async extend(node, path, activeCount, acc, isFirst) {
+  extend(node, path, activeCount, acc, isFirst) {
     if (this.timeExceeded) return;
-    if (await this.postComparison([...acc, path])) return;
-    if (this.best && this.best.priority === 2 && acc.length + 1 >= this.best.pathCount)
-      return;
-    if (this.best && this.best.priority < 2) return;
+    if (this.checkTime(acc)) return;
+    if (this.best.paths && acc.length + 1 >= this.best.paths.length) return;
     const nbs = this.neighbors[node];
     nbs.sort(this.neighborComparator.bind(this, node));
     for (const nb of nbs) {
       if (!this.remaining[nb]) continue;
       this.remove(nb);
       path.push(nb);
-      await this.extend(nb, path, activeCount - 1, acc, isFirst);
+      this.extend(nb, path, activeCount - 1, acc, isFirst);
       path.pop();
       this.restore(nb);
       if (this.timeExceeded) return;
@@ -379,15 +339,15 @@ class PathCoverSolver {
 
     if (!isFirst || this.end == null || node === this.end) {
       acc.push(path.slice());
-      await this.search(activeCount, acc);
+      this.search(activeCount, acc);
       acc.pop();
     }
   }
 
-  async run() {
-    await this.search(this.total, []);
+  run() {
+    this.search(this.total, []);
     let paths = [];
-    if (this.best && this.best.paths) {
+    if (this.best.paths) {
       paths = this.best.paths.map((p) => p.map((i) => this.nodes[i]));
     }
     const covered = new Set(paths.flat());
@@ -398,7 +358,7 @@ class PathCoverSolver {
   }
 }
 
-async function solve(input, opts = {}) {
+function solve(input, opts = {}) {
   let nodes, neighbors, degrees, indexMap;
   if (input && input.nodes && input.neighbors && input.degrees) {
     ({ nodes, neighbors, degrees } = input);
@@ -411,8 +371,13 @@ async function solve(input, opts = {}) {
   if (partition) {
     const { cut, left, right } = partition;
     const cutPixels = cut.map((i) => nodes[i]);
-    const parts = [left, right].map((part) => {
-      if (!part) return Promise.resolve([]);
+    const parts = [left, right];
+    const results = [];
+    for (const part of parts) {
+      if (!part) {
+        results.push([]);
+        continue;
+      }
       const partOpts = {};
       const mandatory = Object.values(part.cutNeighbors || {});
       if (mandatory[0] != null) partOpts.start = mandatory[0];
@@ -427,9 +392,10 @@ async function solve(input, opts = {}) {
         else if (partOpts.start == null) partOpts.start = opts.end;
       }
       if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
-      return solve(part, partOpts);
-    });
-    const [leftRes = [], rightRes = []] = await Promise.all(parts);
+      results.push(solve(part, partOpts));
+    }
+    const leftRes = results[0] || [];
+    const rightRes = results[1] || [];
     const cutInfos = cutPixels.map((cp) => ({
       cutPixel: cp,
       leftNeighbor: left?.cutNeighbors?.[cp],
@@ -439,11 +405,11 @@ async function solve(input, opts = {}) {
   }
 
   const solver = new PathCoverSolver(nodes, neighbors, degrees, indexMap, opts);
-  return await solver.run();
+  return solver.run();
 }
 
 class HamiltonianService {
-  async traverseWithStart(pixels, start) {
+  traverseWithStart(pixels, start) {
     const { nodes, neighbors, indexMap } = buildGraph(pixels);
     const { components, compIndex } = getComponents(neighbors);
     const startIdx = indexMap.get(start);
@@ -453,15 +419,15 @@ class HamiltonianService {
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
       if (compIndex[startIdx] === i) {
-        result.push(...(await solve(compPixels, { start })));
+        result.push(...solve(compPixels, { start }));
       } else {
-        result.push(...(await solve(compPixels)));
+        result.push(...solve(compPixels));
       }
     }
     return result;
   }
 
-  async traverseWithStartEnd(pixels, start, end) {
+  traverseWithStartEnd(pixels, start, end) {
     const { nodes, neighbors, indexMap } = buildGraph(pixels);
     const { components, compIndex } = getComponents(neighbors);
     const startIdx = indexMap.get(start);
@@ -474,21 +440,21 @@ class HamiltonianService {
     for (let i = 0; i < components.length; i++) {
       const compPixels = components[i].map((idx) => nodes[idx]);
       if (compIndex[startIdx] === i) {
-        result.push(...(await solve(compPixels, { start, end })));
+        result.push(...solve(compPixels, { start, end }));
       } else {
-        result.push(...(await solve(compPixels)));
+        result.push(...solve(compPixels));
       }
     }
     return result;
   }
 
-  async traverseFree(pixels) {
+  traverseFree(pixels) {
     const { nodes, neighbors } = buildGraph(pixels);
     const { components } = getComponents(neighbors);
     const result = [];
     for (const comp of components) {
       const compPixels = comp.map((idx) => nodes[idx]);
-      result.push(...(await solve(compPixels)));
+      result.push(...solve(compPixels));
     }
     return result;
   }
