@@ -1,7 +1,7 @@
 import assert from 'assert';
 import {
   buildGraph,
-  partitionAtDegree2Cut,
+  partitionAtEdgeCut,
   useHamiltonianService,
   solve,
 } from '../src/services/hamiltonian.js';
@@ -18,18 +18,18 @@ const pixels = [A, B, C, D];
 
 // Test cut detection and partitioning
 {
-  const { nodes, neighbors, degrees } = buildGraph(pixels);
-  const res = partitionAtDegree2Cut(nodes, neighbors, degrees);
+  const { nodes, neighbors } = buildGraph(pixels);
+  const res = partitionAtEdgeCut(nodes, neighbors);
   assert(res);
-  assert(Array.isArray(res.cut));
-  assert.strictEqual(res.cut.length, 2);
+  assert(Array.isArray(res.cutEdges));
+  assert.strictEqual(res.cutEdges.length, 2);
   assert(res.parts[0] && res.parts[1]);
 }
 
 // Test solver on the same graph
 {
   const service = useHamiltonianService();
-  const paths = service.traverseFree(pixels);
+  const paths = await service.traverseFree(pixels);
   assert.strictEqual(paths.length, 1);
   const covered = new Set(paths.flat());
   assert.strictEqual(covered.size, pixels.length);
@@ -37,7 +37,7 @@ const pixels = [A, B, C, D];
 
 // Test solver with descending degree order
 {
-  const paths = solve(pixels, { degreeOrder: 'descending' });
+  const paths = await solve(pixels, { degreeOrder: 'descending' });
   assert.strictEqual(paths.length, 1);
   const covered = new Set(paths.flat());
   assert.strictEqual(covered.size, pixels.length);
