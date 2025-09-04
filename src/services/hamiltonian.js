@@ -53,35 +53,41 @@ function isGraphDisconnected(neighbors, total, removed) {
   return false;
 }
 
-// Attempt to find a minimal set of degree-2 vertices whose removal
-// disconnects the graph. Only single vertices or pairs are considered.
-// Returns an array of vertex indices or null if no such cut set exists.
-function findDegree2CutSet(neighbors, degrees) {
+// Locate a degree-2 cut set and partition the graph around it.
+// Returns { cut, left, right } where cut is an array of vertex indices
+// and left/right are subgraphs in the same format as buildGraph.
+function partitionAtDegree2Cut(nodes, neighbors, degrees) {
   const degree2 = [];
   for (let i = 0; i < degrees.length; i++) if (degrees[i] === 2) degree2.push(i);
   const total = neighbors.length;
 
+  let cut = null;
   for (const idx of degree2) {
-    if (isGraphDisconnected(neighbors, total, [idx])) return [idx];
-  }
-
-  for (let i = 0; i < degree2.length; i++) {
-    for (let j = i + 1; j < degree2.length; j++) {
-      const pair = [degree2[i], degree2[j]];
-      if (isGraphDisconnected(neighbors, total, pair)) return pair;
+    if (isGraphDisconnected(neighbors, total, [idx])) {
+      cut = [idx];
+      break;
     }
   }
-  return null;
-}
 
-// Partition graph around a cut set. Returns arrays of indices for each
-// component, including the cut vertices adjacent to that component.
-function partitionAtCut(nodes, neighbors, cutSet) {
-  const cuts = Array.isArray(cutSet) ? cutSet : [cutSet];
-  const cutLookup = new Set(cuts);
+  if (!cut) {
+    for (let i = 0; i < degree2.length; i++) {
+      for (let j = i + 1; j < degree2.length; j++) {
+        const pair = [degree2[i], degree2[j]];
+        if (isGraphDisconnected(neighbors, total, pair)) {
+          cut = pair;
+          break;
+        }
+      }
+      if (cut) break;
+    }
+  }
+
+  if (!cut) return null;
+
+  const cutLookup = new Set(cut);
   const visited = new Uint8Array(neighbors.length);
-  for (const c of cuts) visited[c] = 1;
-  const res = [];
+  for (const c of cut) visited[c] = 1;
+  const parts = [];
 
   for (let i = 0; i < neighbors.length; i++) {
     if (visited[i]) continue;
@@ -114,9 +120,11 @@ function partitionAtCut(nodes, neighbors, cutSet) {
     });
     const partDegrees = partNeighbors.map((nbs) => nbs.length);
     const partNodes = partIndices.map((idx) => nodes[idx]);
-    res.push({ nodes: partNodes, neighbors: partNeighbors, degrees: partDegrees });
+    parts.push({ nodes: partNodes, neighbors: partNeighbors, degrees: partDegrees });
   }
-  return res;
+
+  const [left, right] = parts;
+  return { cut, left, right };
 }
 
 // Merge two path covers using the shared cut pixel
@@ -319,10 +327,11 @@ function solve(input, opts = {}) {
     ({ nodes, neighbors, degrees, indexMap } = buildGraph(input));
   }
 
-  const cutSet = findDegree2CutSet(neighbors, degrees);
-  if (cutSet && cutSet.length) {
-    const parts = partitionAtCut(nodes, neighbors, cutSet);
-    const cutPixels = cutSet.map((i) => nodes[i]);
+  const partition = partitionAtDegree2Cut(nodes, neighbors, degrees);
+  if (partition) {
+    const { cut, left, right } = partition;
+    const cutPixels = cut.map((i) => nodes[i]);
+    const parts = [left, right].filter(Boolean);
     const results = [];
     for (const part of parts) {
       const partOpts = {};
@@ -331,8 +340,9 @@ function solve(input, opts = {}) {
       if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
       results.push(solve(part, partOpts));
     }
-    let combined = results.shift();
-    for (const res of results) {
+    let combined = results[0];
+    const res = results[1];
+    if (res) {
       let merged = false;
       for (const cp of cutPixels) {
         if (combined.some((p) => p.includes(cp)) && res.some((p) => p.includes(cp))) {
@@ -404,4 +414,4 @@ class HamiltonianService {
 
 export const useHamiltonianService = () => new HamiltonianService();
 
-export { buildGraph, findDegree2CutSet, solve };
+export { buildGraph, partitionAtDegree2Cut, solve };
