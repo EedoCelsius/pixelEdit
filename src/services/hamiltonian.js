@@ -283,8 +283,12 @@ class PathCoverSolver {
     return bestIdx;
   }
 
-  key(ctx) {
-    return ctx.remaining.join('');
+  checkForBetterMemo(ctx, acc) {
+    const k = ctx.remaining.join('');
+    const prev = ctx.memo.get(k);
+    if (prev != null && acc.length >= prev) return true;
+    ctx.memo.set(k, acc.length);
+    return false;
   }
 
   neighborComparator(ctx, node, a, b) {
@@ -298,10 +302,7 @@ class PathCoverSolver {
 
   async search(ctx, activeCount, acc) {
     this.updateBest(acc, activeCount);
-    const k = this.key(ctx);
-    const prev = ctx.memo.get(k);
-    if (prev != null && acc.length >= prev) return;
-    ctx.memo.set(k, acc.length);
+    if (this.checkForBetterMemo(ctx, acc)) return;
     if (activeCount === 0) return;
     const isFirst = acc.length === 0;
     const startNode = isFirst && ctx.start != null ? ctx.start : this.chooseStart(ctx);
