@@ -94,13 +94,13 @@ function partitionAtDegree2Cut(nodes, neighbors, degrees) {
     const stack = [i];
     visited[i] = 1;
     const comp = [];
-    const adjCuts = new Set();
+    let connector = null;
     while (stack.length) {
       const node = stack.pop();
       comp.push(node);
       for (const nb of neighbors[node]) {
         if (cutLookup.has(nb)) {
-          adjCuts.add(nb);
+          connector = node;
           continue;
         }
         if (visited[nb]) continue;
@@ -108,7 +108,7 @@ function partitionAtDegree2Cut(nodes, neighbors, degrees) {
         stack.push(nb);
       }
     }
-    const partIndices = [...comp, ...adjCuts];
+    const partIndices = comp;
     const indexMap = new Map(partIndices.map((idx, j) => [idx, j]));
     const partNeighbors = partIndices.map((origIdx) => {
       const list = [];
@@ -120,7 +120,13 @@ function partitionAtDegree2Cut(nodes, neighbors, degrees) {
     });
     const partDegrees = partNeighbors.map((nbs) => nbs.length);
     const partNodes = partIndices.map((idx) => nodes[idx]);
-    parts.push({ nodes: partNodes, neighbors: partNeighbors, degrees: partDegrees });
+    const connectorPixel = connector != null ? nodes[connector] : null;
+    parts.push({
+      nodes: partNodes,
+      neighbors: partNeighbors,
+      degrees: partDegrees,
+      connector: connectorPixel,
+    });
   }
 
   const [left, right] = parts;
@@ -128,11 +134,37 @@ function partitionAtDegree2Cut(nodes, neighbors, degrees) {
 }
 
 // Merge two path covers using the shared cut pixel
-function stitchPaths(left, right, cutPixel) {
+function stitchPaths(left, right, cutPixel, leftNeighbor, rightNeighbor) {
+  if (leftNeighbor != null && rightNeighbor != null) {
+    const li = left.findIndex((p) => p.includes(leftNeighbor));
+    const ri = right.findIndex((p) => p.includes(rightNeighbor));
+    let lPath = left.splice(li, 1)[0];
+    let rPath = right.splice(ri, 1)[0];
+    if (lPath[lPath.length - 1] !== leftNeighbor) lPath.reverse();
+    if (rPath[0] !== rightNeighbor) rPath.reverse();
+    const joined = lPath.concat([cutPixel], rPath);
+    return [...left, ...right, joined];
+  }
+
   const li = left.findIndex((p) => p.includes(cutPixel));
   const ri = right.findIndex((p) => p.includes(cutPixel));
-  const lPath = left.splice(li, 1)[0];
-  const rPath = right.splice(ri, 1)[0];
+  let lPath = left.splice(li, 1)[0];
+  let rPath = right.splice(ri, 1)[0];
+
+  let idx = lPath.indexOf(cutPixel);
+  if (idx !== 0 && idx !== lPath.length - 1) {
+    const suffix = lPath.slice(idx + 1);
+    if (suffix.length) left.push(suffix);
+    lPath = lPath.slice(0, idx + 1);
+  }
+
+  idx = rPath.indexOf(cutPixel);
+  if (idx !== 0 && idx !== rPath.length - 1) {
+    const prefix = rPath.slice(0, idx);
+    if (prefix.length) right.push(prefix);
+    rPath = rPath.slice(idx);
+  }
+
   if (lPath[lPath.length - 1] !== cutPixel) lPath.reverse();
   if (rPath[0] !== cutPixel) rPath.reverse();
   const joined = lPath.concat(rPath.slice(1));
@@ -331,27 +363,34 @@ function solve(input, opts = {}) {
   if (partition) {
     const { cut, left, right } = partition;
     const cutPixels = cut.map((i) => nodes[i]);
-    const parts = [left, right].filter(Boolean);
+    const parts = [];
+    const connectors = [];
+    if (left) {
+      parts.push(left);
+      connectors.push(left.connector);
+    }
+    if (right) {
+      parts.push(right);
+      connectors.push(right.connector);
+    }
     const results = [];
-    for (const part of parts) {
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
       const partOpts = {};
       if (opts.start != null && part.nodes.includes(opts.start)) partOpts.start = opts.start;
       if (opts.end != null && part.nodes.includes(opts.end)) partOpts.end = opts.end;
       if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
+      const conn = connectors[i];
+      if (conn != null) {
+        if (partOpts.start == null) partOpts.start = conn;
+        else if (partOpts.end == null) partOpts.end = conn;
+      }
       results.push(solve(part, partOpts));
     }
     let combined = results[0];
     const res = results[1];
     if (res) {
-      let merged = false;
-      for (const cp of cutPixels) {
-        if (combined.some((p) => p.includes(cp)) && res.some((p) => p.includes(cp))) {
-          combined = stitchPaths(combined, res, cp);
-          merged = true;
-          break;
-        }
-      }
-      if (!merged) combined = combined.concat(res);
+      combined = stitchPaths(combined, res, cutPixels[0], connectors[0], connectors[1]);
     }
     return combined;
   }
@@ -414,4 +453,4 @@ class HamiltonianService {
 
 export const useHamiltonianService = () => new HamiltonianService();
 
-export { buildGraph, partitionAtDegree2Cut, solve };
+export { buildGraph, partitionAtDegree2Cut, stitchPaths, solve };
