@@ -23,7 +23,7 @@ const pixels = [A, B, C, D];
   assert(res);
   assert(Array.isArray(res.cut));
   assert.strictEqual(res.cut.length, 2);
-  assert(res.left && res.right);
+  assert(res.parts[0] && res.parts[1]);
 }
 
 // Test solver on the same graph
