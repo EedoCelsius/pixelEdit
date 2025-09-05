@@ -1,5 +1,5 @@
-const MAX_DIMENSION = 65536; // from utils
-const TIME_LIMIT = 7500; // from constants/hamiltonian.js
+const MAX_DIMENSION = 65536;
+const TIME_LIMIT = 5000;
 
 // Return a direction priority for a given offset.
 function dirPriority(dx, dy) {
@@ -235,18 +235,6 @@ class PathCoverSolver {
     }
   }
 
-  remove(ctx, node) {
-    ctx.active[node] = 0;
-    ctx.remaining--;
-    for (const nb of this.neighbors[node]) if (ctx.active[nb]) ctx.degrees[nb]--;
-  }
-
-  restore(ctx, node) {
-    for (const nb of this.neighbors[node]) if (ctx.active[nb]) ctx.degrees[nb]++;
-    ctx.remaining++;
-    ctx.active[node] = 1;
-  }
-
   chooseStart(ctx) {
     let bestIdx = -1;
     let best = this.isAscending ? Infinity : -1;
@@ -288,38 +276,86 @@ class PathCoverSolver {
   }
 
   async search(ctx, acc, initNode = this.chooseStart(ctx)) {
-    this.remove(ctx, initNode);
-    await this.extend(ctx, initNode, [initNode], acc);
-    this.restore(ctx, initNode);
-  }
+    const stack = [{ type: 'search', node: initNode, acc }];
 
-  async extend(ctx, node, path, acc) {
-    const nbs = this.sortedNeighbor(ctx, node);
-    for (const nb of nbs) {
-      if (!ctx.active[nb]) continue;
-      this.remove(ctx, nb);
-      path.push(nb);
-      await this.extend(ctx, nb, path, acc);
-      if (this.timeExceeded || this.completed) return;
-      path.pop();
-      this.restore(ctx, nb);
-    }
-
-    acc = [...acc, path];
-    if (ctx.remaining) {
-      if (this.checkForBetterRecord(ctx, acc)) return;
-      for (let i = 0; i < this.nodes.length; i++) {
-        if (!ctx.active[i]) continue;
-        await this.search(ctx, acc, i);
-      }
-    }
-    else {
-        ctx.attempts++;
-        this.updateBest(acc);
-        if (ctx.attempts % 1024 === 0) {
-          this.checkTimeout();
-          await new Promise(resolve => setTimeout(resolve));
+    while (stack.length && !this.timeExceeded && !this.completed) {
+      const frame = stack.pop();
+      switch (frame.type) {
+        case 'search': {
+          const path = [frame.node];
+          const frames = [
+            { type: 'remove', node: frame.node },
+            {
+              type: 'extend',
+              node: frame.node,
+              path,
+              acc: frame.acc,
+              nbs: null,
+            },
+            { type: 'restore', node: frame.node, path },
+          ];
+          for (let i = frames.length - 1; i >= 0; i--) stack.push(frames[i]);
+          continue;
         }
+        case 'extend': {
+          if (!frame.nbs) {
+            frame.nbs = this.sortedNeighbor(ctx, frame.node);
+          }
+          const frames = [];
+          for (const nb of frame.nbs) {
+            if (!ctx.active[nb]) continue;
+            const newPath = frame.path.concat(nb);
+            frames.push(
+              { type: 'remove', node: nb },
+              {
+                type: 'extend',
+                node: nb,
+                path: newPath,
+                acc: frame.acc,
+                nbs: null,
+              },
+              { type: 'restore', node: nb, path: newPath },
+            );
+          }
+          frames.push({ type: 'finalize', path: frame.path, acc: frame.acc });
+          for (let i = frames.length - 1; i >= 0; i--) stack.push(frames[i]);
+          continue;
+        }
+        case 'remove': {
+          ctx.active[frame.node] = 0;
+          ctx.remaining--;
+          for (const nb of this.neighbors[frame.node])
+            if (ctx.active[nb]) ctx.degrees[nb]--;
+          continue;
+        }
+        case 'restore': {
+          for (const nb of this.neighbors[frame.node])
+            if (ctx.active[nb]) ctx.degrees[nb]++;
+          ctx.remaining++;
+          ctx.active[frame.node] = 1;
+          frame.path.pop();
+          continue;
+        }
+        case 'finalize': {
+          const newAcc = [...frame.acc, frame.path.slice()];
+          if (ctx.remaining) {
+            if (!this.checkForBetterRecord(ctx, newAcc)) {
+              for (let i = this.nodes.length - 1; i >= 0; i--) {
+                if (!ctx.active[i]) continue;
+                stack.push({ type: 'search', node: i, acc: newAcc });
+              }
+            }
+          } else {
+            ctx.attempts++;
+            this.updateBest(newAcc);
+            if (ctx.attempts % 1024 === 0) {
+              this.checkTimeout();
+              await new Promise((resolve) => setTimeout(resolve));
+            }
+          }
+          continue;
+        }
+      }
     }
   }
 
