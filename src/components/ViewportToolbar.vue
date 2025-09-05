@@ -23,6 +23,19 @@
         </button>
       </div>
 
+      <!-- Wand tools -->
+      <div class="relative">
+        <button @click="wandOpen = !wandOpen" title="Wand" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
+          <img :src="stageIcons.wand" alt="Wand" class="w-4 h-4">
+        </button>
+        <div v-if="wandOpen" class="absolute z-10 mt-1 flex flex-col rounded-md border border-white/15 bg-white/5">
+          <button v-for="tool in wandTools" :key="tool.type" @click="runWand(tool.type)" class="flex items-center gap-1 px-2 py-1 text-xs hover:bg-white/10">
+            <img :src="tool.icon" :alt="tool.name" class="w-4 h-4">
+            <span>{{ tool.name }}</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Tool Toggles -->
       <div class="inline-flex rounded-md overflow-hidden border border-white/15">
         <button v-for="tool in selectables" :key="tool.type"
@@ -52,11 +65,11 @@
 import { ref, watch } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
-import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS } from '@/constants';
+import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS, WAND_TOOLS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 
 const { viewport: viewportStore, nodeTree, input, output } = useStore();
-const { toolSelection: toolSelectionService, stageResize: stageResizeService, imageLoad: imageLoadService, settings: settingsService } = useService();
+const { toolSelection: toolSelectionService, stageResize: stageResizeService, imageLoad: imageLoadService, settings: settingsService, wand: wandService } = useService();
 
 const fileInput = ref(null);
 function openFileDialog() {
@@ -89,5 +102,12 @@ watch(() => nodeTree.selectedLayerCount, (size, prev) => {
         toolSelectionService.setPrepared(tool);
     }
 });
+
+const wandOpen = ref(false);
+const wandTools = WAND_TOOLS;
+async function runWand(type) {
+  wandOpen.value = false;
+  await wandService.run(type);
+}
 
 </script>

@@ -4,7 +4,6 @@ import { useToolSelectionService } from './toolSelection';
 import { useOverlayService } from './overlay';
 import { useLayerPanelService } from './layerPanel';
 import { useLayerQueryService } from './layerQuery';
-import { useHamiltonianService } from './hamiltonian';
 import { useStore } from '../stores';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
 import { indexToCoord, ensureDirectionPattern } from '../utils';
@@ -203,63 +202,6 @@ export const useTopToolService = defineStore('topToolService', () => {
             tool.setCursor({ stroke: CURSOR_STYLE.TOP, rect: CURSOR_STYLE.TOP });
         }
     });
-    return {};
-});
-
-export const usePathToolService = defineStore('pathToolService', () => {
-    const tool = useToolSelectionService();
-    const hamiltonian = useHamiltonianService();
-    const layerQuery = useLayerQueryService();
-    const { nodeTree, nodes, pixels: pixelStore } = useStore();
-
-    watch(() => tool.prepared === 'path', (isActive) => {
-        if (!isActive) return;
-        tool.setCursor({ stroke: CURSOR_STYLE.PATH, rect: CURSOR_STYLE.PATH });
-    });
-
-    watch(() => tool.affectedPixels, async (pixels) => {
-        if (tool.prepared !== 'path' || nodeTree.selectedLayerCount !== 1) return;
-        if (pixels.length !== 1) return;
-
-        const startPixel = pixels[0];
-        const layerId = nodeTree.selectedLayerIds[0];
-        if (!pixelStore.has(layerId, startPixel)) return;
-
-        tool.setCursor({ stroke: CURSOR_STYLE.WAIT, rect: CURSOR_STYLE.WAIT });
-
-        const allPixels = pixelStore.get(layerId);
-        const paths = await hamiltonian.traverseWithStart(allPixels, startPixel);
-
-        tool.setCursor({ stroke: CURSOR_STYLE.PATH, rect: CURSOR_STYLE.PATH });
-
-        if (!paths.length) return;
-
-        const color = nodes.getProperty(layerId, 'color');
-        const name = nodes.getProperty(layerId, 'name');
-        const groupId = nodes.createGroup({ name: `${name} Paths` });
-
-        nodeTree.insert([groupId], layerQuery.lowermost([layerId]), true);
-
-        nodeTree.remove([layerId]);
-        nodes.remove([layerId]);
-        pixelStore.remove([layerId]);
-
-        paths.forEach((path, idx) => {
-            const subGroupId = nodes.createGroup({ name: `Path ${idx + 1}` });
-            nodeTree.append([subGroupId], groupId, false);
-
-            const ids = [];
-            path.forEach((pixel, j) => {
-                const lid = nodes.createLayer({ name: `Pixel ${j + 1}`, color });
-                pixelStore.addPixels(lid, [pixel]);
-                ids.push(lid);
-            });
-            nodeTree.append(ids, subGroupId, false);
-        });
-
-        nodeTree.replaceSelection([groupId]);
-    });
-
     return {};
 });
 
