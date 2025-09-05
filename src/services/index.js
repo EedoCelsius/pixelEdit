@@ -39,28 +39,41 @@ export {
     useClipboardService
 };
 
-export const useService = () => ({
-    layerPanel: useLayerPanelService(),
-    layerTool: useLayerToolService(),
-    overlay: useOverlayService(),
-    layerQuery: useLayerQueryService(),
-    nodeQuery: useNodeQueryService(),
-    select: useSelectService(),
-    tools: {
-        draw: useDrawToolService(),
-        erase: useEraseToolService(),
-        globalErase: useGlobalEraseToolService(),
-        direction: useDirectionToolService(),
-        cut: useCutToolService(),
-        top: useTopToolService(),
-        path: usePathToolService(),
-    },
-    toolSelection: useToolSelectionService(),
-    viewport: useViewportService(),
-    stageResize: useStageResizeService(),
-    hamiltonian: useHamiltonianService(),
-    imageLoad: useImageLoadService(),
-    settings: useSettingsService(),
-    shortcut: useShortcutService(),
-    clipboard: useClipboardService()
-});
+export const useService = () => {
+    // Register single-layer tools before multi-layer ones to ensure toolbar order
+    const draw = useDrawToolService();
+    const erase = useEraseToolService();
+    const cut = useCutToolService();
+    const top = useTopToolService();
+    const path = usePathToolService();
+
+    const select = useSelectService();
+    const direction = useDirectionToolService();
+    const globalErase = useGlobalEraseToolService();
+
+    return {
+        layerPanel: useLayerPanelService(),
+        layerTool: useLayerToolService(),
+        overlay: useOverlayService(),
+        layerQuery: useLayerQueryService(),
+        nodeQuery: useNodeQueryService(),
+        select,
+        tools: {
+            draw,
+            erase,
+            cut,
+            top,
+            path,
+            direction,
+            globalErase,
+        },
+        toolSelection: useToolSelectionService(),
+        viewport: useViewportService(),
+        stageResize: useStageResizeService(),
+        hamiltonian: useHamiltonianService(),
+        imageLoad: useImageLoadService(),
+        settings: useSettingsService(),
+        shortcut: useShortcutService(),
+        clipboard: useClipboardService(),
+    };
+};
