@@ -308,15 +308,15 @@ class PathCoverSolver {
     acc = [...acc, path];
     if (ctx.remaining) {
       if (this.checkForBetterRecord(ctx, acc)) return;
-      for await (const node of this.nodes) {
-        if (!ctx.active[node]) continue;
-        await this.search(ctx, acc, node);
+      for (let i = 0; i < this.nodes.length; i++) {
+        if (!ctx.active[i]) continue;
+        await this.search(ctx, acc, i);
       }
     }
     else {
         ctx.attempts++;
         this.updateBest(acc);
-        if (ctx.attempts % (2 ** 16) === 0) {
+        if (ctx.attempts % 1024 === 0) {
           this.checkTimeout();
           await new Promise(resolve => setTimeout(resolve));
         }
