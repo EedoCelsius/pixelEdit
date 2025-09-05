@@ -121,7 +121,7 @@ function partitionAtEdgeCut(nodes, neighbors) {
       parts.push(buildGraph(comp));
     }
     const singleCount = parts.reduce((acc, p) => acc + (p.nodes.length === 1), 0);
-    if (singleCount >= parts.length - 1) return null;
+    if (edges.length > 1 && singleCount >= parts.length - 1) return null;
     return { cutEdges: edges, parts };
   };
 
@@ -283,8 +283,8 @@ class PathCoverSolver {
     return result;
   }
 
-  async search(ctx, acc, initNode = this.chooseStart(ctx)) {
-    const stack = [{ type: 'search', node: initNode, acc }];
+  async search(ctx, acc, initNode) {
+    const stack = [{ type: 'search', node: initNode ?? this.chooseStart(ctx), acc }];
 
     while (stack.length && !this.timeExceeded && !this.completed) {
       const frame = stack.pop();
