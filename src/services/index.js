@@ -3,7 +3,9 @@ import { useLayerToolService } from './layerTool';
 import { useOverlayService } from './overlay';
 import { useLayerQueryService } from './layerQuery';
 import { useNodeQueryService } from './nodeQuery';
-import { useDrawToolService, useEraseToolService, useTopToolService, useGlobalEraseToolService, useCutToolService, useSelectService, useDirectionToolService, usePathToolService } from './tools';
+import { useSelectService, useDirectionToolService, useGlobalEraseToolService } from './multiLayerTools';
+import { useDrawToolService, useEraseToolService, useTopToolService, useCutToolService } from './singleLayerTools';
+import { usePathToolService } from './wandTools';
 import { useToolSelectionService } from './toolSelection';
 import { useViewportService } from './viewport';
 import { useStageResizeService } from './stageResize';
@@ -19,14 +21,14 @@ export {
     useOverlayService,
     useLayerQueryService,
     useNodeQueryService,
+    useDirectionToolService,
+    useGlobalEraseToolService,
     useSelectService,
     useDrawToolService,
     useEraseToolService,
     useTopToolService,
-    useDirectionToolService,
-    usePathToolService,
-    useGlobalEraseToolService,
     useCutToolService,
+    usePathToolService,
     useToolSelectionService,
     useViewportService,
     useStageResizeService,
@@ -43,14 +45,18 @@ export const useService = () => ({
     overlay: useOverlayService(),
     layerQuery: useLayerQueryService(),
     nodeQuery: useNodeQueryService(),
-    select: useSelectService(),
-    tools: {
+    multiLayerTools: {
+        select: useSelectService(),
+        direction: useDirectionToolService(),
+        globalErase: useGlobalEraseToolService(),
+    },
+    singleLayerTools: {
         draw: useDrawToolService(),
         erase: useEraseToolService(),
-        globalErase: useGlobalEraseToolService(),
-        direction: useDirectionToolService(),
         cut: useCutToolService(),
         top: useTopToolService(),
+    },
+    wandTools: {
         path: usePathToolService(),
     },
     toolSelection: useToolSelectionService(),
