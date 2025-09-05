@@ -10,7 +10,7 @@
         <div class="h-4 w-px bg-white/10 mx-1"></div>
 
       <!-- Shape toggle -->
-      <div ref="wandMenu" class="relative inline-block">
+      <div ref="wandMenu" class="relative flex">
         <div class="inline-flex rounded-md overflow-hidden border border-white/15">
           <button @click="setShape('stroke')"
                   :title="'Stroke'"
