@@ -1,23 +1,26 @@
 import { defineStore } from 'pinia';
+import { ref, watch } from 'vue';
 import { useHamiltonianService } from './hamiltonian';
 import { useLayerQueryService } from './layerQuery';
+import { useToolSelectionService } from './toolSelection';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
 
 export const usePathToolService = defineStore('pathToolService', () => {
   const hamiltonian = useHamiltonianService();
   const layerQuery = useLayerQueryService();
+  const tool = useToolSelectionService();
   const { nodeTree, nodes, pixels: pixelStore } = useStore();
 
   async function apply() {
-    if (nodeTree.selectedLayerCount !== 1) return;
-    const layerId = nodeTree.selectedLayerIds[0];
-    const allPixels = pixelStore.get(layerId);
-    if (!allPixels.length) return;
-
     const previousCursor = document.body.style.cursor;
     document.body.style.cursor = CURSOR_STYLE.WAIT;
     try {
+      if (nodeTree.selectedLayerCount !== 1) return;
+      const layerId = nodeTree.selectedLayerIds[0];
+      const allPixels = pixelStore.get(layerId);
+      if (!allPixels.length) return;
+
       const paths = await hamiltonian.traverseFree(allPixels);
       if (!paths.length) return;
 
@@ -47,8 +50,40 @@ export const usePathToolService = defineStore('pathToolService', () => {
       nodeTree.replaceSelection([groupId]);
     } finally {
       document.body.style.cursor = previousCursor || '';
+      tool.setPrepared('done');
     }
   }
 
   return { apply };
+});
+
+export const useWandToolsService = defineStore('wandToolsService', () => {
+  const tool = useToolSelectionService();
+  const pending = ref(null);
+  const previous = ref({ shape: null, tool: null });
+
+  function request(action) {
+    previous.value = { shape: tool.shape, tool: tool.prepared };
+    pending.value = action;
+    tool.setShape('wand');
+    tool.setPrepared('waiting');
+  }
+
+  watch(
+    () => tool.prepared,
+    async (val) => {
+      if (val === 'waiting' && tool.shape === 'wand' && pending.value) {
+        const action = pending.value;
+        pending.value = null;
+        await action();
+      } else if (val === 'done') {
+        const { shape, tool: prevTool } = previous.value;
+        if (shape !== null) tool.setShape(shape);
+        if (prevTool !== null) tool.setPrepared(prevTool);
+        previous.value = { shape: null, tool: null };
+      }
+    }
+  );
+
+  return { request };
 });

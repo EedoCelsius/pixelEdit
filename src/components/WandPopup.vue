@@ -12,14 +12,15 @@
 <script setup>
 import { ref, watch, onBeforeUnmount, nextTick } from 'vue';
 import stageIcons from '../image/stage_toolbar';
-import { usePathToolService } from '../services';
+import { usePathToolService, useWandToolsService } from '../services';
 
 const show = ref(false);
 const popup = ref(null);
 
 const pathTool = usePathToolService();
+const wandTools = useWandToolsService();
 const operations = [
-  { name: 'Path', icon: stageIcons.path, action: () => pathTool.apply() },
+  { name: 'Path', icon: stageIcons.path, action: () => wandTools.request(() => pathTool.apply()) },
 ];
 
 function toggle() {
