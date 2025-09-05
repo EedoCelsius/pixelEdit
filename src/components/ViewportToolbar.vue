@@ -10,22 +10,24 @@
         <div class="h-4 w-px bg-white/10 mx-1"></div>
 
       <!-- Shape toggle -->
-      <div class="relative inline-flex rounded-md overflow-hidden border border-white/15">
-        <button @click="toolSelectionService.setShape('stroke')"
-                :title="'Stroke'"
-                :class="`p-1 ${toolSelectionService.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
-          <img :src="stageIcons.stroke" alt="Stroke" class="w-4 h-4">
-        </button>
-        <button @click="toolSelectionService.setShape('rect')"
-                :title="'Rect'"
-                :class="`p-1 ${toolSelectionService.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
-          <img :src="stageIcons.rect" alt="Rect" class="w-4 h-4">
-        </button>
-        <button @click="toggleWand"
-                :title="'Wand'"
-                :class="`p-1 ${wandVisible ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
-          <img :src="stageIcons.wand" alt="Wand" class="w-4 h-4">
-        </button>
+      <div class="relative">
+        <div class="inline-flex rounded-md overflow-hidden border border-white/15">
+          <button @click="setStroke"
+                  :title="'Stroke'"
+                  :class="`p-1 ${toolSelectionService.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+            <img :src="stageIcons.stroke" alt="Stroke" class="w-4 h-4">
+          </button>
+          <button @click="setRect"
+                  :title="'Rect'"
+                  :class="`p-1 ${toolSelectionService.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+            <img :src="stageIcons.rect" alt="Rect" class="w-4 h-4">
+          </button>
+          <button @click="toggleWand"
+                  :title="'Wand'"
+                  :class="`p-1 ${wandVisible ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+            <img :src="stageIcons.wand" alt="Wand" class="w-4 h-4">
+          </button>
+        </div>
         <WandPopup ref="wandPopup" />
       </div>
 
@@ -68,6 +70,14 @@ const wandPopup = ref(null);
 const wandVisible = computed(() => wandPopup.value?.show.value ?? false);
 function toggleWand() {
   wandPopup.value?.toggle();
+}
+function setStroke() {
+  wandPopup.value?.close();
+  toolSelectionService.setShape('stroke');
+}
+function setRect() {
+  wandPopup.value?.close();
+  toolSelectionService.setShape('rect');
 }
 
 const fileInput = ref(null);
