@@ -71,9 +71,9 @@ function isGraphDisconnectedByEdges(neighbors, total, edges) {
   return false;
 }
 
-// Partition graph by cutting edges connecting adjacent pixels that
-// share no common neighbor. Up to two edges are considered.
+// Partition graph by cutting edges connecting adjacent pixels that share no common neighbor.
 // Returns { cutEdges, parts } where parts are subgraphs in the same format as buildGraph.
+// There is no mathematical proof but this never returns more than 2 parts.
 function partitionAtEdgeCut(nodes, neighbors) {
   const total = neighbors.length;
   const candidateEdges = [];
