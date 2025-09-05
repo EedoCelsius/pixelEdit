@@ -1,5 +1,4 @@
 const MAX_DIMENSION = 65536; // from utils
-const TIME_LIMIT = 7500; // from constants/hamiltonian.js
 
 // Return a direction priority for a given offset.
 function dirPriority(dx, dy) {
@@ -190,163 +189,81 @@ function getComponents(neighbors) {
 
 // Core solver using backtracking to find minimum path cover
 class PathCoverSolver {
-  constructor(nodes, neighbors, degrees, indexMap, opts) {
+  constructor(nodes, neighbors, indexMap, opts) {
     this.nodes = nodes;
     this.neighbors = neighbors;
-    this.baseDegrees = degrees;
     this.indexMap = indexMap;
     this.opts = opts;
-
     this.anchors = (opts.anchors || []).map((a) => indexMap.get(a));
     for (const a of opts.anchors || []) {
       if (indexMap.get(a) === undefined) throw new Error('Anchor pixel missing');
     }
-
     this.isAscending = opts.degreeOrder !== 'descending';
-
-    this.best = { paths: [], pathCount: Infinity, anchors: 0 };
-    this.startTime = Date.now();
-    this.timeExceeded = false;
-    this.completed = false;
   }
 
-  updateBest(acc) {
-    const pathCount = acc.length
-    let anchors = 0;
-    for (const a of this.anchors) {
-      for (const p of acc) {
-        if (p[0] === a || p[p.length - 1] === a) {
-          anchors++;
-          break;
-        }
+  sortedNeighbor(node) {
+    const arr = [...this.neighbors[node]];
+    arr.sort((a, b) => {
+      const da = this.neighbors[a].length;
+      const db = this.neighbors[b].length;
+      return this.isAscending ? da - db : db - da;
+    });
+    return arr;
+  }
+
+  extend(start, end) {
+    const n = this.nodes.length;
+    const visited = new Uint8Array(n);
+    const path = [start];
+    visited[start] = 1;
+    const stack = [{ node: start, idx: 0, neighbors: this.sortedNeighbor(start) }];
+
+    while (stack.length) {
+      const frame = stack[stack.length - 1];
+      if (path.length === n && (end == null || frame.node === end)) {
+        return path.map((i) => this.nodes[i]);
       }
-    }
-
-    const better = pathCount < this.best.pathCount || (pathCount === this.best.pathCount && anchors > this.best.anchors);
-    if (better) this.best = { paths: acc.map((p) => p.slice()), pathCount, anchors };
-
-    const isHamiltonianPath = acc.length === 1;
-    if (isHamiltonianPath && (anchors === this.anchors.length || anchors === 2)) this.completed = true;
-  }
-
-  checkTimeout() {
-    if (Date.now() - this.startTime > TIME_LIMIT) {
-      this.timeExceeded = true;
-    }
-  }
-
-  remove(ctx, node) {
-    ctx.active[node] = 0;
-    ctx.remaining--;
-    for (const nb of this.neighbors[node]) if (ctx.active[nb]) ctx.degrees[nb]--;
-  }
-
-  restore(ctx, node) {
-    for (const nb of this.neighbors[node]) if (ctx.active[nb]) ctx.degrees[nb]++;
-    ctx.remaining++;
-    ctx.active[node] = 1;
-  }
-
-  chooseStart(ctx) {
-    let bestIdx = -1;
-    let best = this.isAscending ? Infinity : -1;
-    for (let i = 0; i < ctx.degrees.length; i++) {
-      if (!ctx.active[i]) continue;
-      const d = ctx.degrees[i];
-      if (this.isAscending ? d < best : d > best) {
-        best = d;
-        bestIdx = i;
+      if (frame.idx >= frame.neighbors.length) {
+        stack.pop();
+        const popped = path.pop();
+        visited[popped] = 0;
+        if (stack.length) stack[stack.length - 1].idx++;
+        continue;
       }
-    }
-    return bestIdx;
-  }
-
-  checkForBetterRecord(ctx, acc) {
-    const k = ctx.active.join('');
-    const prev = ctx.record.get(k);
-    if (prev != null && acc.length > prev) return true;
-    ctx.record.set(k, acc.length);
-    return false;
-  }
-
-  sortedNeighbor(ctx, node) {
-    const result = [];
-    for (const nb of this.neighbors[node]) {
-      const d = ctx.degrees[nb];
-      let inserted = false;
-      for (let i = 0; i < result.length; i++) {
-        const cd = ctx.degrees[result[i]];
-        if (this.isAscending ? d < cd : d > cd) {
-          result.splice(i, 0, nb);
-          inserted = true;
-          break;
-        }
+      const nb = frame.neighbors[frame.idx];
+      if (visited[nb]) {
+        frame.idx++;
+        continue;
       }
-      if (!inserted) result.push(nb);
-    }
-    return result;
-  }
-
-  async search(ctx, acc, initNode = this.chooseStart(ctx)) {
-    this.remove(ctx, initNode);
-    await this.extend(ctx, initNode, [initNode], acc);
-    this.restore(ctx, initNode);
-  }
-
-  async extend(ctx, node, path, acc) {
-    const nbs = this.sortedNeighbor(ctx, node);
-    for (const nb of nbs) {
-      if (!ctx.active[nb]) continue;
-      this.remove(ctx, nb);
+      visited[nb] = 1;
       path.push(nb);
-      await this.extend(ctx, nb, path, acc);
-      if (this.timeExceeded || this.completed) return;
-      path.pop();
-      this.restore(ctx, nb);
+      stack.push({ node: nb, idx: 0, neighbors: this.sortedNeighbor(nb) });
     }
+    return null;
+  }
 
-    acc = [...acc, path];
-    if (ctx.remaining) {
-      if (this.checkForBetterRecord(ctx, acc)) return;
-      for (let i = 0; i < this.nodes.length; i++) {
-        if (!ctx.active[i]) continue;
-        await this.search(ctx, acc, i);
-      }
-    }
-    else {
-        ctx.attempts++;
-        this.updateBest(acc);
-        if (ctx.attempts % 1024 === 0) {
-          this.checkTimeout();
-          await new Promise(resolve => setTimeout(resolve));
-        }
-    }
+  search(start, end) {
+    return this.extend(start, end);
   }
 
   async run() {
-    const anchors = this.anchors.length ? this.anchors : [null];
-    const tasks = anchors.map((initial) => {
-      const ctx = {
-        attempts: 0,
-        remaining: this.nodes.length,
-        active: new Uint8Array(this.nodes.length).fill(1),
-        degrees: Uint8Array.from(this.baseDegrees),
-        record: new Map(),
-      };
-      return this.search(ctx, [], initial);
-    });
-    await Promise.race(tasks);
-    return this.best.paths.map((p) => p.map((i) => this.nodes[i]));
+    const end = this.anchors.length > 1 ? this.anchors[1] : null;
+    const starts = this.anchors.length ? [this.anchors[0]] : this.nodes.map((_, i) => i);
+    for (const s of starts) {
+      const res = this.search(s, end);
+      if (res) return [res];
+    }
+    return this.nodes.map((n) => [n]);
   }
 }
 
 async function solve(input, opts = {}) {
-  let nodes, neighbors, degrees, indexMap;
-  if (input && input.nodes && input.neighbors && input.degrees) {
-    ({ nodes, neighbors, degrees } = input);
+  let nodes, neighbors, indexMap;
+  if (input && input.nodes && input.neighbors) {
+    ({ nodes, neighbors } = input);
     indexMap = new Map(nodes.map((p, i) => [p, i]));
   } else {
-    ({ nodes, neighbors, degrees, indexMap } = buildGraph(input));
+    ({ nodes, neighbors, indexMap } = buildGraph(input));
   }
 
   const partition = partitionAtEdgeCut(nodes, neighbors);
@@ -372,7 +289,7 @@ async function solve(input, opts = {}) {
     return stitchPaths(paths, anchorPairs);
   }
 
-  const solver = new PathCoverSolver(nodes, neighbors, degrees, indexMap, opts);
+  const solver = new PathCoverSolver(nodes, neighbors, indexMap, opts);
   return await solver.run();
 }
 
