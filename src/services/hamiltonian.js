@@ -120,18 +120,28 @@ function partitionAtEdgeCut(nodes, neighbors) {
       }
       parts.push(buildGraph(comp));
     }
+    const singleCount = parts.reduce(
+      (acc, p) => acc + (p.nodes.length === 1 ? 1 : 0),
+      0,
+    );
+    if (singleCount >= parts.length - 1) return null;
     return { cutEdges: edges, parts };
   };
 
-  for (const edge of candidateEdges) {
-    const res = tryEdges([edge]);
-    if (res) return res;
-  }
-  for (let i = 0; i < candidateEdges.length; i++) {
-    for (let j = i + 1; j < candidateEdges.length; j++) {
-      const res = tryEdges([candidateEdges[i], candidateEdges[j]]);
+  const search = (k, start, combo) => {
+    if (combo.length === k) return tryEdges(combo);
+    for (let i = start; i < candidateEdges.length; i++) {
+      combo.push(candidateEdges[i]);
+      const res = search(k, i + 1, combo);
       if (res) return res;
+      combo.pop();
     }
+    return null;
+  };
+
+  for (let k = 1; k <= candidateEdges.length; k++) {
+    const res = search(k, 0, []);
+    if (res) return res;
   }
   return null;
 }
