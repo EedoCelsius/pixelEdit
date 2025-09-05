@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   id="Layer_1"
+   data-name="Layer 1"
+   viewBox="0 0 32.000001 32.000016"
+   version="1.1"
+   sodipodi:docname="compass-icon.svg"
+   width="32"
+   height="32.000015"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="4.7688803"
+     inkscape:cx="36.591398"
+     inkscape:cy="33.970238"
+     inkscape:window-width="1440"
+     inkscape:window-height="830"
+     inkscape:window-x="-6"
+     inkscape:window-y="-6"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="Layer_1" />
+  <title
+     id="title1">compass</title>
+  <path
+     d="M 15.995427,1.5745832e-5 A 16,16 0 1 1 4.6866077,4.6859904 15.934917,15.934917 0 0 1 15.995427,1.5745832e-5 Z M 20.046191,14.948274 l -1.8822,1.069964 a 1.9681093,1.9681093 0 0 1 -0.06508,0.408722 2.0826554,2.0826554 0 0 1 -2.538236,1.465668 2.1321185,2.1321185 0 0 1 -0.411324,-0.158802 l -1.994143,1.135047 8.044257,5.922551 z m -7.927107,2.202408 1.918646,-1.09079 a 2.0462089,2.0462089 0 0 1 0.06248,-0.700293 2.0826554,2.0826554 0 0 1 2.538236,-1.465669 2.1555483,2.1555483 0 0 1 0.663847,0.312398 L 19.004864,13.230084 10.97102,7.3075328 Z M 24.825885,7.1643503 a 12.495932,12.495932 0 1 0 3.644647,8.8304587 12.449073,12.449073 0 0 0 -3.644647,-8.8304587 z"
+     id="path1"
+     style="fill:#ffffff;fill-opacity:1;stroke-width:0.260332" />
+  <metadata
+     id="metadata1">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>compass</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+</svg>

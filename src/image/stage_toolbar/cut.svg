@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+
+<svg
+   fill="#000000"
+   width="32.000004"
+   height="32.000004"
+   viewBox="0 0 1.2800002 1.2800002"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="cut.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="2.93"
+     inkscape:cx="27.8157"
+     inkscape:cy="-4.778157"
+     inkscape:window-width="1440"
+     inkscape:window-height="830"
+     inkscape:window-x="-6"
+     inkscape:window-y="-6"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
+  <title
+     id="title1">cut</title>
+  <path
+     d="m 0.9565654,0.6078138 c 0.061316,-0.061317 0.174878,-0.04705 0.2536301,0.031705 0.078816,0.078818 0.093018,0.1923216 0.031704,0.2536389 -0.061316,0.061317 -0.1748141,0.047113 -0.2536301,-0.031705 -0.047492,-0.047494 -0.071018,-0.107543 -0.06921,-0.1612826 l -0.266534,-0.047652 0.047618,0.2665745 c 0.05377,-0.00184 0.113816,0.021686 0.161308,0.06918 0.078816,0.078818 0.092986,0.1923534 0.031702,0.2536389 -0.061284,0.061285 -0.174814,0.047113 -0.25363,-0.031705 -0.078752,-0.078755 -0.092986,-0.1923534 -0.031704,-0.2536389 0.0063,-0.00631 0.01354,-0.011318 0.020862,-0.016042 L 0.5410864,0.6325761 0.26073,0.5824507 C 0.0042484,0.5137138 0,0.3610232 0,0.3610232 L 0.504692,0.5046779 0.361074,0 c 0,0 0.152684,0.00425 0.221419,0.2607407 l 0.050124,0.2803661 0.3079386,0.087601 c 0.00466,-0.00732 0.0097,-0.014584 0.01602,-0.020894 z m -0.285936,0.4115609 c -0.035,0.035002 -0.027932,0.098887 0.01586,0.1426718 0.043782,0.043784 0.107666,0.050855 0.142666,0.015852 0.035,-0.035002 0.027932,-0.098887 -0.01586,-0.1426718 -0.043782,-0.043784 -0.107666,-0.050855 -0.142666,-0.015852 z M 0.5629634,0.5629515 c -0.0175,0.017502 -0.01754,0.045877 0,0.06341 0.0175,0.017502 0.045906,0.017502 0.063408,0 0.01754,-0.017532 0.0175,-0.045909 0,-0.06341 -0.01754,-0.017532 -0.045874,-0.017532 -0.063408,0 z m 0.472259,0.2503415 c 0.043782,0.043784 0.107666,0.050855 0.1426661,0.015852 0.035,-0.035002 0.027932,-0.098887 -0.01586,-0.1426718 -0.043782,-0.043784 -0.1076661,-0.050855 -0.1426661,-0.015852 -0.035,0.035002 -0.027932,0.098887 0.01586,0.1426718 z"
+     id="path1"
+     style="stroke-width:0.0448366;fill:#ffffff;fill-opacity:1" />
+  <metadata
+     id="metadata1">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>cut</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+</svg>

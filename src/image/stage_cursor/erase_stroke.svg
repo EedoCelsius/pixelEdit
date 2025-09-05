@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="16"
+   height="16.00001"
+   viewBox="0 0 0.48 0.48000029"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="erase_stroke.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="5.6568543"
+     inkscape:cx="-4.6845824"
+     inkscape:cy="-2.1213203"
+     inkscape:window-width="1440"
+     inkscape:window-height="830"
+     inkscape:window-x="-6"
+     inkscape:window-y="-6"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
+  <!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+  <title
+     id="title1">ic_fluent_backspace_24_filled</title>
+  <desc
+     id="desc1">Created with Sketch.</desc>
+  <metadata
+     id="metadata1">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>ic_fluent_backspace_24_filled</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     id="g6-8"
+     transform="matrix(0.93189256,-0.53802844,0.53802844,0.93189256,-0.15262717,0.16636656)"
+     style="display:inline;stroke-width:0.00878115;stroke-dasharray:none"
+     inkscape:label="g6">
+    <path
+       id="path6-8"
+       style="fill:#000000;stroke:#ffffff;stroke-width:0.00878115;stroke-dasharray:none;paint-order:stroke markers fill"
+       d="M 0.13515516,0.14042682 V 0.40766178 H 0.37439344 V 0.14042682 Z m 0.075,0.074419 c 0.00227,3.915e-5 0.004535,7.509e-4 0.006445,0.002168 l 0.00123,0.001113 0.0367383,0.0367383 0.0367383,-0.0367383 0.00123,-0.001113 c 0.004365,-0.003239 0.0105713,-0.002848 0.0145312,0.001113 0.003959,0.00396 0.004353,0.0101643 0.001113,0.0145312 l -0.001113,0.00123 -0.0367383,0.0367383 0.0367383,0.0367383 0.001113,0.00123 c 0.00324,0.004366 0.002848,0.0105712 -0.001113,0.0145312 -0.00396,0.003959 -0.0101643,0.004294 -0.0145312,0.001055 l -0.00123,-0.001055 -0.0367383,-0.0367383 -0.0367383,0.0367383 -0.00123,0.001055 c -0.004365,0.003239 -0.0105713,0.002906 -0.0145312,-0.001055 -0.003959,-0.00396 -0.004295,-0.0101643 -0.001055,-0.0145312 l 0.001055,-0.00123 0.0367383,-0.0367383 -0.0367383,-0.0367383 -0.001055,-0.00123 c -0.003239,-0.004366 -0.002906,-0.0105703 0.001055,-0.0145312 0.002227,-0.002228 0.005167,-0.003332 0.008086,-0.003281 z"
+       sodipodi:nodetypes="cccccsccccccccccccccccccccccccs" />
+    <path
+       id="rect7"
+       style="fill:#000000;stroke:#ffffff;stroke-width:0.010342;stroke-dasharray:none;paint-order:stroke markers fill"
+       inkscape:label="rect7"
+       d="m 0.16186879,0.09857173 c -0.035371,0 -0.0638672,0.0284962 -0.0638672,0.0638672 0,0.002905 -2.9297e-4,0.0562503 -2.9297e-4,0.0562503 h 0.2845899 c 0,0 -3.516e-4,-0.0533453 -3.516e-4,-0.0562503 0,-0.035371 -0.028438,-0.0638672 -0.063809,-0.0638672 z"
+       sodipodi:nodetypes="ssccsss"
+       transform="matrix(0.84907929,1.1655235e-8,-1.1655235e-8,0.84907929,0.05099527,-0.06335234)" />
+  </g>
+</svg>
