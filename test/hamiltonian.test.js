@@ -77,3 +77,13 @@ const pixels = [A, B, C, D];
   ].sort((a, b) => a - b);
   assert.deepStrictEqual(neighborPixels, expected);
 }
+
+// Test rejecting edge combos that leave almost all parts as single pixels
+{
+  const p0 = coordToIndex(0, 0);
+  const p1 = coordToIndex(1, 0);
+  const p2 = coordToIndex(2, 0);
+  const { nodes, neighbors } = buildGraph([p0, p1, p2]);
+  const res = partitionAtEdgeCut(nodes, neighbors);
+  assert.strictEqual(res, null);
+}
