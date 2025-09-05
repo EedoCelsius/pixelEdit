@@ -10,7 +10,7 @@
         <div class="h-4 w-px bg-white/10 mx-1"></div>
 
       <!-- Shape toggle -->
-      <div ref="wandMenu" class="relative flex">
+      <div class="relative flex">
         <div class="inline-flex rounded-md overflow-hidden border border-white/15">
           <button @click="setShape('stroke')"
                   :title="'Stroke'"
@@ -31,7 +31,7 @@
             <img :src="stageIcons.wand" alt="Wand" class="w-4 h-4">
           </button>
         </div>
-        <WandPopup v-if="wandOpen" @select="selectWandTool" />
+        <WandPopup id="wandPopup" v-if="wandOpen" @select="selectWandTool" />
       </div>
 
       <!-- Tool Toggles -->
@@ -90,7 +90,6 @@ toolSelectionService.setPrepared(lastMultiTool);
 toolSelectionService.setShape('stroke');
 
 const wandOpen = ref(false);
-const wandMenu = ref(null);
 let previousShape = 'stroke';
 let previousTool = 'draw';
 const wandToolTypes = new Set(WAND_TOOLS.map(t => t.type));
@@ -121,7 +120,7 @@ function setShape(shape) {
 
 function handleClickOutside(e) {
   if (!wandOpen.value) return;
-  if (wandMenu.value && !wandMenu.value.contains(e.target)) closeWand();
+  if (!e.target.closest("#wandPopup")) closeWand();
 }
 
 onMounted(() => document.addEventListener('mousedown', handleClickOutside));
