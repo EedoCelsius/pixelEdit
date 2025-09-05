@@ -125,20 +125,21 @@ function partitionAtEdgeCut(nodes, neighbors) {
     return { cutEdges: edges, parts };
   };
 
-  const search = (k, start, combo) => {
-    if (combo.length === k) return tryEdges(combo);
-    for (let i = start; i < candidateEdges.length; i++) {
-      combo.push(candidateEdges[i]);
-      const res = search(k, i + 1, combo);
-      if (res) return res;
-      combo.pop();
-    }
-    return null;
-  };
-
   for (let k = 1; k <= candidateEdges.length; k++) {
-    const res = search(k, 0, []);
-    if (res) return res;
+    const indices = Array.from(Array(k).keys());
+    while (indices.length) {
+      const combo = indices.map((i) => candidateEdges[i]);
+      const res = tryEdges(combo);
+      if (res) return res;
+
+      let pos = k - 1;
+      while (pos >= 0 && indices[pos] === pos + candidateEdges.length - k) pos--;
+      if (pos < 0) break;
+      indices[pos]++;
+      for (let j = pos + 1; j < k; j++) {
+        indices[j] = indices[j - 1] + 1;
+      }
+    }
   }
   return null;
 }
