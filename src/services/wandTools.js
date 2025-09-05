@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { watch } from 'vue';
+import { watch, computed } from 'vue';
 import { useToolSelectionService } from './toolSelection';
 import { useHamiltonianService } from './hamiltonian';
 import { useLayerQueryService } from './layerQuery';
@@ -11,9 +11,10 @@ export const usePathToolService = defineStore('pathToolService', () => {
     const hamiltonian = useHamiltonianService();
     const layerQuery = useLayerQueryService();
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount === 1);
 
     watch(() => tool.prepared, async (p) => {
-        if (p !== 'path' || tool.shape !== 'wand' || nodeTree.selectedLayerCount !== 1) return;
+        if (p !== 'path' || !usable.value) return;
 
         tool.setCursor({ wand: CURSOR_STYLE.WAIT });
 
@@ -56,6 +57,6 @@ export const usePathToolService = defineStore('pathToolService', () => {
         tool.setPrepared('done');
     });
 
-    return {};
+    return { usable };
 });
 
