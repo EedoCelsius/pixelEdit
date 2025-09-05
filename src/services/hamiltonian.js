@@ -288,38 +288,76 @@ class PathCoverSolver {
   }
 
   async search(ctx, acc, initNode = this.chooseStart(ctx)) {
-    this.remove(ctx, initNode);
-    await this.extend(ctx, initNode, [initNode], acc);
-    this.restore(ctx, initNode);
-  }
+    const stack = [{ type: 'search', node: initNode, acc }];
 
-  async extend(ctx, node, path, acc) {
-    const nbs = this.sortedNeighbor(ctx, node);
-    for (const nb of nbs) {
-      if (!ctx.active[nb]) continue;
-      this.remove(ctx, nb);
-      path.push(nb);
-      await this.extend(ctx, nb, path, acc);
-      if (this.timeExceeded || this.completed) return;
-      path.pop();
-      this.restore(ctx, nb);
-    }
+    while (stack.length && !this.timeExceeded && !this.completed) {
+      const frame = stack.pop();
 
-    acc = [...acc, path];
-    if (ctx.remaining) {
-      if (this.checkForBetterRecord(ctx, acc)) return;
-      for (let i = 0; i < this.nodes.length; i++) {
-        if (!ctx.active[i]) continue;
-        await this.search(ctx, acc, i);
+      if (frame.type === 'search') {
+        const path = [frame.node];
+        this.remove(ctx, frame.node);
+        stack.push({ type: 'restore', node: frame.node, path });
+        stack.push({
+          type: 'extend',
+          node: frame.node,
+          path,
+          acc: frame.acc,
+          nbs: null,
+          idx: 0,
+        });
+        continue;
       }
-    }
-    else {
-        ctx.attempts++;
-        this.updateBest(acc);
-        if (ctx.attempts % 1024 === 0) {
-          this.checkTimeout();
-          await new Promise(resolve => setTimeout(resolve));
+
+      if (frame.type === 'extend') {
+        if (!frame.nbs) {
+          frame.nbs = this.sortedNeighbor(ctx, frame.node);
+          frame.idx = 0;
         }
+        let progressed = false;
+        while (frame.idx < frame.nbs.length) {
+          const nb = frame.nbs[frame.idx++];
+          if (!ctx.active[nb]) continue;
+          stack.push(frame);
+          stack.push({ type: 'restore', node: nb, path: frame.path });
+          this.remove(ctx, nb);
+          frame.path.push(nb);
+          stack.push({
+            type: 'extend',
+            node: nb,
+            path: frame.path,
+            acc: frame.acc,
+            nbs: null,
+            idx: 0,
+          });
+          progressed = true;
+          break;
+        }
+        if (progressed) continue;
+
+        const newAcc = [...frame.acc, frame.path.slice()];
+        if (ctx.remaining) {
+          if (!this.checkForBetterRecord(ctx, newAcc)) {
+            for (let i = this.nodes.length - 1; i >= 0; i--) {
+              if (!ctx.active[i]) continue;
+              stack.push({ type: 'search', node: i, acc: newAcc });
+            }
+          }
+        } else {
+          ctx.attempts++;
+          this.updateBest(newAcc);
+          if (ctx.attempts % 1024 === 0) {
+            this.checkTimeout();
+            await new Promise((resolve) => setTimeout(resolve));
+          }
+        }
+        continue;
+      }
+
+      if (frame.type === 'restore') {
+        this.restore(ctx, frame.node);
+        frame.path.pop();
+        continue;
+      }
     }
   }
 
