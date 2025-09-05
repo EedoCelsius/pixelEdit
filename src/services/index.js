@@ -48,8 +48,8 @@ export const useService = () => {
     const path = usePathToolService();
 
     const select = useSelectService();
-    const direction = useDirectionToolService();
     const globalErase = useGlobalEraseToolService();
+    const direction = useDirectionToolService();
 
     return {
         layerPanel: useLayerPanelService(),
