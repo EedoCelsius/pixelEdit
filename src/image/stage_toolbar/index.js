@@ -12,6 +12,7 @@ import redo from './redo.svg';
 import path from './path.svg';
 import direction from './direction.svg';
 import settings from './settings.svg';
+import wand from './wand.svg';
 
 export default {
   stroke,
@@ -24,6 +25,7 @@ export default {
   top,
   path,
   direction,
+  wand,
   resize,
   undo,
   redo,

@@ -10,17 +10,25 @@
         <div class="h-4 w-px bg-white/10 mx-1"></div>
 
       <!-- Shape toggle -->
-      <div class="inline-flex rounded-md overflow-hidden border border-white/15">
-        <button @click="toolSelectionService.setShape('stroke')"
-                :title="'Stroke'"
-                :class="`p-1 ${toolSelectionService.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
-          <img :src="stageIcons.stroke" alt="Stroke" class="w-4 h-4">
-        </button>
-        <button @click="toolSelectionService.setShape('rect')"
-                :title="'Rect'"
-                :class="`p-1 ${toolSelectionService.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
-          <img :src="stageIcons.rect" alt="Rect" class="w-4 h-4">
-        </button>
+      <div class="relative">
+        <div class="inline-flex rounded-md overflow-hidden border border-white/15">
+          <button @click="toolSelectionService.setShape('stroke')"
+                  :title="'Stroke'"
+                  :class="`p-1 ${toolSelectionService.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+            <img :src="stageIcons.stroke" alt="Stroke" class="w-4 h-4">
+          </button>
+          <button @click="toolSelectionService.setShape('rect')"
+                  :title="'Rect'"
+                  :class="`p-1 ${toolSelectionService.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+            <img :src="stageIcons.rect" alt="Rect" class="w-4 h-4">
+          </button>
+          <button @click="openWand"
+                  :title="'Wand'"
+                  :class="`p-1 ${toolSelectionService.isWand ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+            <img :src="stageIcons.wand" alt="Wand" class="w-4 h-4">
+          </button>
+        </div>
+        <WandPopup v-if="wandOpen" @select="selectWandTool" />
       </div>
 
       <!-- Tool Toggles -->
@@ -54,6 +62,7 @@ import { useStore } from '../stores';
 import { useService } from '../services';
 import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
+import WandPopup from './WandPopup.vue';
 
 const { viewport: viewportStore, nodeTree, input, output } = useStore();
 const { toolSelection: toolSelectionService, stageResize: stageResizeService, imageLoad: imageLoadService, settings: settingsService } = useService();
@@ -75,6 +84,30 @@ let lastMultiTool = 'select';
 const selectables = ref(MULTI_SELECTION_TOOLS);
 toolSelectionService.setPrepared(lastMultiTool);
 toolSelectionService.setShape('stroke');
+
+const wandOpen = ref(false);
+let previousShape = 'stroke';
+let previousTool = 'draw';
+
+function openWand() {
+  previousShape = toolSelectionService.shape;
+  previousTool = toolSelectionService.prepared;
+  wandOpen.value = true;
+  toolSelectionService.setShape('wand');
+}
+
+function selectWandTool(type) {
+  wandOpen.value = false;
+  toolSelectionService.setPrepared(type);
+}
+
+watch(() => toolSelectionService.prepared, (val) => {
+  if (val === 'done') {
+    toolSelectionService.setShape(previousShape);
+    toolSelectionService.setPrepared(previousTool);
+    wandOpen.value = false;
+  }
+});
 watch(() => nodeTree.selectedLayerCount, (size, prev) => {
     if (size === 1) {
         if (prev !== 1) lastMultiTool = toolSelectionService.prepared;

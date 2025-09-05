@@ -212,27 +212,21 @@ export const usePathToolService = defineStore('pathToolService', () => {
     const layerQuery = useLayerQueryService();
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
 
-    watch(() => tool.prepared === 'path', (isActive) => {
-        if (!isActive) return;
-        tool.setCursor({ stroke: CURSOR_STYLE.PATH, rect: CURSOR_STYLE.PATH });
-    });
+    watch(() => tool.prepared, async (p) => {
+        if (p !== 'path' || tool.shape !== 'wand' || nodeTree.selectedLayerCount !== 1) return;
 
-    watch(() => tool.affectedPixels, async (pixels) => {
-        if (tool.prepared !== 'path' || nodeTree.selectedLayerCount !== 1) return;
-        if (pixels.length !== 1) return;
+        tool.setCursor({ wand: CURSOR_STYLE.WAIT });
 
-        const startPixel = pixels[0];
         const layerId = nodeTree.selectedLayerIds[0];
-        if (!pixelStore.has(layerId, startPixel)) return;
-
-        tool.setCursor({ stroke: CURSOR_STYLE.WAIT, rect: CURSOR_STYLE.WAIT });
-
         const allPixels = pixelStore.get(layerId);
-        const paths = await hamiltonian.traverseWithStart(allPixels, startPixel);
+        const paths = await hamiltonian.traverseFree(allPixels);
 
-        tool.setCursor({ stroke: CURSOR_STYLE.PATH, rect: CURSOR_STYLE.PATH });
+        tool.setCursor({ wand: CURSOR_STYLE.PATH });
 
-        if (!paths.length) return;
+        if (!paths.length) {
+            tool.setPrepared('done');
+            return;
+        }
 
         const color = nodes.getProperty(layerId, 'color');
         const name = nodes.getProperty(layerId, 'name');
@@ -258,6 +252,8 @@ export const usePathToolService = defineStore('pathToolService', () => {
         });
 
         nodeTree.replaceSelection([groupId]);
+
+        tool.setPrepared('done');
     });
 
     return {};

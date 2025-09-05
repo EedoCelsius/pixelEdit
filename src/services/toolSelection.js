@@ -9,7 +9,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     const active = ref(false)
     const prepared = ref(null);
     const shape = ref(null);
-    const cursor = reactive({ stroke: 'default', rect: 'default' });
+    const cursor = reactive({ stroke: 'default', rect: 'default', wand: 'default' });
     const hoverPixel = ref(null);
     const dragPixel = ref(null);
     const previewPixels = ref([]);
@@ -19,6 +19,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
 
     const isStroke = computed(() => shape.value === 'stroke');
     const isRect = computed(() => shape.value === 'rect');
+    const isWand = computed(() => shape.value === 'wand');
 
     function setPrepared(t) {
         if (active.value) nextTool = t;
@@ -26,9 +27,12 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     }
     function setShape(s) {
         if (active.value) nextShape = s;
-        else shape.value = s;
+        else {
+            shape.value = s;
+            if (s === 'wand') prepared.value = 'waiting';
+        }
     }
-    function setCursor({ stroke, rect }) { cursor.stroke = stroke; cursor.rect = rect; }
+    function setCursor(c) { Object.assign(cursor, c); }
     function getCursor() { return cursor[shape.value] || 'default'; }
 
     function getPixelsInsideMarquee() {
@@ -151,6 +155,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         active,
         isStroke,
         isRect,
+        isWand,
         setPrepared,
         setShape,
         setCursor,

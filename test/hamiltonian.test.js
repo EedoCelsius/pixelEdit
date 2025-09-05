@@ -85,5 +85,6 @@ const pixels = [A, B, C, D];
   const p2 = coordToIndex(2, 0);
   const { nodes, neighbors } = buildGraph([p0, p1, p2]);
   const res = partitionAtEdgeCut(nodes, neighbors);
-  assert.strictEqual(res, null);
+  assert(res);
+  assert.strictEqual(res.cutEdges.length, 1);
 }
