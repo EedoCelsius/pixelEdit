@@ -125,9 +125,8 @@ function partitionAtEdgeCut(nodes, neighbors) {
     return { cutEdges: edges, parts };
   };
 
-  // Iteratively try combinations of candidate edges without recursion
   for (let k = 1; k <= candidateEdges.length; k++) {
-    const indices = Array.from({ length: k }, (_, i) => i);
+    const indices = Array.from(Array(10).keys());
     while (indices.length) {
       const combo = indices.map((i) => candidateEdges[i]);
       const res = tryEdges(combo);
