@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, reactive, computed, watch } from 'vue';
 import { useStore } from '../stores';
 import { coordToIndex, indexToCoord } from '../utils';
+import { WAND_TOOLS } from '@/constants';
 
 export const useToolSelectionService = defineStore('toolSelectionService', () => {
     const { viewport: viewportStore, viewportEvent: viewportEvents, output } = useStore();
@@ -20,12 +21,15 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     const isStroke = computed(() => shape.value === 'stroke');
     const isRect = computed(() => shape.value === 'rect');
     const isWand = computed(() => shape.value === 'wand');
+    const wandToolTypes = new Set(WAND_TOOLS.map(t => t.type));
 
     function setPrepared(t) {
+        if (shape.value === 'wand' && !wandToolTypes.has(t) && t !== 'waiting' && t !== 'done') return;
         if (active.value) nextTool = t;
         else prepared.value = t;
     }
     function setShape(s) {
+        if (wandToolTypes.has(prepared.value)) return;
         if (active.value) nextShape = s;
         else {
             shape.value = s;

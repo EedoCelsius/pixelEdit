@@ -10,21 +10,24 @@
         <div class="h-4 w-px bg-white/10 mx-1"></div>
 
       <!-- Shape toggle -->
-      <div class="relative">
+      <div ref="wandMenu" class="relative inline-block">
         <div class="inline-flex rounded-md overflow-hidden border border-white/15">
-          <button @click="toolSelectionService.setShape('stroke')"
+          <button @click="setShape('stroke')"
                   :title="'Stroke'"
-                  :class="`p-1 ${toolSelectionService.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+                  :disabled="wandWorking"
+                  :class="`p-1 ${toolSelectionService.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'} ${wandWorking ? 'opacity-50 cursor-not-allowed' : ''}`">
             <img :src="stageIcons.stroke" alt="Stroke" class="w-4 h-4">
           </button>
-          <button @click="toolSelectionService.setShape('rect')"
+          <button @click="setShape('rect')"
                   :title="'Rect'"
-                  :class="`p-1 ${toolSelectionService.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+                  :disabled="wandWorking"
+                  :class="`p-1 ${toolSelectionService.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'} ${wandWorking ? 'opacity-50 cursor-not-allowed' : ''}`">
             <img :src="stageIcons.rect" alt="Rect" class="w-4 h-4">
           </button>
           <button @click="openWand"
                   :title="'Wand'"
-                  :class="`p-1 ${toolSelectionService.isWand ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+                  :disabled="wandWorking"
+                  :class="`p-1 ${toolSelectionService.isWand ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'} ${wandWorking ? 'opacity-50 cursor-not-allowed' : ''}`">
             <img :src="stageIcons.wand" alt="Wand" class="w-4 h-4">
           </button>
         </div>
@@ -36,7 +39,8 @@
         <button v-for="tool in selectables" :key="tool.type"
                 @click="toolSelectionService.setPrepared(tool.type)"
                 :title="tool.name"
-                :class="`p-1 ${toolSelectionService.prepared === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+                :disabled="toolSelectionService.isWand"
+                :class="`p-1 ${toolSelectionService.prepared === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'} ${toolSelectionService.isWand ? 'opacity-50 cursor-not-allowed' : ''}`">
           <img v-if="tool.icon" :src="tool.icon" :alt="tool.name" class="w-4 h-4">
           <span v-else class="text-xs">{{ tool.label || tool.name }}</span>
         </button>
@@ -57,10 +61,10 @@
     </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
-import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS } from '@/constants';
+import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS, WAND_TOOLS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 import WandPopup from './WandPopup.vue';
 
@@ -86,8 +90,11 @@ toolSelectionService.setPrepared(lastMultiTool);
 toolSelectionService.setShape('stroke');
 
 const wandOpen = ref(false);
+const wandMenu = ref(null);
 let previousShape = 'stroke';
 let previousTool = 'draw';
+const wandToolTypes = new Set(WAND_TOOLS.map(t => t.type));
+const wandWorking = computed(() => wandToolTypes.has(toolSelectionService.prepared));
 
 function openWand() {
   previousShape = toolSelectionService.shape;
@@ -101,12 +108,27 @@ function selectWandTool(type) {
   toolSelectionService.setPrepared(type);
 }
 
+function closeWand() {
+  wandOpen.value = false;
+  toolSelectionService.setShape(previousShape);
+  toolSelectionService.setPrepared(previousTool);
+}
+
+function setShape(shape) {
+  if (wandOpen.value) closeWand();
+  toolSelectionService.setShape(shape);
+}
+
+function handleClickOutside(e) {
+  if (!wandOpen.value) return;
+  if (wandMenu.value && !wandMenu.value.contains(e.target)) closeWand();
+}
+
+onMounted(() => document.addEventListener('mousedown', handleClickOutside));
+onBeforeUnmount(() => document.removeEventListener('mousedown', handleClickOutside));
+
 watch(() => toolSelectionService.prepared, (val) => {
-  if (val === 'done') {
-    toolSelectionService.setShape(previousShape);
-    toolSelectionService.setPrepared(previousTool);
-    wandOpen.value = false;
-  }
+  if (val === 'done') closeWand();
 });
 watch(() => nodeTree.selectedLayerCount, (size, prev) => {
     if (size === 1) {
