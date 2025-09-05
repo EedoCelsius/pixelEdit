@@ -10,7 +10,7 @@
         <div class="h-4 w-px bg-white/10 mx-1"></div>
 
       <!-- Shape toggle -->
-      <div class="inline-flex rounded-md overflow-hidden border border-white/15">
+      <div class="relative inline-flex rounded-md overflow-hidden border border-white/15">
         <button @click="toolSelectionService.setShape('stroke')"
                 :title="'Stroke'"
                 :class="`p-1 ${toolSelectionService.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
@@ -21,6 +21,12 @@
                 :class="`p-1 ${toolSelectionService.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
           <img :src="stageIcons.rect" alt="Rect" class="w-4 h-4">
         </button>
+        <button @click="toggleWand"
+                :title="'Wand'"
+                :class="`p-1 ${wandVisible ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+          <img :src="stageIcons.wand" alt="Wand" class="w-4 h-4">
+        </button>
+        <WandPopup ref="wandPopup" />
       </div>
 
       <!-- Tool Toggles -->
@@ -49,14 +55,20 @@
     </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
 import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
+import WandPopup from './WandPopup.vue';
 
 const { viewport: viewportStore, nodeTree, input, output } = useStore();
 const { toolSelection: toolSelectionService, stageResize: stageResizeService, imageLoad: imageLoadService, settings: settingsService } = useService();
+const wandPopup = ref(null);
+const wandVisible = computed(() => wandPopup.value?.show.value ?? false);
+function toggleWand() {
+  wandPopup.value?.toggle();
+}
 
 const fileInput = ref(null);
 function openFileDialog() {

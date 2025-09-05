@@ -3,7 +3,9 @@ import { useLayerToolService } from './layerTool';
 import { useOverlayService } from './overlay';
 import { useLayerQueryService } from './layerQuery';
 import { useNodeQueryService } from './nodeQuery';
-import { useDrawToolService, useEraseToolService, useTopToolService, useGlobalEraseToolService, useCutToolService, useSelectService, useDirectionToolService, usePathToolService } from './tools';
+import { useDrawToolService, useEraseToolService, useTopToolService, useCutToolService } from './singleLayerTools';
+import { useSelectService, useDirectionToolService, useGlobalEraseToolService } from './multiLayerTools';
+import { usePathToolService } from './wandTools';
 import { useToolSelectionService } from './toolSelection';
 import { useViewportService } from './viewport';
 import { useStageResizeService } from './stageResize';
@@ -24,9 +26,9 @@ export {
     useEraseToolService,
     useTopToolService,
     useDirectionToolService,
-    usePathToolService,
     useGlobalEraseToolService,
     useCutToolService,
+    usePathToolService,
     useToolSelectionService,
     useViewportService,
     useStageResizeService,
@@ -34,7 +36,7 @@ export {
     useImageLoadService,
     useSettingsService,
     useShortcutService,
-    useClipboardService
+    useClipboardService,
 };
 
 export const useService = () => ({
@@ -51,7 +53,6 @@ export const useService = () => ({
         direction: useDirectionToolService(),
         cut: useCutToolService(),
         top: useTopToolService(),
-        path: usePathToolService(),
     },
     toolSelection: useToolSelectionService(),
     viewport: useViewportService(),

@@ -120,8 +120,8 @@ function partitionAtEdgeCut(nodes, neighbors) {
       }
       parts.push(buildGraph(comp));
     }
-    const singleCount = parts.reduce((acc, p) => acc + (p.nodes.length === 1), 0);
-    if (edges.length > 1 && singleCount >= parts.length - 1) return null;
+    const hasSingle = parts.some(p => p.nodes.length === 1);
+    if (hasSingle) return null;
     return { cutEdges: edges, parts };
   };
 
