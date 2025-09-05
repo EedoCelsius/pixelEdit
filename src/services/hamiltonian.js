@@ -294,7 +294,7 @@ class PathCoverSolver {
           },
           { type: 'restore', node: frame.node, path },
         ];
-        stack.push(...frames.reverse());
+        for (let i = frames.length - 1; i >= 0; i--) stack.push(frames[i]);
         continue;
       }
 
@@ -319,7 +319,7 @@ class PathCoverSolver {
           );
         }
         frames.push({ type: 'finalize', path: frame.path, acc: frame.acc });
-        stack.push(...frames.reverse());
+        for (let i = frames.length - 1; i >= 0; i--) stack.push(frames[i]);
         continue;
       }
 
