@@ -10,7 +10,7 @@
         <div class="h-4 w-px bg-white/10 mx-1"></div>
 
       <!-- Shape toggle -->
-      <div class="relative">
+      <div class="relative inline-flex items-center">
         <div class="inline-flex rounded-md overflow-hidden border border-white/15">
           <button @click="setStroke"
                   :title="'Stroke'"

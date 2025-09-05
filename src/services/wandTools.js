@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { useHamiltonianService } from './hamiltonian';
 import { useLayerQueryService } from './layerQuery';
 import { useStore } from '../stores';
+import { CURSOR_STYLE } from '@/constants';
 
 export const usePathToolService = defineStore('pathToolService', () => {
   const hamiltonian = useHamiltonianService();
@@ -14,33 +15,39 @@ export const usePathToolService = defineStore('pathToolService', () => {
     const allPixels = pixelStore.get(layerId);
     if (!allPixels.length) return;
 
-    const paths = await hamiltonian.traverseFree(allPixels);
-    if (!paths.length) return;
+    const previousCursor = document.body.style.cursor;
+    document.body.style.cursor = CURSOR_STYLE.WAIT;
+    try {
+      const paths = await hamiltonian.traverseFree(allPixels);
+      if (!paths.length) return;
 
-    const color = nodes.getProperty(layerId, 'color');
-    const name = nodes.getProperty(layerId, 'name');
-    const groupId = nodes.createGroup({ name: `${name} Paths` });
+      const color = nodes.getProperty(layerId, 'color');
+      const name = nodes.getProperty(layerId, 'name');
+      const groupId = nodes.createGroup({ name: `${name} Paths` });
 
-    nodeTree.insert([groupId], layerQuery.lowermost([layerId]), true);
+      nodeTree.insert([groupId], layerQuery.lowermost([layerId]), true);
 
-    nodeTree.remove([layerId]);
-    nodes.remove([layerId]);
-    pixelStore.remove([layerId]);
+      nodeTree.remove([layerId]);
+      nodes.remove([layerId]);
+      pixelStore.remove([layerId]);
 
-    paths.forEach((path, idx) => {
-      const subGroupId = nodes.createGroup({ name: `Path ${idx + 1}` });
-      nodeTree.append([subGroupId], groupId, false);
+      paths.forEach((path, idx) => {
+        const subGroupId = nodes.createGroup({ name: `Path ${idx + 1}` });
+        nodeTree.append([subGroupId], groupId, false);
 
-      const ids = [];
-      path.forEach((pixel, j) => {
-        const lid = nodes.createLayer({ name: `Pixel ${j + 1}`, color });
-        pixelStore.addPixels(lid, [pixel]);
-        ids.push(lid);
+        const ids = [];
+        path.forEach((pixel, j) => {
+          const lid = nodes.createLayer({ name: `Pixel ${j + 1}`, color });
+          pixelStore.addPixels(lid, [pixel]);
+          ids.push(lid);
+        });
+        nodeTree.append(ids, subGroupId, false);
       });
-      nodeTree.append(ids, subGroupId, false);
-    });
 
-    nodeTree.replaceSelection([groupId]);
+      nodeTree.replaceSelection([groupId]);
+    } finally {
+      document.body.style.cursor = previousCursor || '';
+    }
   }
 
   return { apply };
