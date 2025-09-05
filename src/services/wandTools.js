@@ -13,7 +13,9 @@ export const usePathToolService = defineStore('pathToolService', () => {
   const { nodeTree, nodes, pixels: pixelStore } = useStore();
 
   async function apply() {
+    const prevCursorState = tool.getCursorState();
     const previousCursor = document.body.style.cursor;
+    tool.setCursor({ stroke: CURSOR_STYLE.WAIT, rect: CURSOR_STYLE.WAIT });
     document.body.style.cursor = CURSOR_STYLE.WAIT;
     try {
       if (nodeTree.selectedLayerCount !== 1) return;
@@ -49,6 +51,7 @@ export const usePathToolService = defineStore('pathToolService', () => {
 
       nodeTree.replaceSelection([groupId]);
     } finally {
+      tool.setCursor(prevCursorState);
       document.body.style.cursor = previousCursor || '';
       tool.setPrepared('done');
     }

@@ -30,6 +30,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     }
     function setCursor({ stroke, rect }) { cursor.stroke = stroke; cursor.rect = rect; }
     function getCursor() { return cursor[shape.value] || 'default'; }
+    function getCursorState() { return { ...cursor }; }
 
     function getPixelsInsideMarquee() {
         const startPixel = viewportStore.clientToIndex(marquee.anchorEvent, { allowViewport: true });
@@ -155,5 +156,6 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         setShape,
         setCursor,
         getCursor,
+        getCursorState,
     };
 });

@@ -14,17 +14,23 @@
         <div class="inline-flex rounded-md overflow-hidden border border-white/15">
           <button @click="setStroke"
                   :title="'Stroke'"
-                  :class="`p-1 ${toolSelectionService.isStroke ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+                  :disabled="waiting"
+                  class="p-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  :class="toolSelectionService.isStroke && !waiting ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'">
             <img :src="stageIcons.stroke" alt="Stroke" class="w-4 h-4">
           </button>
           <button @click="setRect"
                   :title="'Rect'"
-                  :class="`p-1 ${toolSelectionService.isRect ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+                  :disabled="waiting"
+                  class="p-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  :class="toolSelectionService.isRect && !waiting ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'">
             <img :src="stageIcons.rect" alt="Rect" class="w-4 h-4">
           </button>
           <button @click="toggleWand"
                   :title="'Wand'"
-                  :class="`p-1 ${wandVisible ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+                  :disabled="waiting"
+                  class="p-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  :class="wandActive && !waiting ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'">
             <img :src="stageIcons.wand" alt="Wand" class="w-4 h-4">
           </button>
         </div>
@@ -36,7 +42,9 @@
         <button v-for="tool in selectables" :key="tool.type"
                 @click="toolSelectionService.setPrepared(tool.type)"
                 :title="tool.name"
-                :class="`p-1 ${toolSelectionService.prepared === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'}`">
+                :disabled="waiting"
+                class="p-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                :class="toolSelectionService.prepared === tool.type && !waiting ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'">
           <img v-if="tool.icon" :src="tool.icon" :alt="tool.name" class="w-4 h-4">
           <span v-else class="text-xs">{{ tool.label || tool.name }}</span>
         </button>
@@ -68,6 +76,8 @@ const { viewport: viewportStore, nodeTree, input, output } = useStore();
 const { toolSelection: toolSelectionService, stageResize: stageResizeService, imageLoad: imageLoadService, settings: settingsService } = useService();
 const wandPopup = ref(null);
 const wandVisible = computed(() => wandPopup.value?.show.value ?? false);
+const wandActive = computed(() => wandVisible.value || toolSelectionService.shape === 'wand');
+const waiting = computed(() => toolSelectionService.prepared === 'waiting');
 function toggleWand() {
   wandPopup.value?.toggle();
 }
