@@ -5,7 +5,9 @@ import { useOverlayService } from './overlay';
 import { useLayerPanelService } from './layerPanel';
 import { useLayerQueryService } from './layerQuery';
 import { useStore } from '../stores';
+import { useToolbarStore } from '../stores/toolbar';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
+import stageIcons from '../image/stage_toolbar';
 
 export const useDrawToolService = defineStore('drawToolService', () => {
     const tool = useToolSelectionService();
@@ -14,6 +16,8 @@ export const useDrawToolService = defineStore('drawToolService', () => {
     overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
     const usable = computed(() => nodeTree.selectedLayerCount === 1);
+    const toolbar = useToolbarStore();
+    toolbar.register({ type: 'draw', name: 'Draw', icon: stageIcons.draw, usable });
     watch(() => tool.prepared === 'draw', (isDraw) => {
         if (!isDraw) {
             overlayService.clear(overlayId);
@@ -56,6 +60,8 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     overlayService.setStyles(overlayId, OVERLAY_STYLES.REMOVE);
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
     const usable = computed(() => nodeTree.selectedLayerCount === 1);
+    const toolbar = useToolbarStore();
+    toolbar.register({ type: 'erase', name: 'Erase', icon: stageIcons.erase, usable });
     watch(() => tool.prepared === 'erase', (isErase) => {
         if (!isErase) {
             overlayService.clear(overlayId);
@@ -101,6 +107,8 @@ export const useCutToolService = defineStore('cutToolService', () => {
     const layerPanel = useLayerPanelService();
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
     const usable = computed(() => nodeTree.selectedLayerCount === 1);
+    const toolbar = useToolbarStore();
+    toolbar.register({ type: 'cut', name: 'Cut', icon: stageIcons.cut, usable });
     watch(() => tool.prepared === 'cut', (isCut) => {
         if (!isCut) {
             overlayService.clear(overlayId);
@@ -167,6 +175,8 @@ export const useTopToolService = defineStore('topToolService', () => {
     const layerQuery = useLayerQueryService();
     const { nodeTree, nodes } = useStore();
     const usable = computed(() => nodeTree.selectedIds.length === 1);
+    const toolbar = useToolbarStore();
+    toolbar.register({ type: 'top', name: 'To Top', icon: stageIcons.top, usable });
     watch(() => tool.prepared === 'top', (isTop) => {
         if (!isTop) {
             overlayService.clear(overlayId);

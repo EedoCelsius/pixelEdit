@@ -5,9 +5,11 @@ import { useOverlayService } from './overlay';
 import { useLayerPanelService } from './layerPanel';
 import { useLayerQueryService } from './layerQuery';
 import { useStore } from '../stores';
+import { useToolbarStore } from '../stores/toolbar';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
 import { indexToCoord, ensureDirectionPattern } from '../utils';
 import { PIXEL_DIRECTIONS } from '../stores/pixels';
+import stageIcons from '../image/stage_toolbar';
 
 export const useSelectService = defineStore('selectService', () => {
     const tool = useToolSelectionService();
@@ -18,6 +20,8 @@ export const useSelectService = defineStore('selectService', () => {
     const { nodeTree, nodes, keyboardEvent: keyboardEvents } = useStore();
     const layerQuery = useLayerQueryService();
     const usable = computed(() => true);
+    const toolbar = useToolbarStore();
+    toolbar.register({ type: 'select', name: 'Select', icon: stageIcons.select, usable });
     let mode = 'select';
     watch(() => tool.prepared === 'select', (isSelect) => {
         if (!isSelect) {
@@ -115,6 +119,8 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
     const layerQuery = useLayerQueryService();
     const overlayService = useOverlayService();
     const usable = computed(() => true);
+    const toolbar = useToolbarStore();
+    toolbar.register({ type: 'direction', name: 'Direction', icon: stageIcons.direction, usable });
     const overlays = PIXEL_DIRECTIONS.map(direction => {
         const id = overlayService.createOverlay();
         overlayService.setStyles(id, {
@@ -215,6 +221,8 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
     overlayService.setStyles(overlayId, OVERLAY_STYLES.REMOVE);
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
     const usable = computed(() => true);
+    const toolbar = useToolbarStore();
+    toolbar.register({ type: 'globalErase', name: 'Global Erase', icon: stageIcons.globalErase, usable });
     watch(() => tool.prepared === 'globalErase', (isGlobalErase) => {
         if (!isGlobalErase) {
             overlayService.clear(overlayId);
