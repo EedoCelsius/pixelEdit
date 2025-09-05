@@ -7,6 +7,7 @@ import { useViewportStore } from './viewport';
 import { useViewportEventStore } from './viewportEvent';
 import { useKeyboardEventStore } from './keyboardEvent';
 import { useContextMenuStore } from './contextMenu';
+import { useToolbarStore } from './toolbar';
 
 export {
     useInputStore,
@@ -17,7 +18,8 @@ export {
     useViewportStore,
     useViewportEventStore,
     useKeyboardEventStore,
-    useContextMenuStore
+    useContextMenuStore,
+    useToolbarStore
 };
 
 export const useStore = () => ({
@@ -29,5 +31,6 @@ export const useStore = () => ({
     viewport: useViewportStore(),
     viewportEvent: useViewportEventStore(),
     keyboardEvent: useKeyboardEventStore(),
-    contextMenu: useContextMenuStore()
+    contextMenu: useContextMenuStore(),
+    toolbar: useToolbarStore()
 });

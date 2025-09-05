@@ -39,8 +39,8 @@
         <button v-for="tool in selectables" :key="tool.type"
                 @click="toolSelectionService.setPrepared(tool.type)"
                 :title="tool.name"
-                :disabled="toolSelectionService.isWand"
-                :class="`p-1 ${toolSelectionService.prepared === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'} ${toolSelectionService.isWand ? 'opacity-50 cursor-not-allowed' : ''}`">
+                :disabled="toolSelectionService.isWand || !tool.usable"
+                :class="`p-1 ${toolSelectionService.prepared === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'} ${toolSelectionService.isWand || !tool.usable ? 'opacity-50 cursor-not-allowed' : ''}`">
           <img v-if="tool.icon" :src="tool.icon" :alt="tool.name" class="w-4 h-4">
           <span v-else class="text-xs">{{ tool.label || tool.name }}</span>
         </button>
@@ -64,11 +64,11 @@
 import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
-import { SINGLE_SELECTION_TOOLS, MULTI_SELECTION_TOOLS, WAND_TOOLS } from '@/constants';
+import { WAND_TOOLS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 import WandPopup from './WandPopup.vue';
 
-const { viewport: viewportStore, nodeTree, input, output } = useStore();
+const { viewport: viewportStore, input, output, toolbar: toolbarStore } = useStore();
 const { toolSelection: toolSelectionService, stageResize: stageResizeService, imageLoad: imageLoadService, settings: settingsService } = useService();
 
 const fileInput = ref(null);
@@ -83,15 +83,14 @@ async function onFileChange(e) {
   e.target.value = '';
 }
 
-let lastSingleTool = 'draw';
-let lastMultiTool = 'select';
-const selectables = ref(MULTI_SELECTION_TOOLS);
-toolSelectionService.setPrepared(lastMultiTool);
+toolSelectionService.setPrepared('select');
 toolSelectionService.setShape('stroke');
+
+const selectables = computed(() => toolbarStore.tools);
 
 const wandOpen = ref(false);
 let previousShape = 'stroke';
-let previousTool = 'draw';
+let previousTool = 'select';
 const wandToolTypes = new Set(WAND_TOOLS.map(t => t.type));
 const wandWorking = computed(() => wandToolTypes.has(toolSelectionService.prepared));
 
@@ -128,20 +127,6 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', handleClickOutsi
 
 watch(() => toolSelectionService.prepared, (val) => {
   if (val === 'done') closeWand();
-});
-watch(() => nodeTree.selectedLayerCount, (size, prev) => {
-    if (size === 1) {
-        if (prev !== 1) lastMultiTool = toolSelectionService.prepared;
-        selectables.value = SINGLE_SELECTION_TOOLS;
-        const tool = lastSingleTool;
-        toolSelectionService.setPrepared(tool);
-    }
-    else if (prev === 1) {
-        lastSingleTool = toolSelectionService.prepared;
-        selectables.value = MULTI_SELECTION_TOOLS;
-        const tool = lastMultiTool;
-        toolSelectionService.setPrepared(tool);
-    }
 });
 
 </script>
