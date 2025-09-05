@@ -126,7 +126,7 @@ function partitionAtEdgeCut(nodes, neighbors) {
   };
 
   for (let k = 1; k <= candidateEdges.length; k++) {
-    const indices = Array.from(Array(10).keys());
+    const indices = Array.from(Array(k).keys());
     while (indices.length) {
       const combo = indices.map((i) => candidateEdges[i]);
       const res = tryEdges(combo);
