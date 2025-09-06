@@ -112,7 +112,10 @@ function setShape(shape) {
 
 function handleClickOutside(e) {
   if (!wandOpen.value) return;
-  if (!e.target.closest("#wandPopup")) closeWand();
+  if (!e.target.closest("#wandPopup")) {
+    toolSelectionService.setShape('stroke');
+    closeWand();
+  }
 }
 
 onMounted(() => document.addEventListener('mousedown', handleClickOutside));
