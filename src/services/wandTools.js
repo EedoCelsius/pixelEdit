@@ -77,8 +77,6 @@ export const useConnectToolService = defineStore('connectToolService', () => {
         if (p !== 'connect') return;
         if (!usable.value) return;
 
-        tool.setCursor({ wand: CURSOR_STYLE.WAIT });
-
         const selected = nodeTree.layerOrder.filter(id => nodeTree.selectedLayerIds.includes(id));
         const len = selected.length;
         const cache = new Map();
@@ -153,8 +151,6 @@ export const useBorderToolService = defineStore('borderToolService', () => {
         if (p !== 'border') return;
         if (!usable.value) return;
 
-        tool.setCursor({ wand: CURSOR_STYLE.WAIT });
-
         const width = viewportStore.stage.width;
         const height = viewportStore.stage.height;
 
@@ -180,10 +176,9 @@ export const useBorderToolService = defineStore('borderToolService', () => {
 
         if (border.size) {
             const topId = layerQuery.uppermost(nodeTree.selectedLayerIds);
-            const color = nodes.getProperty(topId, 'color');
             const baseName = nodes.getProperty(topId, 'name');
             const name = nodeTree.selectedLayerCount === 1 ? `Border of ${baseName}` : 'Border';
-            const id = nodes.createLayer({ name, color });
+            const id = nodes.createLayer({ name });
             pixelStore.set(id, [...border]);
             nodeTree.insert([id], topId, false);
             nodeTree.replaceSelection([id]);
