@@ -90,13 +90,11 @@ const selectables = computed(() => toolbarStore.tools);
 
 const wandOpen = ref(false);
 let previousShape = 'stroke';
-let previousTool = 'select';
 const wandToolTypes = new Set(WAND_TOOLS.map(t => t.type));
 const wandWorking = computed(() => wandToolTypes.has(toolSelectionService.prepared));
 
 function openWand() {
   previousShape = toolSelectionService.shape;
-  previousTool = toolSelectionService.prepared;
   wandOpen.value = true;
   toolSelectionService.setShape('wand');
 }
@@ -109,7 +107,7 @@ function selectWandTool(type) {
 function closeWand() {
   wandOpen.value = false;
   toolSelectionService.setShape(previousShape);
-  toolSelectionService.setPrepared(previousTool);
+  toolSelectionService.findUsable();
 }
 
 function setShape(shape) {

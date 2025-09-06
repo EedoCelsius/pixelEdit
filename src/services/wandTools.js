@@ -14,7 +14,8 @@ export const usePathToolService = defineStore('pathToolService', () => {
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount === 1);
 
     watch(() => tool.prepared, async (p) => {
-        if (p !== 'path' || !usable.value) return;
+        if (p !== 'path') return;
+        if (!usable.value) { tool.tryOther(); return; }
 
         tool.setCursor({ wand: CURSOR_STYLE.WAIT });
 

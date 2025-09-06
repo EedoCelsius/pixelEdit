@@ -23,14 +23,17 @@ export const useDrawToolService = defineStore('drawToolService', () => {
             overlayService.clear(overlayId);
             return;
         }
+        if (!usable.value) { tool.tryOther(); return; }
         tool.setCursor({ stroke: CURSOR_STYLE.DRAW_STROKE, rect: CURSOR_STYLE.DRAW_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
         if (tool.prepared !== 'draw') return;
+        if (!usable.value) { tool.tryOther(); return; }
         overlayService.setPixels(overlayId, pixel ? [pixel] : []);
     });
     watch(() => tool.dragPixel, (pixel) => {
-        if (tool.prepared !== 'draw' || !usable.value) return;
+        if (tool.prepared !== 'draw') return;
+        if (!usable.value) { tool.tryOther(); return; }
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.getProperty(sourceId, 'locked')) {
             if (pixel)
@@ -41,11 +44,13 @@ export const useDrawToolService = defineStore('drawToolService', () => {
         }
     });
     watch(() => tool.previewPixels, (pixels) => {
-        if (tool.prepared !== 'draw' || !usable.value) return;
+        if (tool.prepared !== 'draw') return;
+        if (!usable.value) { tool.tryOther(); return; }
         overlayService.setPixels(overlayId, pixels);
     });
     watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.prepared !== 'draw' || !usable.value) return;
+        if (tool.prepared !== 'draw') return;
+        if (!usable.value) { tool.tryOther(); return; }
         const id = nodeTree.selectedLayerIds[0];
         if (nodes.getProperty(id, 'locked')) return;
         pixelStore.addPixels(id, pixels);
@@ -67,14 +72,17 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
             overlayService.clear(overlayId);
             return;
         }
+        if (!usable.value) { tool.tryOther(); return; }
         tool.setCursor({ stroke: CURSOR_STYLE.ERASE_STROKE, rect: CURSOR_STYLE.ERASE_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
         if (tool.prepared !== 'erase') return;
+        if (!usable.value) { tool.tryOther(); return; }
         overlayService.setPixels(overlayId, pixel ? [pixel] : []);
     });
     watch(() => tool.dragPixel, (pixel) => {
-        if (tool.prepared !== 'erase' || !usable.value) return;
+        if (tool.prepared !== 'erase') return;
+        if (!usable.value) { tool.tryOther(); return; }
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.getProperty(sourceId, 'locked')) {
             const sourcePixels = new Set(pixelStore.get(sourceId));
@@ -85,13 +93,15 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
         }
     });
     watch(() => tool.previewPixels, (pixels) => {
-        if (tool.prepared !== 'erase' || !usable.value) return;
+        if (tool.prepared !== 'erase') return;
+        if (!usable.value) { tool.tryOther(); return; }
         const sourceId = nodeTree.selectedLayerIds[0];
         const sourcePixels = new Set(pixelStore.get(sourceId));
         overlayService.setPixels(overlayId, pixels.filter(pixel => sourcePixels.has(pixel)));
     });
     watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.prepared !== 'erase' || !usable.value) return;
+        if (tool.prepared !== 'erase') return;
+        if (!usable.value) { tool.tryOther(); return; }
         const id = nodeTree.selectedLayerIds[0];
         if (nodes.getProperty(id, 'locked')) return;
         pixelStore.removePixels(id, pixels);
@@ -114,14 +124,17 @@ export const useCutToolService = defineStore('cutToolService', () => {
             overlayService.clear(overlayId);
             return;
         }
+        if (!usable.value) { tool.tryOther(); return; }
         tool.setCursor({ stroke: CURSOR_STYLE.CUT_STROKE, rect: CURSOR_STYLE.CUT_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
         if (tool.prepared !== 'cut') return;
+        if (!usable.value) { tool.tryOther(); return; }
         overlayService.setPixels(overlayId, pixel ? [pixel] : []);
     });
     watch(() => tool.dragPixel, (pixel) => {
-        if (tool.prepared !== 'cut' || !usable.value) return;
+        if (tool.prepared !== 'cut') return;
+        if (!usable.value) { tool.tryOther(); return; }
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.getProperty(sourceId, 'locked')) {
             const sourcePixels = new Set(pixelStore.get(sourceId));
@@ -132,11 +145,13 @@ export const useCutToolService = defineStore('cutToolService', () => {
         }
     });
     watch(() => tool.previewPixels, (pixels) => {
-        if (tool.prepared !== 'cut' || !usable.value) return;
+        if (tool.prepared !== 'cut') return;
+        if (!usable.value) { tool.tryOther(); return; }
         overlayService.setPixels(overlayId, pixels);
     });
     watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.prepared !== 'cut' || !usable.value) return;
+        if (tool.prepared !== 'cut') return;
+        if (!usable.value) { tool.tryOther(); return; }
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.getProperty(sourceId, 'locked')) return;
         const sourcePixels = new Set(pixelStore.get(sourceId));
@@ -182,10 +197,12 @@ export const useTopToolService = defineStore('topToolService', () => {
             overlayService.clear(overlayId);
             return;
         }
+        if (!usable.value) { tool.tryOther(); return; }
         tool.setCursor({ stroke: CURSOR_STYLE.TOP, rect: CURSOR_STYLE.TOP });
     });
     watch(() => tool.hoverPixel, (pixel) => {
-        if (tool.prepared !== 'top' || !usable.value) return;
+        if (tool.prepared !== 'top') return;
+        if (!usable.value) { tool.tryOther(); return; }
         if (!pixel) {
             overlayService.clear(overlayId);
             return;
@@ -201,7 +218,8 @@ export const useTopToolService = defineStore('topToolService', () => {
         }
     });
     watch(() => tool.dragPixel, (pixel) => {
-        if (tool.prepared !== 'top' || !usable.value || !pixel) return;
+        if (tool.prepared !== 'top') return;
+        if (!usable.value || !pixel) { if (!usable.value) tool.tryOther(); return; }
         const id = layerQuery.topVisibleAt(pixel);
         if (!id) return;
         if (nodes.getProperty(id, 'locked')) {

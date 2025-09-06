@@ -16,8 +16,7 @@ export const useShortcutService = defineStore('shortcutService', () => {
     const toolSelectionService = useToolSelectionService();
     const clipboard = useClipboardService();
 
-    let previousTool = toolSelectionService.prepared;
-    let modifierActive = false;
+    let modifierKey = null;
 
     function deleteSelection() {
         if (!nodeTree.selectedNodeCount) return;
@@ -80,8 +79,7 @@ export const useShortcutService = defineStore('shortcutService', () => {
             if (map && !e.repeat) {
                 const change = map[toolSelectionService.prepared] ?? map.default;
                 if (change) {
-                    previousTool = toolSelectionService.prepared;
-                    modifierActive = true;
+                    modifierKey = key;
                     toolSelectionService.setPrepared(change);
                     break;
                 }
@@ -142,27 +140,12 @@ export const useShortcutService = defineStore('shortcutService', () => {
 
     watch(() => keyboardEvents.recent.up, (ups) => {
         for (const e of ups) {
-            if (e.key === 'Shift') {
-                if (toolSelectionService.prepared !== previousTool) {
-                    toolSelectionService.setPrepared(previousTool);
-                }
-                modifierActive = false;
-                break;
-            }
-            if (e.key === 'Control' || e.key === 'Meta') {
-                const down = keyboardEvents.get('keydown', e.key);
-                if (!down || !down.repeat) continue;
-                if (toolSelectionService.prepared !== previousTool) {
-                    toolSelectionService.setPrepared(previousTool);
-                }
-                modifierActive = false;
+            if (e.key === modifierKey) {
+                toolSelectionService.findUsable();
+                modifierKey = null;
                 break;
             }
         }
-    });
-
-    watch(() => toolSelectionService.prepared, (tool) => {
-        if (!modifierActive) previousTool = tool;
     });
 
     return {};

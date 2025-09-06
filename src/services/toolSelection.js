@@ -8,7 +8,9 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     const { viewport: viewportStore, viewportEvent: viewportEvents, output } = useStore();
 
     const active = ref(false)
-    const prepared = ref(null);
+    const preparedStack = ref(['draw', 'select']);
+    const index = ref(preparedStack.value.length - 1);
+    const prepared = computed(() => preparedStack.value[index.value]);
     const shape = ref(null);
     const cursor = reactive({ stroke: 'default', rect: 'default', wand: 'default' });
     const hoverPixel = ref(null);
@@ -16,7 +18,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     const previewPixels = ref([]);
     const affectedPixels = ref([]);
     const marquee = reactive({ visible: false, anchorEvent: null, tailEvent: null });
-    let pointer = null, nextTool = null, nextShape = null;
+    let pointer = null, nextShape = null;
 
     const isStroke = computed(() => shape.value === 'stroke');
     const isRect = computed(() => shape.value === 'rect');
@@ -25,17 +27,27 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
 
     function setPrepared(t) {
         if (shape.value === 'wand' && !wandToolTypes.has(t) && t !== 'waiting' && t !== 'done') return;
-        if (active.value) nextTool = t;
-        else prepared.value = t;
+        preparedStack.value.push(t);
+        if (!active.value) findUsable();
     }
     function setShape(s) {
         if (wandToolTypes.has(prepared.value)) return;
         if (active.value) nextShape = s;
         else {
             shape.value = s;
-            if (s === 'wand') prepared.value = 'waiting';
+            if (s === 'wand') {
+                preparedStack.value.push('waiting');
+                findUsable();
+            }
         }
     }
+    function findUsable() {
+        const len = preparedStack.value.length;
+        if (!len) return;
+        if (index.value === len - 1) index.value = Math.max(0, len - 2);
+        else index.value = len - 1;
+    }
+    function tryOther() { if (index.value > 0) index.value--; }
     function setCursor(c) { Object.assign(cursor, c); }
     function getCursor() { return cursor[shape.value] || 'default'; }
 
@@ -72,7 +84,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
             if (pixel !== null) dragPixel.value = pixel;
 
             active.value = true;
-            pointer = e.pointerId, nextTool = prepared.value, nextShape = shape.value;
+            pointer = e.pointerId, nextShape = shape.value;
             if (shape.value === 'rect') {
                 marquee.visible = true;
                 marquee.anchorEvent = e;
@@ -128,7 +140,12 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
 
         active.value = false;
         pointer = null;
-        if (prepared.value !== nextTool) prepared.value = nextTool;
+        findUsable();
+        if (preparedStack.value.length > 5) {
+            const removed = preparedStack.value.length - 5;
+            preparedStack.value = preparedStack.value.slice(-5);
+            index.value = Math.max(0, index.value - removed);
+        }
         if (shape.value !== nextShape) shape.value = nextShape;
         marquee.visible = false;
     });
@@ -141,7 +158,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         
         active.value = false;
         pointer = null;
-        if (prepared.value !== nextTool) prepared.value = nextTool;
+        findUsable();
         if (shape.value !== nextShape) shape.value = nextShape;
         marquee.visible = false;
         previewPixels.value = [];
@@ -164,5 +181,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         setShape,
         setCursor,
         getCursor,
+        findUsable,
+        tryOther,
     };
 });
