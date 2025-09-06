@@ -8,7 +8,8 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     const { viewport: viewportStore, viewportEvent: viewportEvents, output } = useStore();
 
     const active = ref(false)
-    const prepared = ref(null);
+    const prepared = ref(['draw', 'select']);
+    const index = ref(1);
     const shape = ref(null);
     const cursor = reactive({ stroke: 'default', rect: 'default', wand: 'default' });
     const hoverPixel = ref(null);
@@ -16,24 +17,42 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     const previewPixels = ref([]);
     const affectedPixels = ref([]);
     const marquee = reactive({ visible: false, anchorEvent: null, tailEvent: null });
-    let pointer = null, nextTool = null, nextShape = null;
+    let pointer = null, nextShape = null;
 
     const isStroke = computed(() => shape.value === 'stroke');
     const isRect = computed(() => shape.value === 'rect');
     const isWand = computed(() => shape.value === 'wand');
     const wandToolTypes = new Set(WAND_TOOLS.map(t => t.type));
 
+    function findUsable(t) {
+        let idx = prepared.value.indexOf(t);
+        const last = prepared.value.length - 1;
+        if (idx === -1) {
+            prepared.value.push(t);
+            index.value = prepared.value.length - 1;
+            return;
+        }
+        if (idx === last) {
+            index.value = last - 1;
+        } else {
+            prepared.value.splice(idx, 1);
+            prepared.value.push(t);
+            index.value = prepared.value.length - 1;
+        }
+    }
     function setPrepared(t) {
         if (shape.value === 'wand' && !wandToolTypes.has(t) && t !== 'waiting' && t !== 'done') return;
-        if (active.value) nextTool = t;
-        else prepared.value = t;
+        findUsable(t);
+    }
+    function useOther() {
+        if (index.value > 0) index.value--;
     }
     function setShape(s) {
-        if (wandToolTypes.has(prepared.value)) return;
+        if (wandToolTypes.has(prepared.value[index.value])) return;
         if (active.value) nextShape = s;
         else {
             shape.value = s;
-            if (s === 'wand') prepared.value = 'waiting';
+            if (s === 'wand') findUsable('waiting');
         }
     }
     function setCursor(c) { Object.assign(cursor, c); }
@@ -72,7 +91,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
             if (pixel !== null) dragPixel.value = pixel;
 
             active.value = true;
-            pointer = e.pointerId, nextTool = prepared.value, nextShape = shape.value;
+            pointer = e.pointerId, nextShape = shape.value;
             if (shape.value === 'rect') {
                 marquee.visible = true;
                 marquee.anchorEvent = e;
@@ -128,9 +147,13 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
 
         active.value = false;
         pointer = null;
-        if (prepared.value !== nextTool) prepared.value = nextTool;
         if (shape.value !== nextShape) shape.value = nextShape;
         marquee.visible = false;
+        const overflow = prepared.value.length - 5;
+        if (overflow > 0) {
+            prepared.value.splice(0, overflow);
+            index.value = Math.max(0, index.value - overflow);
+        }
     });
 
     watch(() => [ viewportEvents.pinchIds, viewportEvents.recent.pointer.cancel ], ([pinches, cancels]) => {
@@ -141,15 +164,20 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         
         active.value = false;
         pointer = null;
-        if (prepared.value !== nextTool) prepared.value = nextTool;
         if (shape.value !== nextShape) shape.value = nextShape;
         marquee.visible = false;
+        const overflow = prepared.value.length - 5;
+        if (overflow > 0) {
+            prepared.value.splice(0, overflow);
+            index.value = Math.max(0, index.value - overflow);
+        }
         previewPixels.value = [];
         affectedPixels.value = [];
     });
 
     return {
         prepared,
+        index,
         shape,
         marquee,
         hoverPixel,
@@ -161,6 +189,8 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         isRect,
         isWand,
         setPrepared,
+        findUsable,
+        useOther,
         setShape,
         setCursor,
         getCursor,

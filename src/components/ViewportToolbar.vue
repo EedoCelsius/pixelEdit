@@ -40,7 +40,7 @@
                 @click="toolSelectionService.setPrepared(tool.type)"
                 :title="tool.name"
                 :disabled="toolSelectionService.isWand || !tool.usable"
-                :class="`p-1 ${toolSelectionService.prepared === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'} ${toolSelectionService.isWand || !tool.usable ? 'opacity-50 cursor-not-allowed' : ''}`">
+                :class="`p-1 ${toolSelectionService.prepared[toolSelectionService.index] === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'} ${toolSelectionService.isWand || !tool.usable ? 'opacity-50 cursor-not-allowed' : ''}`">
           <img v-if="tool.icon" :src="tool.icon" :alt="tool.name" class="w-4 h-4">
           <span v-else class="text-xs">{{ tool.label || tool.name }}</span>
         </button>
@@ -83,20 +83,17 @@ async function onFileChange(e) {
   e.target.value = '';
 }
 
-toolSelectionService.setPrepared('select');
 toolSelectionService.setShape('stroke');
 
 const selectables = computed(() => toolbarStore.tools);
 
 const wandOpen = ref(false);
 let previousShape = 'stroke';
-let previousTool = 'select';
 const wandToolTypes = new Set(WAND_TOOLS.map(t => t.type));
-const wandWorking = computed(() => wandToolTypes.has(toolSelectionService.prepared));
+const wandWorking = computed(() => wandToolTypes.has(toolSelectionService.prepared[toolSelectionService.index]));
 
 function openWand() {
   previousShape = toolSelectionService.shape;
-  previousTool = toolSelectionService.prepared;
   wandOpen.value = true;
   toolSelectionService.setShape('wand');
 }
@@ -109,7 +106,10 @@ function selectWandTool(type) {
 function closeWand() {
   wandOpen.value = false;
   toolSelectionService.setShape(previousShape);
-  toolSelectionService.setPrepared(previousTool);
+  const current = toolSelectionService.prepared[toolSelectionService.index];
+  if (wandToolTypes.has(current) || current === 'done') {
+    toolSelectionService.findUsable(current);
+  }
 }
 
 function setShape(shape) {
@@ -125,7 +125,7 @@ function handleClickOutside(e) {
 onMounted(() => document.addEventListener('mousedown', handleClickOutside));
 onBeforeUnmount(() => document.removeEventListener('mousedown', handleClickOutside));
 
-watch(() => toolSelectionService.prepared, (val) => {
+watch(() => toolSelectionService.prepared[toolSelectionService.index], (val) => {
   if (val === 'done') closeWand();
 });
 

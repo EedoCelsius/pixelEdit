@@ -13,8 +13,12 @@ export const usePathToolService = defineStore('pathToolService', () => {
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount === 1);
 
-    watch(() => tool.prepared, async (p) => {
-        if (p !== 'path' || !usable.value) return;
+    watch(() => tool.prepared[tool.index], async (p) => {
+        if (p !== 'path') return;
+        if (!usable.value) {
+            tool.useOther();
+            return;
+        }
 
         tool.setCursor({ wand: CURSOR_STYLE.WAIT });
 
