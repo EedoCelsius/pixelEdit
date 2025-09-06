@@ -23,15 +23,16 @@ export const useSelectService = defineStore('selectService', () => {
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'select', name: 'Select', icon: stageIcons.select, usable });
     let mode = 'select';
-    watch(() => tool.prepared === 'select', (isSelect) => {
+    watch(() => tool.current === 'select', (isSelect) => {
         if (!isSelect) {
             overlayService.clear(overlayId);
             return;
         }
+        if (!usable.value) { tool.tryOther(); return; }
         tool.setCursor({ stroke: CURSOR_STYLE.ADD_STROKE, rect: CURSOR_STYLE.ADD_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
-        if (tool.prepared !== 'select') return;
+        if (tool.current !== 'select') return;
         if (!pixel) {
             overlayService.clear(overlayId);
             return;
@@ -62,7 +63,7 @@ export const useSelectService = defineStore('selectService', () => {
 
     });
     watch(() => tool.dragPixel, (pixel) => {
-        if (tool.prepared !== 'select') return;
+        if (tool.current !== 'select') return;
         if (pixel) {
             const id = layerQuery.topVisibleAt(pixel);
             if (id && nodes.getProperty(id, 'locked')) {
@@ -73,7 +74,7 @@ export const useSelectService = defineStore('selectService', () => {
         tool.setCursor({ stroke: CURSOR_STYLE.ADD_STROKE, rect: CURSOR_STYLE.ADD_RECT });
     });
     watch(() => tool.previewPixels, (pixels) => {
-        if (tool.prepared !== 'select') return;
+        if (tool.current !== 'select') return;
         const intersectedIds = [];
         for (const pixel of pixels) {
             const id = layerQuery.topVisibleAt(pixel);
@@ -89,7 +90,7 @@ export const useSelectService = defineStore('selectService', () => {
         overlayService.setLayers(overlayId, highlightIds);
     });
     watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.prepared !== 'select') return;
+        if (tool.current !== 'select') return;
         if (pixels.length > 0) {
             const intersectedIds = new Set();
             for (const pixel of pixels) {
@@ -132,7 +133,7 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
         return id;
     });
     function rebuild() {
-        if (tool.prepared !== 'direction') return;
+        if (tool.current !== 'direction') return;
         const layerIds = nodeTree.selectedLayerIds;
         const showAll = layerIds.length === 0;
         PIXEL_DIRECTIONS.forEach((direction, idx) => {
@@ -162,20 +163,21 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
             }
         });
     }
-    watch(() => tool.prepared === 'direction', (isDirection) => {
+    watch(() => tool.current === 'direction', (isDirection) => {
         if (!isDirection) {
             overlays.forEach(id => overlayService.clear(id));
             return;
         }
+        if (!usable.value) { tool.tryOther(); return; }
         rebuild();
         tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
     watch(() => tool.hoverPixel, (pixel) => {
-        if (tool.prepared !== 'direction' || !pixel) return;
+        if (tool.current !== 'direction' || !pixel) return;
         tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
     watch(() => tool.dragPixel, (pixel, prevPixel) => {
-        if (tool.prepared !== 'direction' || pixel == null) return;
+        if (tool.current !== 'direction' || pixel == null) return;
         const target = layerQuery.topVisibleAt(pixel);
         const editable = nodeTree.selectedLayerIds.length === 0 || nodeTree.selectedLayerIds.includes(target);
         if (target != null && editable) {
@@ -223,19 +225,20 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
     const usable = computed(() => true);
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'globalErase', name: 'Global Erase', icon: stageIcons.globalErase, usable });
-    watch(() => tool.prepared === 'globalErase', (isGlobalErase) => {
+    watch(() => tool.current === 'globalErase', (isGlobalErase) => {
         if (!isGlobalErase) {
             overlayService.clear(overlayId);
             return;
         }
+        if (!usable.value) { tool.tryOther(); return; }
         tool.setCursor({ stroke: CURSOR_STYLE.GLOBAL_ERASE_STROKE, rect: CURSOR_STYLE.GLOBAL_ERASE_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
-        if (tool.prepared !== 'globalErase') return;
+        if (tool.current !== 'globalErase') return;
         overlayService.setPixels(overlayId, pixel ? [pixel] : []);
     });
     watch(() => tool.dragPixel, (pixel) => {
-        if (tool.prepared !== 'globalErase') return;
+        if (tool.current !== 'globalErase') return;
         if (pixel){
             const lockedIds = nodeTree.layerOrder.filter(id => nodes.getProperty(id, 'locked'));
             for (const id of lockedIds) {
@@ -249,7 +252,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         tool.setCursor({ stroke: CURSOR_STYLE.GLOBAL_ERASE_STROKE, rect: CURSOR_STYLE.GLOBAL_ERASE_RECT });
     });
     watch(() => tool.previewPixels, (pixels) => {
-        if (tool.prepared !== 'globalErase') return;
+        if (tool.current !== 'globalErase') return;
         const erasablePixels = [];
         if (pixels.length) {
             const unlockedIds = nodeTree.layerOrder.filter(id => !nodes.getProperty(id, 'locked'));
@@ -264,7 +267,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         overlayService.setPixels(overlayId, erasablePixels);
     });
     watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.prepared !== 'globalErase' || !pixels.length) return;
+        if (tool.current !== 'globalErase' || !pixels.length) return;
         const targetIds = (nodeTree.layerSelectionExists ? nodeTree.selectedLayerIds : nodeTree.layerOrder)
             .filter(id => !nodes.getProperty(id, 'locked'));
         for (const id of targetIds) {

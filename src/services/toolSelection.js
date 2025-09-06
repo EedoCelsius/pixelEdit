@@ -8,7 +8,9 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     const { viewport: viewportStore, viewportEvent: viewportEvents, output } = useStore();
 
     const active = ref(false)
-    const prepared = ref(null);
+    const prepared = ref(['draw', 'select']);
+    const index = ref(prepared.value.length - 1);
+    const recent = ref(null);
     const shape = ref(null);
     const cursor = reactive({ stroke: 'default', rect: 'default', wand: 'default' });
     const hoverPixel = ref(null);
@@ -16,24 +18,35 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     const previewPixels = ref([]);
     const affectedPixels = ref([]);
     const marquee = reactive({ visible: false, anchorEvent: null, tailEvent: null });
-    let pointer = null, nextTool = null, nextShape = null;
+    let pointer = null, nextShape = null;
 
     const isStroke = computed(() => shape.value === 'stroke');
     const isRect = computed(() => shape.value === 'rect');
     const isWand = computed(() => shape.value === 'wand');
     const wandToolTypes = new Set(WAND_TOOLS.map(t => t.type));
+    const current = computed(() => prepared.value[index.value]);
 
-    function setPrepared(t) {
+    function addPrepared(t) {
         if (shape.value === 'wand' && !wandToolTypes.has(t) && t !== 'waiting' && t !== 'done') return;
-        if (active.value) nextTool = t;
-        else prepared.value = t;
+        prepared.value.push(t);
+        if (!active.value) findUsable();
+    }
+    function findUsable() {
+        recent.value = current.value;
+        index.value = prepared.value.length - 1;
+    }
+    function useRecent() {
+        if (recent.value) addPrepared(recent.value);
+    }
+    function tryOther() {
+        if (index.value > 0) index.value--;
     }
     function setShape(s) {
-        if (wandToolTypes.has(prepared.value)) return;
+        if (wandToolTypes.has(current.value)) return;
         if (active.value) nextShape = s;
         else {
             shape.value = s;
-            if (s === 'wand') prepared.value = 'waiting';
+            if (s === 'wand') addPrepared('waiting');
         }
     }
     function setCursor(c) { Object.assign(cursor, c); }
@@ -72,7 +85,8 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
             if (pixel !== null) dragPixel.value = pixel;
 
             active.value = true;
-            pointer = e.pointerId, nextTool = prepared.value, nextShape = shape.value;
+            pointer = e.pointerId;
+            nextShape = shape.value;
             if (shape.value === 'rect') {
                 marquee.visible = true;
                 marquee.anchorEvent = e;
@@ -128,7 +142,9 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
 
         active.value = false;
         pointer = null;
-        if (prepared.value !== nextTool) prepared.value = nextTool;
+        findUsable();
+        prepared.value = prepared.value.slice(-5);
+        index.value = prepared.value.length - 1;
         if (shape.value !== nextShape) shape.value = nextShape;
         marquee.visible = false;
     });
@@ -141,7 +157,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         
         active.value = false;
         pointer = null;
-        if (prepared.value !== nextTool) prepared.value = nextTool;
+        findUsable();
         if (shape.value !== nextShape) shape.value = nextShape;
         marquee.visible = false;
         previewPixels.value = [];
@@ -150,6 +166,8 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
 
     return {
         prepared,
+        index,
+        current,
         shape,
         marquee,
         hoverPixel,
@@ -160,7 +178,10 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         isStroke,
         isRect,
         isWand,
-        setPrepared,
+        addPrepared,
+        findUsable,
+        useRecent,
+        tryOther,
         setShape,
         setCursor,
         getCursor,

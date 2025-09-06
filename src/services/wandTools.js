@@ -13,8 +13,9 @@ export const usePathToolService = defineStore('pathToolService', () => {
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount === 1);
 
-    watch(() => tool.prepared, async (p) => {
-        if (p !== 'path' || !usable.value) return;
+    watch(() => tool.current, async (p) => {
+        if (p !== 'path') return;
+        if (!usable.value) { tool.tryOther(); return; }
 
         tool.setCursor({ wand: CURSOR_STYLE.WAIT });
 
@@ -25,7 +26,7 @@ export const usePathToolService = defineStore('pathToolService', () => {
         tool.setCursor({ wand: CURSOR_STYLE.PATH });
 
         if (!paths.length) {
-            tool.setPrepared('done');
+            tool.addPrepared('done');
             return;
         }
 
@@ -54,7 +55,7 @@ export const usePathToolService = defineStore('pathToolService', () => {
 
         nodeTree.replaceSelection([groupId]);
 
-        tool.setPrepared('done');
+        tool.addPrepared('done');
     });
 
     return { usable };

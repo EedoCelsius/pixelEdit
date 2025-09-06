@@ -16,7 +16,6 @@ export const useShortcutService = defineStore('shortcutService', () => {
     const toolSelectionService = useToolSelectionService();
     const clipboard = useClipboardService();
 
-    let previousTool = toolSelectionService.prepared;
     let modifierActive = false;
 
     function deleteSelection() {
@@ -78,11 +77,10 @@ export const useShortcutService = defineStore('shortcutService', () => {
 
             const map = TOOL_MODIFIERS[key];
             if (map && !e.repeat) {
-                const change = map[toolSelectionService.prepared] ?? map.default;
+                const change = map[toolSelectionService.current] ?? map.default;
                 if (change) {
-                    previousTool = toolSelectionService.prepared;
                     modifierActive = true;
-                    toolSelectionService.setPrepared(change);
+                    toolSelectionService.addPrepared(change);
                     break;
                 }
             }
@@ -143,26 +141,18 @@ export const useShortcutService = defineStore('shortcutService', () => {
     watch(() => keyboardEvents.recent.up, (ups) => {
         for (const e of ups) {
             if (e.key === 'Shift') {
-                if (toolSelectionService.prepared !== previousTool) {
-                    toolSelectionService.setPrepared(previousTool);
-                }
+                toolSelectionService.useRecent();
                 modifierActive = false;
                 break;
             }
             if (e.key === 'Control' || e.key === 'Meta') {
                 const down = keyboardEvents.get('keydown', e.key);
                 if (!down || !down.repeat) continue;
-                if (toolSelectionService.prepared !== previousTool) {
-                    toolSelectionService.setPrepared(previousTool);
-                }
+                toolSelectionService.useRecent();
                 modifierActive = false;
                 break;
             }
         }
-    });
-
-    watch(() => toolSelectionService.prepared, (tool) => {
-        if (!modifierActive) previousTool = tool;
     });
 
     return {};
