@@ -10,7 +10,6 @@ import globalEraseStroke from './global_erase_stroke.svg';
 import globalEraseRect from './global_erase_rect.svg';
 import cutStroke from './cut_stroke.svg';
 import cutRect from './cut_rect.svg';
-import path from './path.svg';
 import top from './top.svg';
 import up from './up.svg';
 import down from './down.svg';
@@ -32,7 +31,6 @@ export default {
   globalEraseRect,
   cutStroke,
   cutRect,
-  path,
   top,
   up,
   down,
