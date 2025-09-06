@@ -2,14 +2,13 @@ import { defineStore } from 'pinia';
 import { ref, reactive, computed, watch } from 'vue';
 import { useStore } from '../stores';
 import { coordToIndex, indexToCoord } from '../utils';
-import { WAND_TOOLS } from '@/constants';
 
 export const useToolSelectionService = defineStore('toolSelectionService', () => {
     const { viewport: viewportStore, viewportEvent: viewportEvents, output } = useStore();
 
     const active = ref(false)
-    const prepared = ref(['draw', 'select']);
-    const index = ref(prepared.value.length - 1);
+    const prepared = ref([]);
+    const index = ref(0);
     const recent = ref(null);
     const shape = ref(null);
     const cursor = reactive({ stroke: 'default', rect: 'default', wand: 'default' });
@@ -23,29 +22,35 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     const isStroke = computed(() => shape.value === 'stroke');
     const isRect = computed(() => shape.value === 'rect');
     const isWand = computed(() => shape.value === 'wand');
-    const current = computed(() => prepared.value[index.value]);
+    const currentTool = computed(() => prepared.value[index.value]);
+    const current = computed(() => currentTool.value?.type);
+    const waitingTool = { type: 'waiting', name: 'Waiting', usable: computed(() => shape.value === 'wand') };
 
     function addPrepared(t) {
+        if (!t) return;
         prepared.value.push(t);
         findUsable();
     }
     function findUsable() {
         if (active.value) return;
-        recent.value = current.value;
+        recent.value = currentTool.value;
+        for (let i = prepared.value.length - 1; i >= 0; i--) {
+            const tool = prepared.value[i];
+            if (tool?.usable?.value) {
+                index.value = i;
+                return;
+            }
+        }
         index.value = prepared.value.length - 1;
     }
     function useRecent() {
         if (recent.value) addPrepared(recent.value);
     }
-    function tryOther() {
-        if (index.value > 0) index.value--;
-        if (current.value === 'waiting') index.value--;
-    }
     function setShape(s) {
         if (active.value) nextShape = s;
         else {
             shape.value = s;
-            if (s === 'wand') addPrepared('waiting');
+            if (s === 'wand') addPrepared(waitingTool);
         }
     }
     function setCursor(c) { Object.assign(cursor, c); }
@@ -163,6 +168,10 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         affectedPixels.value = [];
     });
 
+    watch(() => currentTool.value?.usable?.value, (u) => {
+        if (u === false) findUsable();
+    });
+
     return {
         prepared,
         index,
@@ -180,7 +189,6 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         addPrepared,
         findUsable,
         useRecent,
-        tryOther,
         setShape,
         setCursor,
         getCursor,

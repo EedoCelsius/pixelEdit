@@ -23,7 +23,7 @@ export const useDrawToolService = defineStore('drawToolService', () => {
             overlayService.clear(overlayId);
             return;
         }
-        if (!usable.value) { tool.tryOther(); return; }
+        if (!usable.value) return;
         tool.setCursor({ stroke: CURSOR_STYLE.DRAW_STROKE, rect: CURSOR_STYLE.DRAW_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
@@ -68,7 +68,7 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
             overlayService.clear(overlayId);
             return;
         }
-        if (!usable.value) { tool.tryOther(); return; }
+        if (!usable.value) return;
         tool.setCursor({ stroke: CURSOR_STYLE.ERASE_STROKE, rect: CURSOR_STYLE.ERASE_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
@@ -116,7 +116,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
             overlayService.clear(overlayId);
             return;
         }
-        if (!usable.value) { tool.tryOther(); return; }
+        if (!usable.value) return;
         tool.setCursor({ stroke: CURSOR_STYLE.CUT_STROKE, rect: CURSOR_STYLE.CUT_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
@@ -185,7 +185,7 @@ export const useTopToolService = defineStore('topToolService', () => {
             overlayService.clear(overlayId);
             return;
         }
-        if (!usable.value) { tool.tryOther(); return; }
+        if (!usable.value) return;
         tool.setCursor({ stroke: CURSOR_STYLE.TOP, rect: CURSOR_STYLE.TOP });
     });
     watch(() => tool.hoverPixel, (pixel) => {
