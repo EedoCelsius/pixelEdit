@@ -3,6 +3,7 @@ import { watch, computed } from 'vue';
 import { useToolSelectionService } from './toolSelection';
 import { useHamiltonianService } from './hamiltonian';
 import { useLayerQueryService } from './layerQuery';
+import { useNodeQueryService } from './nodeQuery';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
 import { coordToIndex, indexToCoord, groupConnectedPixels } from '../utils';
@@ -143,7 +144,7 @@ export const useConnectToolService = defineStore('connectToolService', () => {
 
 export const useBorderToolService = defineStore('borderToolService', () => {
     const tool = useToolSelectionService();
-    const layerQuery = useLayerQueryService();
+    const nodeQuery = useNodeQueryService();
     const { nodeTree, nodes, pixels: pixelStore, viewport: viewportStore } = useStore();
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 0);
 
@@ -175,7 +176,7 @@ export const useBorderToolService = defineStore('borderToolService', () => {
         }
 
         if (border.size) {
-            const topId = layerQuery.uppermost(nodeTree.selectedLayerIds);
+            const topId = nodeQuery.uppermost(nodeTree.selectedIds);
             const baseName = nodes.getProperty(topId, 'name');
             const name = nodeTree.selectedLayerCount === 1 ? `Border of ${baseName}` : 'Border';
             const id = nodes.createLayer({ name, color: 0xFFFFFFFF });
