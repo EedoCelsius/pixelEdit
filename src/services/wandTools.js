@@ -5,7 +5,7 @@ import { useHamiltonianService } from './hamiltonian';
 import { useLayerQueryService } from './layerQuery';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
-import { indexToCoord, coordToIndex, groupConnectedPixels, getPixelUnion, averageColorU32 } from '../utils';
+import { indexToCoord, groupConnectedPixels } from '../utils';
 
 export const usePathToolService = defineStore('pathToolService', () => {
     const tool = useToolSelectionService();
@@ -135,60 +135,6 @@ export const useConnectToolService = defineStore('connectToolService', () => {
             }
         }
         nodeTree.replaceSelection([...mergedSelection]);
-
-        tool.setShape('stroke');
-        tool.useRecent();
-    });
-
-    return { usable };
-});
-
-export const useBorderToolService = defineStore('borderToolService', () => {
-    const tool = useToolSelectionService();
-    const layerQuery = useLayerQueryService();
-    const { nodeTree, nodes, pixels: pixelStore, viewport } = useStore();
-    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount >= 1);
-
-    watch(() => tool.current, (p) => {
-        if (p !== 'border') return;
-        if (!usable.value) return;
-
-        tool.setCursor({ wand: CURSOR_STYLE.WAIT });
-
-        const selectedIds = nodeTree.selectedLayerIds.slice();
-        const unionPixels = getPixelUnion(pixelStore.getProperties(selectedIds));
-        const pixelSet = new Set(unionPixels);
-        const width = viewport.stage.width;
-        const height = viewport.stage.height;
-        const borderSet = new Set();
-        const neighbors = [[1,0],[-1,0],[0,1],[0,-1]];
-
-        for (const pix of unionPixels) {
-            const [x, y] = indexToCoord(pix);
-            for (const [dx, dy] of neighbors) {
-                const nx = x + dx, ny = y + dy;
-                if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-                const nIdx = coordToIndex(nx, ny);
-                if (!pixelSet.has(nIdx)) borderSet.add(nIdx);
-            }
-        }
-
-        if (!borderSet.size) {
-            tool.useRecent();
-            return;
-        }
-
-        const components = groupConnectedPixels([...borderSet]);
-        const color = averageColorU32(selectedIds.map(id => nodes.getProperty(id, 'color')));
-        const newIds = components.map((pixels, idx) => {
-            const id = nodes.createLayer({ name: `Border ${idx + 1}`, color });
-            if (pixels.length) pixelStore.set(id, pixels);
-            return id;
-        });
-
-        const topId = layerQuery.uppermost(selectedIds);
-        nodeTree.insert(newIds, topId, false);
-        nodeTree.replaceSelection(newIds);
 
         tool.setShape('stroke');
         tool.useRecent();
