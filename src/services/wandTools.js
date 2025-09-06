@@ -58,7 +58,7 @@ export const usePathToolService = defineStore('pathToolService', () => {
 
 export const useConnectToolService = defineStore('connectToolService', () => {
     const tool = useToolSelectionService();
-    const { nodeTree, pixels: pixelStore, nodes } = useStore();
+    const { nodeTree, pixels: pixelStore } = useStore();
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 1);
 
     const averageOf = (id) => {
@@ -87,8 +87,6 @@ export const useConnectToolService = defineStore('connectToolService', () => {
             return cache.get(id);
         };
 
-        const orientations = new Map();
-
         for (let i = 0; i < len; i++) {
             const id = selected[i];
             let orientation = null;
@@ -98,48 +96,12 @@ export const useConnectToolService = defineStore('connectToolService', () => {
                 if (!topAvg || !bottomAvg) continue;
                 const dx = bottomAvg[0] - topAvg[0];
                 const dy = bottomAvg[1] - topAvg[1];
-                const adx = Math.abs(dx);
-                const ady = Math.abs(dy);
-                if (adx === ady) {
-                    if (adx === dist) continue;
-                    orientation = adx > ady ? 'horizontal' : 'vertical';
-                    orientation = orientation === 'horizontal' ? 'vertical' : 'horizontal';
-                } else if (adx > ady) {
-                    orientation = adx === dist ? 'horizontal' : 'vertical';
-                } else if (ady > adx) {
-                    orientation = ady === dist ? 'vertical' : 'horizontal';
-                }
+                if (Math.abs(dx) > Math.abs(dy)) orientation = 'horizontal';
+                else if (Math.abs(dy) > Math.abs(dx)) orientation = 'vertical';
             }
             if (!orientation) continue;
             const pixels = pixelStore.get(id);
-            if (pixels.length) {
-                pixelStore.set(id, pixels, orientation);
-                orientations.set(id, orientation);
-            }
-        }
-
-        if (orientations.size) {
-            let i = 0;
-            while (selected.length > 1 && i < selected.length) {
-                const current = selected[i];
-                const nextIndex = (i + 1) % selected.length;
-                const next = selected[nextIndex];
-                if (orientations.get(current) && orientations.get(current) === orientations.get(next)) {
-                    const orientation = orientations.get(current);
-                    const mergedPixels = [...pixelStore.get(current), ...pixelStore.get(next)];
-                    pixelStore.set(current, mergedPixels, orientation);
-                    nodeTree.remove([next]);
-                    nodes.remove([next]);
-                    pixelStore.remove([next]);
-                    orientations.delete(next);
-                    selected.splice(nextIndex, 1);
-                    if (nextIndex < i) i--;
-                    if (selected.length === 1) break;
-                } else {
-                    i++;
-                }
-            }
-            nodeTree.replaceSelection(selected);
+            if (pixels.length) pixelStore.set(id, pixels, orientation);
         }
 
         tool.setShape('stroke');
