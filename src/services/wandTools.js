@@ -5,7 +5,7 @@ import { useHamiltonianService } from './hamiltonian';
 import { useLayerQueryService } from './layerQuery';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
-import { indexToCoord, groupConnectedPixels, coordToIndex, getPixelUnion } from '../utils';
+import { indexToCoord, groupConnectedPixels } from '../utils';
 
 export const usePathToolService = defineStore('pathToolService', () => {
     const tool = useToolSelectionService();
@@ -135,61 +135,6 @@ export const useConnectToolService = defineStore('connectToolService', () => {
             }
         }
         nodeTree.replaceSelection([...mergedSelection]);
-
-        tool.setShape('stroke');
-        tool.useRecent();
-    });
-
-    return { usable };
-});
-
-export const useBorderToolService = defineStore('borderToolService', () => {
-    const tool = useToolSelectionService();
-    const layerQuery = useLayerQueryService();
-    const { nodeTree, nodes, pixels: pixelStore, input } = useStore();
-    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 0);
-
-    watch(() => tool.current, (p) => {
-        if (p !== 'border') return;
-        if (!usable.value) return;
-
-        tool.setCursor({ wand: CURSOR_STYLE.WAIT });
-
-        const selectedProps = pixelStore.getProperties(nodeTree.selectedLayerIds);
-        const selectedSet = new Set(getPixelUnion(selectedProps));
-
-        const width = input.width;
-        const height = input.height;
-        const border = new Set();
-        const neighbors = [
-            [1, 0],
-            [-1, 0],
-            [0, 1],
-            [0, -1],
-        ];
-
-        for (const pixel of selectedSet) {
-            const [x, y] = indexToCoord(pixel);
-            for (const [dx, dy] of neighbors) {
-                const nx = x + dx;
-                const ny = y + dy;
-                if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-                const neighbor = coordToIndex(nx, ny);
-                if (!selectedSet.has(neighbor)) border.add(neighbor);
-            }
-        }
-
-        if (!border.size) {
-            tool.useRecent();
-            return;
-        }
-
-        const color = nodes.getProperty(nodeTree.selectedLayerIds[0], 'color');
-        const id = nodes.createLayer({ name: 'Border', color });
-        pixelStore.set(id, [...border]);
-        const target = layerQuery.lowermost(nodeTree.selectedLayerIds);
-        nodeTree.insert([id], target, false);
-        nodeTree.replaceSelection([id]);
 
         tool.setShape('stroke');
         tool.useRecent();
