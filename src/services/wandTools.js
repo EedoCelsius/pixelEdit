@@ -5,7 +5,7 @@ import { useHamiltonianService } from './hamiltonian';
 import { useLayerQueryService } from './layerQuery';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
-import { indexToCoord } from '../utils';
+import { indexToCoord, groupConnectedPixels } from '../utils';
 
 export const usePathToolService = defineStore('pathToolService', () => {
     const tool = useToolSelectionService();
@@ -110,31 +110,28 @@ export const useConnectToolService = defineStore('connectToolService', () => {
         }
 
         const mergedSelection = new Set(nodeTree.selectedLayerIds);
-        const visited = new Set();
-        for (let i = 0; i < len; i++) {
-            const startId = selected[i];
-            if (visited.has(startId)) continue;
-            const orient = orientationMap.get(startId);
-            if (!orient) continue;
-            const run = [startId];
-            visited.add(startId);
-            let j = (i + 1) % len;
-            while (j !== i && orientationMap.get(selected[j]) === orient && nodeTree.has(selected[j])) {
-                run.push(selected[j]);
-                visited.add(selected[j]);
-                j = (j + 1) % len;
-            }
-            if (run.length > 1) {
-                const base = run[0];
-                for (const rid of run.slice(1)) {
-                    const px = pixelStore.get(rid);
-                    if (px.length) pixelStore.addPixels(base, px, orient);
-                }
-                const removed = nodeTree.remove(run.slice(1));
+        let changed = true;
+        while (changed) {
+            changed = false;
+            const current = nodeTree.layerOrder.filter(id => mergedSelection.has(id));
+            const clen = current.length;
+            for (let i = 0; i < clen; i++) {
+                const baseId = current[i];
+                const nextId = current[(i + 1) % clen];
+                if (baseId === nextId) continue;
+                const orient = orientationMap.get(baseId);
+                if (!orient || orientationMap.get(nextId) !== orient) continue;
+                const union = [...new Set([...pixelStore.get(baseId), ...pixelStore.get(nextId)])];
+                if (groupConnectedPixels(union).length > 1) continue;
+                const px = pixelStore.get(nextId);
+                if (px.length) pixelStore.addPixels(baseId, px, orient);
+                const removed = nodeTree.remove([nextId]);
                 nodes.remove(removed);
                 pixelStore.remove(removed);
-                for (const rid of run.slice(1)) mergedSelection.delete(rid);
-                mergedSelection.add(base);
+                orientationMap.delete(nextId);
+                mergedSelection.delete(nextId);
+                changed = true;
+                break;
             }
         }
         nodeTree.replaceSelection([...mergedSelection]);
