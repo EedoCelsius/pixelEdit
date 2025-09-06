@@ -26,8 +26,10 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     const current = computed(() => currentTool.value?.type);
     const waitingTool = { type: 'waiting', name: 'Waiting', usable: computed(() => shape.value === 'wand') };
 
-    function addPrepared(t) {
+    function addPrepared(t, recordRollback = true) {
         prepared.value.push(t);
+        if (recordRollback && shape.value === 'wand' && t !== waitingTool)
+            output.setRollbackPoint();
         findUsable();
     }
     function findUsable() {
@@ -44,7 +46,8 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     }
     function useRecent() {
         if (current.value === recent.value) findUsable();
-        else addPrepared(recent.value);
+        else addPrepared(recent.value, false);
+        if (output.hasPendingRollback) output.commit();
     }
     function setShape(s) {
         if (active.value) nextShape = s;
