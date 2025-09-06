@@ -58,7 +58,7 @@ export const usePathToolService = defineStore('pathToolService', () => {
 
 export const useConnectToolService = defineStore('connectToolService', () => {
     const tool = useToolSelectionService();
-    const { nodeTree, pixels: pixelStore } = useStore();
+    const { nodeTree, pixels: pixelStore, nodes } = useStore();
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 1);
 
     const averageOf = (id) => {
@@ -87,6 +87,8 @@ export const useConnectToolService = defineStore('connectToolService', () => {
             return cache.get(id);
         };
 
+        const orientations = new Array(len).fill(null);
+
         for (let i = 0; i < len; i++) {
             const id = selected[i];
             let orientation = null;
@@ -96,13 +98,41 @@ export const useConnectToolService = defineStore('connectToolService', () => {
                 if (!topAvg || !bottomAvg) continue;
                 const dx = bottomAvg[0] - topAvg[0];
                 const dy = bottomAvg[1] - topAvg[1];
-                if (Math.abs(dx) > Math.abs(dy)) orientation = 'horizontal';
-                else if (Math.abs(dy) > Math.abs(dx)) orientation = 'vertical';
+                if (Math.abs(dx) === Math.abs(dy)) continue; // diagonal, expand range
+                const horizontalLike = Math.abs(dx) > Math.abs(dy);
+                const major = Math.max(Math.abs(dx), Math.abs(dy));
+                if (major === 1) orientation = horizontalLike ? 'horizontal' : 'vertical';
+                else orientation = horizontalLike ? 'vertical' : 'horizontal';
             }
+            orientations[i] = orientation;
             if (!orientation) continue;
             const pixels = pixelStore.get(id);
             if (pixels.length) pixelStore.set(id, pixels, orientation);
         }
+
+        // Merge adjacent layers with same orientation (cyclical)
+        let merged = true;
+        while (merged && selected.length > 1) {
+            merged = false;
+            for (let i = 0; i < selected.length; i++) {
+                const next = (i + 1) % selected.length;
+                if (orientations[i] && orientations[next] && orientations[i] === orientations[next]) {
+                    const idCurrent = selected[i];
+                    const idNext = selected[next];
+                    const pixels = pixelStore.get(idNext);
+                    if (pixels.length) pixelStore.addPixels(idCurrent, pixels, orientations[i]);
+                    pixelStore.remove([idNext]);
+                    nodeTree.remove([idNext]);
+                    nodes.remove([idNext]);
+                    selected.splice(next, 1);
+                    orientations.splice(next, 1);
+                    merged = true;
+                    break;
+                }
+            }
+        }
+
+        nodeTree.replaceSelection(selected);
 
         tool.setShape('stroke');
         tool.useRecent();
