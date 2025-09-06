@@ -87,51 +87,41 @@ export const useLayerToolService = defineStore('layerToolService', () => {
     function splitSelected() {
         if (!nodeTree.selectedLayerCount) return [];
 
-        const originalSelected = nodeTree.selectedLayerIds.slice();
-        const sorted = originalSelected
-            .slice()
-            .sort((a, b) => nodeTree.indexOfLayer(a) - nodeTree.indexOfLayer(b));
-        const newSelection = new Set(originalSelected);
-        const allNewIds = [];
+        const selected = nodeTree.selectedLayerIds;
+        const newSelection = [];
+        const splitedLayers = [];
 
-        for (const layerId of sorted) {
-            const px = pixels.get(layerId);
-            if (px.length < 2) continue;
+        for (const layerId of selected) {
+            const components = findPixelComponents(pixels.get(layerId));
+            if (components.length <= 1) {
+                newSelection.push(layerId)
+                continue;
+            }
 
-            const components = findPixelComponents(px);
-            if (components.length <= 1) continue;
-
-            const originalLayer = nodes.getProperties(layerId);
-            const originalName = originalLayer.name;
-            const originalColor = originalLayer.color;
-            const originalVisibility = originalLayer.visibility;
-            const originalAttrs = originalLayer.attributes;
-            const originalIndex = nodeTree.indexOfLayer(layerId);
-
+            const original = nodes.getProperties(layerId);
             const newIds = components.reverse().map((componentPixels, index) => {
                 const newId = nodes.createLayer({
-                    name: `${originalName} #${components.length - index}`,
-                    color: originalColor,
-                    visibility: originalVisibility,
-                    attributes: originalAttrs,
+                    name: `${original.name} #${components.length - index}`,
+                    color: original.color,
+                    visibility: original.visibility,
+                    attributes: original.attributes,
                 });
                 pixels.set(newId, componentPixels);
                 return newId;
             });
 
+            nodeTree.insert(newIds, layerId, true);
+            
             const removed = nodeTree.remove([layerId]);
-            const target = nodeTree.layerIdsBottomToTop[originalIndex];
             nodes.remove(removed);
             pixels.remove(removed);
-            nodeTree.insert(newIds, target, true);
 
-            newSelection.delete(layerId);
-            for (const id of newIds) newSelection.add(id);
-            allNewIds.push(...newIds);
+            newSelection.push(...newIds);
+            splitedLayers.push(...newIds);
         }
 
-        nodeTree.replaceSelection([...newSelection]);
-        return allNewIds;
+        nodeTree.replaceSelection(newSelection);
+        return splitedLayers;
     }
 
     function groupSelected() {
