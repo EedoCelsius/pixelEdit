@@ -5,7 +5,7 @@ import { useHamiltonianService } from './hamiltonian';
 import { useLayerQueryService } from './layerQuery';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
-import { indexToCoord, groupConnectedPixels } from '../utils';
+import { coordToIndex, indexToCoord, groupConnectedPixels } from '../utils';
 
 export const usePathToolService = defineStore('pathToolService', () => {
     const tool = useToolSelectionService();
@@ -135,6 +135,59 @@ export const useConnectToolService = defineStore('connectToolService', () => {
             }
         }
         nodeTree.replaceSelection([...mergedSelection]);
+
+        tool.setShape('stroke');
+        tool.useRecent();
+    });
+
+    return { usable };
+});
+
+export const useBorderToolService = defineStore('borderToolService', () => {
+    const tool = useToolSelectionService();
+    const layerQuery = useLayerQueryService();
+    const { nodeTree, nodes, pixels: pixelStore, viewport: viewportStore } = useStore();
+    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 0);
+
+    watch(() => tool.current, (p) => {
+        if (p !== 'border') return;
+        if (!usable.value) return;
+
+        tool.setCursor({ wand: CURSOR_STYLE.WAIT });
+
+        const width = viewportStore.stage.width;
+        const height = viewportStore.stage.height;
+
+        const selected = new Set();
+        for (const id of nodeTree.selectedLayerIds) {
+            pixelStore.get(id).forEach(px => selected.add(px));
+        }
+
+        const border = new Set();
+        for (const pixel of selected) {
+            const [x, y] = indexToCoord(pixel);
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    if (dx === 0 && dy === 0) continue;
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+                    const ni = coordToIndex(nx, ny);
+                    if (!selected.has(ni)) border.add(ni);
+                }
+            }
+        }
+
+        if (border.size) {
+            const topId = layerQuery.uppermost(nodeTree.selectedLayerIds);
+            const color = nodes.getProperty(topId, 'color');
+            const baseName = nodes.getProperty(topId, 'name');
+            const name = nodeTree.selectedLayerCount === 1 ? `Border of ${baseName}` : 'Border';
+            const id = nodes.createLayer({ name, color });
+            pixelStore.set(id, [...border]);
+            nodeTree.insert([id], topId, false);
+            nodeTree.replaceSelection([id]);
+        }
 
         tool.setShape('stroke');
         tool.useRecent();

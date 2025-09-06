@@ -1,8 +1,9 @@
 import stageIcons from '../image/stage_toolbar';
 
 export const WAND_TOOLS = [
-  { type: 'path', name: 'Path', icon: stageIcons.path },
-  { type: 'connect', name: 'Connect', icon: stageIcons.connect },
+    { type: 'path', name: 'Path', icon: stageIcons.path },
+    { type: 'connect', name: 'Connect', icon: stageIcons.connect },
+    { type: 'border', name: 'Border', icon: stageIcons.border },
 ];
 
 export const TOOL_MODIFIERS = {
