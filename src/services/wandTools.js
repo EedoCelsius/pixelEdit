@@ -178,7 +178,7 @@ export const useBorderToolService = defineStore('borderToolService', () => {
             const topId = layerQuery.uppermost(nodeTree.selectedLayerIds);
             const baseName = nodes.getProperty(topId, 'name');
             const name = nodeTree.selectedLayerCount === 1 ? `Border of ${baseName}` : 'Border';
-            const id = nodes.createLayer({ name });
+            const id = nodes.createLayer({ name, color: 0xFFFFFFFF });
             pixelStore.set(id, [...border]);
             nodeTree.insert([id], topId, false);
             nodeTree.replaceSelection([id]);
