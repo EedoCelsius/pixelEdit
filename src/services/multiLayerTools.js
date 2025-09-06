@@ -28,7 +28,7 @@ export const useSelectToolService = defineStore('selectToolService', () => {
             overlayService.clear(overlayId);
             return;
         }
-        if (!usable.value) { tool.tryOther(); return; }
+        if (!usable.value) return;
         tool.setCursor({ stroke: CURSOR_STYLE.ADD_STROKE, rect: CURSOR_STYLE.ADD_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
@@ -168,7 +168,7 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
             overlays.forEach(id => overlayService.clear(id));
             return;
         }
-        if (!usable.value) { tool.tryOther(); return; }
+        if (!usable.value) return;
         rebuild();
         tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
@@ -230,7 +230,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
             overlayService.clear(overlayId);
             return;
         }
-        if (!usable.value) { tool.tryOther(); return; }
+        if (!usable.value) return;
         tool.setCursor({ stroke: CURSOR_STYLE.GLOBAL_ERASE_STROKE, rect: CURSOR_STYLE.GLOBAL_ERASE_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {

@@ -4,6 +4,7 @@ import { useOverlayService } from './overlay';
 import { useLayerQueryService } from './layerQuery';
 import { useNodeQueryService } from './nodeQuery';
 import { useToolSelectionService } from './toolSelection';
+import { useToolbarStore } from '../stores/toolbar';
 import { useDrawToolService, useEraseToolService, useTopToolService, useCutToolService } from './singleLayerTools';
 import { useSelectToolService, useDirectionToolService, useGlobalEraseToolService } from './multiLayerTools';
 import { usePathToolService } from './wandTools';
@@ -51,13 +52,18 @@ export const useService = () => {
     const globalErase = useGlobalEraseToolService();
     const direction = useDirectionToolService();
 
+    const toolSelection = useToolSelectionService();
+    const toolbar = useToolbarStore();
+    toolSelection.addPrepared(toolbar.tools.find(t => t.type === 'draw'));
+    toolSelection.addPrepared(toolbar.tools.find(t => t.type === 'select'));
+
     return {
         layerPanel: useLayerPanelService(),
         layerTool: useLayerToolService(),
         overlay: useOverlayService(),
         layerQuery: useLayerQueryService(),
         nodeQuery: useNodeQueryService(),
-        toolSelection: useToolSelectionService(),
+        toolSelection,
         tools: {
             draw,
             erase,

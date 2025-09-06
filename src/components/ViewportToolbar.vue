@@ -36,8 +36,8 @@
 
       <!-- Tool Toggles -->
       <div class="inline-flex rounded-md overflow-hidden border border-white/15">
-        <button v-for="tool in selectables" :key="tool.type"
-                @click="toolSelectionService.addPrepared(tool.type)"
+        <button v-for="tool in toolbarStore.tools" :key="tool.type"
+                @click="toolSelectionService.addPrepared(tool)"
                 :title="tool.name"
                 :disabled="toolSelectionService.isWand || !tool.usable"
                 :class="`p-1 ${toolSelectionService.current === tool.type ? 'bg-white/15' : 'bg-white/5 hover:bg-white/10'} ${toolSelectionService.isWand || !tool.usable ? 'opacity-50 cursor-not-allowed' : ''}`">
@@ -61,7 +61,7 @@
     </template>
 
 <script setup>
-import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
 import { WAND_TOOLS } from '@/constants';
@@ -69,7 +69,7 @@ import stageIcons from '../image/stage_toolbar';
 import WandPopup from './WandPopup.vue';
 
 const { viewport: viewportStore, input, output, toolbar: toolbarStore } = useStore();
-const { toolSelection: toolSelectionService, stageResize: stageResizeService, imageLoad: imageLoadService, settings: settingsService } = useService();
+const { toolSelection: toolSelectionService, stageResize: stageResizeService, imageLoad: imageLoadService, settings: settingsService, tools } = useService();
 
 const fileInput = ref(null);
 function openFileDialog() {
@@ -85,8 +85,6 @@ async function onFileChange(e) {
 
 toolSelectionService.setShape('stroke');
 
-const selectables = computed(() => toolbarStore.tools);
-
 const wandOpen = ref(false);
 const wandToolTypes = new Set(WAND_TOOLS.map(t => t.type));
 const wandWorking = computed(() => wandToolTypes.has(toolSelectionService.current));
@@ -96,9 +94,10 @@ function openWand() {
   toolSelectionService.setShape('wand');
 }
 
-function selectWandTool(type) {
+function selectWandTool(tool) {
   wandOpen.value = false;
-  toolSelectionService.addPrepared(type);
+  const serviceTool = tools[tool.type];
+  if (serviceTool) toolSelectionService.addPrepared({ ...tool, usable: serviceTool.usable });
 }
 
 function closeWand() {
@@ -118,9 +117,5 @@ function handleClickOutside(e) {
 
 onMounted(() => document.addEventListener('mousedown', handleClickOutside));
 onBeforeUnmount(() => document.removeEventListener('mousedown', handleClickOutside));
-
-watch(() => toolSelectionService.current, (val) => {
-  if (!toolSelectionService.isWand && val === 'waiting') toolSelectionService.tryOther();
-});
 
 </script>

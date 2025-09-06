@@ -5,6 +5,7 @@ import { useLayerPanelService } from './layerPanel';
 import { useLayerToolService } from './layerTool';
 import { useNodeQueryService } from './nodeQuery';
 import { useToolSelectionService } from './toolSelection';
+import { useToolbarStore } from '../stores/toolbar';
 import { useClipboardService } from './clipboard';
 import { TOOL_MODIFIERS } from '@/constants';
 
@@ -14,6 +15,7 @@ export const useShortcutService = defineStore('shortcutService', () => {
     const layerSvc = useLayerToolService();
     const nodeQuery = useNodeQueryService();
     const toolSelectionService = useToolSelectionService();
+    const toolbar = useToolbarStore();
     const clipboard = useClipboardService();
 
     let modifierActive = false;
@@ -77,10 +79,11 @@ export const useShortcutService = defineStore('shortcutService', () => {
 
             const map = TOOL_MODIFIERS[key];
             if (map && !e.repeat) {
-                const change = map[toolSelectionService.current] ?? map.default;
-                if (change) {
+                const changeType = map[toolSelectionService.current] ?? map.default;
+                if (changeType) {
                     modifierActive = true;
-                    toolSelectionService.addPrepared(change);
+                    const tool = toolbar.tools.find(t => t.type === changeType);
+                    if (tool) toolSelectionService.addPrepared(tool);
                     break;
                 }
             }

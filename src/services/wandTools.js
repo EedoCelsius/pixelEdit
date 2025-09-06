@@ -15,7 +15,7 @@ export const usePathToolService = defineStore('pathToolService', () => {
 
     watch(() => tool.current, async (p) => {
         if (p !== 'path') return;
-        if (!usable.value) { tool.tryOther(); return; }
+        if (!usable.value) return;
 
         tool.setCursor({ wand: CURSOR_STYLE.WAIT });
 
