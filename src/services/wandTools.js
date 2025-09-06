@@ -13,21 +13,15 @@ export const usePathToolService = defineStore('pathToolService', () => {
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount === 1);
 
-    watch(() => tool.prepared, async (p) => {
-        if (p !== 'path' || !usable.value) return;
+    watch(() => tool.current, async (p) => {
+        if (p !== 'path') return;
+        if (!usable.value) { tool.tryOther(); return; }
 
         tool.setCursor({ wand: CURSOR_STYLE.WAIT });
 
         const layerId = nodeTree.selectedLayerIds[0];
         const allPixels = pixelStore.get(layerId);
         const paths = await hamiltonian.traverseFree(allPixels);
-
-        tool.setCursor({ wand: CURSOR_STYLE.PATH });
-
-        if (!paths.length) {
-            tool.setPrepared('done');
-            return;
-        }
 
         const color = nodes.getProperty(layerId, 'color');
         const name = nodes.getProperty(layerId, 'name');
@@ -54,7 +48,8 @@ export const usePathToolService = defineStore('pathToolService', () => {
 
         nodeTree.replaceSelection([groupId]);
 
-        tool.setPrepared('done');
+        tool.setShape("stroke");
+        tool.useRecent();
     });
 
     return { usable };

@@ -3,10 +3,10 @@ import { useLayerToolService } from './layerTool';
 import { useOverlayService } from './overlay';
 import { useLayerQueryService } from './layerQuery';
 import { useNodeQueryService } from './nodeQuery';
-import { useDrawToolService, useEraseToolService, useTopToolService, useCutToolService } from './singleLayerTools';
-import { useSelectService, useDirectionToolService, useGlobalEraseToolService } from './multiLayerTools';
-import { usePathToolService } from './wandTools';
 import { useToolSelectionService } from './toolSelection';
+import { useDrawToolService, useEraseToolService, useTopToolService, useCutToolService } from './singleLayerTools';
+import { useSelectToolService, useDirectionToolService, useGlobalEraseToolService } from './multiLayerTools';
+import { usePathToolService } from './wandTools';
 import { useViewportService } from './viewport';
 import { useStageResizeService } from './stageResize';
 import { useHamiltonianService } from './hamiltonian';
@@ -21,7 +21,7 @@ export {
     useOverlayService,
     useLayerQueryService,
     useNodeQueryService,
-    useSelectService,
+    useSelectToolService,
     useDrawToolService,
     useEraseToolService,
     useTopToolService,
@@ -47,7 +47,7 @@ export const useService = () => {
     const top = useTopToolService();
     const path = usePathToolService();
 
-    const select = useSelectService();
+    const select = useSelectToolService();
     const globalErase = useGlobalEraseToolService();
     const direction = useDirectionToolService();
 
@@ -57,17 +57,17 @@ export const useService = () => {
         overlay: useOverlayService(),
         layerQuery: useLayerQueryService(),
         nodeQuery: useNodeQueryService(),
-        select,
+        toolSelection: useToolSelectionService(),
         tools: {
             draw,
             erase,
             cut,
             top,
             path,
-            direction,
+            select,
             globalErase,
+            direction,
         },
-        toolSelection: useToolSelectionService(),
         viewport: useViewportService(),
         stageResize: useStageResizeService(),
         hamiltonian: useHamiltonianService(),
