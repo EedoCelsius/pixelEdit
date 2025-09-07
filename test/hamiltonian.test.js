@@ -1,9 +1,9 @@
 import assert from 'assert';
 import {
-  buildGraph,
+  buildGraphFromPixels,
   partitionAtEdgeCut,
   useHamiltonianService,
-  solve,
+  solveFromPixels,
 } from '../src/services/hamiltonian.js';
 
 const MAX_DIMENSION = 65536;
@@ -18,8 +18,8 @@ const pixels = [A, B, C, D];
 
 // Test cut detection and partitioning
 {
-  const { nodes, neighbors } = buildGraph(pixels);
-  const res = partitionAtEdgeCut(nodes, neighbors);
+  const neighbors = buildGraphFromPixels(pixels);
+  const res = partitionAtEdgeCut(neighbors);
   assert(res);
   assert(Array.isArray(res.cutEdges));
   assert.strictEqual(res.cutEdges.length, 2);
@@ -36,16 +36,16 @@ const pixels = [A, B, C, D];
 }
 
 // Test solver with descending degree order
-{
-  const paths = await solve(pixels, { degreeOrder: 'descending' });
+{ 
+  const paths = await solveFromPixels(pixels, { degreeOrder: 'descending' });
   assert.strictEqual(paths.length, 1);
   const covered = new Set(paths.flat());
   assert.strictEqual(covered.size, pixels.length);
 }
 
 // Test solver with anchors
-{
-  const paths = await solve(pixels, { anchors: [A, D] });
+{ 
+  const paths = await solveFromPixels(pixels, { anchors: [A, D] });
   assert.strictEqual(paths.length, 1);
   const covered = new Set(paths.flat());
   assert.strictEqual(covered.size, pixels.length);
@@ -60,10 +60,10 @@ const pixels = [A, B, C, D];
       grid.push(coordToIndex(x, y));
     }
   }
-  const { nodes, neighbors, indexMap } = buildGraph(grid);
-  const centerIdx = indexMap.get(center);
+  const neighbors = buildGraphFromPixels(grid);
+  const centerIdx = grid.indexOf(center);
   const neighborPixels = neighbors[centerIdx]
-    .map((i) => nodes[i])
+    .map((i) => grid[i])
     .sort((a, b) => a - b);
   const expected = [
     coordToIndex(2, 1), // up
@@ -83,8 +83,8 @@ const pixels = [A, B, C, D];
   const p0 = coordToIndex(0, 0);
   const p1 = coordToIndex(1, 0);
   const p2 = coordToIndex(2, 0);
-  const { nodes, neighbors } = buildGraph([p0, p1, p2]);
-  const res = partitionAtEdgeCut(nodes, neighbors);
+  const neighbors = buildGraphFromPixels([p0, p1, p2]);
+  const res = partitionAtEdgeCut(neighbors);
   assert(res);
   assert.strictEqual(res.cutEdges.length, 1);
 }
