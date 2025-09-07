@@ -155,18 +155,13 @@ export const useExpandToolService = defineStore('expandToolService', () => {
         const width = viewportStore.stage.width;
         const height = viewportStore.stage.height;
 
-        // map each selected pixel to its layer color
-        const selected = new Map();
-        const colorName = new Map();
+        const selected = new Set();
         for (const id of nodeTree.selectedLayerIds) {
-            const color = nodes.getProperty(id, 'color');
-            if (!colorName.has(color)) colorName.set(color, nodes.getProperty(id, 'name'));
-            for (const px of pixelStore.get(id)) selected.set(px, color);
+            pixelStore.get(id).forEach(px => selected.add(px));
         }
 
-        // expansionMap keeps track of new pixels and the color they inherit
-        const expansionMap = new Map();
-        for (const [pixel, color] of selected) {
+        const expansion = new Set();
+        for (const pixel of selected) {
             const [x, y] = indexToCoord(pixel);
             for (let dy = -1; dy <= 1; dy++) {
                 for (let dx = -1; dx <= 1; dx++) {
@@ -175,28 +170,19 @@ export const useExpandToolService = defineStore('expandToolService', () => {
                     const ny = y + dy;
                     if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
                     const ni = coordToIndex(nx, ny);
-                    if (selected.has(ni) || expansionMap.has(ni)) continue;
-                    expansionMap.set(ni, color);
+                    if (!selected.has(ni)) expansion.add(ni);
                 }
             }
         }
 
-        if (expansionMap.size) {
+        if (expansion.size) {
             const topId = nodeQuery.uppermost(nodeTree.selectedIds);
-            const inserts = [];
-            const byColor = new Map();
-            for (const [px, color] of expansionMap) {
-                if (!byColor.has(color)) byColor.set(color, []);
-                byColor.get(color).push(px);
-            }
-            for (const [color, pixels] of byColor) {
-                const name = colorName.get(color) ?? 'Expansion';
-                const id = nodes.createLayer({ name, color });
-                pixelStore.set(id, pixels);
-                inserts.push(id);
-            }
-            nodeTree.insert(inserts, topId, false);
-            nodeTree.replaceSelection(inserts);
+            const baseName = nodes.getProperty(topId, 'name');
+            const name = nodeTree.selectedLayerCount === 1 ? `Expansion of ${baseName}` : 'Expansion';
+            const id = nodes.createLayer({ name, color: 0xFFFFFFFF });
+            pixelStore.set(id, [...expansion]);
+            nodeTree.insert([id], topId, false);
+            nodeTree.replaceSelection([id]);
         }
 
         tool.setShape('stroke');
