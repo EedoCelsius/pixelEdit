@@ -385,10 +385,10 @@ class PathCoverSolver {
 }
 
 async function solve(neighbors, opts = {}) {
-  const groups = groupConnected(neighbors);
-  if (groups.length > 1) {
+  const connected = groupConnected(neighbors);
+  if (connected.length > 1) {
     const results = [];
-    for (const { neighbors, components } of groups) {
+    for (const { neighbors, components } of connected) {
       const subAnchors = [];
       for (const anchor of opts.anchors || []) subAnchors.push(components.indexOf(anchor));
       results.push(
@@ -400,6 +400,7 @@ async function solve(neighbors, opts = {}) {
   }
 
   const partition = partitionAtEdgeCut(neighbors);
+  console.log(partition)
   if (partition) {
     const results = [];
     for (const { neighbors, components } of partition.parts) {
