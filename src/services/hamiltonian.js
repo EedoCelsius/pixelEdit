@@ -386,6 +386,7 @@ class PathCoverSolver {
 
 async function solve(neighbors, opts = {}) {
   const connected = groupConnected(neighbors);
+  console.log("connected", connected)
   if (connected.length > 1) {
     const results = [];
     for (const { neighbors, components } of connected) {
@@ -400,7 +401,7 @@ async function solve(neighbors, opts = {}) {
   }
 
   const partition = partitionAtEdgeCut(neighbors);
-  console.log(partition)
+  console.log("partition", partition)
   if (partition) {
     const results = [];
     for (const { neighbors, components } of partition.parts) {
@@ -424,6 +425,7 @@ async function solve(neighbors, opts = {}) {
 async function solveFromPixels(pixels, opts = {}) {
   const nodes = Array.from(new Set(pixels));
   const neighbors = buildGraphFromPixels(nodes);
+  console.log("init neighbors", neighbors)
   const anchors = (opts.anchors || []).map((anchor) => {
     const idx = nodes.indexOf(anchor);
     if (idx === -1) throw new Error('Anchor pixel missing');
