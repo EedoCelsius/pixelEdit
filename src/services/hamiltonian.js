@@ -68,7 +68,7 @@ function isGraphDisconnectedByEdges(neighbors, total, edges) {
 }
 
 // Partition graph by cutting edges connecting adjacent pixels that share no common neighbor.
-// Returns { cutEdges, parts } where each part is { neighbors, nodeMap }
+// Returns { edges, parts } where each part is { neighbors, components }
 // There is no mathematical proof but this never returns more than 2 parts.
 function partitionAtEdgeCut(neighbors) {
   const total = neighbors.length;
@@ -99,6 +99,7 @@ function partitionAtEdgeCut(neighbors) {
     }
     const visited = new Uint8Array(total);
     const parts = [];
+    let valid = 0;
     for (let i = 0; i < total; i++) {
       if (visited[i]) continue;
       const stack = [i];
@@ -114,15 +115,19 @@ function partitionAtEdgeCut(neighbors) {
           stack.push(nb);
         }
       }
-      const map = new Map(comp.map((n, idx) => [n, idx]));
-      const subNeighbors = comp.map((n) =>
-        neighbors[n].filter((nb) => map.has(nb)).map((nb) => map.get(nb)),
-      );
-      parts.push({ neighbors: subNeighbors, nodeMap: comp });
+      const subNeighbors = [];
+      for (const n of comp) {
+        const subNbs = [];
+        for (const nb of neighbors[n]) {
+          const subIdx = comp.indexOf(nb);
+          if (subIdx !== -1) subNbs.push(subIdx);
+        }
+        subNeighbors.push(subNbs);
+      }
+      parts.push({ neighbors: subNeighbors, components: comp });
+      if (1 < comp.length - edges.length) valid++;
     }
-    const singleCount = parts.reduce((acc, p) => acc + (p.nodeMap.length === 1), 0);
-    if (edges.length > 1 && singleCount >= parts.length - 1) return null;
-    return { cutEdges: edges, parts };
+    return edges.length === 1 || 2 <= valid ? { edges, parts } : null;
   };
 
   for (let k = 1; k <= candidateEdges.length; k++) {
@@ -171,7 +176,6 @@ function groupConnected(neighbors) {
   const n = neighbors.length;
   const visited = new Uint8Array(n);
   const components = [];
-
   for (let i = 0; i < n; i++) {
     if (visited[i]) continue;
     const stack = [i];
@@ -187,9 +191,9 @@ function groupConnected(neighbors) {
         }
       }
     }
-    components.push(comp);
+    const subNeighbors = comp.map((n) => neighbors[n].map((i) => comp.indexOf(i)));
+    components.push({ neighbors: subNeighbors, components: comp });
   }
-
   return components;
 }
 
@@ -384,17 +388,12 @@ async function solve(neighbors, opts = {}) {
   const groups = groupConnected(neighbors);
   if (groups.length > 1) {
     const results = [];
-    for (const nodeIdxs of groups) {
-      const subNeighbors = nodeIdxs.map((n) => neighbors[n].map((i) => nodeIdxs.indexOf(i)));
+    for (const { neighbors, components } of groups) {
       const subAnchors = [];
-      for (const a of opts.anchors || []) {
-        const ai = nodeIdxs.indexOf(a);
-        if (ai !== -1) subAnchors.push(ai);
-      }
-      const subOpts = { ...opts, anchors: subAnchors };
+      for (const anchor of opts.anchors || []) subAnchors.push(components.indexOf(anchor));
       results.push(
-        solve(subNeighbors, subOpts)
-        .then((paths) => paths.map((p) => p.map((i) => nodeIdxs[i])))
+        solve(neighbors, { ...opts, anchors: subAnchors.filter((a) => a !== -1) })
+        .then((paths) => paths.map((p) => p.map((i) => components[i])))
       );
     }
     return (await Promise.all(results)).flat();
@@ -403,28 +402,18 @@ async function solve(neighbors, opts = {}) {
   const partition = partitionAtEdgeCut(neighbors);
   if (partition) {
     const results = [];
-    for (const part of partition.parts) {
-      const origNodes = part.nodeMap;
-      const map = new Map(origNodes.map((n, i) => [n, i]));
+    for (const { neighbors, components } of partition.parts) {
       const anchorSet = new Set();
-      if (opts.anchors) {
-        for (const a of opts.anchors) {
-          if (map.has(a)) anchorSet.add(map.get(a));
-        }
-      }
-      for (const [aIdx, bIdx] of partition.cutEdges) {
-        if (map.has(aIdx)) anchorSet.add(map.get(aIdx));
-        if (map.has(bIdx)) anchorSet.add(map.get(bIdx));
-      }
-      const partOpts = { ...opts, anchors: [...anchorSet] };
+      for (const anchor of opts.anchors || []) anchorSet.add(components.indexOf(anchor));
+      for (const [aIdx, bIdx] of partition.edges) anchorSet.add(components.indexOf(aIdx), components.indexOf(bIdx));
+      anchorSet.delete(-1);
       results.push(
-        solve(part.neighbors, partOpts).then((paths) =>
-          paths.map((p) => p.map((i) => origNodes[i])),
-        ),
+        solve(neighbors, { ...opts, anchors: [...anchorSet] })
+        .then((paths) => paths.map((p) => p.map((i) => components[i])))
       );
     }
     const paths = (await Promise.all(results)).flat();
-    return stitchPaths(paths, partition.cutEdges);
+    return stitchPaths(paths, partition.edges);
   }
 
   const solver = new PathCoverSolver(neighbors, opts);
@@ -434,8 +423,8 @@ async function solve(neighbors, opts = {}) {
 async function solveFromPixels(pixels, opts = {}) {
   const nodes = Array.from(new Set(pixels));
   const neighbors = buildGraphFromPixels(nodes);
-  const anchors = (opts.anchors || []).map((a) => {
-    const idx = nodes.indexOf(a);
+  const anchors = (opts.anchors || []).map((anchor) => {
+    const idx = nodes.indexOf(anchor);
     if (idx === -1) throw new Error('Anchor pixel missing');
     return idx;
   });
