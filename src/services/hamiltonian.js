@@ -395,6 +395,85 @@ async function solve(input, opts = {}) {
 
   const partition = partitionAtEdgeCut(nodes, neighbors);
   if (partition) {
+    // If multiple edges are cut, keep the largest/most-anchored part as base
+    if (partition.cutEdges.length > 1) {
+      // Determine base part
+      let baseIndex = 0;
+      let maxAnchors = -1;
+      let maxSize = -1;
+      const anchorList = opts.anchors || [];
+      partition.parts.forEach((part, i) => {
+        let count = 0;
+        for (const a of anchorList) if (part.indexMap.has(a)) count++;
+        if (count > maxAnchors || (count === maxAnchors && part.nodes.length > maxSize)) {
+          maxAnchors = count;
+          maxSize = part.nodes.length;
+          baseIndex = i;
+        }
+      });
+
+      const base = partition.parts[baseIndex];
+      // Build placeholder info for non-base parts
+      const placeholders = [];
+      let phId = -1;
+      partition.parts.forEach((part, i) => {
+        if (i === baseIndex) return;
+        const placeholder = phId--;
+        const mapping = new Map(); // basePixel -> partPixel
+        for (const [aIdx, bIdx] of partition.cutEdges) {
+          const aPix = nodes[aIdx];
+          const bPix = nodes[bIdx];
+          if (base.indexMap.has(aPix) && part.indexMap.has(bPix)) {
+            mapping.set(aPix, bPix);
+          } else if (base.indexMap.has(bPix) && part.indexMap.has(aPix)) {
+            mapping.set(bPix, aPix);
+          }
+        }
+        placeholders.push({ placeholder, part, mapping });
+      });
+
+      // Compose new graph for base with placeholders
+      const baseNodes = base.nodes.concat(placeholders.map((p) => p.placeholder));
+      const baseNeighbors = base.neighbors.map((nbs) => nbs.slice());
+      placeholders.forEach(() => baseNeighbors.push([]));
+      const baseIndexMap = new Map(baseNodes.map((p, i) => [p, i]));
+      for (const ph of placeholders) {
+        const phIdx = baseIndexMap.get(ph.placeholder);
+        for (const [bPixel] of ph.mapping) {
+          const bi = baseIndexMap.get(bPixel);
+          baseNeighbors[bi].push(phIdx);
+          baseNeighbors[phIdx].push(bi);
+        }
+      }
+      const baseDegrees = baseNeighbors.map((nbs) => nbs.length);
+      const baseGraph = { nodes: baseNodes, neighbors: baseNeighbors, degrees: baseDegrees };
+      const baseAnchors = anchorList.filter((a) => baseIndexMap.has(a));
+      const basePaths = await solve(baseGraph, { ...opts, anchors: baseAnchors });
+
+      // Expand placeholders
+      for (const ph of placeholders) {
+        const { placeholder, part, mapping } = ph;
+        const pathIdx = basePaths.findIndex((p) => p.includes(placeholder));
+        if (pathIdx === -1) continue;
+        const path = basePaths[pathIdx];
+        const pos = path.indexOf(placeholder);
+        const prev = path[pos - 1];
+        const next = path[pos + 1];
+        const anchorPixels = [];
+        if (prev !== undefined && mapping.has(prev)) anchorPixels.push(mapping.get(prev));
+        if (next !== undefined && mapping.has(next) && !anchorPixels.includes(mapping.get(next))) {
+          anchorPixels.push(mapping.get(next));
+        }
+        const subPaths = await solve(part, { ...opts, anchors: anchorPixels });
+        const insert = subPaths[0] || [];
+        path.splice(pos, 1, ...insert);
+        // Append any additional paths from the part
+        if (subPaths.length > 1) basePaths.push(...subPaths.slice(1));
+      }
+      return basePaths;
+    }
+
+    // Default behavior for single cut edge
     const results = [];
     for (const part of partition.parts) {
       const anchorSet = new Set();
