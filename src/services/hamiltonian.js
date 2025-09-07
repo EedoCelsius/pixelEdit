@@ -167,7 +167,7 @@ function stitchPaths(paths, anchorPairs) {
 }
 
 // Find connected components from an adjacency list
-function getComponents(neighbors) {
+function groupConnected(neighbors) {
   const n = neighbors.length;
   const visited = new Uint8Array(n);
   const components = [];
@@ -380,25 +380,21 @@ class PathCoverSolver {
   }
 }
 
-async function solve(graph, opts = {}) {
-  const { neighbors } = graph;
-
-  const components = getComponents(neighbors);
-  if (components.length > 1) {
+async function solve(neighbors, opts = {}) {
+  const groups = groupConnected(neighbors);
+  if (groups.length > 1) {
     const results = [];
-    for (const comp of components) {
-      const map = new Map(comp.map((n, i) => [n, i]));
-      const subNeighbors = comp.map((n) =>
-        neighbors[n].filter((nb) => map.has(nb)).map((nb) => map.get(nb)),
-      );
-      const subAnchors = (opts.anchors || [])
-        .filter((a) => map.has(a))
-        .map((a) => map.get(a));
+    for (const nodeIdxs of groups) {
+      const subNeighbors = nodeIdxs.map((n) => neighbors[n].map((i) => nodeIdxs.indexOf(i)));
+      const subAnchors = [];
+      for (const a of opts.anchors || []) {
+        const ai = nodeIdxs.indexOf(a);
+        if (ai !== -1) subAnchors.push(ai);
+      }
       const subOpts = { ...opts, anchors: subAnchors };
       results.push(
-        solve({ neighbors: subNeighbors }, subOpts).then((paths) =>
-          paths.map((p) => p.map((i) => comp[i])),
-        ),
+        solve(subNeighbors, subOpts)
+        .then((paths) => paths.map((p) => p.map((i) => nodeIdxs[i])))
       );
     }
     return (await Promise.all(results)).flat();
@@ -422,7 +418,7 @@ async function solve(graph, opts = {}) {
       }
       const partOpts = { ...opts, anchors: [...anchorSet] };
       results.push(
-        solve({ neighbors: part.neighbors }, partOpts).then((paths) =>
+        solve(part.neighbors, partOpts).then((paths) =>
           paths.map((p) => p.map((i) => origNodes[i])),
         ),
       );
@@ -442,9 +438,8 @@ async function solveFromPixels(pixels, opts = {}) {
     const idx = nodes.indexOf(a);
     if (idx === -1) throw new Error('Anchor pixel missing');
     return idx;
-    
   });
-  const paths = await solve({ neighbors }, { ...opts, anchors });
+  const paths = await solve(neighbors, { ...opts, anchors });
   return paths.map((p) => p.map((i) => nodes[i]));
 }
 
