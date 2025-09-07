@@ -14,7 +14,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         const colors = [];
         if (pixelUnion.length) {
             for (const pixel of pixelUnion) {
-                const id = layerQuery.topVisibleAt(pixel);
+                const id = layerQuery.topVisibleAt(pixel, nodeTree.selectedLayerIds);
                 colors.push(id ? nodes.getProperty(id, 'color') : 0);
             }
         } else {
