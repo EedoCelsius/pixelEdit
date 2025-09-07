@@ -51,6 +51,16 @@ const pixels = [A, B, C, D];
   assert.strictEqual(covered.size, pixels.length);
 }
 
+// Test base selection with single anchor
+{
+  const paths = await solve(pixels, { anchors: [B] });
+  assert.strictEqual(paths.length, 1);
+  const path = paths[0];
+  assert(path[0] === B || path[path.length - 1] === B);
+  const covered = new Set(path);
+  assert.strictEqual(covered.size, pixels.length);
+}
+
 // Test neighbor coverage without assuming order
 {
   const center = coordToIndex(2, 2);

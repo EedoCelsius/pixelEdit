@@ -395,6 +395,112 @@ async function solve(input, opts = {}) {
 
   const partition = partitionAtEdgeCut(nodes, neighbors);
   if (partition) {
+    if (partition.cutEdges.length > 1) {
+      const anchorSet = new Set(opts.anchors || []);
+      let baseIdx = 0;
+      let best = { anchors: -1, size: -1 };
+      for (let i = 0; i < partition.parts.length; i++) {
+        const part = partition.parts[i];
+        const count = part.nodes.reduce(
+          (acc, p) => acc + (anchorSet.has(p) ? 1 : 0),
+          0,
+        );
+        const size = part.nodes.length;
+        if (
+          count > best.anchors ||
+          (count === best.anchors && size > best.size)
+        ) {
+          best = { anchors: count, size, idx: i };
+          baseIdx = i;
+        }
+      }
+
+      const basePart = partition.parts[baseIdx];
+      const pixelToPart = new Map();
+      partition.parts.forEach((p, idx) =>
+        p.nodes.forEach((n) => pixelToPart.set(n, idx)),
+      );
+
+      const baseNodes = [...basePart.nodes];
+      const baseNeighbors = basePart.neighbors.map((nbs) => nbs.slice());
+      const baseIndexMap = new Map(basePart.indexMap);
+      const placeholders = new Map();
+
+      for (let i = 0; i < partition.parts.length; i++) {
+        if (i === baseIdx) continue;
+        const phPixel = -(i + 1);
+        placeholders.set(phPixel, { partIndex: i, edges: [] });
+        baseIndexMap.set(phPixel, baseNodes.length);
+        baseNodes.push(phPixel);
+        baseNeighbors.push([]);
+      }
+
+      for (const [aIdx, bIdx] of partition.cutEdges) {
+        const aPixel = nodes[aIdx];
+        const bPixel = nodes[bIdx];
+        const pa = pixelToPart.get(aPixel);
+        const pb = pixelToPart.get(bPixel);
+        if (pa === baseIdx && pb !== baseIdx) {
+          const phPixel = -(pb + 1);
+          const ai = baseIndexMap.get(aPixel);
+          const pi = baseIndexMap.get(phPixel);
+          baseNeighbors[ai].push(pi);
+          baseNeighbors[pi].push(ai);
+          placeholders.get(phPixel).edges.push({ base: aPixel, part: bPixel });
+        } else if (pb === baseIdx && pa !== baseIdx) {
+          const phPixel = -(pa + 1);
+          const bi = baseIndexMap.get(bPixel);
+          const pi = baseIndexMap.get(phPixel);
+          baseNeighbors[bi].push(pi);
+          baseNeighbors[pi].push(bi);
+          placeholders.get(phPixel).edges.push({ base: bPixel, part: aPixel });
+        }
+      }
+
+      const baseDegrees = baseNeighbors.map((nbs) => nbs.length);
+      const baseAnchors = basePart.nodes.filter((p) => anchorSet.has(p));
+      const baseOpts = { anchors: baseAnchors };
+      if (opts.degreeOrder) baseOpts.degreeOrder = opts.degreeOrder;
+      const solver = new PathCoverSolver(
+        baseNodes,
+        baseNeighbors,
+        baseDegrees,
+        baseIndexMap,
+        baseOpts,
+      );
+      const basePaths = await solver.run();
+      const expanded = [];
+      for (const path of basePaths) {
+        let exp = path.slice();
+        for (let i = 0; i < exp.length; i++) {
+          const info = placeholders.get(exp[i]);
+          if (!info) continue;
+          const prev = exp[i - 1];
+          const next = exp[i + 1];
+          let a1 = null;
+          let a2 = null;
+          for (const e of info.edges) {
+            if (e.base === prev) a1 = e.part;
+            else if (e.base === next) a2 = e.part;
+          }
+          const part = partition.parts[info.partIndex];
+          const anchors = [a1, a2].filter((v) => v != null);
+          while (anchors.length < 2) anchors.push(anchors[0]);
+          const partOpts = { anchors };
+          if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
+          const subPath = (await solve(part, partOpts))[0];
+          if (subPath[0] !== anchors[0]) subPath.reverse();
+          exp = exp
+            .slice(0, i)
+            .concat(subPath)
+            .concat(exp.slice(i + 1));
+          i += subPath.length - 1;
+        }
+        expanded.push(exp);
+      }
+      return expanded;
+    }
+
     const results = [];
     for (const part of partition.parts) {
       const anchorSet = new Set();
