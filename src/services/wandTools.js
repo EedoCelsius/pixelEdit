@@ -160,29 +160,47 @@ export const useExpandToolService = defineStore('expandToolService', () => {
             pixelStore.get(id).forEach(px => selected.add(px));
         }
 
-        const expansion = new Set();
-        for (const pixel of selected) {
-            const [x, y] = indexToCoord(pixel);
-            for (let dy = -1; dy <= 1; dy++) {
-                for (let dx = -1; dx <= 1; dx++) {
-                    if (dx === 0 && dy === 0) continue;
+        const expansions = new Map(); // color -> { pixels: Set, name: string }
+        const neighbors = [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1]
+        ];
+
+        for (const id of nodeTree.selectedLayerIds) {
+            const pixels = pixelStore.get(id);
+            const color = nodes.getProperty(id, 'color');
+            const name = nodes.getProperty(id, 'name');
+            if (!expansions.has(color)) expansions.set(color, { pixels: new Set(), name });
+            const exp = expansions.get(color);
+            for (const pixel of pixels) {
+                const [x, y] = indexToCoord(pixel);
+                for (const [dx, dy] of neighbors) {
                     const nx = x + dx;
                     const ny = y + dy;
                     if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
                     const ni = coordToIndex(nx, ny);
-                    if (!selected.has(ni)) expansion.add(ni);
+                    if (!selected.has(ni)) exp.pixels.add(ni);
                 }
             }
         }
 
-        if (expansion.size) {
-            const topId = nodeQuery.uppermost(nodeTree.selectedIds);
-            const baseName = nodes.getProperty(topId, 'name');
-            const name = nodeTree.selectedLayerCount === 1 ? `Expansion of ${baseName}` : 'Expansion';
-            const id = nodes.createLayer({ name, color: 0xFFFFFFFF });
-            pixelStore.set(id, [...expansion]);
-            nodeTree.insert([id], topId, false);
-            nodeTree.replaceSelection([id]);
+        const topId = nodeQuery.uppermost(nodeTree.selectedIds);
+        const newIds = [];
+        for (const [color, { pixels, name }] of expansions.entries()) {
+            if (!pixels.size) continue;
+            const groups = groupConnectedPixels([...pixels]);
+            for (const group of groups) {
+                const id = nodes.createLayer({ name, color });
+                pixelStore.set(id, group);
+                newIds.push(id);
+            }
+        }
+
+        if (newIds.length) {
+            nodeTree.insert(newIds, topId, false);
+            nodeTree.replaceSelection(newIds);
         }
 
         tool.setShape('stroke');
