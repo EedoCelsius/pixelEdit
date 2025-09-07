@@ -160,60 +160,29 @@ export const useExpandToolService = defineStore('expandToolService', () => {
             pixelStore.get(id).forEach(px => selected.add(px));
         }
 
-        const expansions = new Map(); // color -> Map<name, Set<pixel>>
-
-        for (const id of nodeTree.selectedLayerIds) {
-            const color = nodes.getProperty(id, 'color');
-            const name = nodes.getProperty(id, 'name');
-            let nameMap = expansions.get(color);
-            if (!nameMap) {
-                nameMap = new Map();
-                expansions.set(color, nameMap);
-            }
-            let pixelSet = nameMap.get(name);
-            if (!pixelSet) {
-                pixelSet = new Set();
-                nameMap.set(name, pixelSet);
-            }
-            for (const pixel of pixelStore.get(id)) {
-                const [x, y] = indexToCoord(pixel);
-                const neighbors = [
-                    [x + 1, y],
-                    [x - 1, y],
-                    [x, y + 1],
-                    [x, y - 1]
-                ];
-                for (const [nx, ny] of neighbors) {
+        const expansion = new Set();
+        for (const pixel of selected) {
+            const [x, y] = indexToCoord(pixel);
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    if (dx === 0 && dy === 0) continue;
+                    const nx = x + dx;
+                    const ny = y + dy;
                     if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
                     const ni = coordToIndex(nx, ny);
-                    if (!selected.has(ni)) pixelSet.add(ni);
+                    if (!selected.has(ni)) expansion.add(ni);
                 }
             }
         }
 
-        const newIds = [];
-        expansions.forEach((nameMap, color) => {
-            const union = new Set();
-            nameMap.forEach(set => set.forEach(px => union.add(px)));
-            const groups = groupConnectedPixels([...union]);
-            for (const group of groups) {
-                let layerName = null;
-                for (const [name, set] of nameMap.entries()) {
-                    if (group.some(px => set.has(px))) {
-                        layerName = name;
-                        break;
-                    }
-                }
-                const id = nodes.createLayer({ name: layerName, color });
-                pixelStore.set(id, group);
-                newIds.push(id);
-            }
-        });
-
-        if (newIds.length) {
+        if (expansion.size) {
             const topId = nodeQuery.uppermost(nodeTree.selectedIds);
-            nodeTree.insert(newIds, topId, false);
-            nodeTree.replaceSelection(newIds);
+            const baseName = nodes.getProperty(topId, 'name');
+            const name = nodeTree.selectedLayerCount === 1 ? `Expansion of ${baseName}` : 'Expansion';
+            const id = nodes.createLayer({ name, color: 0xFFFFFFFF });
+            pixelStore.set(id, [...expansion]);
+            nodeTree.insert([id], topId, false);
+            nodeTree.replaceSelection([id]);
         }
 
         tool.setShape('stroke');
