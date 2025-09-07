@@ -395,6 +395,131 @@ async function solve(input, opts = {}) {
 
   const partition = partitionAtEdgeCut(nodes, neighbors);
   if (partition) {
+    // When more than two parts are produced, compress the smaller parts
+    // into placeholders and solve the base part first.
+    if (partition.parts.length > 2) {
+      const pixelToPart = new Map();
+      partition.parts.forEach((p, idx) => {
+        for (const px of p.nodes) pixelToPart.set(px, idx);
+      });
+
+      // Choose base: most anchors, or largest size as tiebreaker
+      let baseIdx = 0;
+      let bestAnchor = -1;
+      let bestSize = -1;
+      for (let i = 0; i < partition.parts.length; i++) {
+        const part = partition.parts[i];
+        const anchorCount = opts.anchors
+          ? opts.anchors.filter((a) => part.nodes.includes(a)).length
+          : 0;
+        if (
+          anchorCount > bestAnchor ||
+          (anchorCount === bestAnchor && part.nodes.length > bestSize)
+        ) {
+          baseIdx = i;
+          bestAnchor = anchorCount;
+          bestSize = part.nodes.length;
+        }
+      }
+
+      const basePart = partition.parts[baseIdx];
+      const baseNodes = [...basePart.nodes];
+      const baseNeighbors = basePart.neighbors.map((nbs) => [...nbs]);
+      const baseNodeMap = new Map(baseNodes.map((p, i) => [p, i]));
+
+      const partInfos = new Map();
+      for (let i = 0; i < partition.parts.length; i++) {
+        if (i === baseIdx) continue;
+        const placeholderPixel = -1 - i;
+        const placeholderIdx = baseNodes.length;
+        baseNodes.push(placeholderPixel);
+        baseNeighbors.push([]);
+        const edgeMap = new Map();
+        partInfos.set(i, {
+          part: partition.parts[i],
+          placeholderPixel,
+          placeholderIdx,
+          edgeMap,
+        });
+      }
+
+      for (const [aIdx, bIdx] of partition.cutEdges) {
+        const aPixel = nodes[aIdx];
+        const bPixel = nodes[bIdx];
+        const pa = pixelToPart.get(aPixel);
+        const pb = pixelToPart.get(bPixel);
+        if (pa === baseIdx && pb !== baseIdx) {
+          const info = partInfos.get(pb);
+          if (info) {
+            info.edgeMap.set(aPixel, bPixel);
+            const bi = baseNodeMap.get(aPixel);
+            if (bi !== undefined) {
+              baseNeighbors[bi].push(info.placeholderIdx);
+              baseNeighbors[info.placeholderIdx].push(bi);
+            }
+          }
+        } else if (pb === baseIdx && pa !== baseIdx) {
+          const info = partInfos.get(pa);
+          if (info) {
+            info.edgeMap.set(bPixel, aPixel);
+            const bi = baseNodeMap.get(bPixel);
+            if (bi !== undefined) {
+              baseNeighbors[bi].push(info.placeholderIdx);
+              baseNeighbors[info.placeholderIdx].push(bi);
+            }
+          }
+        }
+      }
+
+      const baseDegrees = baseNeighbors.map((nbs) => nbs.length);
+      const baseAnchors = [];
+      if (opts.anchors) {
+        for (const a of opts.anchors) {
+          const pid = pixelToPart.get(a);
+          if (pid === baseIdx) baseAnchors.push(a);
+          else if (partInfos.get(pid)) baseAnchors.push(partInfos.get(pid).placeholderPixel);
+        }
+      }
+      const baseOpts = { anchors: baseAnchors };
+      if (opts.degreeOrder) baseOpts.degreeOrder = opts.degreeOrder;
+      let basePaths = await solve(
+        { nodes: baseNodes, neighbors: baseNeighbors, degrees: baseDegrees },
+        baseOpts,
+      );
+
+      for (const info of partInfos.values()) {
+        const { placeholderPixel, edgeMap, part } = info;
+        const pIndex = basePaths.findIndex((p) => p.includes(placeholderPixel));
+        if (pIndex === -1) continue;
+        const path = basePaths[pIndex];
+        const pos = path.indexOf(placeholderPixel);
+        const prev = path[pos - 1];
+        const next = path[pos + 1];
+        path.splice(pos, 1);
+
+        const anchorPair = [];
+        if (prev !== undefined && edgeMap.has(prev)) anchorPair.push(edgeMap.get(prev));
+        if (next !== undefined && edgeMap.has(next)) anchorPair.push(edgeMap.get(next));
+        for (const v of edgeMap.values()) {
+          if (anchorPair.length === 2) break;
+          if (!anchorPair.includes(v)) anchorPair.push(v);
+        }
+        const partAnchors = [...anchorPair];
+        if (opts.anchors) {
+          for (const a of opts.anchors) if (part.nodes.includes(a)) partAnchors.push(a);
+        }
+        const partOpts = { anchors: partAnchors };
+        if (opts.degreeOrder) partOpts.degreeOrder = opts.degreeOrder;
+        const subPaths = await solve(part, partOpts);
+        let subPath = subPaths[0];
+        if (anchorPair.length >= 1 && subPath[0] !== anchorPair[0]) subPath = [...subPath].reverse();
+        path.splice(pos, 0, ...subPath);
+        for (let i = 1; i < subPaths.length; i++) basePaths.push(subPaths[i]);
+      }
+
+      return basePaths;
+    }
+
     const results = [];
     for (const part of partition.parts) {
       const anchorSet = new Set();
