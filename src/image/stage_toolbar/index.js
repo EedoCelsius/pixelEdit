@@ -11,7 +11,7 @@ import undo from './undo.svg';
 import redo from './redo.svg';
 import path from './path.svg';
 import direction from './direction.svg';
-import connect from './connect.svg';
+import relay from './relay.svg';
 import border from './border.svg';
 import settings from './settings.svg';
 import wand from './wand.svg';
@@ -27,7 +27,7 @@ export default {
   top,
   path,
     direction,
-    connect,
+    relay,
     border,
     wand,
   resize,

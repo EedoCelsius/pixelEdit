@@ -57,7 +57,7 @@ export const usePathToolService = defineStore('pathToolService', () => {
   return { usable };
 });
 
-export const useConnectToolService = defineStore('connectToolService', () => {
+export const useRelayToolService = defineStore('relayToolService', () => {
     const tool = useToolSelectionService();
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 1);
@@ -75,7 +75,7 @@ export const useConnectToolService = defineStore('connectToolService', () => {
     };
 
     watch(() => tool.current, (p) => {
-        if (p !== 'connect') return;
+        if (p !== 'relay') return;
         if (!usable.value) return;
 
         const selected = nodeTree.layerOrder.filter(id => nodeTree.selectedLayerIds.includes(id));
