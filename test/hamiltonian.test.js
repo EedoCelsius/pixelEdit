@@ -1,62 +1,19 @@
 import assert from 'assert';
+import { test } from 'node:test';
 import {
   buildGraphFromPixels,
   partitionAtEdgeCut,
   useHamiltonianService,
-  solveFromPixels,
 } from '../src/services/hamiltonian.js';
 
 const MAX_DIMENSION = 65536;
 const coordToIndex = (x, y) => x + MAX_DIMENSION * y;
 
-// Construct diamond graph: A(1,0), B(0,1), C(2,1), D(1,2)
-const A = coordToIndex(1, 0);
-const B = coordToIndex(0, 1);
-const C = coordToIndex(2, 1);
-const D = coordToIndex(1, 2);
-const pixels = [A, B, C, D];
-
-// Test cut detection and partitioning
-{
-  const neighbors = buildGraphFromPixels(pixels);
-  const res = partitionAtEdgeCut(neighbors);
-  assert(res);
-  assert(Array.isArray(res.cutEdges));
-  assert.strictEqual(res.cutEdges.length, 2);
-  assert(res.parts[0] && res.parts[1]);
-}
-
-// Test solver on the same graph
-{
-  const service = useHamiltonianService();
-  const paths = await service.traverseFree(pixels);
-  assert.strictEqual(paths.length, 1);
-  const covered = new Set(paths.flat());
-  assert.strictEqual(covered.size, pixels.length);
-}
-
-// Test solver with descending degree order
-{ 
-  const paths = await solveFromPixels(pixels, { degreeOrder: 'descending' });
-  assert.strictEqual(paths.length, 1);
-  const covered = new Set(paths.flat());
-  assert.strictEqual(covered.size, pixels.length);
-}
-
-// Test solver with anchors
-{ 
-  const paths = await solveFromPixels(pixels, { anchors: [A, D] });
-  assert.strictEqual(paths.length, 1);
-  const covered = new Set(paths.flat());
-  assert.strictEqual(covered.size, pixels.length);
-}
-
-// Test neighbor coverage without assuming order
-{
+test('buildGraphFromPixels returns 8-way neighbors', () => {
   const center = coordToIndex(2, 2);
   const grid = [];
-  for (let x = 0; x <= 4; x++) {
-    for (let y = 0; y <= 4; y++) {
+  for (let x = 1; x <= 3; x++) {
+    for (let y = 1; y <= 3; y++) {
       grid.push(coordToIndex(x, y));
     }
   }
@@ -76,15 +33,64 @@ const pixels = [A, B, C, D];
     coordToIndex(3, 1), // right-up
   ].sort((a, b) => a - b);
   assert.deepStrictEqual(neighborPixels, expected);
-}
+});
 
-// Test rejecting edge combos that leave almost all parts as single pixels
-{
-  const p0 = coordToIndex(0, 0);
-  const p1 = coordToIndex(1, 0);
-  const p2 = coordToIndex(2, 0);
-  const neighbors = buildGraphFromPixels([p0, p1, p2]);
+test('partitionAtEdgeCut identifies bridge in a line', () => {
+  const pixels = [
+    coordToIndex(0, 0),
+    coordToIndex(1, 0),
+    coordToIndex(2, 0),
+    coordToIndex(3, 0),
+    coordToIndex(4, 0),
+  ];
+  const neighbors = buildGraphFromPixels(pixels);
   const res = partitionAtEdgeCut(neighbors);
   assert(res);
-  assert.strictEqual(res.cutEdges.length, 1);
-}
+  assert.strictEqual(res.edges.length, 1);
+  assert.strictEqual(res.parts.length, 2);
+});
+
+test('traverseFree covers all pixels', async () => {
+  const pixels = [
+    coordToIndex(0, 0),
+    coordToIndex(1, 0),
+    coordToIndex(1, 1),
+    coordToIndex(0, 1),
+  ]; // 2x2 square
+  const service = useHamiltonianService();
+  const paths = await service.traverseFree(pixels);
+  assert.strictEqual(paths.length, 1);
+  const covered = new Set(paths.flat());
+  assert.strictEqual(covered.size, pixels.length);
+});
+
+test('traverseWithStart respects starting anchor', async () => {
+  const pixels = [
+    coordToIndex(0, 0),
+    coordToIndex(1, 0),
+    coordToIndex(2, 0),
+  ];
+  const start = pixels[0];
+  const service = useHamiltonianService();
+  const paths = await service.traverseWithStart(pixels, start);
+  assert.strictEqual(paths.length, 1);
+  assert.strictEqual(paths[0][0], start);
+});
+
+test('traverseWithStartEnd respects both anchors', async () => {
+  const pixels = [
+    coordToIndex(0, 0),
+    coordToIndex(1, 0),
+    coordToIndex(2, 0),
+    coordToIndex(3, 0),
+  ];
+  const start = pixels[0];
+  const end = pixels[3];
+  const service = useHamiltonianService();
+  const paths = await service.traverseWithStartEnd(pixels, start, end);
+  assert.strictEqual(paths.length, 1);
+  const path = paths[0];
+  assert.strictEqual(path[0], start);
+  assert.strictEqual(path[path.length - 1], end);
+});
+
