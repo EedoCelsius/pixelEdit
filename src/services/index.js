@@ -7,7 +7,7 @@ import { useToolSelectionService } from './toolSelection';
 import { useToolbarStore } from '../stores/toolbar';
 import { useDrawToolService, useEraseToolService, useTopToolService, useCutToolService } from './singleLayerTools';
 import { useSelectToolService, useDirectionToolService, useGlobalEraseToolService } from './multiLayerTools';
-import { usePathToolService, useConnectToolService, useBorderToolService } from './wandTools';
+import { usePathToolService, useRelayToolService, useBorderToolService } from './wandTools';
 import { useViewportService } from './viewport';
 import { useStageResizeService } from './stageResize';
 import { useHamiltonianService } from './hamiltonian';
@@ -28,7 +28,7 @@ export {
     useTopToolService,
     useDirectionToolService,
     usePathToolService,
-    useConnectToolService,
+    useRelayToolService,
     useBorderToolService,
     useGlobalEraseToolService,
     useCutToolService,
@@ -49,7 +49,7 @@ export const useService = () => {
     const cut = useCutToolService();
     const top = useTopToolService();
     const path = usePathToolService();
-    const connect = useConnectToolService();
+    const relay = useRelayToolService();
     const border = useBorderToolService();
 
     const select = useSelectToolService();
@@ -74,7 +74,7 @@ export const useService = () => {
             cut,
             top,
             path,
-            connect,
+            relay,
             border,
             select,
             globalErase,
