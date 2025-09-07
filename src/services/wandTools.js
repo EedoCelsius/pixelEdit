@@ -3,7 +3,6 @@ import { watch, computed } from 'vue';
 import { useToolSelectionService } from './toolSelection';
 import { useHamiltonianService } from './hamiltonian';
 import { useLayerQueryService } from './layerQuery';
-import { useNodeQueryService } from './nodeQuery';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
 import { coordToIndex, indexToCoord, groupConnectedPixels } from '../utils';
@@ -144,7 +143,6 @@ export const useRelayToolService = defineStore('relayToolService', () => {
 
 export const useExpandToolService = defineStore('expandToolService', () => {
     const tool = useToolSelectionService();
-    const nodeQuery = useNodeQueryService();
     const { nodeTree, nodes, pixels: pixelStore, viewport: viewportStore } = useStore();
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 0);
 
@@ -155,34 +153,53 @@ export const useExpandToolService = defineStore('expandToolService', () => {
         const width = viewportStore.stage.width;
         const height = viewportStore.stage.height;
 
+        // collect all selected pixels for quick lookup
         const selected = new Set();
         for (const id of nodeTree.selectedLayerIds) {
             pixelStore.get(id).forEach(px => selected.add(px));
         }
 
-        const expansion = new Set();
-        for (const pixel of selected) {
-            const [x, y] = indexToCoord(pixel);
-            for (let dy = -1; dy <= 1; dy++) {
-                for (let dx = -1; dx <= 1; dx++) {
-                    if (dx === 0 && dy === 0) continue;
-                    const nx = x + dx;
-                    const ny = y + dy;
-                    if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-                    const ni = coordToIndex(nx, ny);
-                    if (!selected.has(ni)) expansion.add(ni);
+        // sort selected layer ids from topmost to bottommost
+        const order = new Map(nodeTree.layerOrder.map((id, idx) => [id, idx]));
+        const sortedIds = [...nodeTree.selectedLayerIds].sort((a, b) => order.get(b) - order.get(a));
+
+        const assigned = new Set();
+        const expansionByLayer = new Map();
+
+        for (const layerId of sortedIds) {
+            const pixels = pixelStore.get(layerId);
+            const expansion = new Set();
+            for (const pixel of pixels) {
+                const [x, y] = indexToCoord(pixel);
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        if (dx === 0 && dy === 0) continue;
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+                        const ni = coordToIndex(nx, ny);
+                        if (selected.has(ni) || assigned.has(ni)) continue;
+                        expansion.add(ni);
+                    }
                 }
+            }
+            if (expansion.size) {
+                expansionByLayer.set(layerId, expansion);
+                for (const px of expansion) assigned.add(px);
             }
         }
 
-        if (expansion.size) {
-            const topId = nodeQuery.uppermost(nodeTree.selectedIds);
-            const baseName = nodes.getProperty(topId, 'name');
-            const name = nodeTree.selectedLayerCount === 1 ? `Expansion of ${baseName}` : 'Expansion';
-            const id = nodes.createLayer({ name, color: 0xFFFFFFFF });
-            pixelStore.set(id, [...expansion]);
-            nodeTree.insert([id], topId, false);
-            nodeTree.replaceSelection([id]);
+        if (expansionByLayer.size) {
+            const createdIds = [];
+            for (const [layerId, pixels] of expansionByLayer) {
+                const name = nodes.getProperty(layerId, 'name');
+                const color = nodes.getProperty(layerId, 'color');
+                const id = nodes.createLayer({ name, color });
+                pixelStore.set(id, [...pixels]);
+                nodeTree.insert([id], layerId, false);
+                createdIds.push(id);
+            }
+            nodeTree.replaceSelection(createdIds);
         }
 
         tool.setShape('stroke');
