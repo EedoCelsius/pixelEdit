@@ -178,7 +178,7 @@ export const useExpandToolService = defineStore('expandToolService', () => {
         if (expansion.size) {
             const topId = nodeQuery.uppermost(nodeTree.selectedIds);
             const baseName = nodes.getProperty(topId, 'name');
-            const name = nodeTree.selectedLayerCount === 1 ? `Expand of ${baseName}` : 'Expand';
+            const name = nodeTree.selectedLayerCount === 1 ? `Expansion of ${baseName}` : 'Expansion';
             const id = nodes.createLayer({ name, color: 0xFFFFFFFF });
             pixelStore.set(id, [...expansion]);
             nodeTree.insert([id], topId, false);
