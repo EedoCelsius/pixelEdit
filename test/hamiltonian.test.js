@@ -88,3 +88,19 @@ const pixels = [A, B, C, D];
   assert(res);
   assert.strictEqual(res.cutEdges.length, 1);
 }
+
+// Test solving when multiple cut edges exist between two parts
+{
+  const E = coordToIndex(-1, 1);
+  const F = coordToIndex(-1, 0);
+  const extended = [A, B, C, D, E, F];
+  const neighbors = buildGraphFromPixels(extended);
+  const res = partitionAtEdgeCut(neighbors);
+  assert(res);
+  assert.strictEqual(res.cutEdges.length, 2);
+
+  const paths = await solveFromPixels(extended, { anchors: [B] });
+  assert.strictEqual(paths.length, 1);
+  const covered = new Set(paths.flat());
+  assert.strictEqual(covered.size, extended.length);
+}
