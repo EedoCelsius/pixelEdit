@@ -401,6 +401,120 @@ async function solve(neighbors, opts = {}) {
 
   const partition = partitionAtEdgeCut(neighbors);
   if (partition) {
+    if (partition.edges.length > 1) {
+      const anchors = opts.anchors || [];
+      let baseIdx = 0;
+      let bestAnchorCount = -1;
+      let bestSize = -1;
+      partition.parts.forEach(({ components }, i) => {
+        const count = anchors.reduce(
+          (acc, a) => acc + (components.includes(a) ? 1 : 0),
+          0,
+        );
+        if (count > bestAnchorCount || (count === bestAnchorCount && components.length > bestSize)) {
+          baseIdx = i;
+          bestAnchorCount = count;
+          bestSize = components.length;
+        }
+      });
+
+      const basePart = partition.parts[baseIdx];
+      const baseMap = new Map();
+      basePart.components.forEach((n, i) => baseMap.set(n, i));
+      const baseNeighbors = basePart.neighbors.map((n) => n.slice());
+      const placeholderInfo = [];
+
+      const otherParts = partition.parts.filter((_, i) => i !== baseIdx);
+      for (const part of otherParts) {
+        const compMap = new Map();
+        part.components.forEach((n, i) => compMap.set(n, i));
+        const cutMap = new Map();
+        for (const [a, b] of partition.edges) {
+          let baseNode = null;
+          let otherNode = null;
+          if (baseMap.has(a) && compMap.has(b)) {
+            baseNode = a;
+            otherNode = b;
+          } else if (baseMap.has(b) && compMap.has(a)) {
+            baseNode = b;
+            otherNode = a;
+          } else {
+            continue;
+          }
+          const baseIdxLocal = baseMap.get(baseNode);
+          let phIdx = cutMap.get(otherNode);
+          if (phIdx == null) {
+            phIdx = baseNeighbors.length;
+            cutMap.set(otherNode, phIdx);
+            baseNeighbors.push([]);
+            placeholderInfo.push({ index: phIdx, node: otherNode, part });
+          }
+          baseNeighbors[baseIdxLocal].push(phIdx);
+          baseNeighbors[phIdx].push(baseIdxLocal);
+        }
+        const phList = Array.from(cutMap.values());
+        for (let i = 0; i < phList.length; i++) {
+          for (let j = i + 1; j < phList.length; j++) {
+            baseNeighbors[phList[i]].push(phList[j]);
+            baseNeighbors[phList[j]].push(phList[i]);
+          }
+        }
+      }
+
+      const baseAnchors = anchors
+        .map((a) => baseMap.get(a))
+        .filter((a) => a !== undefined);
+      const basePaths = await solve(baseNeighbors, { ...opts, anchors: baseAnchors });
+      let path = basePaths[0];
+
+      for (const part of otherParts) {
+        const compMap = new Map();
+        part.components.forEach((n, i) => compMap.set(n, i));
+        const placeholders = placeholderInfo.filter((p) => p.part === part);
+        const phIndices = placeholders.map((p) => p.index);
+        const positions = [];
+        for (let i = 0; i < path.length; i++) {
+          if (phIndices.includes(path[i])) positions.push(i);
+        }
+        if (!positions.length) continue;
+
+        const subAnchors = anchors
+          .map((a) => compMap.get(a))
+          .filter((a) => a !== undefined);
+
+        if (positions.length === 1) {
+          const ph = placeholders[0];
+          const idx = compMap.get(ph.node);
+          subAnchors.push(idx, idx);
+          const subPaths = await solve(part.neighbors, { ...opts, anchors: subAnchors });
+          let subPath = subPaths[0];
+          if (subPath[0] !== idx) subPath = subPath.slice().reverse();
+          const mapped = subPath.map((i) => part.components[i]);
+          path.splice(positions[0], 1, ...mapped);
+        } else {
+          const ph1 = placeholders.find((p) => p.index === path[positions[0]]);
+          const ph2 = placeholders.find(
+            (p) => p.index === path[positions[positions.length - 1]],
+          );
+          const entry = compMap.get(ph1.node);
+          const exit = compMap.get(ph2.node);
+          subAnchors.push(entry, exit);
+          const subPaths = await solve(part.neighbors, { ...opts, anchors: subAnchors });
+          let subPath = subPaths[0];
+          if (!(subPath[0] === entry && subPath.at(-1) === exit)) {
+            if (subPath[0] === exit && subPath.at(-1) === entry) subPath = subPath.slice().reverse();
+          }
+          const mapped = subPath.map((i) => part.components[i]);
+          path.splice(
+            positions[0],
+            positions[positions.length - 1] - positions[0] + 1,
+            ...mapped,
+          );
+        }
+      }
+      return [path];
+    }
+
     const results = [];
     for (const { neighbors, components } of partition.parts) {
       const subAnchors = [];
