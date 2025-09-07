@@ -402,6 +402,88 @@ async function solve(neighbors, opts = {}) {
 
   const partition = partitionAtEdgeCut(neighbors);
   if (partition) {
+    if (partition.cutEdges.length > 1) {
+      const parts = partition.parts;
+      const origAnchorSet = new Set(opts.anchors || []);
+      let baseIdx = 0;
+      let maxAnchorCount = -1;
+      let maxSize = -1;
+      for (let i = 0; i < parts.length; i++) {
+        const aCount = parts[i].nodeMap.filter((n) => origAnchorSet.has(n)).length;
+        const size = parts[i].nodeMap.length;
+        if (aCount > maxAnchorCount || (aCount === maxAnchorCount && size > maxSize)) {
+          baseIdx = i;
+          maxAnchorCount = aCount;
+          maxSize = size;
+        }
+      }
+
+      const basePart = parts[baseIdx];
+      const partMaps = parts.map((p) => new Map(p.nodeMap.map((n, i) => [n, i])));
+      const baseMap = partMaps[baseIdx];
+      const baseNeighbors = basePart.neighbors.map((nbs) => nbs.slice());
+      const placeholders = [];
+
+      for (let i = 0; i < parts.length; i++) {
+        if (i === baseIdx) continue;
+        const info = {
+          partIdx: i,
+          placeholderIdx: baseNeighbors.length,
+          edges: [],
+        };
+        for (const [a, b] of partition.cutEdges) {
+          if (baseMap.has(a) && partMaps[i].has(b)) {
+            info.edges.push({ base: baseMap.get(a), part: partMaps[i].get(b) });
+          } else if (baseMap.has(b) && partMaps[i].has(a)) {
+            info.edges.push({ base: baseMap.get(b), part: partMaps[i].get(a) });
+          }
+        }
+        if (!info.edges.length) continue;
+        baseNeighbors.push(info.edges.map((e) => e.base));
+        for (const e of info.edges) baseNeighbors[e.base].push(info.placeholderIdx);
+        placeholders.push(info);
+      }
+
+      const baseAnchors = (opts.anchors || [])
+        .filter((a) => baseMap.has(a))
+        .map((a) => baseMap.get(a));
+
+      const basePaths = await solve(baseNeighbors, { ...opts, anchors: baseAnchors });
+      const expanded = [];
+      for (const path of basePaths) {
+        const seq = [];
+        for (let i = 0; i < path.length; i++) {
+          const node = path[i];
+          const ph = placeholders.find((p) => p.placeholderIdx === node);
+          if (!ph) {
+            seq.push(basePart.nodeMap[node]);
+            continue;
+          }
+          const prev = i > 0 ? path[i - 1] : null;
+          const next = i + 1 < path.length ? path[i + 1] : null;
+          const start = prev != null ? ph.edges.find((e) => e.base === prev)?.part : null;
+          const end = next != null ? ph.edges.find((e) => e.base === next)?.part : null;
+          const part = parts[ph.partIdx];
+          const anchorsInPart = (opts.anchors || [])
+            .filter((a) => partMaps[ph.partIdx].has(a))
+            .map((a) => partMaps[ph.partIdx].get(a));
+          const partAnchors = Array.from(
+            new Set([
+              ...(start != null ? [start] : []),
+              ...(end != null && end !== start ? [end] : []),
+              ...anchorsInPart,
+            ]),
+          );
+          const subPaths = await solve(part.neighbors, { ...opts, anchors: partAnchors });
+          let subPath = subPaths[0] || [];
+          if (start != null && subPath[0] !== start) subPath = subPath.slice().reverse();
+          seq.push(...subPath.map((idx) => part.nodeMap[idx]));
+        }
+        expanded.push(seq);
+      }
+      return expanded;
+    }
+
     const results = [];
     for (const part of partition.parts) {
       const origNodes = part.nodeMap;
