@@ -5,6 +5,7 @@ import {
   partitionAtEdgeCut,
   useHamiltonianService,
   solveFromPixels,
+  solve,
 } from '../src/services/hamiltonian.js';
 
 const MAX_DIMENSION = 65536;
@@ -83,5 +84,22 @@ test('HamiltonianService.traverseFree covers all pixels in a 2x2 square', async 
   assert.strictEqual(paths.length, 1);
   const covered = new Set(paths.flat());
   assert.strictEqual(covered.size, pixels.length);
+});
+
+test('solve compresses partitions with multiple cut edges', async () => {
+  const neighbors = [
+    [1, 3],
+    [0, 2, 4],
+    [1, 3, 5],
+    [0, 2],
+    [5, 7, 1],
+    [4, 6, 2],
+    [5, 7],
+    [4, 6],
+  ];
+  const paths = await solve(neighbors);
+  assert.strictEqual(paths.length, 1);
+  const covered = new Set(paths[0]);
+  assert.strictEqual(covered.size, neighbors.length);
 });
 

@@ -171,6 +171,167 @@ function stitchPaths(paths, anchorPairs) {
   return combined;
 }
 
+// Solve partition with multiple cut edges by compressing non-base parts
+async function solveWithPlaceholders(neighbors, opts, partition) {
+  const { parts, edges } = partition;
+
+  // Select base part: prioritize more anchors, then more nodes
+  let baseIdx = 0;
+  let bestAnchor = -1;
+  let bestSize = -1;
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    let count = 0;
+    for (const a of opts.anchors || []) if (part.components.includes(a)) count++;
+    if (count > bestAnchor || (count === bestAnchor && part.components.length > bestSize)) {
+      bestAnchor = count;
+      bestSize = part.components.length;
+      baseIdx = i;
+    }
+  }
+
+  const basePart = parts[baseIdx];
+
+  // Mapping from original index to new base graph index
+  const map = new Map();
+  const newNodes = [];
+  const add = (node) => {
+    if (!map.has(node)) {
+      map.set(node, newNodes.length);
+      newNodes.push(node);
+    }
+    return map.get(node);
+  };
+
+  // Add base part nodes
+  for (const n of basePart.components) add(n);
+
+  // Collect cut nodes for each non-base part
+  const partCuts = new Map();
+  for (const [a, b] of edges) {
+    const pa = parts.findIndex((p) => p.components.includes(a));
+    const pb = parts.findIndex((p) => p.components.includes(b));
+    if (pa !== baseIdx) {
+      if (!partCuts.has(pa)) partCuts.set(pa, new Set());
+      partCuts.get(pa).add(a);
+    }
+    if (pb !== baseIdx) {
+      if (!partCuts.has(pb)) partCuts.set(pb, new Set());
+      partCuts.get(pb).add(b);
+    }
+    add(a);
+    add(b);
+  }
+
+  // Placeholder node index for each non-base part
+  const placeholders = new Map();
+  const placeholderPart = new Map();
+  for (let i = 0; i < parts.length; i++) {
+    if (i === baseIdx) continue;
+    const part = parts[i];
+    const cuts = partCuts.get(i) || new Set();
+    const hasInternal = part.components.some((n) => !cuts.has(n));
+    if (hasInternal) {
+      const idx = newNodes.length;
+      placeholders.set(i, idx);
+      placeholderPart.set(idx, i);
+      newNodes.push(null);
+    }
+  }
+
+  const baseNeighbors = Array.from({ length: newNodes.length }, () => new Set());
+  const link = (a, b) => {
+    if (a === b) return;
+    baseNeighbors[a].add(b);
+    baseNeighbors[b].add(a);
+  };
+
+  // Edges within base part
+  for (let i = 0; i < basePart.neighbors.length; i++) {
+    const aOld = basePart.components[i];
+    const aNew = map.get(aOld);
+    for (const nbIdx of basePart.neighbors[i]) {
+      const bOld = basePart.components[nbIdx];
+      const bNew = map.get(bOld);
+      link(aNew, bNew);
+    }
+  }
+
+  // Add cut edges between parts
+  for (const [a, b] of edges) {
+    const aNew = map.get(a);
+    const bNew = map.get(b);
+    link(aNew, bNew);
+  }
+
+  // Process non-base parts
+  for (let i = 0; i < parts.length; i++) {
+    if (i === baseIdx) continue;
+    const part = parts[i];
+    const cuts = partCuts.get(i) || new Set();
+    const placeholderIdx = placeholders.get(i);
+    for (const node of cuts) {
+      const idxInPart = part.components.indexOf(node);
+      const aNew = map.get(node);
+      for (const nbIdx of part.neighbors[idxInPart]) {
+        const nbOld = part.components[nbIdx];
+        if (cuts.has(nbOld)) {
+          const bNew = map.get(nbOld);
+          link(aNew, bNew);
+        } else if (placeholderIdx !== undefined) {
+          link(aNew, placeholderIdx);
+        }
+      }
+    }
+  }
+
+  const neighborList = baseNeighbors.map((s) => Array.from(s));
+  const baseAnchors = [];
+  for (const a of opts.anchors || []) if (map.has(a)) baseAnchors.push(map.get(a));
+  const basePaths = await solve(neighborList, { ...opts, anchors: baseAnchors });
+
+  const paths = basePaths.map((p) => p.map((i) => newNodes[i]));
+
+  // Expand placeholders after base paths are determined
+  for (let i = 0; i < parts.length; i++) {
+    if (i === baseIdx) continue;
+    const part = parts[i];
+    const cuts = partCuts.get(i) || new Set();
+    for (let pi = 0; pi < paths.length; pi++) {
+      const path = paths[pi];
+      let start = -1;
+      let end = -1;
+      for (let j = 0; j < path.length; j++) {
+        const node = path[j];
+        if (node === null ? placeholderPart.get(basePaths[pi][j]) === i : cuts.has(node)) {
+          if (start === -1) start = j;
+          end = j;
+        } else if (start !== -1) {
+          break;
+        }
+      }
+      if (start === -1) continue;
+      let entry = path[start];
+      let exit = path[end];
+      if (entry === null) entry = path[start + 1];
+      if (exit === null) exit = path[end - 1];
+      const entryIdx = part.components.indexOf(entry);
+      const exitIdx = part.components.indexOf(exit);
+      const subAnchors = [entryIdx, exitIdx];
+      for (const a of opts.anchors || []) {
+        if (a !== entry && a !== exit && part.components.includes(a)) {
+          subAnchors.push(part.components.indexOf(a));
+        }
+      }
+      const subPaths = await solve(part.neighbors, { ...opts, anchors: subAnchors });
+      const expanded = subPaths[0].map((idx) => part.components[idx]);
+      paths[pi] = [...path.slice(0, start), ...expanded, ...path.slice(end + 1)];
+    }
+  }
+
+  return paths;
+}
+
 // Find connected components from an adjacency list
 function groupConnected(neighbors) {
   const n = neighbors.length;
@@ -401,6 +562,9 @@ async function solve(neighbors, opts = {}) {
 
   const partition = partitionAtEdgeCut(neighbors);
   if (partition) {
+    if (partition.edges.length > 1) {
+      return await solveWithPlaceholders(neighbors, opts, partition);
+    }
     const results = [];
     for (const { neighbors, components } of partition.parts) {
       const subAnchors = [];
