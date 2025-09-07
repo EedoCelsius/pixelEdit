@@ -85,3 +85,22 @@ test('HamiltonianService.traverseFree covers all pixels in a 2x2 square', async 
   assert.strictEqual(covered.size, pixels.length);
 });
 
+test('solveFromPixels handles multiple cut edges via compression', async () => {
+  const pixels = [
+    coordToIndex(0, 0),
+    coordToIndex(2, 0),
+    coordToIndex(3, 0),
+    coordToIndex(0, 1),
+    coordToIndex(1, 1),
+    coordToIndex(3, 1),
+    coordToIndex(0, 2),
+    coordToIndex(2, 2),
+  ];
+  const neighbors = buildGraphFromPixels(pixels);
+  const partition = partitionAtEdgeCut(neighbors);
+  assert(partition && partition.edges.length > 1);
+  const paths = await solveFromPixels(pixels);
+  assert.strictEqual(paths.length, 1);
+  assert.strictEqual(paths[0].length, pixels.length);
+});
+

@@ -197,6 +197,121 @@ function groupConnected(neighbors) {
   return components;
 }
 
+// Compress non-base partitions into placeholders and solve on the base graph
+async function compressPartition(partition, opts) {
+  const { edges, parts } = partition;
+  const anchors = opts.anchors || [];
+
+  // choose base part: prefer one containing most anchors then by size
+  let baseIdx = 0;
+  let bestAnchor = -1;
+  let bestSize = -1;
+  for (let i = 0; i < parts.length; i++) {
+    const comp = parts[i].components;
+    const aCount = anchors.filter((a) => comp.includes(a)).length;
+    if (aCount > bestAnchor || (aCount === bestAnchor && comp.length > bestSize)) {
+      baseIdx = i;
+      bestAnchor = aCount;
+      bestSize = comp.length;
+    }
+  }
+
+  const base = parts[baseIdx];
+  const indexMap = new Map();
+  const reverseMap = [];
+  base.components.forEach((node, i) => {
+    indexMap.set(node, i);
+    reverseMap[i] = node;
+  });
+  let baseNeighbors = base.neighbors.map((n) => n.slice());
+
+  const markers = [];
+
+  for (let i = 0; i < parts.length; i++) {
+    if (i === baseIdx) continue;
+    const part = parts[i];
+    const comp = part.components;
+    const partIndex = new Map();
+    comp.forEach((n, j) => partIndex.set(n, j));
+
+    const boundary = new Set();
+    for (const [a, b] of edges) {
+      if (comp.includes(a)) boundary.add(a);
+      if (comp.includes(b)) boundary.add(b);
+    }
+
+    const boundaryArr = Array.from(boundary);
+    const boundaryMap = new Map();
+    for (const node of boundaryArr) {
+      const idx = baseNeighbors.length;
+      baseNeighbors.push([]);
+      indexMap.set(node, idx);
+      reverseMap[idx] = node;
+      boundaryMap.set(node, idx);
+    }
+
+    const internal = comp.filter((n) => !boundary.has(n));
+    let placeholderIdx = null;
+    if (internal.length) {
+      placeholderIdx = baseNeighbors.length;
+      baseNeighbors.push([]);
+      const marker = { part };
+      reverseMap[placeholderIdx] = marker;
+      markers.push(marker);
+    }
+
+    for (const node of boundaryArr) {
+      const nodeIdx = boundaryMap.get(node);
+      const pIdx = partIndex.get(node);
+      for (const nbIdx of part.neighbors[pIdx]) {
+        const nbGlobal = comp[nbIdx];
+        if (boundary.has(nbGlobal)) {
+          const nbNodeIdx = boundaryMap.get(nbGlobal);
+          if (!baseNeighbors[nodeIdx].includes(nbNodeIdx)) baseNeighbors[nodeIdx].push(nbNodeIdx);
+        } else if (placeholderIdx !== null) {
+          baseNeighbors[nodeIdx].push(placeholderIdx);
+          baseNeighbors[placeholderIdx].push(nodeIdx);
+        }
+      }
+    }
+  }
+
+  for (const [a, b] of edges) {
+    const ai = indexMap.get(a);
+    const bi = indexMap.get(b);
+    if (ai != null && bi != null) {
+      if (!baseNeighbors[ai].includes(bi)) baseNeighbors[ai].push(bi);
+      if (!baseNeighbors[bi].includes(ai)) baseNeighbors[bi].push(ai);
+    }
+  }
+
+  const baseAnchors = anchors
+    .filter((a) => indexMap.has(a))
+    .map((a) => indexMap.get(a));
+  const basePaths = await solve(baseNeighbors, { ...opts, anchors: baseAnchors });
+  const mapped = basePaths.map((p) => p.map((i) => reverseMap[i]));
+
+  for (const marker of markers) {
+    const part = marker.part;
+    for (const path of mapped) {
+      for (let i = 1; i < path.length - 1; i++) {
+        if (path[i] === marker) {
+          const entry = path[i - 1];
+          const exit = path[i + 1];
+          const comp = part.components;
+          const subAnchors = [comp.indexOf(entry), comp.indexOf(exit)].filter((x) => x !== -1);
+          const subPaths = await solve(part.neighbors, { ...opts, anchors: subAnchors });
+          let subPath = subPaths[0].map((j) => comp[j]);
+          if (subPath[0] !== entry || subPath[subPath.length - 1] !== exit) subPath.reverse();
+          path.splice(i, 1, ...subPath.slice(1, -1));
+        }
+      }
+    }
+  }
+
+  return mapped;
+}
+
 // Core solver using backtracking to find minimum path cover
 class PathCoverSolver {
   constructor(neighbors, opts) {
@@ -401,6 +516,9 @@ async function solve(neighbors, opts = {}) {
 
   const partition = partitionAtEdgeCut(neighbors);
   if (partition) {
+    if (partition.edges.length > 1) {
+      return await compressPartition(partition, opts);
+    }
     const results = [];
     for (const { neighbors, components } of partition.parts) {
       const subAnchors = [];
