@@ -3,7 +3,6 @@ import { watch, computed } from 'vue';
 import { useToolSelectionService } from './toolSelection';
 import { useHamiltonianService } from './hamiltonian';
 import { useLayerQueryService } from './layerQuery';
-import { useNodeQueryService } from './nodeQuery';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
 import { coordToIndex, indexToCoord, groupConnectedPixels } from '../utils';
@@ -144,7 +143,6 @@ export const useRelayToolService = defineStore('relayToolService', () => {
 
 export const useExpandToolService = defineStore('expandToolService', () => {
     const tool = useToolSelectionService();
-    const nodeQuery = useNodeQueryService();
     const { nodeTree, nodes, pixels: pixelStore, viewport: viewportStore } = useStore();
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 0);
 
@@ -155,35 +153,49 @@ export const useExpandToolService = defineStore('expandToolService', () => {
         const width = viewportStore.stage.width;
         const height = viewportStore.stage.height;
 
-        const selected = new Set();
-        for (const id of nodeTree.selectedLayerIds) {
-            pixelStore.get(id).forEach(px => selected.add(px));
+        const selectedOrder = nodeTree.layerOrder.filter(id => nodeTree.selectedLayerIds.includes(id));
+        const occupied = new Set();
+        for (const id of selectedOrder) {
+            pixelStore.get(id).forEach(px => occupied.add(px));
         }
 
-        const expansion = new Set();
-        for (const pixel of selected) {
-            const [x, y] = indexToCoord(pixel);
-            for (let dy = -1; dy <= 1; dy++) {
-                for (let dx = -1; dx <= 1; dx++) {
-                    if (dx === 0 && dy === 0) continue;
-                    const nx = x + dx;
-                    const ny = y + dy;
-                    if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-                    const ni = coordToIndex(nx, ny);
-                    if (!selected.has(ni)) expansion.add(ni);
+        const newLayerIds = [];
+
+        for (const baseId of selectedOrder) {
+            const expansion = new Set();
+            for (const pixel of pixelStore.get(baseId)) {
+                const [x, y] = indexToCoord(pixel);
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        if (dx === 0 && dy === 0) continue;
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+                        const ni = coordToIndex(nx, ny);
+                        if (!occupied.has(ni)) expansion.add(ni);
+                    }
                 }
             }
+
+            if (!expansion.size) continue;
+            for (const px of expansion) occupied.add(px);
+
+            const groups = groupConnectedPixels([...expansion]);
+            const color = nodes.getProperty(baseId, 'color');
+            const name = nodes.getProperty(baseId, 'name');
+            const idsToInsert = [];
+
+            for (const group of groups) {
+                const id = nodes.createLayer({ name, color });
+                pixelStore.set(id, group);
+                idsToInsert.push(id);
+                newLayerIds.push(id);
+            }
+
+            nodeTree.insert(idsToInsert, baseId, false);
         }
 
-        if (expansion.size) {
-            const topId = nodeQuery.uppermost(nodeTree.selectedIds);
-            const baseName = nodes.getProperty(topId, 'name');
-            const name = nodeTree.selectedLayerCount === 1 ? `Expansion of ${baseName}` : 'Expansion';
-            const id = nodes.createLayer({ name, color: 0xFFFFFFFF });
-            pixelStore.set(id, [...expansion]);
-            nodeTree.insert([id], topId, false);
-            nodeTree.replaceSelection([id]);
-        }
+        if (newLayerIds.length) nodeTree.replaceSelection(newLayerIds);
 
         tool.setShape('stroke');
         tool.useRecent();
