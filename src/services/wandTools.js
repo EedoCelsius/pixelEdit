@@ -155,13 +155,13 @@ export const useExpandToolService = defineStore('expandToolService', () => {
         const width = viewportStore.stage.width;
         const height = viewportStore.stage.height;
 
-        const selected = new Set();
+        const selected = new Map();
         for (const id of nodeTree.selectedLayerIds) {
-            pixelStore.get(id).forEach(px => selected.add(px));
+            pixelStore.get(id).forEach(px => selected.set(px, id));
         }
 
         const expansion = new Set();
-        for (const pixel of selected) {
+        for (const pixel of selected.keys()) {
             const [x, y] = indexToCoord(pixel);
             for (let dy = -1; dy <= 1; dy++) {
                 for (let dx = -1; dx <= 1; dx++) {
@@ -176,13 +176,62 @@ export const useExpandToolService = defineStore('expandToolService', () => {
         }
 
         if (expansion.size) {
-            const topId = nodeQuery.uppermost(nodeTree.selectedIds);
-            const baseName = nodes.getProperty(topId, 'name');
-            const name = nodeTree.selectedLayerCount === 1 ? `Expansion of ${baseName}` : 'Expansion';
-            const id = nodes.createLayer({ name, color: 0xFFFFFFFF });
-            pixelStore.set(id, [...expansion]);
-            nodeTree.insert([id], topId, false);
-            nodeTree.replaceSelection([id]);
+            const colorGroups = new Map();
+            for (const pixel of expansion) {
+                const [x, y] = indexToCoord(pixel);
+                let layerId = null;
+                const neighbors = [
+                    [x - 1, y],
+                    [x + 1, y],
+                    [x, y - 1],
+                    [x, y + 1]
+                ];
+                for (const [nx, ny] of neighbors) {
+                    const ni = coordToIndex(nx, ny);
+                    if (selected.has(ni)) {
+                        layerId = selected.get(ni);
+                        break;
+                    }
+                }
+                if (!layerId) {
+                    for (let dy = -1; dy <= 1 && !layerId; dy++) {
+                        for (let dx = -1; dx <= 1; dx++) {
+                            if (dx === 0 && dy === 0) continue;
+                            const ni = coordToIndex(x + dx, y + dy);
+                            if (selected.has(ni)) {
+                                layerId = selected.get(ni);
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (!layerId) continue;
+                const color = nodes.getProperty(layerId, 'color');
+                let group = colorGroups.get(color);
+                if (!group) {
+                    group = { color, pixels: [], sources: new Map() };
+                    colorGroups.set(color, group);
+                }
+                group.pixels.push(pixel);
+                group.sources.set(pixel, layerId);
+            }
+
+            const inserted = [];
+            for (const { color, pixels, sources } of colorGroups.values()) {
+                const components = groupConnectedPixels(pixels);
+                for (const comp of components) {
+                    const sourceLayers = new Set(comp.map(px => sources.get(px)));
+                    const topId = nodeQuery.uppermost([...sourceLayers]);
+                    const name = nodes.getProperty(topId, 'name');
+                    const id = nodes.createLayer({ name, color });
+                    pixelStore.set(id, comp);
+                    nodeTree.insert([id], topId, false);
+                    inserted.push(id);
+                }
+            }
+            if (inserted.length) {
+                nodeTree.replaceSelection(inserted);
+            }
         }
 
         tool.setShape('stroke');
