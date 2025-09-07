@@ -155,13 +155,13 @@ export const useExpandToolService = defineStore('expandToolService', () => {
         const width = viewportStore.stage.width;
         const height = viewportStore.stage.height;
 
-        const selected = new Map();
+        const selected = new Set();
         for (const id of nodeTree.selectedLayerIds) {
-            pixelStore.get(id).forEach(px => selected.set(px, id));
+            pixelStore.get(id).forEach(px => selected.add(px));
         }
 
         const expansion = new Set();
-        for (const pixel of selected.keys()) {
+        for (const pixel of selected) {
             const [x, y] = indexToCoord(pixel);
             for (let dy = -1; dy <= 1; dy++) {
                 for (let dx = -1; dx <= 1; dx++) {
@@ -176,60 +176,13 @@ export const useExpandToolService = defineStore('expandToolService', () => {
         }
 
         if (expansion.size) {
-            const colorGroups = new Map();
-            for (const pixel of expansion) {
-                const [x, y] = indexToCoord(pixel);
-                let layerId = null;
-                const neighbors = [
-                    [x - 1, y],
-                    [x + 1, y],
-                    [x, y - 1],
-                    [x, y + 1]
-                ];
-                for (const [nx, ny] of neighbors) {
-                    const ni = coordToIndex(nx, ny);
-                    if (selected.has(ni)) {
-                        layerId = selected.get(ni);
-                        break;
-                    }
-                }
-                if (!layerId) {
-                    for (let dy = -1; dy <= 1 && !layerId; dy++) {
-                        for (let dx = -1; dx <= 1; dx++) {
-                            if (dx === 0 && dy === 0) continue;
-                            const ni = coordToIndex(x + dx, y + dy);
-                            if (selected.has(ni)) {
-                                layerId = selected.get(ni);
-                                break;
-                            }
-                        }
-                    }
-                }
-                if (!layerId) continue;
-                const color = nodes.getProperty(layerId, 'color');
-                const name = nodes.getProperty(layerId, 'name');
-                let group = colorGroups.get(color);
-                if (!group) {
-                    group = { name, color, pixels: [] };
-                    colorGroups.set(color, group);
-                }
-                group.pixels.push(pixel);
-            }
-
             const topId = nodeQuery.uppermost(nodeTree.selectedIds);
-            const newLayerIds = [];
-            for (const { name, color, pixels } of colorGroups.values()) {
-                const components = groupConnectedPixels(pixels);
-                for (const comp of components) {
-                    const id = nodes.createLayer({ name, color });
-                    pixelStore.set(id, comp);
-                    newLayerIds.push(id);
-                }
-            }
-            if (newLayerIds.length) {
-                nodeTree.insert(newLayerIds, topId, false);
-                nodeTree.replaceSelection(newLayerIds);
-            }
+            const baseName = nodes.getProperty(topId, 'name');
+            const name = nodeTree.selectedLayerCount === 1 ? `Expansion of ${baseName}` : 'Expansion';
+            const id = nodes.createLayer({ name, color: 0xFFFFFFFF });
+            pixelStore.set(id, [...expansion]);
+            nodeTree.insert([id], topId, false);
+            nodeTree.replaceSelection([id]);
         }
 
         tool.setShape('stroke');
