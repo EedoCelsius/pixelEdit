@@ -402,6 +402,111 @@ async function solve(neighbors, opts = {}) {
 
   const partition = partitionAtEdgeCut(neighbors);
   if (partition) {
+    // When multiple cut edges exist, compress non-base parts into placeholders
+    // and solve the base part first for efficiency.
+    if (partition.cutEdges.length > 1) {
+      const parts = partition.parts.map((part) => {
+        const map = new Map(part.nodeMap.map((n, i) => [n, i]));
+        const anchors = [];
+        for (const a of opts.anchors || []) {
+          const ai = map.get(a);
+          if (ai != null) anchors.push(ai);
+        }
+        return { ...part, map, anchors };
+      });
+
+      // Choose base part: most anchors, or largest if tied
+      let baseIdx = 0;
+      for (let i = 1; i < parts.length; i++) {
+        const aCount = parts[i].anchors.length;
+        const bCount = parts[baseIdx].anchors.length;
+        if (
+          aCount > bCount ||
+          (aCount === bCount && parts[i].nodeMap.length > parts[baseIdx].nodeMap.length)
+        ) {
+          baseIdx = i;
+        }
+      }
+
+      const base = parts[baseIdx];
+      const baseNeighbors = base.neighbors.map((nbs) => nbs.slice());
+      const placeholderInfos = [];
+
+      // Add placeholders for non-base parts
+      for (let i = 0; i < parts.length; i++) {
+        if (i === baseIdx) continue;
+        const part = parts[i];
+        const edges = [];
+        for (const [a, b] of partition.cutEdges) {
+          if (base.map.has(a) && part.map.has(b)) {
+            edges.push({ base: base.map.get(a), part: part.map.get(b) });
+          } else if (base.map.has(b) && part.map.has(a)) {
+            edges.push({ base: base.map.get(b), part: part.map.get(a) });
+          }
+        }
+        if (!edges.length) continue;
+
+        const phIdx = baseNeighbors.length + placeholderInfos.length;
+        const baseNodes = [...new Set(edges.map((e) => e.base))];
+        for (const bn of baseNodes) baseNeighbors[bn].push(phIdx);
+        baseNeighbors.push(baseNodes.slice());
+        placeholderInfos.push({ edges, part });
+      }
+
+      const basePaths = await solve(baseNeighbors, { ...opts, anchors: base.anchors });
+
+      // Determine anchors for each placeholder based on base path
+      const placeholderAnchors = placeholderInfos.map(() => []);
+      for (const path of basePaths) {
+        for (let i = 0; i < path.length; i++) {
+          const idx = path[i];
+          if (idx < base.neighbors.length) continue;
+          const phIdx = idx - base.neighbors.length;
+          const prev = i > 0 ? path[i - 1] : null;
+          const next = i < path.length - 1 ? path[i + 1] : null;
+          const edges = placeholderInfos[phIdx].edges;
+          const anchors = placeholderAnchors[phIdx];
+          if (prev != null) {
+            const e = edges.find((ed) => ed.base === prev);
+            if (e) anchors.push(e.part);
+          }
+          if (next != null) {
+            const e = edges.find((ed) => ed.base === next);
+            if (e) anchors.push(e.part);
+          }
+          placeholderAnchors[phIdx] = [...new Set(anchors)];
+        }
+      }
+
+      // Solve each compressed part with determined anchors
+      const placeholderPaths = [];
+      for (let i = 0; i < placeholderInfos.length; i++) {
+        const ph = placeholderInfos[i];
+        const anchors = placeholderAnchors[i];
+        const subPaths = await solve(ph.part.neighbors, { ...opts, anchors });
+        let path = subPaths[0];
+        if (anchors.length && path[0] !== anchors[0]) path = path.slice().reverse();
+        placeholderPaths[i] = path.map((idx) => ph.part.nodeMap[idx]);
+      }
+
+      // Expand placeholders back into base paths
+      const finalPaths = basePaths.map((path) => {
+        const res = [];
+        for (const idx of path) {
+          if (idx < base.neighbors.length) {
+            res.push(base.nodeMap[idx]);
+          } else {
+            const phIdx = idx - base.neighbors.length;
+            res.push(...placeholderPaths[phIdx]);
+          }
+        }
+        return res;
+      });
+
+      return finalPaths;
+    }
+
+    // Fallback: handle single cut edge by solving each part separately
     const results = [];
     for (const part of partition.parts) {
       const origNodes = part.nodeMap;
