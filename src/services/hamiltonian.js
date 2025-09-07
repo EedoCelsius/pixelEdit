@@ -18,7 +18,7 @@ function dirPriority(dx, dy) {
 // Returns adjacency list `neighbors` only
 function buildGraphFromPixels(pixels) {
   const indexMap = new Map(pixels.map((p, i) => [p, i]));
-  const neighbors = pixels.map(() => []);
+  const neighbors = [];
 
   for (let i = 0; i < pixels.length; i++) {
     const p = pixels[i];
@@ -36,7 +36,7 @@ function buildGraphFromPixels(pixels) {
       }
     }
     nbs.sort((a, b) => a.order - b.order);
-    neighbors[i] = nbs.map((n) => n.idx);
+    neighbors.push(nbs.map((n) => n.idx));
   }
 
   return neighbors;
@@ -386,7 +386,6 @@ class PathCoverSolver {
 
 async function solve(neighbors, opts = {}) {
   const connected = groupConnected(neighbors);
-  console.log("connected", connected)
   if (connected.length > 1) {
     const results = [];
     for (const { neighbors, components } of connected) {
@@ -401,16 +400,14 @@ async function solve(neighbors, opts = {}) {
   }
 
   const partition = partitionAtEdgeCut(neighbors);
-  console.log("partition", partition)
   if (partition) {
     const results = [];
     for (const { neighbors, components } of partition.parts) {
-      const anchorSet = new Set();
-      for (const anchor of opts.anchors || []) anchorSet.add(components.indexOf(anchor));
-      for (const [aIdx, bIdx] of partition.edges) anchorSet.add(components.indexOf(aIdx), components.indexOf(bIdx));
-      anchorSet.delete(-1);
+      const subAnchors = [];
+      for (const anchor of opts.anchors || []) subAnchors.push(components.indexOf(anchor));
+      for (const [aIdx, bIdx] of partition.edges) subAnchors.push(components.indexOf(aIdx), components.indexOf(bIdx));
       results.push(
-        solve(neighbors, { ...opts, anchors: [...anchorSet] })
+        solve(neighbors, { ...opts, anchors: subAnchors.filter((a) => a !== -1) })
         .then((paths) => paths.map((p) => p.map((i) => components[i])))
       );
     }
@@ -425,7 +422,6 @@ async function solve(neighbors, opts = {}) {
 async function solveFromPixels(pixels, opts = {}) {
   const nodes = Array.from(new Set(pixels));
   const neighbors = buildGraphFromPixels(nodes);
-  console.log("init neighbors", neighbors)
   const anchors = (opts.anchors || []).map((anchor) => {
     const idx = nodes.indexOf(anchor);
     if (idx === -1) throw new Error('Anchor pixel missing');
