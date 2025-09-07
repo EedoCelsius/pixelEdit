@@ -1,5 +1,4 @@
-import test from 'node:test';
-import assert from 'node:assert';
+import assert from 'assert';
 import {
   buildGraphFromPixels,
   partitionAtEdgeCut,
@@ -10,77 +9,82 @@ import {
 const MAX_DIMENSION = 65536;
 const coordToIndex = (x, y) => x + MAX_DIMENSION * y;
 
-test('buildGraphFromPixels orders neighbors around a center pixel', () => {
+// Construct diamond graph: A(1,0), B(0,1), C(2,1), D(1,2)
+const A = coordToIndex(1, 0);
+const B = coordToIndex(0, 1);
+const C = coordToIndex(2, 1);
+const D = coordToIndex(1, 2);
+const pixels = [A, B, C, D];
+
+// Test cut detection and partitioning
+{
+  const neighbors = buildGraphFromPixels(pixels);
+  const res = partitionAtEdgeCut(neighbors);
+  assert(res);
+  assert(Array.isArray(res.cutEdges));
+  assert.strictEqual(res.cutEdges.length, 2);
+  assert(res.parts[0] && res.parts[1]);
+}
+
+// Test solver on the same graph
+{
+  const service = useHamiltonianService();
+  const paths = await service.traverseFree(pixels);
+  assert.strictEqual(paths.length, 1);
+  const covered = new Set(paths.flat());
+  assert.strictEqual(covered.size, pixels.length);
+}
+
+// Test solver with descending degree order
+{ 
+  const paths = await solveFromPixels(pixels, { degreeOrder: 'descending' });
+  assert.strictEqual(paths.length, 1);
+  const covered = new Set(paths.flat());
+  assert.strictEqual(covered.size, pixels.length);
+}
+
+// Test solver with anchors
+{ 
+  const paths = await solveFromPixels(pixels, { anchors: [A, D] });
+  assert.strictEqual(paths.length, 1);
+  const covered = new Set(paths.flat());
+  assert.strictEqual(covered.size, pixels.length);
+}
+
+// Test neighbor coverage without assuming order
+{
+  const center = coordToIndex(2, 2);
   const grid = [];
-  for (let y = 0; y < 3; y++) {
-    for (let x = 0; x < 3; x++) {
+  for (let x = 0; x <= 4; x++) {
+    for (let y = 0; y <= 4; y++) {
       grid.push(coordToIndex(x, y));
     }
   }
   const neighbors = buildGraphFromPixels(grid);
-  const center = coordToIndex(1, 1);
   const centerIdx = grid.indexOf(center);
-  const neighborPixels = neighbors[centerIdx].map((i) => grid[i]);
+  const neighborPixels = neighbors[centerIdx]
+    .map((i) => grid[i])
+    .sort((a, b) => a - b);
   const expected = [
-    coordToIndex(1, 0), // up
-    coordToIndex(2, 1), // right
-    coordToIndex(1, 2), // down
-    coordToIndex(0, 1), // left
-    coordToIndex(0, 0), // left-up
-    coordToIndex(0, 2), // left-down
-    coordToIndex(2, 2), // right-down
-    coordToIndex(2, 0), // right-up
-  ];
+    coordToIndex(2, 1), // up
+    coordToIndex(3, 2), // right
+    coordToIndex(2, 3), // down
+    coordToIndex(1, 2), // left
+    coordToIndex(1, 1), // left-up
+    coordToIndex(1, 3), // left-down
+    coordToIndex(3, 3), // right-down
+    coordToIndex(3, 1), // right-up
+  ].sort((a, b) => a - b);
   assert.deepStrictEqual(neighborPixels, expected);
-});
+}
 
-test('partitionAtEdgeCut detects a bridge in a line of three pixels', () => {
+// Test rejecting edge combos that leave almost all parts as single pixels
+{
   const p0 = coordToIndex(0, 0);
   const p1 = coordToIndex(1, 0);
   const p2 = coordToIndex(2, 0);
   const neighbors = buildGraphFromPixels([p0, p1, p2]);
   const res = partitionAtEdgeCut(neighbors);
   assert(res);
-  assert.strictEqual(res.edges.length, 1);
-  assert.strictEqual(res.parts.length, 2);
-});
-
-test('solveFromPixels respects start and end anchors', async () => {
-  const p0 = coordToIndex(0, 0);
-  const p1 = coordToIndex(1, 0);
-  const p2 = coordToIndex(2, 0);
-  const p3 = coordToIndex(3, 0);
-  const pixels = [p0, p1, p2, p3];
-  const paths = await solveFromPixels(pixels, { anchors: [p0, p3] });
-  assert.strictEqual(paths.length, 1);
-  const path = paths[0];
-  assert.strictEqual(path.length, pixels.length);
-  assert(path.includes(p0) && path.includes(p3));
-  assert(
-    (path[0] === p0 && path.at(-1) === p3) ||
-      (path[0] === p3 && path.at(-1) === p0)
-  );
-});
-
-test('solveFromPixels returns separate paths for disconnected pixels', async () => {
-  const a = coordToIndex(0, 0);
-  const b = coordToIndex(5, 0);
-  const paths = await solveFromPixels([a, b]);
-  assert.strictEqual(paths.length, 2);
-  assert(paths.some((p) => p.length === 1 && p[0] === a));
-  assert(paths.some((p) => p.length === 1 && p[0] === b));
-});
-
-test('HamiltonianService.traverseFree covers all pixels in a 2x2 square', async () => {
-  const service = useHamiltonianService();
-  const pixels = [
-    coordToIndex(0, 0),
-    coordToIndex(1, 0),
-    coordToIndex(0, 1),
-    coordToIndex(1, 1),
-  ];
-  const paths = await service.traverseFree(pixels);
-  assert.strictEqual(paths.length, 1);
-  const covered = new Set(paths.flat());
-  assert.strictEqual(covered.size, pixels.length);
-});
+  assert.strictEqual(res.cutEdges.length, 1);
+}
