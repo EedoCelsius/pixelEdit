@@ -401,6 +401,114 @@ async function solve(neighbors, opts = {}) {
 
   const partition = partitionAtEdgeCut(neighbors);
   if (partition) {
+    if (partition.edges.length > 1 && partition.parts.length === 2) {
+      const parts = partition.parts;
+      const edges = partition.edges;
+
+      const anchorCounts = parts.map((p) =>
+        (opts.anchors || []).reduce(
+          (acc, a) => (p.components.includes(a) ? acc + 1 : acc),
+          0,
+        ),
+      );
+      const baseIdx =
+        anchorCounts[0] > anchorCounts[1]
+          ? 0
+          : anchorCounts[0] < anchorCounts[1]
+            ? 1
+            : parts[0].components.length >= parts[1].components.length
+              ? 0
+              : 1;
+      const otherIdx = baseIdx === 0 ? 1 : 0;
+      const base = parts[baseIdx];
+      const other = parts[otherIdx];
+
+      const baseMap = new Map(base.components.map((n, i) => [n, i]));
+      const otherMap = new Map(other.components.map((n, i) => [n, i]));
+
+      const boundarySet = new Set();
+      for (const [a, b] of edges) {
+        if (baseMap.has(a) && otherMap.has(b)) boundarySet.add(otherMap.get(b));
+        else if (baseMap.has(b) && otherMap.has(a)) boundarySet.add(otherMap.get(a));
+      }
+      const boundary = Array.from(boundarySet);
+      const baseSize = base.neighbors.length;
+      const placeholderIdx = baseSize + boundary.length;
+      const newNeighbors = base.neighbors.map((nbs) => nbs.slice());
+      const boundaryToNew = new Map();
+      for (let i = 0; i < boundary.length; i++) {
+        boundaryToNew.set(boundary[i], baseSize + i);
+        newNeighbors.push([]);
+      }
+      newNeighbors.push([]); // placeholder
+
+      for (const [a, b] of edges) {
+        let baseNode, otherNode;
+        if (baseMap.has(a)) {
+          baseNode = baseMap.get(a);
+          otherNode = otherMap.get(b);
+        } else {
+          baseNode = baseMap.get(b);
+          otherNode = otherMap.get(a);
+        }
+        const bIdx = boundaryToNew.get(otherNode);
+        newNeighbors[baseNode].push(bIdx);
+        newNeighbors[bIdx].push(baseNode);
+      }
+
+      for (const bn of boundary) {
+        const nIdx = boundaryToNew.get(bn);
+        const set = new Set(newNeighbors[nIdx]);
+        for (const nb of other.neighbors[bn]) {
+          if (boundarySet.has(nb)) set.add(boundaryToNew.get(nb));
+          else {
+            set.add(placeholderIdx);
+            newNeighbors[placeholderIdx].push(nIdx);
+          }
+        }
+        newNeighbors[nIdx] = Array.from(set);
+      }
+      newNeighbors[placeholderIdx] = Array.from(new Set(newNeighbors[placeholderIdx]));
+
+      const baseAnchors = [];
+      for (const a of opts.anchors || []) {
+        const idx = baseMap.get(a);
+        if (idx !== undefined) baseAnchors.push(idx);
+      }
+
+      const basePaths = await solve(newNeighbors, { ...opts, anchors: baseAnchors });
+
+      const newToOriginal = [];
+      base.components.forEach((n, i) => (newToOriginal[i] = n));
+      boundary.forEach((bn, i) => (newToOriginal[baseSize + i] = other.components[bn]));
+      newToOriginal[placeholderIdx] = null;
+      const mappedPaths = basePaths.map((p) => p.map((i) => newToOriginal[i]));
+
+      const placeholderPathIdx = mappedPaths.findIndex((p) => p.includes(null));
+      if (placeholderPathIdx !== -1) {
+        const path = mappedPaths[placeholderPathIdx];
+        const pos = path.indexOf(null);
+        const entry = path[pos - 1];
+        const exit = path[pos + 1];
+        const partAnchors = [];
+        for (const a of opts.anchors || []) {
+          const idx = otherMap.get(a);
+          if (idx !== undefined) partAnchors.push(idx);
+        }
+        partAnchors.push(otherMap.get(entry), otherMap.get(exit));
+        const subPaths = await solve(other.neighbors, { ...opts, anchors: partAnchors });
+        const subPath = subPaths[0].map((i) => other.components[i]);
+        if (subPath[0] !== entry) subPath.reverse();
+        const expanded = [
+          ...path.slice(0, pos - 1),
+          ...subPath,
+          ...path.slice(pos + 2),
+        ];
+        mappedPaths[placeholderPathIdx] = expanded;
+      }
+      return mappedPaths;
+    }
+
     const results = [];
     for (const { neighbors, components } of partition.parts) {
       const subAnchors = [];
