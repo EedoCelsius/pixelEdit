@@ -3,7 +3,7 @@ import stageIcons from '../image/stage_toolbar';
 export const WAND_TOOLS = [
     { type: 'path', name: 'Path', icon: stageIcons.path },
     { type: 'relay', name: 'Relay', icon: stageIcons.relay },
-    { type: 'border', name: 'Border', icon: stageIcons.border },
+    { type: 'expand', name: 'Expand', icon: stageIcons.expand },
 ];
 
 export const TOOL_MODIFIERS = {

@@ -142,14 +142,14 @@ export const useRelayToolService = defineStore('relayToolService', () => {
     return { usable };
 });
 
-export const useBorderToolService = defineStore('borderToolService', () => {
+export const useExpandToolService = defineStore('expandToolService', () => {
     const tool = useToolSelectionService();
     const nodeQuery = useNodeQueryService();
     const { nodeTree, nodes, pixels: pixelStore, viewport: viewportStore } = useStore();
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 0);
 
     watch(() => tool.current, (p) => {
-        if (p !== 'border') return;
+        if (p !== 'expand') return;
         if (!usable.value) return;
 
         const width = viewportStore.stage.width;
@@ -160,7 +160,7 @@ export const useBorderToolService = defineStore('borderToolService', () => {
             pixelStore.get(id).forEach(px => selected.add(px));
         }
 
-        const border = new Set();
+        const expansion = new Set();
         for (const pixel of selected) {
             const [x, y] = indexToCoord(pixel);
             for (let dy = -1; dy <= 1; dy++) {
@@ -170,17 +170,17 @@ export const useBorderToolService = defineStore('borderToolService', () => {
                     const ny = y + dy;
                     if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
                     const ni = coordToIndex(nx, ny);
-                    if (!selected.has(ni)) border.add(ni);
+                    if (!selected.has(ni)) expansion.add(ni);
                 }
             }
         }
 
-        if (border.size) {
+        if (expansion.size) {
             const topId = nodeQuery.uppermost(nodeTree.selectedIds);
             const baseName = nodes.getProperty(topId, 'name');
-            const name = nodeTree.selectedLayerCount === 1 ? `Border of ${baseName}` : 'Border';
+            const name = nodeTree.selectedLayerCount === 1 ? `Expand of ${baseName}` : 'Expand';
             const id = nodes.createLayer({ name, color: 0xFFFFFFFF });
-            pixelStore.set(id, [...border]);
+            pixelStore.set(id, [...expansion]);
             nodeTree.insert([id], topId, false);
             nodeTree.replaceSelection([id]);
         }
