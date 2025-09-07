@@ -6,7 +6,7 @@ import { useLayerQueryService } from './layerQuery';
 import { useNodeQueryService } from './nodeQuery';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
-import { coordToIndex, indexToCoord, groupConnectedPixels } from '../utils';
+import { coordToIndex, indexToCoord, groupConnectedPixels, getPixelUnion, averageColorU32 } from '../utils';
 
 export const usePathToolService = defineStore('pathToolService', () => {
     const tool = useToolSelectionService();
@@ -145,6 +145,7 @@ export const useRelayToolService = defineStore('relayToolService', () => {
 export const useExpandToolService = defineStore('expandToolService', () => {
     const tool = useToolSelectionService();
     const nodeQuery = useNodeQueryService();
+    const layerQuery = useLayerQueryService();
     const { nodeTree, nodes, pixels: pixelStore, viewport: viewportStore } = useStore();
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 0);
 
@@ -179,7 +180,22 @@ export const useExpandToolService = defineStore('expandToolService', () => {
             const topId = nodeQuery.uppermost(nodeTree.selectedIds);
             const baseName = nodes.getProperty(topId, 'name');
             const name = nodeTree.selectedLayerCount === 1 ? `Expansion of ${baseName}` : 'Expansion';
-            const id = nodes.createLayer({ name, color: 0xFFFFFFFF });
+
+            const pixelUnion = getPixelUnion(pixelStore.getProperties(nodeTree.selectedLayerIds));
+            const colors = [];
+            if (pixelUnion.length) {
+                for (const pixel of pixelUnion) {
+                    const id = layerQuery.topVisibleAt(pixel, nodeTree.selectedLayerIds);
+                    colors.push(id ? nodes.getProperty(id, 'color') : 0);
+                }
+            } else {
+                for (const id of nodeTree.selectedLayerIds) {
+                    colors.push(nodes.getProperty(id, 'color'));
+                }
+            }
+            const colorU32 = averageColorU32(colors);
+
+            const id = nodes.createLayer({ name, color: colorU32 });
             pixelStore.set(id, [...expansion]);
             nodeTree.insert([id], topId, false);
             nodeTree.replaceSelection([id]);
