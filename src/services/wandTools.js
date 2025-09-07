@@ -156,53 +156,33 @@ export const useExpandToolService = defineStore('expandToolService', () => {
         const height = viewportStore.stage.height;
 
         const selected = new Set();
-        const layerInfos = [];
-        const colorToIds = new Map();
         for (const id of nodeTree.selectedLayerIds) {
-            const color = nodes.getProperty(id, 'color');
-            const pixels = pixelStore.get(id);
-            pixels.forEach(px => selected.add(px));
-            layerInfos.push({ id, color, pixels });
-            if (!colorToIds.has(color)) colorToIds.set(color, []);
-            colorToIds.get(color).push(id);
+            pixelStore.get(id).forEach(px => selected.add(px));
         }
 
-        const expansionMap = new Map(); // color -> Set of pixels
-        for (const { pixels, color } of layerInfos) {
-            let set = expansionMap.get(color);
-            if (!set) {
-                set = new Set();
-                expansionMap.set(color, set);
-            }
-            for (const pixel of pixels) {
-                const [x, y] = indexToCoord(pixel);
-                for (let dy = -1; dy <= 1; dy++) {
-                    for (let dx = -1; dx <= 1; dx++) {
-                        if (dx === 0 && dy === 0) continue;
-                        const nx = x + dx;
-                        const ny = y + dy;
-                        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-                        const ni = coordToIndex(nx, ny);
-                        if (!selected.has(ni)) set.add(ni);
-                    }
+        const expansion = new Set();
+        for (const pixel of selected) {
+            const [x, y] = indexToCoord(pixel);
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    if (dx === 0 && dy === 0) continue;
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+                    const ni = coordToIndex(nx, ny);
+                    if (!selected.has(ni)) expansion.add(ni);
                 }
             }
         }
 
-        const newIds = [];
-        for (const [color, pixels] of expansionMap.entries()) {
-            if (!pixels.size) continue;
-            const ids = colorToIds.get(color) || [];
-            const topId = nodeQuery.uppermost(ids);
-            const name = nodes.getProperty(topId, 'name');
-            const id = nodes.createLayer({ name, color });
-            pixelStore.set(id, [...pixels]);
+        if (expansion.size) {
+            const topId = nodeQuery.uppermost(nodeTree.selectedIds);
+            const baseName = nodes.getProperty(topId, 'name');
+            const name = nodeTree.selectedLayerCount === 1 ? `Expansion of ${baseName}` : 'Expansion';
+            const id = nodes.createLayer({ name, color: 0xFFFFFFFF });
+            pixelStore.set(id, [...expansion]);
             nodeTree.insert([id], topId, false);
-            newIds.push(id);
-        }
-
-        if (newIds.length) {
-            nodeTree.replaceSelection(newIds);
+            nodeTree.replaceSelection([id]);
         }
 
         tool.setShape('stroke');
