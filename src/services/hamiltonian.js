@@ -401,18 +401,137 @@ async function solve(neighbors, opts = {}) {
 
   const partition = partitionAtEdgeCut(neighbors);
   if (partition) {
-    const results = [];
-    for (const { neighbors, components } of partition.parts) {
-      const subAnchors = [];
-      for (const anchor of opts.anchors || []) subAnchors.push(components.indexOf(anchor));
-      for (const [aIdx, bIdx] of partition.edges) subAnchors.push(components.indexOf(aIdx), components.indexOf(bIdx));
-      results.push(
-        solve(neighbors, { ...opts, anchors: subAnchors.filter((a) => a !== -1) })
-        .then((paths) => paths.map((p) => p.map((i) => components[i])))
-      );
+    if (1 < partition.edges.length) {
+      let baseIdx = 0;
+      let anchorScore = -1;
+      let sizeScore = -1;
+      const parts = partition.parts;
+      for (let i = 0; i < parts.length; i++) {
+        const { components } = parts[i];
+        const aCount = (opts.anchors || []).filter((a) => components.includes(a)).length;
+        if (
+          aCount > anchorScore ||
+          (aCount === anchorScore && components.length > sizeScore)
+        ) {
+          baseIdx = i;
+          anchorScore = aCount;
+          sizeScore = components.length;
+        }
+      }
+
+      const basePart = parts[baseIdx];
+      const otherParts = parts.filter((_, i) => i !== baseIdx);
+
+      const baseNeighbors = basePart.neighbors.map((n) => n.slice());
+      const globalToBase = new Map();
+      const baseToGlobal = [];
+      basePart.components.forEach((g, i) => {
+        globalToBase.set(g, i);
+        baseToGlobal[i] = g;
+      });
+
+      const placeholders = [];
+      for (const part of otherParts) {
+        let boundaryGlobals = [];
+        for (const [a, b] of partition.edges) {
+          if (part.components.includes(a) && basePart.components.includes(b))
+            boundaryGlobals.push(a);
+          else if (part.components.includes(b) && basePart.components.includes(a))
+            boundaryGlobals.push(b);
+        }
+        boundaryGlobals = Array.from(new Set(boundaryGlobals));
+        const boundaryBaseIdx = [];
+        for (const g of boundaryGlobals) {
+          const idx = baseNeighbors.length;
+          globalToBase.set(g, idx);
+          baseToGlobal[idx] = g;
+          baseNeighbors.push([]);
+          boundaryBaseIdx.push(idx);
+        }
+        const internalGlobals = part.components.filter(
+          (c) => !boundaryGlobals.includes(c),
+        );
+        let placeholderIdx = null;
+        const placeholderNbs = new Set();
+        if (internalGlobals.length) {
+          placeholderIdx = baseNeighbors.length;
+          baseNeighbors.push([]);
+          baseToGlobal[placeholderIdx] = null;
+        }
+
+        for (let i = 0; i < boundaryGlobals.length; i++) {
+          const g = boundaryGlobals[i];
+          const localIdx = part.components.indexOf(g);
+          const baseIdxB = boundaryBaseIdx[i];
+          for (const nb of part.neighbors[localIdx]) {
+            const nbGlobal = part.components[nb];
+            const j = boundaryGlobals.indexOf(nbGlobal);
+            if (j !== -1) {
+              const nbBase = boundaryBaseIdx[j];
+              baseNeighbors[baseIdxB].push(nbBase);
+            } else if (placeholderIdx != null) {
+              baseNeighbors[baseIdxB].push(placeholderIdx);
+              placeholderNbs.add(baseIdxB);
+            }
+          }
+        }
+        if (placeholderIdx != null) {
+          baseNeighbors[placeholderIdx] = Array.from(placeholderNbs);
+        }
+        placeholders.push({ part, boundaryGlobals, placeholderIdx });
+      }
+
+      for (const [a, b] of partition.edges) {
+        const ai = globalToBase.get(a);
+        const bi = globalToBase.get(b);
+        if (ai != null && bi != null) {
+          baseNeighbors[ai].push(bi);
+          baseNeighbors[bi].push(ai);
+        }
+      }
+
+      const mappedAnchors = [];
+      for (const a of opts.anchors || []) {
+        const idx = globalToBase.get(a);
+        if (idx != null) mappedAnchors.push(idx);
+      }
+
+      const basePaths = await solve(baseNeighbors, { ...opts, anchors: mappedAnchors });
+      let mainPath = basePaths[0].map((i) => baseToGlobal[i]);
+
+      for (const info of placeholders) {
+        const [gA, gB] = info.boundaryGlobals;
+        const posA = mainPath.indexOf(gA);
+        const posB = mainPath.indexOf(gB);
+        const start = Math.min(posA, posB);
+        const end = Math.max(posA, posB);
+        const a1 = info.part.components.indexOf(gA);
+        const a2 = info.part.components.indexOf(gB);
+        const subPaths = await solve(info.part.neighbors, {
+          ...opts,
+          anchors: [a1, a2],
+        });
+        const subPath = subPaths[0].map((i) => info.part.components[i]);
+        mainPath.splice(start, end - start + 1, ...subPath);
+      }
+
+      return [mainPath];
+    } else {
+      const results = [];
+      for (const { neighbors, components } of partition.parts) {
+        const subAnchors = [];
+        for (const anchor of opts.anchors || [])
+          subAnchors.push(components.indexOf(anchor));
+        for (const [aIdx, bIdx] of partition.edges)
+          subAnchors.push(components.indexOf(aIdx), components.indexOf(bIdx));
+        results.push(
+          solve(neighbors, { ...opts, anchors: subAnchors.filter((a) => a !== -1) })
+            .then((paths) => paths.map((p) => p.map((i) => components[i])))
+        );
+      }
+      const paths = (await Promise.all(results)).flat();
+      return stitchPaths(paths, partition.edges);
     }
-    const paths = (await Promise.all(results)).flat();
-    return stitchPaths(paths, partition.edges);
   }
 
   const solver = new PathCoverSolver(neighbors, opts);
