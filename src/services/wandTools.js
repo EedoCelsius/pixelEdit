@@ -155,34 +155,80 @@ export const useExpandToolService = defineStore('expandToolService', () => {
         const width = viewportStore.stage.width;
         const height = viewportStore.stage.height;
 
-        const selected = new Set();
+        const unionSelected = new Set();
+        const layerPixels = new Map();
         for (const id of nodeTree.selectedLayerIds) {
-            pixelStore.get(id).forEach(px => selected.add(px));
+            const pixels = pixelStore.get(id);
+            const set = new Set(pixels);
+            layerPixels.set(id, set);
+            pixels.forEach(px => unionSelected.add(px));
         }
 
-        const expansion = new Set();
-        for (const pixel of selected) {
-            const [x, y] = indexToCoord(pixel);
-            for (let dy = -1; dy <= 1; dy++) {
-                for (let dx = -1; dx <= 1; dx++) {
-                    if (dx === 0 && dy === 0) continue;
+        const groups = [];
+        const neighbors = [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1]
+        ];
+
+        for (const id of nodeTree.selectedLayerIds) {
+            const pixels = layerPixels.get(id);
+            const expansion = new Set();
+            for (const pixel of pixels) {
+                const [x, y] = indexToCoord(pixel);
+                for (const [dx, dy] of neighbors) {
                     const nx = x + dx;
                     const ny = y + dy;
                     if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
                     const ni = coordToIndex(nx, ny);
-                    if (!selected.has(ni)) expansion.add(ni);
+                    if (!unionSelected.has(ni)) expansion.add(ni);
+                }
+            }
+            if (expansion.size) {
+                const comps = groupConnectedPixels([...expansion]);
+                const color = nodes.getProperty(id, 'color');
+                for (const comp of comps) {
+                    groups.push({ color, layerIds: [id], pixels: new Set(comp) });
                 }
             }
         }
 
-        if (expansion.size) {
+        let merged = true;
+        while (merged) {
+            merged = false;
+            outer: for (let i = 0; i < groups.length; i++) {
+                for (let j = i + 1; j < groups.length; j++) {
+                    if (groups[i].color !== groups[j].color) continue;
+                    const union = [...groups[i].pixels, ...groups[j].pixels];
+                    if (groupConnectedPixels(union).length === 1) {
+                        groups[i].layerIds.push(...groups[j].layerIds);
+                        for (const px of groups[j].pixels) groups[i].pixels.add(px);
+                        groups.splice(j, 1);
+                        merged = true;
+                        break outer;
+                    }
+                }
+            }
+        }
+
+        if (groups.length) {
             const topId = nodeQuery.uppermost(nodeTree.selectedIds);
-            const baseName = nodes.getProperty(topId, 'name');
-            const name = nodeTree.selectedLayerCount === 1 ? `Expansion of ${baseName}` : 'Expansion';
-            const id = nodes.createLayer({ name, color: 0xFFFFFFFF });
-            pixelStore.set(id, [...expansion]);
-            nodeTree.insert([id], topId, false);
-            nodeTree.replaceSelection([id]);
+            const created = [];
+            const ordered = groups.map(g => {
+                const topLayerId = nodeQuery.uppermost(g.layerIds);
+                return { g, topLayerId };
+            }).sort((a, b) => nodeTree.indexOfLayer(a.topLayerId) - nodeTree.indexOfLayer(b.topLayerId));
+
+            for (const { g, topLayerId } of ordered) {
+                const name = nodes.getProperty(topLayerId, 'name');
+                const id = nodes.createLayer({ name, color: g.color });
+                pixelStore.set(id, [...g.pixels]);
+                created.push(id);
+            }
+
+            nodeTree.insert(created, topId, false);
+            nodeTree.replaceSelection(created);
         }
 
         tool.setShape('stroke');
