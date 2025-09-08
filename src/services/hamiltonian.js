@@ -153,12 +153,8 @@ function partitionAtEdgeCut(neighbors) {
 function stitchPaths(paths, anchorPairs) {
   const combined = [...paths];
   for (const [aIdx, bIdx] of anchorPairs) {
-    const ai = combined.findIndex(
-      (p) => p[0] === aIdx || p[p.length - 1] === aIdx,
-    );
-    const bi = combined.findIndex(
-      (p) => p[0] === bIdx || p[p.length - 1] === bIdx,
-    );
+    const ai = combined.findIndex((p) => p[0] === aIdx || p[p.length - 1] === aIdx);
+    const bi = combined.findIndex((p) => p[0] === bIdx || p[p.length - 1] === bIdx);
     if (ai !== -1 && bi !== -1 && ai !== bi) {
       const aPath = combined.splice(ai, 1)[0];
       const bIndex = bi > ai ? bi - 1 : bi;
@@ -209,10 +205,9 @@ class PathCoverSolver {
 
     this.attempts = 0;
     this.best = { paths: [], pathCount: Infinity, anchors: 0 };
-    this.record = new Map();
+    this.records = new Map();
     this.startTime = Date.now();
-    this.timeExceeded = false;
-    this.completed = false;
+    this.done = false;
   }
 
   updateBest(acc) {
@@ -231,21 +226,26 @@ class PathCoverSolver {
     if (better) this.best = { paths: acc.map((p) => p.slice()), pathCount, anchors };
 
     const isHamiltonianPath = acc.length === 1;
-    if (isHamiltonianPath && (anchors === this.anchors.length || anchors === 2)) this.completed = true;
+    if (isHamiltonianPath && (anchors === this.anchors.length || anchors === 2)) this.done = "fulfilled";
   }
 
   checkTimeout() {
     if (Date.now() - this.startTime > TIME_LIMIT) {
-      this.timeExceeded = true;
+      this.done = "timeout";
     }
   }
 
-  checkForBetterRecord(ctx, acc) {
-    const k = ctx.active.join('');
-    const prev = this.record.get(k);
-    if (prev != null && acc.length > prev) return true;
-    this.record.set(k, acc.length);
-    return false;
+  getBetterRecord(ctx, acc) {
+    const key = ctx.active.join('');
+    const record = this.records.get(key);
+    let anchors = 0;
+    for (const path of acc) {
+      if (this.anchors.includes(path[0])) anchors++;
+      if (path.length !== 1 && this.anchors.includes(path[path.length - 1])) anchors++;
+    }
+    if (record && record.length <= acc.length && anchors <= record.anchors) return record;
+    this.records.set(key, { length: acc.length, anchors });
+    return null;
   }
 
   sortedNeighbor(ctx, node) {
@@ -269,7 +269,7 @@ class PathCoverSolver {
   async search(ctx, acc, initial) {
     const stack = [{ type: 'search', node: initial, acc }];
 
-    while (stack.length && !this.timeExceeded && !this.completed) {
+    while (stack.length && !this.done) {
       const frame = stack.pop();
       switch (frame.type) {
         case 'search': {
@@ -330,12 +330,13 @@ class PathCoverSolver {
         case 'finalize': {
           const newAcc = [...frame.acc, frame.path.slice()];
           if (ctx.remaining) {
-            if (!this.checkForBetterRecord(ctx, newAcc)) {
+            if (!this.getBetterRecord(ctx, newAcc)) {
               for (let i = 0; i < this.n; i++) {
                 if (ctx.active[i]) stack.push({ type: 'search', node: i, acc: newAcc });
               }
             }
-          } else {
+          }
+          else {
             this.attempts++;
             this.updateBest(newAcc);
             if (this.attempts % 1024 === 0) {
@@ -347,6 +348,8 @@ class PathCoverSolver {
         }
       }
     }
+
+    if (!this.done) this.done = "exhausted";
   }
 
   chooseInitials() {
