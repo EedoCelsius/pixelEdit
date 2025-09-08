@@ -57,10 +57,8 @@ test('solveFromPixels respects start and end anchors', async () => {
   const path = paths[0];
   assert.strictEqual(path.length, pixels.length);
   assert(path.includes(p0) && path.includes(p3));
-  assert(
-    (path[0] === p0 && path.at(-1) === p3) ||
-      (path[0] === p3 && path.at(-1) === p0)
-  );
+  assert.strictEqual(path[0], p0);
+  assert.strictEqual(path.at(-1), p3);
 });
 
 test('solveFromPixels returns separate paths for disconnected pixels', async () => {
@@ -101,5 +99,23 @@ test('solve compresses partitions with multiple cut edges', async () => {
   assert.strictEqual(paths.length, 1);
   const covered = new Set(paths[0]);
   assert.strictEqual(covered.size, neighbors.length);
+});
+
+test('solve keeps entry and exit order when partitions are compressed', async () => {
+  const neighbors = [
+    [1, 3],
+    [0, 2, 4],
+    [1, 3, 5],
+    [0, 2],
+    [5, 7, 1],
+    [4, 6, 2],
+    [5, 7],
+    [4, 6],
+  ];
+  const paths = await solve(neighbors, { anchors: [0, 7] });
+  assert.strictEqual(paths.length, 1);
+  const path = paths[0];
+  assert.strictEqual(path[0], 0);
+  assert.strictEqual(path.at(-1), 7);
 });
 

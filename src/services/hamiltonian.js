@@ -171,6 +171,17 @@ function stitchPaths(paths, anchorPairs) {
   return combined;
 }
 
+// Ensure a specific path starts with `entry` and ends with `exit`.
+function enforceEntryExit(paths, entry, exit) {
+  if (entry === undefined || exit === undefined) return;
+  const idx = paths.findIndex(
+    (p) => p.includes(entry) && p.includes(exit),
+  );
+  if (idx === -1) return;
+  const path = paths[idx];
+  if (path[0] === exit && path[path.length - 1] === entry) path.reverse();
+}
+
 // Solve partition with multiple cut edges by compressing non-base parts
 async function solveWithPlaceholders(neighbors, opts, partition) {
   const { parts, edges } = partition;
@@ -324,6 +335,7 @@ async function solveWithPlaceholders(neighbors, opts, partition) {
         }
       }
       const subPaths = await solve(part.neighbors, { ...opts, anchors: subAnchors });
+      enforceEntryExit(subPaths, entryIdx, exitIdx);
       const expanded = subPaths[0].map((idx) => part.components[idx]);
       paths[pi] = [...path.slice(0, start), ...expanded, ...path.slice(end + 1)];
     }
@@ -557,13 +569,17 @@ async function solve(neighbors, opts = {}) {
         .then((paths) => paths.map((p) => p.map((i) => components[i])))
       );
     }
-    return (await Promise.all(results)).flat();
+    const res = (await Promise.all(results)).flat();
+    enforceEntryExit(res, opts.anchors?.[0], opts.anchors?.[1]);
+    return res;
   }
 
   const partition = partitionAtEdgeCut(neighbors);
   if (partition) {
     if (partition.edges.length > 1) {
-      return await solveWithPlaceholders(neighbors, opts, partition);
+      const res = await solveWithPlaceholders(neighbors, opts, partition);
+      enforceEntryExit(res, opts.anchors?.[0], opts.anchors?.[1]);
+      return res;
     }
     const results = [];
     for (const { neighbors, components } of partition.parts) {
@@ -576,11 +592,15 @@ async function solve(neighbors, opts = {}) {
       );
     }
     const paths = (await Promise.all(results)).flat();
-    return stitchPaths(paths, partition.edges);
+    const stitched = stitchPaths(paths, partition.edges);
+    enforceEntryExit(stitched, opts.anchors?.[0], opts.anchors?.[1]);
+    return stitched;
   }
 
   const solver = new PathCoverSolver(neighbors, opts);
-  return await solver.run();
+  const paths = await solver.run();
+  enforceEntryExit(paths, opts.anchors?.[0], opts.anchors?.[1]);
+  return paths;
 }
 
 async function solveFromPixels(pixels, opts = {}) {
