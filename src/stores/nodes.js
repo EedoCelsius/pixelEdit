@@ -49,7 +49,7 @@ export const useNodeStore = defineStore('nodes', {
     },
     actions: {
         createLayer(layerProperties = {}) {
-            const id = Math.floor(Date.now() * Math.random());
+            const id = crypto.getRandomValues(new Uint32Array(1))[0];
             this._name[id] = layerProperties.name || 'Layer';
             this._visibility[id] = layerProperties.visibility ?? true;
             this._locked[id] = layerProperties.locked ?? false;
@@ -60,7 +60,7 @@ export const useNodeStore = defineStore('nodes', {
             return id;
         },
         createGroup(groupProperties = {}) {
-            const id = Math.floor(Date.now() * Math.random());
+            const id = crypto.getRandomValues(new Uint32Array(1))[0];
             this._name[id] = groupProperties.name || 'Group';
             this._visibility[id] = groupProperties.visibility ?? true;
             this._locked[id] = groupProperties.locked ?? false;
