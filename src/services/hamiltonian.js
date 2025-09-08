@@ -201,18 +201,15 @@ function groupConnected(neighbors) {
 class PathCoverSolver {
   constructor(neighbors, opts) {
     this.neighbors = neighbors;
-    this.baseDegrees = Uint8Array.from(neighbors.map((nbs) => nbs.length));
-    this.opts = opts;
-
-    this.n = neighbors.length;
     this.anchors = opts.anchors || [];
-    for (const a of this.anchors) {
-      if (a < 0 || a >= this.n) throw new Error('Anchor index out of range');
-    }
-
     this.isAscending = opts.degreeOrder !== 'descending';
 
+    this.baseDegrees = Uint8Array.from(neighbors.map((nbs) => nbs.length));
+    this.n = neighbors.length;
+
+    this.attempts = 0;
     this.best = { paths: [], pathCount: Infinity, anchors: 0 };
+    this.record = new Map();
     this.startTime = Date.now();
     this.timeExceeded = false;
     this.completed = false;
@@ -245,9 +242,9 @@ class PathCoverSolver {
 
   checkForBetterRecord(ctx, acc) {
     const k = ctx.active.join('');
-    const prev = ctx.record.get(k);
+    const prev = this.record.get(k);
     if (prev != null && acc.length > prev) return true;
-    ctx.record.set(k, acc.length);
+    this.record.set(k, acc.length);
     return false;
   }
 
@@ -334,15 +331,14 @@ class PathCoverSolver {
           const newAcc = [...frame.acc, frame.path.slice()];
           if (ctx.remaining) {
             if (!this.checkForBetterRecord(ctx, newAcc)) {
-              for (let i = this.n - 1; i >= 0; i--) {
-                if (!ctx.active[i]) continue;
-                stack.push({ type: 'search', node: i, acc: newAcc });
+              for (let i = 0; i < this.n; i++) {
+                if (ctx.active[i]) stack.push({ type: 'search', node: i, acc: newAcc });
               }
             }
           } else {
-            ctx.attempts++;
+            this.attempts++;
             this.updateBest(newAcc);
-            if (ctx.attempts % 1024 === 0) {
+            if (this.attempts % 1024 === 0) {
               this.checkTimeout();
               await new Promise((resolve) => setTimeout(resolve));
             }
@@ -373,11 +369,9 @@ class PathCoverSolver {
     const initials = this.anchors.length ? this.anchors : this.chooseInitials();
     const tasks = initials.map((initial) => {
       const ctx = {
-        attempts: 0,
         remaining: this.n,
         active: new Uint8Array(this.n).fill(1),
-        degrees: Uint8Array.from(this.baseDegrees),
-        record: new Map(),
+        degrees: Uint8Array.from(this.baseDegrees)
       };
       return this.search(ctx, [], initial);
     });
