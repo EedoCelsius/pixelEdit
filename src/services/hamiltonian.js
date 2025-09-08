@@ -243,20 +243,6 @@ class PathCoverSolver {
     }
   }
 
-  chooseStart(ctx) {
-    let bestIdx = -1;
-    let best = this.isAscending ? Infinity : -1;
-    for (let i = 0; i < ctx.degrees.length; i++) {
-      if (!ctx.active[i]) continue;
-      const d = ctx.degrees[i];
-      if (this.isAscending ? d < best : d > best) {
-        best = d;
-        bestIdx = i;
-      }
-    }
-    return bestIdx;
-  }
-
   checkForBetterRecord(ctx, acc) {
     const k = ctx.active.join('');
     const prev = ctx.record.get(k);
@@ -283,8 +269,8 @@ class PathCoverSolver {
     return result;
   }
 
-  async search(ctx, acc, initNode) {
-    const stack = [{ type: 'search', node: initNode ?? this.chooseStart(ctx), acc }];
+  async search(ctx, acc, initial) {
+    const stack = [{ type: 'search', node: initial, acc }];
 
     while (stack.length && !this.timeExceeded && !this.completed) {
       const frame = stack.pop();
@@ -367,9 +353,25 @@ class PathCoverSolver {
     }
   }
 
+  chooseInitials() {
+    let bestIdxs = [];
+    let best = this.isAscending ? Infinity : -1;
+    for (let i = 0; i < this.baseDegrees.length; i++) {
+      const d = this.baseDegrees[i];
+      if (d === best) {
+        bestIdxs.push(i);
+      }
+      else if (this.isAscending ? d < best : d > best) {
+        best = d;
+        bestIdxs = [i];
+      }
+    }
+    return bestIdxs;
+  }
+  
   async run() {
-    const anchors = this.anchors.length ? this.anchors : [null];
-    const tasks = anchors.map((initial) => {
+    const initials = this.anchors.length ? this.anchors : this.chooseInitials();
+    const tasks = initials.map((initial) => {
       const ctx = {
         attempts: 0,
         remaining: this.n,
