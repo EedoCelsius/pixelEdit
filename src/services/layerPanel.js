@@ -196,7 +196,7 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
 
     function serialize() {
         return {
-            anchor: state.anchorId,
+            anchorId: state.anchorId,
             tailId: state.tailId,
             scrollRule: state.scrollRule,
         };
@@ -204,7 +204,7 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
 
     function applySerialized(payload) {
         disableWatch();
-        state.anchorId = payload?.anchor ?? null;
+        state.anchorId = payload?.anchorId ?? null;
         state.tailId = payload?.tailId ?? null;
         if (state.anchorId != null && state.tailId != null) {
             enableWatch();
