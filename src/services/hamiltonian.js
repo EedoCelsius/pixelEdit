@@ -212,7 +212,8 @@ class PathCoverSolver {
     this.record = new Map();
     this.startTime = Date.now();
     this.timeExceeded = false;
-    this.completed = false;
+    this.fulfilled = false;
+    this.exhausted = false;
   }
 
   updateBest(acc) {
@@ -231,7 +232,7 @@ class PathCoverSolver {
     if (better) this.best = { paths: acc.map((p) => p.slice()), pathCount, anchors };
 
     const isHamiltonianPath = acc.length === 1;
-    if (isHamiltonianPath && (anchors === this.anchors.length || anchors === 2)) this.completed = true;
+    if (isHamiltonianPath && (anchors === this.anchors.length || anchors === 2)) this.fulfilled = true;
   }
 
   checkTimeout() {
@@ -269,7 +270,7 @@ class PathCoverSolver {
   async search(ctx, acc, initial) {
     const stack = [{ type: 'search', node: initial, acc }];
 
-    while (stack.length && !this.timeExceeded && !this.completed) {
+    while (stack.length && !this.timeExceeded && !this.fulfilled) {
       const frame = stack.pop();
       switch (frame.type) {
         case 'search': {
@@ -347,6 +348,8 @@ class PathCoverSolver {
         }
       }
     }
+
+    if (stack.length === 0) this.exhausted = true;
   }
 
   chooseInitials() {
