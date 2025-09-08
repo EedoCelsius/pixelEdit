@@ -13,7 +13,7 @@ export const useOverlayService = defineStore('overlayService', () => {
     const list = computed(() => Object.keys(overlayPixels).map(id => getOverlay(id)));
 
     function createOverlay(style = OVERLAY_STYLES.ADD) {
-        const id = Math.floor(Date.now() * Math.random());
+        const id = crypto.getRandomValues(new Uint32Array(1))[0];
         overlayPixels[id] = reactive(new Set());
         styles[id] = style;
         return id;
