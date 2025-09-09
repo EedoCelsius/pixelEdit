@@ -33,7 +33,7 @@ import { ref, watch } from 'vue';
 import { useService } from '../services';
 import { usePixelStore, PIXEL_DEFAULT_ORIENTATIONS } from '@/stores/pixels';
 import { CHECKERBOARD_CONFIG } from '@/constants';
-import { ensureCheckerboardPattern } from '@/utils/pixels.js';
+import { checkerboardPatternUrl } from '@/utils/pixels.js';
 
 const { settings: settingsService } = useService();
 const pixelStore = usePixelStore();
@@ -51,6 +51,6 @@ watch(checkerboardRepeat, repeat => {
   localStorage.setItem('settings.checkerboardRepeat', String(repeat));
   const patternEl = document.getElementById(CHECKERBOARD_CONFIG.PATTERN_ID);
   patternEl?.parentNode?.parentNode?.remove();
-  ensureCheckerboardPattern(document.body);
+  checkerboardPatternUrl(document.body);
 });
 </script>
