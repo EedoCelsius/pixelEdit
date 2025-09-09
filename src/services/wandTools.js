@@ -33,7 +33,7 @@ export const usePathToolService = defineStore('pathToolService', () => {
 
         nodeTree.remove([layerId]);
         nodes.remove([layerId]);
-        pixelStore.remove([layerId]);
+        pixelStore.removeLayer([layerId]);
 
         paths.forEach((path, idx) => {
             const subGroupId = nodes.addGroup({ name: `Path ${idx + 1}` });
@@ -42,7 +42,8 @@ export const usePathToolService = defineStore('pathToolService', () => {
             const ids = [];
             path.forEach((pixel, j) => {
                 const lid = nodes.addLayer({ name: `Pixel ${j + 1}`, color });
-                pixelStore.addPixels(lid, [pixel]);
+                pixelStore.addLayer(lid);
+                pixelStore.add(lid, [pixel]);
                 ids.push(lid);
             });
             nodeTree.append(ids, subGroupId, false);
@@ -103,7 +104,7 @@ export const useRelayToolService = defineStore('relayToolService', () => {
             }
             if (!orientation) continue;
             const pixels = pixelsOf(id);
-            if (pixels.length) pixelStore.set(id, pixels, orientation);
+            if (pixels.length) pixelStore.add(id, pixels, orientation);
             orientationMap.set(id, orientation);
         }
 
@@ -122,10 +123,10 @@ export const useRelayToolService = defineStore('relayToolService', () => {
                 const union = [...new Set([...pixelsOf(baseId), ...pixelsOf(nextId)])];
                 if (groupConnectedPixels(union).length > 1) continue;
                 const px = pixelsOf(nextId);
-                if (px.length) pixelStore.addPixels(baseId, px, orient);
+                if (px.length) pixelStore.add(baseId, px, orient);
                 const removed = nodeTree.remove([nextId]);
                 nodes.remove(removed);
-                pixelStore.remove(removed);
+                pixelStore.removeLayer(removed);
                 orientationMap.delete(nextId);
                 mergedSelection.delete(nextId);
                 changed = true;
@@ -220,7 +221,8 @@ export const useExpandToolService = defineStore('expandToolService', () => {
                 const components = groupConnectedPixels(pixels);
                 for (const comp of components) {
                     const id = nodes.addLayer({ name, color });
-                    pixelStore.set(id, comp);
+                    pixelStore.addLayer(id);
+                    pixelStore.add(id, comp);
                     newLayerIds.push(id);
                 }
             }

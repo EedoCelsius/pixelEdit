@@ -19,18 +19,20 @@ test('swapping layer pixels changes hash', () => {
   setActivePinia(createPinia());
   const storeA = usePixelStore();
   const l1 = 1, l2 = 2;
+  storeA.addLayer([l1, l2]);
   const p1 = coordToIndex(0, 0);
   const p2 = coordToIndex(1, 0);
   const p3 = coordToIndex(0, 1);
   const p4 = coordToIndex(1, 1);
-  storeA.set(l1, [p1, p2], 'horizontal');
-  storeA.set(l2, [p3, p4], 'vertical');
+  storeA.add(l1, [p1, p2], 'horizontal');
+  storeA.add(l2, [p3, p4], 'vertical');
   const hashA = storeA._hash.all;
 
   setActivePinia(createPinia());
   const storeB = usePixelStore();
-  storeB.set(l1, [p3, p4], 'horizontal');
-  storeB.set(l2, [p1, p2], 'vertical');
+  storeB.addLayer([l1, l2]);
+  storeB.add(l1, [p3, p4], 'horizontal');
+  storeB.add(l2, [p1, p2], 'vertical');
   const hashB = storeB._hash.all;
 
   assert.notStrictEqual(hashA, hashB);
@@ -40,10 +42,11 @@ test('changing pixel orientation updates hash', () => {
   setActivePinia(createPinia());
   const store = usePixelStore();
   const layer = 1;
+  store.addLayer(layer);
   const px = coordToIndex(0, 0);
-  store.set(layer, [px], 'horizontal');
+  store.add(layer, [px], 'horizontal');
   const hash1 = store._hash.all;
-  store.setOrientation(layer, px, 'vertical');
+  store.add(layer, [px], 'vertical');
   const hash2 = store._hash.all;
   assert.notStrictEqual(hash1, hash2);
 });

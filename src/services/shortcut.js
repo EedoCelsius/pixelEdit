@@ -29,7 +29,7 @@ export const useShortcutService = defineStore('shortcutService', () => {
         const belowId = nodeQuery.below(lowermostTarget);
         const removed = nodeTree.remove(ids);
         nodes.remove(removed);
-        pixelStore.remove(removed);
+        pixelStore.removeLayer(removed);
         let newSelect = null;
         if (nodeTree.has(belowId)) {
             newSelect = belowId;

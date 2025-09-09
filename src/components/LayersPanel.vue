@@ -339,7 +339,7 @@ function deleteNode(id) {
     const belowId = nodeQuery.below(lowermostTarget);
     const removed = nodeTree.remove(targets);
     nodes.remove(removed);
-    pixelStore.remove(removed);
+    pixelStore.removeLayer(removed);
     let newSelectId = null;
     if (nodeTree.has(belowId)) {
         newSelectId = belowId;

@@ -171,7 +171,8 @@ export const useCutToolService = defineStore('cutToolService', () => {
             visibility: nodes.visibility(sourceId),
             attributes: nodes.attributes(sourceId),
         });
-        pixelStore.set(id, cutPixels);
+        pixelStore.addLayer(id);
+        pixelStore.add(id, cutPixels);
         nodeTree.insert([id], sourceId, false);
 
         nodeTree.replaceSelection([sourceId]);

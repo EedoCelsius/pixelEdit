@@ -34,11 +34,12 @@ export const useLayerToolService = defineStore('layerToolService', () => {
             attributes: maintainedAttrs,
         });
         const newPixels = pixelUnion;
+        pixels.addLayer(newLayerId);
         pixels.set(newLayerId, newPixels);
         nodeTree.insert([newLayerId], nodeTree.orderedSelection[0], true);
         const removed = nodeTree.remove(nodeTree.selectedNodeIds);
         nodes.remove(removed);
-        pixels.remove(removed);
+        pixels.removeLayer(removed);
         return newLayerId;
     }
 
@@ -70,6 +71,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
                     attributes: props.attributes,
                 });
                 const px = pixels.get(srcId);
+                pixels.addLayer(newId);
                 pixels.set(newId, px);
                 if (parentId == null) nodeTree.insert([newId], srcId, false);
                 else nodeTree.append([newId], parentId, false);
@@ -107,6 +109,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
                     visibility: original.visibility,
                     attributes: original.attributes,
                 });
+                pixels.addLayer(newId);
                 pixels.set(newId, componentPixels);
                 return newId;
             });
@@ -115,7 +118,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
             
             const removed = nodeTree.remove([layerId]);
             nodes.remove(removed);
-            pixels.remove(removed);
+            pixels.removeLayer(removed);
 
             newSelection.push(...newIds);
             splitedLayers.push(...newIds);
