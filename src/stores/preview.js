@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia';
 import { useNodeStore } from './nodes';
-import { usePixelStore } from './pixels';
-import { pixelsToUnionPath } from '../utils/pixels.js';
+import { usePixelStore, PIXEL_ORIENTATIONS } from './pixels';
+import { pixelsToUnionPath, indexToCoord } from '../utils/pixels.js';
 
 export const usePreviewStore = defineStore('preview', {
     state: () => ({
         nodes: {}, // id -> partial node props
-        pixels: {} // id -> array of pixels overriding base state
+        pixels: {} // id -> orientation map overriding base state
     }),
     getters: {
         nodeColor(state) {
@@ -21,7 +21,10 @@ export const usePreviewStore = defineStore('preview', {
             const pixelStore = usePixelStore();
             return (id) => {
                 const preview = state.pixels[id];
-                if (preview) return pixelsToUnionPath(preview);
+                if (preview) {
+                    const all = Object.values(preview).flat();
+                    return pixelsToUnionPath(all);
+                }
                 return pixelStore.pathOfLayer(id);
             };
         }
@@ -37,10 +40,32 @@ export const usePreviewStore = defineStore('preview', {
                 return;
             }
             const pixelStore = usePixelStore();
-            const base = new Set(pixelStore.get(id));
-            add.forEach(p => base.add(p));
-            remove.forEach(p => base.delete(p));
-            this.pixels[id] = [...base];
+            const base = pixelStore.getOrientationMap(id);
+            const map = Object.fromEntries(PIXEL_ORIENTATIONS.map(o => [o, new Set(base[o] || [])]));
+            remove.forEach(p => {
+                for (const o of PIXEL_ORIENTATIONS) map[o].delete(p);
+            });
+            const defaultOrientation = pixelStore.defaultOrientation;
+            add.forEach(p => {
+                for (const o of PIXEL_ORIENTATIONS) map[o].delete(p);
+                if (defaultOrientation === 'checkerboard') {
+                    const [x, y] = indexToCoord(p);
+                    const o = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
+                    map[o].add(p);
+                } else if (defaultOrientation === 'slopeCheckerboard') {
+                    const [x, y] = indexToCoord(p);
+                    const o = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
+                    map[o].add(p);
+                } else {
+                    map[defaultOrientation].add(p);
+                }
+            });
+            const result = {};
+            for (const o of PIXEL_ORIENTATIONS) {
+                if (map[o].size) result[o] = [...map[o]];
+            }
+            if (Object.keys(result).length) this.pixels[id] = result;
+            else delete this.pixels[id];
         },
         commitPreview() {
             const nodeStore = useNodeStore();

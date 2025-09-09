@@ -17,7 +17,6 @@ export const usePathToolService = defineStore('pathToolService', () => {
 
     watch(() => tool.current, async (p) => {
         if (p !== 'path') return;
-        if (!usable.value) return;
 
         tool.setCursor({ wand: CURSOR_STYLE.WAIT });
 
@@ -76,7 +75,6 @@ export const useRelayToolService = defineStore('relayToolService', () => {
 
     watch(() => tool.current, (p) => {
         if (p !== 'relay') return;
-        if (!usable.value) return;
 
         const selected = nodeTree.layerOrder.filter(id => nodeTree.selectedLayerIds.includes(id));
         const len = selected.length;
@@ -150,7 +148,6 @@ export const useExpandToolService = defineStore('expandToolService', () => {
 
     watch(() => tool.current, (p) => {
         if (p !== 'expand') return;
-        if (!usable.value) return;
 
         const width = viewportStore.stage.width;
         const height = viewportStore.stage.height;
