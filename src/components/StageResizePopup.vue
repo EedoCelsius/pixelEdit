@@ -60,22 +60,22 @@ const offsets = reactive({ top: 0, bottom: 0, left: 0, right: 0 });
 
 const newWidth = computed({
   get() {
-    return viewport.stage.width + left.value + right.value;
+    return viewport.stage.width + offsets.left + offsets.right;
   },
   set(val) {
     const delta = val - viewport.stage.width;
-    left.value = Math.floor(delta / 2);
-    right.value = delta - left.value;
+    offsets.left = Math.floor(delta / 2);
+    offsets.right = delta - offsets.left;
   },
 });
 const newHeight = computed({
   get() {
-    return viewport.stage.height + top.value + bottom.value;
+    return viewport.stage.height + offsets.top + offsets.bottom;
   },
   set(val) {
     const delta = val - viewport.stage.height;
-    top.value = Math.floor(delta / 2);
-    bottom.value = delta - top.value;
+    offsets.top = Math.floor(delta / 2);
+    offsets.bottom = delta - offsets.top;
   },
 });
 
