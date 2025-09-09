@@ -1,4 +1,4 @@
-const MAX_DIMENSION = 65536;
+const MAX_DIMENSION = 128;
 const TIME_LIMIT = 5000;
 
 // Return a direction priority for a given offset.

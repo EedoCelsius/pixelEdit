@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
 import { useStore } from '../stores';
+import { MAX_DIMENSION } from '../utils';
 
 export const useImageLoadService = defineStore('imageLoadService', () => {
   const show = ref(false);
@@ -16,8 +17,8 @@ export const useImageLoadService = defineStore('imageLoadService', () => {
   watch(canvasHeight, v => localStorage.setItem('imageLoad.canvasHeight', v));
 
   function open() {
-    canvasWidth.value = input.width + 2;
-    canvasHeight.value = input.height + 2;
+    canvasWidth.value = Math.min(input.width + 2, MAX_DIMENSION);
+    canvasHeight.value = Math.min(input.height + 2, MAX_DIMENSION);
     show.value = true;
   }
 
@@ -31,7 +32,9 @@ export const useImageLoadService = defineStore('imageLoadService', () => {
   }
 
   function apply() {
-    input.initialize({ initializeLayers: initialize.value, segmentTolerance: tolerance.value, canvasWidth: canvasWidth.value, canvasHeight: canvasHeight.value });
+    const width = Math.min(canvasWidth.value, MAX_DIMENSION);
+    const height = Math.min(canvasHeight.value, MAX_DIMENSION);
+    input.initialize({ initializeLayers: initialize.value, segmentTolerance: tolerance.value, canvasWidth: width, canvasHeight: height });
     close();
   }
 
