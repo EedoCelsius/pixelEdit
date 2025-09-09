@@ -104,7 +104,7 @@ export const useRelayToolService = defineStore('relayToolService', () => {
             }
             if (!orientation) continue;
             const pixels = pixelsOf(id);
-            if (pixels.length) pixelStore.add(id, pixels, orientation);
+            pixelStore.add(id, pixels, orientation);
             orientationMap.set(id, orientation);
         }
 
@@ -122,8 +122,7 @@ export const useRelayToolService = defineStore('relayToolService', () => {
                 if (!orient || orientationMap.get(nextId) !== orient) continue;
                 const union = [...new Set([...pixelsOf(baseId), ...pixelsOf(nextId)])];
                 if (groupConnectedPixels(union).length > 1) continue;
-                const px = pixelsOf(nextId);
-                if (px.length) pixelStore.add(baseId, px, orient);
+                pixelStore.add(baseId, pixelsOf(nextId), orient);
                 const removed = nodeTree.remove([nextId]);
                 nodes.remove(removed);
                 pixelStore.removeLayer(removed);
