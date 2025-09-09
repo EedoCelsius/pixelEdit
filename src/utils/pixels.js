@@ -64,6 +64,10 @@ export function ensureCheckerboardPattern(target = document.body) {
     return id;
 }
 
+export function checkerboardPatternUrl(target = document.body) {
+    return `url(#${ensureCheckerboardPattern(target)})`;
+}
+
 export function ensureOrientationPattern(orientation, target = document.body) {
     const id = `pixel-orientation-${orientation}`;
     if (document.getElementById(id)) return id;

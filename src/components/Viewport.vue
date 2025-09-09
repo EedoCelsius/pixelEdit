@@ -69,7 +69,7 @@ import { useStore } from '../stores';
 import { useService } from '../services';
 import { OVERLAY_STYLES, GRID_STROKE_COLOR } from '@/constants';
 import { rgbaCssU32 } from '../utils';
-import { ensureCheckerboardPattern } from '../utils/pixels.js';
+import { checkerboardPatternUrl } from '../utils/pixels.js';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, viewportEvent: viewportEvents } = useStore();
 const { overlay, toolSelection: toolSelectionService, viewport } = useService();
@@ -117,7 +117,7 @@ const marqueeRect = computed(() => {
     };
 });
 
-const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
+const patternUrl = checkerboardPatternUrl();
 
 function initPosition() {
   viewportStore.recalcContentSize();

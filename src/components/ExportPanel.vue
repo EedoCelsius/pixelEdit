@@ -16,22 +16,21 @@
         <button @click="generate" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">새로고침</button>
         <button @click="copy" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">복사</button>
       </div>
-      <textarea ref="textareaElement" readonly v-model="text" class="w-full h-28 resize-y rounded-md border border-white/15 bg-slate-950 text-sky-100 p-2 text-sm"></textarea>
+      <textarea readonly v-model="text" class="w-full h-28 resize-y rounded-md border border-white/15 bg-slate-950 text-sky-100 p-2 text-sm"></textarea>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useStore } from '../stores';
 import { rgbaCssU32 } from '../utils';
-import { ensureCheckerboardPattern } from '../utils/pixels.js';
+import { checkerboardPatternUrl } from '../utils/pixels.js';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output } = useStore();
 const text = ref('');
-const textareaElement = ref(null);
 
-const patternUrl = computed(() => `url(#${ensureCheckerboardPattern(document.body)})`);
+const patternUrl = checkerboardPatternUrl();
 
 function generate() {
     text.value = output.exportToJSON();
@@ -43,7 +42,7 @@ async function copy() {
     } catch {}
 }
 
-onMounted(() => generate());
+onMounted(generate);
 </script>
 
 <style scoped>
