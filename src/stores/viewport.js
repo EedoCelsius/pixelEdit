@@ -80,7 +80,7 @@ export const useViewportStore = defineStore('viewport', {
                         toRemove.push(i);
                     }
                 }
-                if (toRemove.length) pixelStore.remove(id, toRemove);
+                pixelStore.remove(id, toRemove);
             }
             this._stage.width = newWidth;
             this._stage.height = newHeight;
