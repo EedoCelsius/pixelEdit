@@ -25,8 +25,8 @@ export const usePathToolService = defineStore('pathToolService', () => {
         const allPixels = pixelStore.get(layerId);
         const paths = await hamiltonian.traverseFree(allPixels);
 
-        const color = nodes.getProperty(layerId, 'color');
-        const name = nodes.getProperty(layerId, 'name');
+        const color = nodes.color(layerId);
+        const name = nodes.name(layerId);
         const groupId = nodes.createGroup({ name: `${name} Paths` });
 
         nodeTree.insert([groupId], layerQuery.lowermost([layerId]), true);
@@ -206,8 +206,8 @@ export const useExpandToolService = defineStore('expandToolService', () => {
                     }
                 }
                 if (!layerId) continue;
-                const color = nodes.getProperty(layerId, 'color');
-                const name = nodes.getProperty(layerId, 'name');
+                const color = nodes.color(layerId);
+                const name = nodes.name(layerId);
                 let group = colorGroups.get(color);
                 if (!group) {
                     group = { name, color, pixels: [] };

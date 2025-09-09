@@ -12,14 +12,14 @@ function serializeNode(id, nodeTree, nodes, pixelStore) {
         locked: props.locked,
         attributes: props.attributes,
     };
-    if (props.type === 'layer') {
+    if (!props.isGroup) {
         return {
             type: 'layer',
             ...base,
             pixels: pixelStore.getDirectional(id),
         };
     }
-    if (props.type === 'group') {
+    if (props.isGroup) {
         const info = nodeTree._findNode(id);
         const children = info?.node.children || [];
         return {

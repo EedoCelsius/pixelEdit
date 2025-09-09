@@ -113,7 +113,7 @@ const flatNodes = computed(() => {
   walk(nodeTree.tree, 0);
   const propsList = nodes.getProperties(ids);
   const pixelList = pixelStore.getProperties(ids);
-  return ids.map((id, i) => ({ id, depth: depths[i], isGroup: propsList[i].type === 'group', props: { ...propsList[i], pixels: pixelList[i].pixels } }));
+  return ids.map((id, i) => ({ id, depth: depths[i], isGroup: propsList[i].isGroup, props: { ...propsList[i], pixels: pixelList[i].pixels } }));
 });
 
 const ancestorsOfSelected = computed(() => {
@@ -148,7 +148,7 @@ function descendantPixels(id) {
 }
 
   function onThumbnailClick(id) {
-      const color = nodes.getProperty(id, 'color');
+      const color = nodes.color(id);
       const ids = layerQuery.byColor(color);
       if (ids.length) {
           nodeTree.replaceSelection(ids);
@@ -259,10 +259,10 @@ function onColorInput(id, event) {
     const colorU32 = hexToRgbaU32(event.target.value);
     if (nodeTree.selectedNodeIds.includes(id)) {
         for (const sid of nodeTree.selectedLayerIds) {
-            nodes.update(sid, { color: colorU32 });
+            nodes.setColor(sid, colorU32);
         }
     } else {
-        nodes.update(id, { color: colorU32 });
+        nodes.setColor(id, colorU32);
     }
 }
 
@@ -273,9 +273,9 @@ function onColorChange() {
 function toggleVisibility(id) {
     output.setRollbackPoint();
     if (nodeTree.selectedNodeIds.includes(id)) {
-        const value = !nodes.getProperty(id, 'visibility');
+        const value = !nodes.visibility(id);
         for (const sid of nodeTree.selectedNodeIds) {
-            nodes.update(sid, { visibility: value });
+            nodes.setVisibility(sid, value);
         }
     } else {
         nodes.toggleVisibility(id);
@@ -286,9 +286,9 @@ function toggleVisibility(id) {
 function toggleLock(id) {
     output.setRollbackPoint();
     if (nodeTree.selectedNodeIds.includes(id)) {
-        const value = !nodes.getProperty(id, 'locked');
+        const value = !nodes.locked(id);
         for (const sid of nodeTree.selectedNodeIds) {
-            nodes.update(sid, { locked: value });
+            nodes.setLocked(sid, value);
         }
     } else {
         nodes.toggleLock(id);
@@ -303,7 +303,7 @@ function onContextMenu(item, event) {
     const selected = nodeTree.selectedIds;
     let flipEnabled = false;
     if (selected.length === 1) {
-        flipEnabled = nodes.getProperty(selected[0], 'type') === 'group';
+        flipEnabled = nodes.isGroup(selected[0]);
     } else if (selected.length > 1) {
         const infos = selected.map(id => nodeTree._findNode(id));
         if (infos.every(info => info && info.parent === infos[0].parent)) flipEnabled = true;
@@ -477,11 +477,11 @@ function startRename(id) {
 function finishRename(id, event) {
     const element = document.querySelector(`.layer[data-id="${id}"] .nameText`);
     element.contentEditable = false;
-    const oldName = nodes.getProperty(id, 'name');
+    const oldName = nodes.name(id);
     const text = event.target.innerText.trim();
     editingId.value = null;
     if (text && text !== oldName) {
-        nodes.update(id, { name: text });
+        nodes.setName(id, text);
         output.commit();
     } else {
         event.target.innerText = oldName;
@@ -494,7 +494,7 @@ function finishRename(id, event) {
 }
 
 function onNameKey(id, event) {
-    const name = nodes.getProperty(id, 'name');
+    const name = nodes.name(id);
     if (event.key === 'Enter') {
         event.preventDefault();
         event.target.blur();

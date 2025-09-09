@@ -55,7 +55,7 @@ export const useSelectToolService = defineStore('selectToolService', () => {
         if (!id)
             overlayService.setPixels(overlayId, [pixel]);
         else {
-            if (nodes.getProperty(id, 'locked'))
+            if (nodes.locked(id))
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
             else
                 overlayService.setLayers(overlayId, [id]);
@@ -66,7 +66,7 @@ export const useSelectToolService = defineStore('selectToolService', () => {
         if (tool.current !== 'select') return;
         if (pixel) {
             const id = layerQuery.topVisibleAt(pixel);
-            if (id && nodes.getProperty(id, 'locked')) {
+            if (id && nodes.locked(id)) {
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
                 return;
             }
@@ -79,7 +79,7 @@ export const useSelectToolService = defineStore('selectToolService', () => {
         for (const pixel of pixels) {
             const id = layerQuery.topVisibleAt(pixel);
             if (id === null) continue;
-            if (!nodes.getProperty(id, 'locked')) intersectedIds.push(id);
+            if (!nodes.locked(id)) intersectedIds.push(id);
         }
         const highlightIds = [];
         intersectedIds.forEach(id => {
@@ -95,7 +95,7 @@ export const useSelectToolService = defineStore('selectToolService', () => {
             const intersectedIds = new Set();
             for (const pixel of pixels) {
                 const id = layerQuery.topVisibleAt(pixel);
-                if (id !== null && !nodes.getProperty(id, 'locked')) intersectedIds.add(id);
+                if (id !== null && !nodes.locked(id)) intersectedIds.add(id);
             }
             const currentSelection = new Set(mode === 'select' ? [] : nodeTree.selectedLayerIds);
             if (mode === 'add') {
@@ -143,7 +143,7 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
                 const add = new Set();
                 for (let i = nodeTree.layerOrder.length - 1; i >= 0; i--) {
                     const id = nodeTree.layerOrder[i];
-                    if (!nodes.getProperty(id, 'visibility')) continue;
+                    if (!nodes.visibility(id)) continue;
                     const pixels = pixelStore.getDirectionPixels(direction, id);
                     if (!pixels.length) continue;
                     for (const pixel of pixels) {
@@ -181,7 +181,7 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
         const target = layerQuery.topVisibleAt(pixel);
         const editable = nodeTree.selectedLayerIds.length === 0 || nodeTree.selectedLayerIds.includes(target);
         if (target != null && editable) {
-            if (nodes.getProperty(target, 'locked')) {
+            if (nodes.locked(target)) {
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
                 return;
             }
@@ -240,7 +240,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
     watch(() => tool.dragPixel, (pixel) => {
         if (tool.current !== 'globalErase') return;
         if (pixel){
-            const lockedIds = nodeTree.layerOrder.filter(id => nodes.getProperty(id, 'locked'));
+            const lockedIds = nodeTree.layerOrder.filter(id => nodes.locked(id));
             for (const id of lockedIds) {
             const lockedPixels = new Set(pixelStore.get(id));
             if (lockedPixels.has(pixel)) {
@@ -255,7 +255,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         if (tool.current !== 'globalErase') return;
         const erasablePixels = [];
         if (pixels.length) {
-            const unlockedIds = nodeTree.layerOrder.filter(id => !nodes.getProperty(id, 'locked'));
+            const unlockedIds = nodeTree.layerOrder.filter(id => !nodes.locked(id));
             const unlockedPixels = new Set();
             for (const id of unlockedIds) {
                 pixelStore.get(id).forEach(pixel => unlockedPixels.add(pixel));
@@ -269,7 +269,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.current !== 'globalErase' || !pixels.length) return;
         const targetIds = (nodeTree.layerSelectionExists ? nodeTree.selectedLayerIds : nodeTree.layerOrder)
-            .filter(id => !nodes.getProperty(id, 'locked'));
+            .filter(id => !nodes.locked(id));
         for (const id of targetIds) {
             const targetPixels = new Set(pixelStore.get(id));
             const pixelsToRemove = [];

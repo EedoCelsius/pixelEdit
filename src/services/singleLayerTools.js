@@ -33,7 +33,7 @@ export const useDrawToolService = defineStore('drawToolService', () => {
     watch(() => tool.dragPixel, (pixel) => {
         if (tool.current !== 'draw' || !usable.value) return;
         const sourceId = nodeTree.selectedLayerIds[0];
-        if (nodes.getProperty(sourceId, 'locked')) {
+        if (nodes.locked(sourceId)) {
             if (pixel)
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
             else
@@ -48,7 +48,7 @@ export const useDrawToolService = defineStore('drawToolService', () => {
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.current !== 'draw' || !usable.value) return;
         const id = nodeTree.selectedLayerIds[0];
-        if (nodes.getProperty(id, 'locked')) return;
+        if (nodes.locked(id)) return;
         pixelStore.addPixels(id, pixels);
     });
     return { usable };
@@ -78,7 +78,7 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     watch(() => tool.dragPixel, (pixel) => {
         if (tool.current !== 'erase' || !usable.value) return;
         const sourceId = nodeTree.selectedLayerIds[0];
-        if (nodes.getProperty(sourceId, 'locked')) {
+        if (nodes.locked(sourceId)) {
             const sourcePixels = new Set(pixelStore.get(sourceId));
             if (pixel != null && sourcePixels.has(pixel))
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
@@ -95,7 +95,7 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.current !== 'erase' || !usable.value) return;
         const id = nodeTree.selectedLayerIds[0];
-       if (nodes.getProperty(id, 'locked')) return;
+       if (nodes.locked(id)) return;
         pixelStore.removePixels(id, pixels);
     });
     return { usable };
@@ -126,7 +126,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
     watch(() => tool.dragPixel, (pixel) => {
         if (tool.current !== 'cut' || !usable.value) return;
         const sourceId = nodeTree.selectedLayerIds[0];
-        if (nodes.getProperty(sourceId, 'locked')) {
+        if (nodes.locked(sourceId)) {
             const sourcePixels = new Set(pixelStore.get(sourceId));
             if (pixel != null && sourcePixels.has(pixel))
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
@@ -141,7 +141,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.current !== 'cut' || !usable.value) return;
         const sourceId = nodeTree.selectedLayerIds[0];
-        if (nodes.getProperty(sourceId, 'locked')) return;
+        if (nodes.locked(sourceId)) return;
         const sourcePixels = new Set(pixelStore.get(sourceId));
 
         const cutPixels = [];
@@ -155,10 +155,10 @@ export const useCutToolService = defineStore('cutToolService', () => {
 
         pixelStore.removePixels(sourceId, cutPixels);
         const id = nodes.createLayer({
-            name: `Cut of ${nodes.getProperty(sourceId, 'name')}`,
-            color: nodes.getProperty(sourceId, 'color'),
-            visibility: nodes.getProperty(sourceId, 'visibility'),
-            attributes: nodes.getProperty(sourceId, 'attributes'),
+            name: `Cut of ${nodes.name(sourceId)}`,
+            color: nodes.color(sourceId),
+            visibility: nodes.visibility(sourceId),
+            attributes: nodes.attributes(sourceId),
         });
         if (cutPixels.length) pixelStore.set(id, cutPixels);
         nodeTree.insert([id], sourceId, false);
@@ -195,7 +195,7 @@ export const useTopToolService = defineStore('topToolService', () => {
             return;
         }
         const id = layerQuery.topVisibleAt(pixel);
-        if (id && nodes.getProperty(id, 'locked')) {
+        if (id && nodes.locked(id)) {
             overlayService.setLayers(overlayId, [id]);
             tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
         }
@@ -208,7 +208,7 @@ export const useTopToolService = defineStore('topToolService', () => {
         if (tool.current !== 'top' || !usable.value || !pixel) return;
         const id = layerQuery.topVisibleAt(pixel);
         if (!id) return;
-        if (nodes.getProperty(id, 'locked')) {
+        if (nodes.locked(id)) {
             tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
         }
         else {
