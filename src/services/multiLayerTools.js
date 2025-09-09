@@ -114,7 +114,7 @@ export const useSelectToolService = defineStore('selectToolService', () => {
 });
 
 export const useOrientationToolService = defineStore('orientationToolService', () => {
-    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const tool = useToolSelectionService();
     const layerQuery = useLayerQueryService();
     const overlayService = useOverlayService();
@@ -131,6 +131,27 @@ export const useOrientationToolService = defineStore('orientationToolService', (
         });
         return id;
     });
+    let orientationPreviews = {};
+    function ensurePreview(id) {
+        if (!orientationPreviews[id]) {
+            orientationPreviews[id] = Object.fromEntries(PIXEL_ORIENTATIONS.map(o => [o, new Set()]));
+        }
+    }
+    function toArrayMap(map) {
+        const res = {};
+        for (const [o, set] of Object.entries(map)) if (set.size) res[o] = [...set];
+        return res;
+    }
+    function orientationOfWithPreview(id, pixel) {
+        const previewMap = preview.pixels[id];
+        if (previewMap) {
+            for (const o of PIXEL_ORIENTATIONS) {
+                const arr = previewMap[o];
+                if (arr && arr.includes(pixel)) return o;
+            }
+        }
+        return pixelStore.orientationOf(id, pixel);
+    }
     function rebuild() {
         if (tool.current !== 'orientation') return;
         const layerIds = nodeTree.selectedLayerIds;
@@ -143,7 +164,8 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                 for (let i = nodeTree.layerOrder.length - 1; i >= 0; i--) {
                     const id = nodeTree.layerOrder[i];
                     if (!nodes.visibility(id)) continue;
-                    const pixels = pixelStore.getOrientationPixels(orientation, id);
+                    let pixels = preview.pixels[id]?.[orientation];
+                    if (!pixels) pixels = pixelStore.getOrientationPixels(orientation, id);
                     if (!pixels.length) continue;
                     for (const pixel of pixels) {
                         if (layerQuery.topVisibleAt(pixel) === id) {
@@ -155,7 +177,8 @@ export const useOrientationToolService = defineStore('orientationToolService', (
             }
             else {
                 for (const id of layerIds) {
-                    const pixels = pixelStore.getOrientationPixels(orientation, id);
+                    let pixels = preview.pixels[id]?.[orientation];
+                    if (!pixels) pixels = pixelStore.getOrientationPixels(orientation, id);
                     if (!pixels.length) continue;
                     overlayService.addPixels(overlayId, pixels);
                 }
@@ -165,6 +188,8 @@ export const useOrientationToolService = defineStore('orientationToolService', (
     watch(() => tool.current === 'orientation', (isOrientation) => {
         if (!isOrientation) {
             overlays.forEach(id => overlayService.clear(id));
+            preview.clearPreview();
+            orientationPreviews = {};
             return;
         }
         rebuild();
@@ -183,31 +208,42 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
                 return;
             }
+            ensurePreview(target);
+            for (const o of PIXEL_ORIENTATIONS) orientationPreviews[target][o].delete(pixel);
+            let next;
             if (prevPixel == null) {
-                const current = pixelStore.orientationOf(target, pixel);
+                const current = orientationOfWithPreview(target, pixel);
                 const idx = PIXEL_ORIENTATIONS.indexOf(current);
-                const next = PIXEL_ORIENTATIONS[(idx + 1) % PIXEL_ORIENTATIONS.length];
-                pixelStore.setOrientation(target, pixel, next);
+                next = PIXEL_ORIENTATIONS[(idx + 1) % PIXEL_ORIENTATIONS.length];
             }
             else {
                 const [px, py] = indexToCoord(pixel);
                 const [prevX, prevY] = indexToCoord(prevPixel);
                 if (prevX === px) {
-                    pixelStore.addPixels(target, [pixel], 'vertical');
+                    next = 'vertical';
                     if (prevY < py)
                         tool.setCursor({ stroke: CURSOR_STYLE.DOWN, rect: CURSOR_STYLE.DOWN });
                     else
                         tool.setCursor({ stroke: CURSOR_STYLE.UP, rect: CURSOR_STYLE.UP });
                 }
                 else {
-                    pixelStore.addPixels(target, [pixel], 'horizontal');
+                    next = 'horizontal';
                     if (prevX < px)
                         tool.setCursor({ stroke: CURSOR_STYLE.RIGHT, rect: CURSOR_STYLE.RIGHT });
                     else
                         tool.setCursor({ stroke: CURSOR_STYLE.LEFT, rect: CURSOR_STYLE.LEFT });
                 }
             }
+            orientationPreviews[target][next].add(pixel);
+            preview.applyPixelPreview(target, { orientationMap: toArrayMap(orientationPreviews[target]) });
         }
+        rebuild();
+    });
+    watch(() => tool.affectedPixels, (pixels) => {
+        if (tool.current !== 'orientation') return;
+        if (pixels.length) preview.commitPreview();
+        else preview.clearPreview();
+        orientationPreviews = {};
         rebuild();
     });
     watch(() => nodeTree.selectedIds, rebuild);

@@ -34,32 +34,44 @@ export const usePreviewStore = defineStore('preview', {
             if (Object.keys(props).length) this.nodes[id] = { ...props };
             else delete this.nodes[id];
         },
-        applyPixelPreview(id, { add = [], remove = [] } = {}) {
-            if (add.length === 0 && remove.length === 0) {
+        applyPixelPreview(id, { add = [], remove = [], orientation, orientationMap } = {}) {
+            if (!orientationMap && add.length === 0 && remove.length === 0) {
                 delete this.pixels[id];
                 return;
             }
             const pixelStore = usePixelStore();
             const base = pixelStore.getOrientationMap(id);
             const map = Object.fromEntries(PIXEL_ORIENTATIONS.map(o => [o, new Set(base[o] || [])]));
-            remove.forEach(p => {
-                for (const o of PIXEL_ORIENTATIONS) map[o].delete(p);
-            });
-            const defaultOrientation = pixelStore.defaultOrientation;
-            add.forEach(p => {
-                for (const o of PIXEL_ORIENTATIONS) map[o].delete(p);
-                if (defaultOrientation === 'checkerboard') {
-                    const [x, y] = indexToCoord(p);
-                    const o = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
-                    map[o].add(p);
-                } else if (defaultOrientation === 'slopeCheckerboard') {
-                    const [x, y] = indexToCoord(p);
-                    const o = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
-                    map[o].add(p);
-                } else {
-                    map[defaultOrientation].add(p);
+            if (orientationMap) {
+                for (const [ori, pixels] of Object.entries(orientationMap)) {
+                    for (const p of pixels) {
+                        for (const o of PIXEL_ORIENTATIONS) map[o].delete(p);
+                        map[ori].add(p);
+                    }
                 }
-            });
+            }
+            if (remove.length) {
+                remove.forEach(p => {
+                    for (const o of PIXEL_ORIENTATIONS) map[o].delete(p);
+                });
+            }
+            if (add.length) {
+                const defaultOrientation = orientation ?? pixelStore.defaultOrientation;
+                add.forEach(p => {
+                    for (const o of PIXEL_ORIENTATIONS) map[o].delete(p);
+                    if (defaultOrientation === 'checkerboard') {
+                        const [x, y] = indexToCoord(p);
+                        const o = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
+                        map[o].add(p);
+                    } else if (defaultOrientation === 'slopeCheckerboard') {
+                        const [x, y] = indexToCoord(p);
+                        const o = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
+                        map[o].add(p);
+                    } else {
+                        map[defaultOrientation].add(p);
+                    }
+                });
+            }
             const result = {};
             for (const o of PIXEL_ORIENTATIONS) {
                 if (map[o].size) result[o] = [...map[o]];
