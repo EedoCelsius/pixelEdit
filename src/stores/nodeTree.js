@@ -87,10 +87,6 @@ function prepareNodes(store, ids) {
     return ids.map(id => store._removeFromTree(id) || createTreeNode(id, nodeStore));
 }
 
-function xorSelection(store, id) {
-    store._hash.selection = (store._hash.selection ^ id) >>> 0;
-}
-
 function flattenSelectedLayers(tree, selection) {
     const result = new Set();
     for (const id of selection) {
@@ -106,9 +102,9 @@ function createHashNode(store, node) {
         const children = node.children.map(child => createHashNode(store, child));
         let h = node.id;
         for (const c of children) h = mixHash(h, c.hash);
-        hashNode = { hash: h >>> 0, children };
+        hashNode = { hash: h, children };
     } else {
-        hashNode = { hash: node.id >>> 0 };
+        hashNode = { hash: node.id };
     }
     store._hashNodes[node.id] = hashNode;
     return hashNode;
@@ -132,10 +128,10 @@ function rehashUpFrom(store, id) {
                     hNode.children = tNode.children.map(ch => store._hashNodes[ch.id]);
                     let h = tNode.id;
                     for (const ch of hNode.children) h = mixHash(h, ch.hash);
-                    hNode.hash = h >>> 0;
+                    hNode.hash = h;
                 } else {
                     delete hNode.children;
-                    hNode.hash = tNode.id >>> 0;
+                    hNode.hash = tNode.id;
                 }
             }
         }
@@ -144,7 +140,7 @@ function rehashUpFrom(store, id) {
     store._hash.tree.children = rootChildren;
     let rootHash = 0;
     for (const child of rootChildren) rootHash = mixHash(rootHash, child.hash);
-    store._hash.tree.hash = rootHash >>> 0;
+    store._hash.tree.hash = rootHash;
 }
 
 function rebuildHashTree(store) {
@@ -152,7 +148,7 @@ function rebuildHashTree(store) {
     const children = store._tree.map(node => createHashNode(store, node));
     let rootHash = 0;
     for (const child of children) rootHash = mixHash(rootHash, child.hash);
-    store._hash.tree = { hash: rootHash >>> 0, children };
+    store._hash.tree = { hash: rootHash, children };
 }
 
 export const useNodeTreeStore = defineStore('nodeTree', {
@@ -267,7 +263,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
                     const selected = this._selection.has(node.id);
                     if (ancestorSelected && selected) {
                         this._selection.delete(node.id);
-                        xorSelection(this, node.id);
+                        this._hash.selection ^= node.id;
                     }
                     if (node.children) traverse(node.children, ancestorSelected || selected);
                 }
@@ -275,7 +271,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
             traverse(this._tree, false);
         },
         _deselect(id) {
-            if (this._selection.delete(id)) { xorSelection(this, id); return; }
+            if (this._selection.delete(id)) { this._hash.selection ^= id; return; }
             const ancestor = this._selectedAncestor(id);
             if (!ancestor) return;
             const path = pathTo(this._tree, id);
@@ -287,25 +283,25 @@ export const useNodeTreeStore = defineStore('nodeTree', {
                     for (const child of node.children) {
                         if (!this._selection.has(child.id)) {
                             this._selection.add(child.id);
-                            xorSelection(this, child.id);
+                            this._hash.selection ^= child.id;
                         }
                     }
                 }
             }
-            if (this._selection.delete(ancestor.id)) xorSelection(this, ancestor.id);
-            if (this._selection.delete(id)) xorSelection(this, id);
+            if (this._selection.delete(ancestor.id)) this._hash.selection ^= ancestor.id;
+            if (this._selection.delete(id)) this._hash.selection ^= id;
         },
         replaceSelection(ids = []) {
             this._selection = new Set(ids);
             this._hash.selection = 0;
-            for (const id of this._selection) xorSelection(this, id);
+            for (const id of this._selection) this._hash.selection ^= id;
             this._collapseSelection();
         },
         addToSelection(ids = []) {
             for (const id of ids) {
                 if (!this._selectedAncestor(id) && !this._selection.has(id)) {
                     this._selection.add(id);
-                    xorSelection(this, id);
+                    this._hash.selection ^= id;
                 }
             }
             this._collapseSelection();
@@ -336,7 +332,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
                 if (node) collectIds(node);
             }
             for (const id of removed) {
-                if (this._selection.delete(id)) xorSelection(this, id);
+                if (this._selection.delete(id)) this._hash.selection ^= id;
             }
             return removed;
         },
@@ -355,7 +351,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
             rebuildHashTree(this);
             this._selection = new Set(payload?.selection || []);
             this._hash.selection = 0;
-            for (const id of this._selection) xorSelection(this, id);
+            for (const id of this._selection) this._hash.selection ^= id;
             this._collapseSelection();
         }
     }

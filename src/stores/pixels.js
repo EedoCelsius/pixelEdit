@@ -12,25 +12,26 @@ function forEachDirection(cb) {
     for (const direction of PIXEL_DIRECTIONS) cb(direction);
 }
 
+function ensureLayer(store, id) {
+    if (store._none[id]) return;
+    forEachDirection(direction => { store[`_${direction}`][id] = new Set(); });
+}
+
 function unionSet(state, id) {
     const merged = new Set();
     forEachDirection(direction => {
-        const set = state[`_${direction}`][id];
-        if (!set) return;
-        for (const pixel of set) merged.add(pixel);
+        for (const pixel of state[`_${direction}`][id]) merged.add(pixel);
     });
     return merged;
 }
 
 function clearPixelAcross(store, id, pixel) {
-    forEachDirection(direction => store[`_${direction}`][id]?.delete(pixel));
+    forEachDirection(direction => store[`_${direction}`][id].delete(pixel));
 }
 
 function hashDirectionPixels(store, id, direction) {
-    const set = store[`_${direction}`][id];
-    if (!set) return 0;
     let h = 0;
-    for (const p of set) h ^= PIXEL_HASHES[p];
+    for (const p of store[`_${direction}`][id]) h ^= PIXEL_HASHES[p];
     return h;
 }
 
@@ -62,21 +63,19 @@ export const usePixelStore = defineStore('pixels', {
             return [...unionSet(state, id)];
         },
         getDirectionPixels: (state) => (direction, id) => {
-            const set = state[`_${direction}`][id];
-            return set ? [...set] : [];
+            return [...state[`_${direction}`][id]];
         },
         getDirectional: (state) => (id) => {
             const result = {};
             forEachDirection(direction => {
                 const set = state[`_${direction}`][id];
-                if (set && set.size) result[direction] = [...set];
+                if (set.size) result[direction] = [...set];
             });
             return result;
         },
         directionOf: (state) => (id, pixel) => {
             for (const direction of PIXEL_DIRECTIONS) {
-                const set = state[`_${direction}`][id];
-                if (set && set.has(pixel)) return direction;
+                if (state[`_${direction}`][id].has(pixel)) return direction;
             }
             return 'none';
         },
@@ -100,15 +99,15 @@ export const usePixelStore = defineStore('pixels', {
         },
         has: (state) => (id, pixel) => {
             for (const direction of PIXEL_DIRECTIONS) {
-                const set = state[`_${direction}`][id];
-                if (set && set.has(pixel)) return true;
+                if (state[`_${direction}`][id].has(pixel)) return true;
             }
             return false;
         }
     },
     actions: {
         set(id, pixels = [], direction) {
-            forEachDirection(dir => delete this[`_${dir}`][id]);
+            ensureLayer(this, id);
+            forEachDirection(dir => this[`_${dir}`][id].clear());
             if (Array.isArray(pixels)) {
                 this.addPixels(id, pixels, direction ?? this._defaultDirection);
             } else {
@@ -130,10 +129,9 @@ export const usePixelStore = defineStore('pixels', {
             }
         },
         addPixels(id, pixels, direction) {
+            ensureLayer(this, id);
             direction = direction ?? this._defaultDirection;
             if (direction === 'checkerboard') {
-                if (!this._vertical[id]) this._vertical[id] = new Set();
-                if (!this._horizontal[id]) this._horizontal[id] = new Set();
                 for (const pixel of pixels) {
                     clearPixelAcross(this, id, pixel);
                     const [x, y] = indexToCoord(pixel);
@@ -142,8 +140,6 @@ export const usePixelStore = defineStore('pixels', {
                 }
             }
             else if (direction === 'slopeCheckerboard') {
-                if (!this._downSlope[id]) this._downSlope[id] = new Set();
-                if (!this._upSlope[id]) this._upSlope[id] = new Set();
                 for (const pixel of pixels) {
                     clearPixelAcross(this, id, pixel);
                     const [x, y] = indexToCoord(pixel);
@@ -152,7 +148,6 @@ export const usePixelStore = defineStore('pixels', {
                 }
             }
             else {
-                if (!this[`_${direction}`][id]) this[`_${direction}`][id] = new Set();
                 for (const pixel of pixels) {
                     clearPixelAcross(this, id, pixel);
                     this[`_${direction}`][id].add(pixel);
@@ -161,25 +156,26 @@ export const usePixelStore = defineStore('pixels', {
             rehashLayer(this, id);
         },
         removePixels(id, pixels) {
+            ensureLayer(this, id);
             forEachDirection(direction => {
                 const set = this[`_${direction}`][id];
-                if (!set) return;
                 for (const pixel of pixels) set.delete(pixel);
             });
             rehashLayer(this, id);
         },
         setDirection(id, pixel, direction) {
+            ensureLayer(this, id);
             const current = this.directionOf(id, pixel);
             if (current === 'none') return;
             this[`_${current}`][id].delete(pixel);
-            if (!this[`_${direction}`][id]) this[`_${direction}`][id] = new Set();
             this[`_${direction}`][id].add(pixel);
             rehashLayer(this, id);
         },
         togglePixel(id, pixel) {
+            ensureLayer(this, id);
             for (const direction of PIXEL_DIRECTIONS) {
                 const set = this[`_${direction}`][id];
-                if (set && set.has(pixel)) {
+                if (set.has(pixel)) {
                     set.delete(pixel);
                     rehashLayer(this, id);
                     return;
@@ -188,18 +184,15 @@ export const usePixelStore = defineStore('pixels', {
             if (this._defaultDirection === 'checkerboard') {
                 const [x, y] = indexToCoord(pixel);
                 const dir = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
-                if (!this[`_${dir}`][id]) this[`_${dir}`][id] = new Set();
                 this[`_${dir}`][id].add(pixel);
             }
             else if (this.defaultDirection === 'slopeCheckerboard') {
                 const [x, y] = indexToCoord(pixel);
                 const dir = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
-                if (!this[`_${dir}`][id]) this[`_${dir}`][id] = new Set();
                 this[`_${dir}`][id].add(pixel);
             }
             else {
-                const target = this[`_${this._defaultDirection}`][id];
-                if (target) target.add(pixel);
+                this[`_${this._defaultDirection}`][id].add(pixel);
             }
             rehashLayer(this, id);
         },

@@ -24,11 +24,11 @@ test('nodeTree hashing for tree and selection', () => {
   assert.strictEqual(tree._hash.tree.hash, baseHash);
 
   tree.replaceSelection([l1]);
-  assert.strictEqual(tree._hash.selection, l1);
+  assert.strictEqual(tree._hash.selection, l1 | 0);
   tree.addToSelection([l2]);
-  assert.strictEqual(tree._hash.selection, l1 ^ l2);
+  assert.strictEqual(tree._hash.selection, (l1 ^ l2) | 0);
   tree.removeFromSelection([l1]);
-  assert.strictEqual(tree._hash.selection, l2);
+  assert.strictEqual(tree._hash.selection, l2 | 0);
   tree.clearSelection();
   assert.strictEqual(tree._hash.selection, 0);
 });
