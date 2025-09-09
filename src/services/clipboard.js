@@ -12,13 +12,6 @@ function serializeNode(id, nodeTree, nodes, pixelStore) {
         locked: props.locked,
         attributes: props.attributes,
     };
-    if (!props.isGroup) {
-        return {
-            type: 'layer',
-            ...base,
-            pixels: Array.from(pixelStore.get(id)),
-        };
-    }
     if (props.isGroup) {
         const info = nodeTree._findNode(id);
         const children = info?.node.children || [];
@@ -28,7 +21,13 @@ function serializeNode(id, nodeTree, nodes, pixelStore) {
             children: children.map(child => serializeNode(child.id, nodeTree, nodes, pixelStore)),
         };
     }
-    return null;
+    else {
+        return {
+            type: 'layer',
+            ...base,
+            pixels: pixelStore.get(id),
+        };
+    }
 }
 
 export const useClipboardService = defineStore('clipboardService', () => {
@@ -36,7 +35,7 @@ export const useClipboardService = defineStore('clipboardService', () => {
     const nodeQuery = useNodeQueryService();
     const layerPanel = useLayerPanelService();
 
-    let clipboardData = null;
+    let clipboardData = [];
 
     function copySelection() {
         const ordered = nodeTree.orderedSelection;
@@ -52,28 +51,24 @@ export const useClipboardService = defineStore('clipboardService', () => {
             locked: data.locked,
             attributes: data.attributes,
         };
-        if (data.type === 'layer') {
-            const id = nodes.addLayer(base);
-            pixelStore.set(id, data.pixels ? Uint8Array.from(data.pixels) : undefined);
-            return { id, children: [] };
-        }
         if (data.type === 'group') {
             const id = nodes.addGroup(base);
             const children = (data.children || []).map(c => createFrom(c));
             return { id, children };
         }
-        return { id: null, children: [] };
+        if (data.type === 'layer') {
+            const id = nodes.addLayer(base);
+            pixelStore.addLayer(id);
+            pixelStore.set(id, data.pixels);
+            return { id, children: [] };
+        }
     }
 
     function paste() {
-        if (!clipboardData || !clipboardData.length) return [];
+        if (!clipboardData.length) return [];
 
         output.setRollbackPoint();
         const infos = clipboardData.map(createFrom);
-        if (!infos.length) {
-            output.rollbackPending?.();
-            return [];
-        }
         const topIds = infos.map(info => info.id);
         const uppermost = nodeQuery.uppermost(nodeTree.selectedIds);
         nodeTree.insert(topIds, uppermost, false);

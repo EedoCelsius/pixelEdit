@@ -37,7 +37,7 @@ const onAdd = () => {
     output.setRollbackPoint();
     const above = nodeTree.selectedLayerCount ? layerQuery.uppermost(nodeTree.selectedLayerIds) : null;
     const id = nodes.addLayer({color: 0xFFFFFFFF});
-    pixelStore.set(id);
+    pixelStore.addLayer(id);
     nodeTree.insert([id], above, false);
     nodeTree.replaceSelection([id]);
     layerPanel.setScrollRule({ type: 'follow', target: id });

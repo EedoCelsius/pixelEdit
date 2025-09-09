@@ -9,10 +9,6 @@ const ORIENTATION_IDS = Object.fromEntries(PIXEL_ORIENTATIONS.map((o, i) => [o, 
 const ID_TO_ORIENTATION = Object.fromEntries(PIXEL_ORIENTATIONS.map((o, i) => [i + 1, o]));
 const PIXEL_HASHES = crypto.getRandomValues(new Uint32Array(MAX_DIMENSION * MAX_DIMENSION));
 
-function ensureLayer(store, id) {
-    if (!store._pixels[id]) store._pixels[id] = new Uint8Array(MAX_DIMENSION * MAX_DIMENSION);
-}
-
 function hashLayer(arr) {
     let h = 0;
     for (let i = 0; i < arr.length; i++) {
@@ -30,6 +26,23 @@ function rehashLayer(store, id) {
     store._hash.all ^= mixHash(id, oldHash) ^ mixHash(id, layerHash);
 }
 
+function initLayerHash(store, id) {
+    if (store._hash.layers[id] === undefined) {
+        store._hash.layers[id] = 0;
+        store._hash.all ^= mixHash(id, 0);
+    }
+}
+
+function updatePixelHash(store, id, index, oldVal, newVal) {
+    initLayerHash(store, id);
+    const oldLayerHash = store._hash.layers[id];
+    const oldMix = oldVal ? mixHash(oldVal, PIXEL_HASHES[index]) : 0;
+    const newMix = newVal ? mixHash(newVal, PIXEL_HASHES[index]) : 0;
+    const newLayerHash = oldLayerHash ^ oldMix ^ newMix;
+    store._hash.layers[id] = newLayerHash;
+    store._hash.all ^= mixHash(id, oldLayerHash) ^ mixHash(id, newLayerHash);
+}
+
 export const usePixelStore = defineStore('pixels', {
     state: () => ({
         _pixels: {},
@@ -40,17 +53,13 @@ export const usePixelStore = defineStore('pixels', {
         defaultOrientation: (s) => s._defaultOrientation,
         get: (s) => (id) => {
             if (Array.isArray(id)) {
-                return id.map(i => {
-                    ensureLayer(s, i);
-                    return s._pixels[i];
-                });
+                return id.map(i => s._pixels[i]);
             }
-            ensureLayer(s, id);
             return s._pixels[id];
         },
         sizeOf: (s) => (id) => {
-            ensureLayer(s, id);
             const arr = s._pixels[id];
+            if (!arr) return 0;
             let c = 0;
             for (let i = 0; i < arr.length; i++) if (arr[i]) c++;
             return c;
@@ -72,23 +81,38 @@ export const usePixelStore = defineStore('pixels', {
         }
     },
     actions: {
-        set(id, pixels = [], orientation) {
+        addLayer(ids = []) {
+            if (!Array.isArray(ids)) ids = [ids];
+            for (const id of ids) {
+                if (id == null || this._pixels[id]) continue;
+                this._pixels[id] = new Uint8Array(MAX_DIMENSION * MAX_DIMENSION);
+                initLayerHash(this, id);
+            }
+        },
+        set(id, pixels, orientation) {
+            if (!this._pixels[id]) return;
             if (pixels instanceof Uint8Array) {
                 this._pixels[id] = pixels;
-            } else if (Array.isArray(pixels)) {
-                ensureLayer(this, id);
-                this._pixels[id].fill(0);
-                this.addPixels(id, pixels, orientation ?? this._defaultOrientation);
-            } else {
-                ensureLayer(this, id);
-                this._pixels[id].fill(0);
-                for (const [ori, arr] of Object.entries(pixels || {})) {
-                    this.addPixels(id, arr, ori);
-                }
+                rehashLayer(this, id);
+                return;
             }
-            rehashLayer(this, id);
+            const arr = this._pixels[id];
+            if (pixels == null) {
+                arr.fill(0);
+                rehashLayer(this, id);
+                return;
+            }
+            arr.fill(0);
+            const oldHash = this._hash.layers[id] || 0;
+            this._hash.all ^= mixHash(id, oldHash) ^ mixHash(id, 0);
+            this._hash.layers[id] = 0;
+            const entries = Array.isArray(pixels) ? [[orientation, pixels]] : Object.entries(pixels);
+            for (const [ori, arrPixels] of entries) {
+                this.add(id, arrPixels, ori);
+            }
         },
-        remove(ids = []) {
+        removeLayer(ids = []) {
+            if (!Array.isArray(ids)) ids = [ids];
             for (const id of ids) {
                 const layerHash = this._hash.layers[id] || 0;
                 this._hash.all ^= mixHash(id, layerHash);
@@ -96,45 +120,57 @@ export const usePixelStore = defineStore('pixels', {
                 delete this._pixels[id];
             }
         },
-        addPixels(id, pixels, orientation) {
-            ensureLayer(this, id);
+        add(id, pixels, orientation) {
             const arr = this._pixels[id];
+            if (!arr) return;
+            initLayerHash(this, id);
             orientation = orientation ?? this._defaultOrientation;
             if (orientation === 'checkerboard') {
                 for (const pixel of pixels) {
                     const [x, y] = indexToCoord(pixel);
                     const o = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
-                    arr[pixel] = ORIENTATION_IDS[o];
+                    const newVal = ORIENTATION_IDS[o];
+                    const oldVal = arr[pixel];
+                    arr[pixel] = newVal;
+                    updatePixelHash(this, id, pixel, oldVal, newVal);
                 }
             } else if (orientation === 'slopeCheckerboard') {
                 for (const pixel of pixels) {
                     const [x, y] = indexToCoord(pixel);
                     const o = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
-                    arr[pixel] = ORIENTATION_IDS[o];
+                    const newVal = ORIENTATION_IDS[o];
+                    const oldVal = arr[pixel];
+                    arr[pixel] = newVal;
+                    updatePixelHash(this, id, pixel, oldVal, newVal);
                 }
             } else {
                 const idOri = ORIENTATION_IDS[orientation] || ORIENTATION_IDS.none;
-                for (const pixel of pixels) arr[pixel] = idOri;
+                for (const pixel of pixels) {
+                    const oldVal = arr[pixel];
+                    arr[pixel] = idOri;
+                    updatePixelHash(this, id, pixel, oldVal, idOri);
+                }
             }
-            rehashLayer(this, id);
         },
-        removePixels(id, pixels) {
-            ensureLayer(this, id);
+        remove(id, pixels) {
             const arr = this._pixels[id];
-            for (const pixel of pixels) arr[pixel] = 0;
-            rehashLayer(this, id);
-        },
-        setOrientation(id, pixel, orientation) {
-            ensureLayer(this, id);
-            this._pixels[id][pixel] = ORIENTATION_IDS[orientation] || 0;
-            rehashLayer(this, id);
+            if (!arr) return;
+            initLayerHash(this, id);
+            for (const pixel of pixels) {
+                const oldVal = arr[pixel];
+                if (!oldVal) continue;
+                arr[pixel] = 0;
+                updatePixelHash(this, id, pixel, oldVal, 0);
+            }
         },
         togglePixel(id, pixel) {
-            ensureLayer(this, id);
             const arr = this._pixels[id];
-            if (arr[pixel]) {
+            if (!arr) return;
+            initLayerHash(this, id);
+            const oldVal = arr[pixel];
+            if (oldVal) {
                 arr[pixel] = 0;
-                rehashLayer(this, id);
+                updatePixelHash(this, id, pixel, oldVal, 0);
                 return;
             }
             let ori = this._defaultOrientation;
@@ -145,8 +181,9 @@ export const usePixelStore = defineStore('pixels', {
                 const [x, y] = indexToCoord(pixel);
                 ori = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
             }
-            arr[pixel] = ORIENTATION_IDS[ori] || ORIENTATION_IDS.none;
-            rehashLayer(this, id);
+            const newVal = ORIENTATION_IDS[ori] || ORIENTATION_IDS.none;
+            arr[pixel] = newVal;
+            updatePixelHash(this, id, pixel, oldVal, newVal);
         },
         translateAll(dx = 0, dy = 0) {
             dx |= 0; dy |= 0;
@@ -154,8 +191,10 @@ export const usePixelStore = defineStore('pixels', {
             const keys = Object.keys(this._pixels);
             for (const idStr of keys) {
                 const id = Number(idStr);
+                initLayerHash(this, id);
                 const arr = this._pixels[id];
                 const moved = new Uint8Array(arr.length);
+                let layerHash = 0;
                 for (let i = 0; i < arr.length; i++) {
                     const v = arr[i];
                     if (!v) continue;
@@ -164,9 +203,12 @@ export const usePixelStore = defineStore('pixels', {
                     const ny = y + dy;
                     const ni = coordToIndex(nx, ny);
                     moved[ni] = v;
+                    layerHash ^= mixHash(v, PIXEL_HASHES[ni]);
                 }
+                const oldHash = this._hash.layers[id] || 0;
+                this._hash.layers[id] = layerHash;
+                this._hash.all ^= mixHash(id, oldHash) ^ mixHash(id, layerHash);
                 this._pixels[id] = moved;
-                rehashLayer(this, id);
             }
         },
         serialize() {
