@@ -228,9 +228,10 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
     watch(() => tool.current === 'globalErase', (isGlobalErase) => {
         if (!isGlobalErase) {
             overlayService.clear(overlayId);
+            preview.clearPreview();
             return;
         }
-        if (!usable.value) return;
+        if (!usable.value) { preview.clearPreview(); return; }
         tool.setCursor({ stroke: CURSOR_STYLE.GLOBAL_ERASE_STROKE, rect: CURSOR_STYLE.GLOBAL_ERASE_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
@@ -281,7 +282,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         }
     });
     watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.current !== 'globalErase') { preview.clearPreview(); return; }
+        if (tool.current !== 'globalErase') return;
         if (!pixels.length) { preview.clearPreview(); return; }
         preview.commitPreview();
     });
