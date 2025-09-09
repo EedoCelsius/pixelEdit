@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { useStore } from '../stores';
 import { useLayerQueryService } from './layerQuery';
 import { averageColorU32 } from '../utils';
-import { findPixelComponents, getPixelUnion } from '../utils/pixels.js';
+import { groupConnectedPixels, getPixelUnion } from '../utils/pixels.js';
 
 export const useLayerToolService = defineStore('layerToolService', () => {
     const { nodeTree, nodes, pixels } = useStore();
@@ -33,9 +33,8 @@ export const useLayerToolService = defineStore('layerToolService', () => {
             color: colorU32,
             attributes: maintainedAttrs,
         });
-        const newPixels = pixelUnion;
         pixels.addLayer(newLayerId);
-        pixels.set(newLayerId, newPixels);
+        pixels.add(newLayerId, pixelUnion);
         nodeTree.insert([newLayerId], nodeTree.orderedSelection[0], true);
         const removed = nodeTree.remove(nodeTree.selectedNodeIds);
         nodes.remove(removed);
@@ -70,9 +69,8 @@ export const useLayerToolService = defineStore('layerToolService', () => {
                     visibility: props.visibility,
                     attributes: props.attributes,
                 });
-                const px = pixels.get(srcId);
                 pixels.addLayer(newId);
-                pixels.set(newId, px);
+                pixels.set(newId, pixels.get(srcId));
                 if (parentId == null) nodeTree.insert([newId], srcId, false);
                 else nodeTree.append([newId], parentId, false);
             }
@@ -95,7 +93,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         const splitedLayers = [];
 
         for (const layerId of selected) {
-            const components = findPixelComponents(pixels.get(layerId));
+            const components = groupConnectedPixels(pixels.get(layerId));
             if (components.length <= 1) {
                 newSelection.push(layerId)
                 continue;
@@ -110,7 +108,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
                     attributes: original.attributes,
                 });
                 pixels.addLayer(newId);
-                pixels.set(newId, componentPixels);
+                pixels.add(newId, componentPixels);
                 return newId;
             });
 
