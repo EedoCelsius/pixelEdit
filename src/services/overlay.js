@@ -58,7 +58,7 @@ export const useOverlayService = defineStore('overlayService', () => {
 
     function getOverlay(id) {
         const pixels = overlayPixels[id];
-        return { id: Number(id), pixels, pixelsToUnionPath(pixels), styles: styles[id] };
+        return { id: Number(id), pixels, path: pixelsToUnionPath(pixels), styles: styles[id] };
     }
 
     const selectionId = createOverlay(OVERLAY_STYLES.SELECTED);
