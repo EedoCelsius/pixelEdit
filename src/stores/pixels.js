@@ -78,10 +78,6 @@ export const usePixelStore = defineStore('pixels', {
                 this._hash.all ^= mixHash(id, 0);
             }
         },
-        set(id, pixels) {
-            this._pixels[id] = pixels;
-            rehashLayer(this, id);
-        },
         removeLayer(ids = []) {
             if (!Array.isArray(ids)) ids = [ids];
             for (const id of ids) {
@@ -90,6 +86,10 @@ export const usePixelStore = defineStore('pixels', {
                 delete this._hash.layers[id];
                 delete this._pixels[id];
             }
+        },
+        set(id, pixels) {
+            this._pixels[id] = pixels;
+            rehashLayer(this, id);
         },
         add(id, pixels, orientation) {
             const map = this._pixels[id];
