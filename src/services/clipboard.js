@@ -54,7 +54,7 @@ export const useClipboardService = defineStore('clipboardService', () => {
         };
         if (data.type === 'layer') {
             const id = nodes.addLayer(base);
-            if (data.pixels) pixelStore.set(id, data.pixels);
+            pixelStore.set(id, data.pixels || []);
             return { id, children: [] };
         }
         if (data.type === 'group') {
