@@ -80,28 +80,10 @@ export const usePixelStore = defineStore('pixels', {
                 this._hash.all ^= mixHash(id, 0);
             }
         },
-        set(id, pixels, orientation) {
-            if (!this._pixels[id]) return;
-            if (pixels instanceof Uint8Array) {
-                this._pixels[id] = pixels;
-                rehashLayer(this, id);
-                return;
-            }
-            const arr = this._pixels[id];
-            if (pixels == null) {
-                arr.fill(0);
-                rehashLayer(this, id);
-                return;
-            }
-            arr.fill(0);
-            const oldHash = this._hash.layers[id] || 0;
-            this._hash.all ^= mixHash(id, oldHash) ^ mixHash(id, 0);
-            this._hash.layers[id] = 0;
-            const entries = Array.isArray(pixels) ? [[orientation, pixels]] : Object.entries(pixels);
-            for (const [ori, arrPixels] of entries) {
-                this.add(id, arrPixels, ori);
-            }
-        },
+        set(id, pixels) {
+            this._pixels[id] = pixels;
+            rehashLayer(this, id);
+        }
         removeLayer(ids = []) {
             if (!Array.isArray(ids)) ids = [ids];
             for (const id of ids) {
