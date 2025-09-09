@@ -7,7 +7,7 @@ import { useLayerQueryService } from './layerQuery';
 import { useStore } from '../stores';
 import { useToolbarStore } from '../stores/toolbar';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
-import { indexToCoord, ensureOrientationPattern } from '../utils/pixels.js';
+import { indexToCoord, ensureOrientationPattern, getPixelUnion } from '../utils/pixels.js';
 import { PIXEL_ORIENTATIONS } from '../stores/pixels';
 import stageIcons from '../image/stage_toolbar';
 
@@ -152,6 +152,13 @@ export const useOrientationToolService = defineStore('orientationToolService', (
         }
         return pixelStore.orientationOf(id, pixel);
     }
+    function orientationPixels(id, orientation) {
+        const arr = pixelStore.get(id);
+        const target = PIXEL_ORIENTATIONS.indexOf(orientation) + 1;
+        const res = [];
+        for (let i = 0; i < arr.length; i++) if (arr[i] === target) res.push(i);
+        return res;
+    }
     function rebuild() {
         if (tool.current !== 'orientation') return;
         const layerIds = nodeTree.selectedLayerIds;
@@ -165,7 +172,7 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                     const id = nodeTree.layerOrder[i];
                     if (!nodes.visibility(id)) continue;
                     let pixels = preview.pixels[id]?.[orientation];
-                    if (!pixels) pixels = pixelStore.getOrientationPixels(orientation, id);
+                    if (!pixels) pixels = orientationPixels(id, orientation);
                     if (!pixels.length) continue;
                     for (const pixel of pixels) {
                         if (layerQuery.topVisibleAt(pixel) === id) {
@@ -178,7 +185,7 @@ export const useOrientationToolService = defineStore('orientationToolService', (
             else {
                 for (const id of layerIds) {
                     let pixels = preview.pixels[id]?.[orientation];
-                    if (!pixels) pixels = pixelStore.getOrientationPixels(orientation, id);
+                    if (!pixels) pixels = orientationPixels(id, orientation);
                     if (!pixels.length) continue;
                     overlayService.addPixels(overlayId, pixels);
                 }
@@ -276,11 +283,11 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         if (pixel){
             const lockedIds = nodeTree.layerOrder.filter(id => nodes.locked(id));
             for (const id of lockedIds) {
-            const lockedPixels = new Set(pixelStore.get(id));
-            if (lockedPixels.has(pixel)) {
-                tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
-                return;
-            }
+                const lockedPixels = new Set(getPixelUnion(pixelStore.get(id)));
+                if (lockedPixels.has(pixel)) {
+                    tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
+                    return;
+                }
             }
         }
         tool.setCursor({ stroke: CURSOR_STYLE.GLOBAL_ERASE_STROKE, rect: CURSOR_STYLE.GLOBAL_ERASE_RECT });
@@ -292,7 +299,8 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
             const unlockedIds = nodeTree.layerOrder.filter(id => !nodes.locked(id));
             const unlockedPixels = new Set();
             for (const id of unlockedIds) {
-                pixelStore.get(id).forEach(pixel => unlockedPixels.add(pixel));
+                const arr = pixelStore.get(id);
+                for (let i = 0; i < arr.length; i++) if (arr[i]) unlockedPixels.add(i);
             }
             for (const pixel of pixels) {
                 if (unlockedPixels.has(pixel)) erasablePixels.push(pixel);
@@ -304,7 +312,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         const targetIds = (nodeTree.layerSelectionExists ? nodeTree.selectedLayerIds : nodeTree.layerOrder)
             .filter(id => !nodes.locked(id));
         for (const id of targetIds) {
-            const targetPixels = new Set(pixelStore.get(id));
+            const targetPixels = new Set(getPixelUnion(pixelStore.get(id)));
             const pixelsToRemove = [];
             for (const pixel of erasablePixels) {
                 if (targetPixels.has(pixel)) pixelsToRemove.push(pixel);

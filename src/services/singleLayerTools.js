@@ -8,6 +8,7 @@ import { useStore } from '../stores';
 import { useToolbarStore } from '../stores/toolbar';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
+import { getPixelUnion } from '../utils/pixels.js';
 
 export const useDrawToolService = defineStore('drawToolService', () => {
     const tool = useToolSelectionService();
@@ -15,6 +16,7 @@ export const useDrawToolService = defineStore('drawToolService', () => {
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
     const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
+    const pixelsOf = (id) => getPixelUnion(pixelStore.get(id));
     const usable = computed(() => (tool.shape === 'stroke' || tool.shape === 'rect') && nodeTree.selectedLayerCount === 1);
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'draw', name: 'Draw', icon: stageIcons.draw, usable });
@@ -65,6 +67,7 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.REMOVE);
     const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
+    const pixelsOf = (id) => getPixelUnion(pixelStore.get(id));
     const usable = computed(() => (tool.shape === 'stroke' || tool.shape === 'rect') && nodeTree.selectedLayerCount === 1);
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'erase', name: 'Erase', icon: stageIcons.erase, usable });
@@ -84,7 +87,7 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
         if (tool.current !== 'erase') return;
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.locked(sourceId)) {
-            const sourcePixels = new Set(pixelStore.get(sourceId));
+            const sourcePixels = new Set(pixelsOf(sourceId));
             if (pixel != null && sourcePixels.has(pixel))
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
             else
@@ -94,7 +97,7 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.current !== 'erase') return;
         const id = nodeTree.selectedLayerIds[0];
-        const sourcePixels = new Set(pixelStore.get(id));
+        const sourcePixels = new Set(pixelsOf(id));
         const previewPixels = pixels.filter(pixel => sourcePixels.has(pixel));
         overlayService.setPixels(overlayId, previewPixels);
         if (nodes.locked(id)) { preview.clearPreview(); return; }
@@ -137,7 +140,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (tool.current !== 'cut') return;
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.locked(sourceId)) {
-            const sourcePixels = new Set(pixelStore.get(sourceId));
+            const sourcePixels = new Set(pixelsOf(sourceId));
             if (pixel != null && sourcePixels.has(pixel))
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
             else
@@ -149,7 +152,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
         overlayService.setPixels(overlayId, pixels);
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.locked(sourceId)) { preview.clearPreview(); return; }
-        const sourcePixels = new Set(pixelStore.get(sourceId));
+        const sourcePixels = new Set(pixelsOf(sourceId));
         const cutPreview = pixels.filter(pixel => sourcePixels.has(pixel));
         if (cutPreview.length) preview.applyPixelPreview(sourceId, { remove: cutPreview });
         else preview.clearPreview();
@@ -158,7 +161,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (tool.current !== 'cut') return;
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.locked(sourceId)) { preview.clearPreview(); return; }
-        const sourcePixels = new Set(pixelStore.get(sourceId));
+        const sourcePixels = new Set(pixelsOf(sourceId));
         const cutPixels = pixels.filter(pixel => sourcePixels.has(pixel));
         if (!cutPixels.length || cutPixels.length === sourcePixels.size) { preview.clearPreview(); return; }
         preview.commitPreview();

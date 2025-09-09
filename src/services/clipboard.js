@@ -16,7 +16,7 @@ function serializeNode(id, nodeTree, nodes, pixelStore) {
         return {
             type: 'layer',
             ...base,
-            pixels: pixelStore.getOrientationMap(id),
+            pixels: Array.from(pixelStore.get(id)),
         };
     }
     if (props.isGroup) {
@@ -54,7 +54,7 @@ export const useClipboardService = defineStore('clipboardService', () => {
         };
         if (data.type === 'layer') {
             const id = nodes.addLayer(base);
-            pixelStore.set(id, data.pixels || []);
+            pixelStore.set(id, data.pixels ? Uint8Array.from(data.pixels) : undefined);
             return { id, children: [] };
         }
         if (data.type === 'group') {

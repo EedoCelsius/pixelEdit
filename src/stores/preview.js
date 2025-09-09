@@ -17,7 +17,7 @@ export const usePreviewStore = defineStore('preview', {
             const nodes = useNodeStore();
             return (id) => state.nodes[id]?.visibility ?? nodes.visibility(id);
         },
-        pathOfLayer(state) {
+        pathOf(state) {
             const pixelStore = usePixelStore();
             return (id) => {
                 const preview = state.pixels[id];
@@ -25,7 +25,7 @@ export const usePreviewStore = defineStore('preview', {
                     const all = Object.values(preview).flat();
                     return pixelsToUnionPath(all);
                 }
-                return pixelStore.pathOfLayer(id);
+                return pixelStore.pathOf(id);
             };
         }
     },
@@ -40,8 +40,14 @@ export const usePreviewStore = defineStore('preview', {
                 return;
             }
             const pixelStore = usePixelStore();
-            const base = pixelStore.getOrientationMap(id);
-            const map = Object.fromEntries(PIXEL_ORIENTATIONS.map(o => [o, new Set(base[o] || [])]));
+            const base = pixelStore.get(id);
+            const map = Object.fromEntries(PIXEL_ORIENTATIONS.map(o => [o, new Set()]));
+            for (let i = 0; i < base.length; i++) {
+                const v = base[i];
+                if (!v) continue;
+                const o = PIXEL_ORIENTATIONS[v - 1];
+                map[o].add(i);
+            }
             if (orientationMap) {
                 for (const [ori, pixels] of Object.entries(orientationMap)) {
                     for (const p of pixels) {

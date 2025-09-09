@@ -23,7 +23,7 @@
       <!-- 결과 레이어 -->
         <svg v-show="viewportStore.display==='result'" class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
           <g>
-              <path v-for="id in nodeTree.layerIdsBottomToTop" :key="'pix-'+id" :d="preview.pathOfLayer(id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(preview.nodeColor(id))" :visibility="preview.nodeVisibility(id)?'visible':'hidden'"></path>
+              <path v-for="id in nodeTree.layerIdsBottomToTop" :key="'pix-'+id" :d="preview.pathOf(id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(preview.nodeColor(id))" :visibility="preview.nodeVisibility(id)?'visible':'hidden'"></path>
           </g>
         </svg>
       <!-- 그리드 -->

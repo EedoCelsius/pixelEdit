@@ -11,7 +11,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
     function mergeSelected() {
         if (nodeTree.selectedLayerCount < 2 && nodeTree.selectedGroupCount === 0) return;
 
-        const pixelUnion = getPixelUnion(pixels.getProperties(nodeTree.selectedLayerIds));
+        const pixelUnion = getPixelUnion(pixels.get(nodeTree.selectedLayerIds));
         const colors = [];
         if (pixelUnion.length) {
             for (const pixel of pixelUnion) {
