@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { useStore } from '.';
 import { useLayerPanelService } from '../services/layerPanel';
-import { packRGBA, averageColorU32, coordToIndex, indexToCoord } from '../utils';
+import { packRGBA, averageColorU32, coordToIndex, indexToCoord, MAX_DIMENSION } from '../utils';
 
 export const useInputStore = defineStore('input', {
     state: () => ({
@@ -20,8 +20,8 @@ export const useInputStore = defineStore('input', {
     actions: {
         createImage({ src = '', width = 0, height = 0, buffer = null } = {}) {
             this._src = src;
-            this._width = width;
-            this._height = height;
+            this._width = Math.min(width, MAX_DIMENSION);
+            this._height = Math.min(height, MAX_DIMENSION);
             this._buffer = buffer;
         },
         async load(src) {
@@ -33,8 +33,8 @@ export const useInputStore = defineStore('input', {
                 img.onerror = rej;
                 img.src = src;
             });
-            const w = img.naturalWidth,
-                h = img.naturalHeight;
+            const w = Math.min(img.naturalWidth, MAX_DIMENSION),
+                h = Math.min(img.naturalHeight, MAX_DIMENSION);
             const canvas = document.createElement('canvas');
             canvas.width = w;
             canvas.height = h;
@@ -42,7 +42,7 @@ export const useInputStore = defineStore('input', {
                 willReadFrequently: true
             });
             context.imageSmoothingEnabled = false;
-            context.drawImage(img, 0, 0);
+            context.drawImage(img, 0, 0, w, h);
             const data = context.getImageData(0, 0, w, h).data;
             this.createImage({ src, width: w, height: h, buffer: data });
         },
@@ -62,8 +62,8 @@ export const useInputStore = defineStore('input', {
         initialize({ initializeLayers = true, segmentTolerance = 40, canvasWidth, canvasHeight } = {}) {
             const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore } = useStore();
             const layerPanel = useLayerPanelService();
-            const width = canvasWidth ?? this.width;
-            const height = canvasHeight ?? this.height;
+            const width = Math.min(canvasWidth ?? this.width, MAX_DIMENSION);
+            const height = Math.min(canvasHeight ?? this.height, MAX_DIMENSION);
             const ox = Math.floor((width - this.width) / 2);
             const oy = Math.floor((height - this.height) / 2);
             viewportStore.setSize(width, height);

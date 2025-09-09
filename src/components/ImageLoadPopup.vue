@@ -17,11 +17,21 @@
         </label>
         <label class="block">
           <span>Canvas Width</span>
-          <input type="number" v-model.number="imageLoadService.canvasWidth" class="mt-1 w-full rounded bg-slate-700 px-2 py-1" />
+          <input
+            type="number"
+            v-model.number="imageLoadService.canvasWidth"
+            :max="MAX_DIMENSION"
+            class="mt-1 w-full rounded bg-slate-700 px-2 py-1"
+          />
         </label>
         <label class="block">
           <span>Canvas Height</span>
-          <input type="number" v-model.number="imageLoadService.canvasHeight" class="mt-1 w-full rounded bg-slate-700 px-2 py-1" />
+          <input
+            type="number"
+            v-model.number="imageLoadService.canvasHeight"
+            :max="MAX_DIMENSION"
+            class="mt-1 w-full rounded bg-slate-700 px-2 py-1"
+          />
         </label>
       </div>
       <div class="flex justify-end gap-2">
@@ -34,6 +44,7 @@
 
 <script setup>
 import { useService } from '../services';
+import { MAX_DIMENSION } from '../utils';
 
 const { imageLoad: imageLoadService } = useService();
 

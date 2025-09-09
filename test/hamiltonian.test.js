@@ -6,8 +6,7 @@ import {
   useHamiltonianService,
   solveFromPixels,
 } from '../src/services/hamiltonian.js';
-
-const MAX_DIMENSION = 65536;
+const MAX_DIMENSION = 128;
 const coordToIndex = (x, y) => x + MAX_DIMENSION * y;
 
 test('buildGraphFromPixels orders neighbors around a center pixel', () => {

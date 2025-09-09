@@ -1,7 +1,7 @@
 import { SVG_NAMESPACE, CHECKERBOARD_CONFIG } from '@/constants';
 
 export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-export const MAX_DIMENSION = 65536;
+export const MAX_DIMENSION = 128;
 export const coordToIndex = (x, y) => x + MAX_DIMENSION * y;
 export const indexToCoord = (index) => [index % MAX_DIMENSION, Math.floor(index / MAX_DIMENSION)];
 
