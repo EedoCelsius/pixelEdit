@@ -5,16 +5,26 @@ export const MAX_DIMENSION = 128;
 export const coordToIndex = (x, y) => x + MAX_DIMENSION * y;
 export const indexToCoord = (index) => [index % MAX_DIMENSION, Math.floor(index / MAX_DIMENSION)];
 
+function toPixelSet(target) {
+    if (!target) return new Set();
+    if (target instanceof Set) return new Set(target);
+    if (target instanceof Map) return new Set(target.keys());
+    if (Array.isArray(target)) return new Set(target);
+    if (target instanceof Uint8Array) {
+        const s = new Set();
+        for (let i = 0; i < target.length; i++) if (target[i]) s.add(i);
+        return s;
+    }
+    return new Set();
+}
+
 export function getPixelUnion(pixelsList = []) {
     const layers = Array.isArray(pixelsList) ? pixelsList : [pixelsList];
-    const combined = new Uint8Array(MAX_DIMENSION * MAX_DIMENSION);
-    for (const arr of layers) {
-        if (!(arr instanceof Uint8Array)) continue;
-        for (let i = 0; i < arr.length; i++) if (arr[i]) combined[i] = 1;
+    const union = new Set();
+    for (const layer of layers) {
+        for (const p of toPixelSet(layer)) union.add(p);
     }
-    const result = [];
-    for (let i = 0; i < combined.length; i++) if (combined[i]) result.push(i);
-    return result;
+    return Array.from(union);
 }
 
 export function checkerboardPatternUrl(target = document.body) {
@@ -138,7 +148,8 @@ export function ensureOrientationPattern(orientation, target = document.body) {
   }
 
 export function groupConnectedPixels(target) {
-    const visited = new Uint8Array(target.length);
+    const pixels = target instanceof Set ? target : toPixelSet(target);
+    const visited = new Set();
     const components = [];
     const neighbors = [
         [1, 0],
@@ -146,11 +157,11 @@ export function groupConnectedPixels(target) {
         [0, 1],
         [0, -1]
     ];
-    for (let i = 0; i < target.length; i++) {
-        if (!target[i] || visited[i]) continue;
+    for (const i of pixels) {
+        if (visited.has(i)) continue;
         const comp = [];
         const stack = [i];
-        visited[i] = 1;
+        visited.add(i);
         while (stack.length) {
             const idx = stack.pop();
             comp.push(idx);
@@ -160,8 +171,8 @@ export function groupConnectedPixels(target) {
                 const ny = y + dy;
                 if (nx < 0 || ny < 0 || nx >= MAX_DIMENSION || ny >= MAX_DIMENSION) continue;
                 const ni = coordToIndex(nx, ny);
-                if (target[ni] && !visited[ni]) {
-                    visited[ni] = 1;
+                if (pixels.has(ni) && !visited.has(ni)) {
+                    visited.add(ni);
                     stack.push(ni);
                 }
             }
@@ -172,16 +183,17 @@ export function groupConnectedPixels(target) {
 }
 
 export function buildOutline(target) {
+    const pixelSet = target instanceof Set ? target : toPixelSet(target);
     const paths = [];
-    const components = groupConnectedPixels(target);
+    const components = groupConnectedPixels(pixelSet);
     for (const component of components) {
         const edges = [];
         for (const pixel of component) {
             const [x, y] = indexToCoord(pixel);
-            if (y === 0 || !target[coordToIndex(x, y - 1)]) edges.push([[x, y], [x + 1, y]]);
-            if (x === MAX_DIMENSION - 1 || !target[coordToIndex(x + 1, y)]) edges.push([[x + 1, y], [x + 1, y + 1]]);
-            if (y === MAX_DIMENSION - 1 || !target[coordToIndex(x, y + 1)]) edges.push([[x, y + 1], [x + 1, y + 1]]);
-            if (x === 0 || !target[coordToIndex(x - 1, y)]) edges.push([[x, y], [x, y + 1]]);
+            if (y === 0 || !pixelSet.has(coordToIndex(x, y - 1))) edges.push([[x, y], [x + 1, y]]);
+            if (x === MAX_DIMENSION - 1 || !pixelSet.has(coordToIndex(x + 1, y))) edges.push([[x + 1, y], [x + 1, y + 1]]);
+            if (y === MAX_DIMENSION - 1 || !pixelSet.has(coordToIndex(x, y + 1))) edges.push([[x, y + 1], [x + 1, y + 1]]);
+            if (x === 0 || !pixelSet.has(coordToIndex(x - 1, y))) edges.push([[x, y], [x, y + 1]]);
         }
         paths.push(edges);
     }
