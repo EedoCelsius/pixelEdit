@@ -1,4 +1,7 @@
 import test from 'node:test';
+import { webcrypto as crypto } from 'node:crypto';
+globalThis.crypto = crypto;
+
 import assert from 'node:assert';
 import { createPinia, setActivePinia } from 'pinia';
 const MAX_DIMENSION = 128;
@@ -33,14 +36,14 @@ test('swapping layer pixels changes hash', () => {
   assert.notStrictEqual(hashA, hashB);
 });
 
-test('changing pixel direction updates hash', () => {
+test('changing pixel orientation updates hash', () => {
   setActivePinia(createPinia());
   const store = usePixelStore();
   const layer = 1;
   const px = coordToIndex(0, 0);
   store.set(layer, [px], 'horizontal');
   const hash1 = store._hash.all;
-  store.setDirection(layer, px, 'vertical');
+  store.setOrientation(layer, px, 'vertical');
   const hash2 = store._hash.all;
   assert.notStrictEqual(hash1, hash2);
 });

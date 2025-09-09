@@ -1,7 +1,7 @@
 const MAX_DIMENSION = 128;
 const TIME_LIMIT = 5000;
 
-// Return a direction priority for a given offset.
+// Return a orientation priority for a given offset.
 function dirPriority(dx, dy) {
   if (dx === 0 && dy === -1) return 0; // up
   if (dx === 1 && dy === 0) return 1; // right

@@ -16,7 +16,7 @@ function serializeNode(id, nodeTree, nodes, pixelStore) {
         return {
             type: 'layer',
             ...base,
-            pixels: pixelStore.getDirectional(id),
+            pixels: pixelStore.getOrientationMap(id),
         };
     }
     if (props.isGroup) {

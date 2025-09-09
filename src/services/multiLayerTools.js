@@ -7,8 +7,8 @@ import { useLayerQueryService } from './layerQuery';
 import { useStore } from '../stores';
 import { useToolbarStore } from '../stores/toolbar';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
-import { indexToCoord, ensureDirectionPattern } from '../utils/pixels.js';
-import { PIXEL_DIRECTIONS } from '../stores/pixels';
+import { indexToCoord, ensureOrientationPattern } from '../utils/pixels.js';
+import { PIXEL_ORIENTATIONS } from '../stores/pixels';
 import stageIcons from '../image/stage_toolbar';
 
 export const useSelectToolService = defineStore('selectToolService', () => {
@@ -114,18 +114,18 @@ export const useSelectToolService = defineStore('selectToolService', () => {
     return { usable };
 });
 
-export const useDirectionToolService = defineStore('directionToolService', () => {
+export const useOrientationToolService = defineStore('orientationToolService', () => {
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
     const tool = useToolSelectionService();
     const layerQuery = useLayerQueryService();
     const overlayService = useOverlayService();
     const usable = computed(() => tool.shape === 'stroke' || tool.shape === 'rect');
     const toolbar = useToolbarStore();
-    toolbar.register({ type: 'direction', name: 'Direction', icon: stageIcons.direction, usable });
-    const overlays = PIXEL_DIRECTIONS.map(direction => {
+    toolbar.register({ type: 'orientation', name: 'Orientation', icon: stageIcons.orientation, usable });
+    const overlays = PIXEL_ORIENTATIONS.map(orientation => {
         const id = overlayService.createOverlay();
         overlayService.setStyles(id, {
-            FILL_COLOR: `url(#${ensureDirectionPattern(direction)})`,
+            FILL_COLOR: `url(#${ensureOrientationPattern(orientation)})`,
             STROKE_COLOR: 'none',
             STROKE_WIDTH_SCALE: 0,
             FILL_RULE: 'evenodd'
@@ -133,10 +133,10 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
         return id;
     });
     function rebuild() {
-        if (tool.current !== 'direction') return;
+        if (tool.current !== 'orientation') return;
         const layerIds = nodeTree.selectedLayerIds;
         const showAll = layerIds.length === 0;
-        PIXEL_DIRECTIONS.forEach((direction, idx) => {
+        PIXEL_ORIENTATIONS.forEach((orientation, idx) => {
             const overlayId = overlays[idx];
             overlayService.clear(overlayId);
             if (showAll) {
@@ -144,7 +144,7 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
                 for (let i = nodeTree.layerOrder.length - 1; i >= 0; i--) {
                     const id = nodeTree.layerOrder[i];
                     if (!nodes.visibility(id)) continue;
-                    const pixels = pixelStore.getDirectionPixels(direction, id);
+                    const pixels = pixelStore.getOrientationPixels(orientation, id);
                     if (!pixels.length) continue;
                     for (const pixel of pixels) {
                         if (layerQuery.topVisibleAt(pixel) === id) {
@@ -156,15 +156,15 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
             }
             else {
                 for (const id of layerIds) {
-                    const pixels = pixelStore.getDirectionPixels(direction, id);
+                    const pixels = pixelStore.getOrientationPixels(orientation, id);
                     if (!pixels.length) continue;
                     overlayService.addPixels(overlayId, pixels);
                 }
             }
         });
     }
-    watch(() => tool.current === 'direction', (isDirection) => {
-        if (!isDirection) {
+    watch(() => tool.current === 'orientation', (isOrientation) => {
+        if (!isOrientation) {
             overlays.forEach(id => overlayService.clear(id));
             return;
         }
@@ -173,11 +173,11 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
         tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
     watch(() => tool.hoverPixel, (pixel) => {
-        if (tool.current !== 'direction' || !pixel) return;
+        if (tool.current !== 'orientation' || !pixel) return;
         tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
     watch(() => tool.dragPixel, (pixel, prevPixel) => {
-        if (tool.current !== 'direction' || pixel == null) return;
+        if (tool.current !== 'orientation' || pixel == null) return;
         const target = layerQuery.topVisibleAt(pixel);
         const editable = nodeTree.selectedLayerIds.length === 0 || nodeTree.selectedLayerIds.includes(target);
         if (target != null && editable) {
@@ -186,23 +186,23 @@ export const useDirectionToolService = defineStore('directionToolService', () =>
                 return;
             }
             if (prevPixel == null) {
-                const current = pixelStore.directionOf(target, pixel);
-                const idx = PIXEL_DIRECTIONS.indexOf(current);
-                const next = PIXEL_DIRECTIONS[(idx + 1) % PIXEL_DIRECTIONS.length];
+                const current = pixelStore.orientationOf(target, pixel);
+                const idx = PIXEL_ORIENTATIONS.indexOf(current);
+                const next = PIXEL_ORIENTATIONS[(idx + 1) % PIXEL_ORIENTATIONS.length];
                 pixelStore.addPixels(target, [pixel], next);
             }
             else {
                 const [px, py] = indexToCoord(pixel);
                 const [prevX, prevY] = indexToCoord(prevPixel);
                 if (prevX === px) {
-                    pixelStore.setDirection(target, pixel, 'vertical');
+                    pixelStore.setOrientation(target, pixel, 'vertical');
                     if (prevY < py)
                         tool.setCursor({ stroke: CURSOR_STYLE.DOWN, rect: CURSOR_STYLE.DOWN });
                     else
                         tool.setCursor({ stroke: CURSOR_STYLE.UP, rect: CURSOR_STYLE.UP });
                 }
                 else {
-                    pixelStore.setDirection(target, pixel, 'horizontal');
+                    pixelStore.setOrientation(target, pixel, 'horizontal');
                     if (prevX < px)
                         tool.setCursor({ stroke: CURSOR_STYLE.RIGHT, rect: CURSOR_STYLE.RIGHT });
                     else

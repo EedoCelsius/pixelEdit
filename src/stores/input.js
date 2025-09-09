@@ -173,7 +173,7 @@ export const useInputStore = defineStore('input', {
                 height = this.height,
                 data = this.buffer;
             const visited = new Uint8Array(width * height);
-            const directions = [
+            const offsets = [
                 [1, 0],
                 [-1, 0],
                 [0, 1],
@@ -215,7 +215,7 @@ export const useInputStore = defineStore('input', {
                             }, seedColor) > tolerance) continue;
                         pixels.push(coordToIndex(cx, cy));
                         colors.push(packRGBA({ r: currentR, g: currentG, b: currentB, a: currentA }));
-                        for (const [dx, dy] of directions) {
+                        for (const [dx, dy] of offsets) {
                             const nextX = cx + dx,
                                 nextY = cy + dy;
                             if (!this.isWithin(coordToIndex(nextX, nextY))) continue;
