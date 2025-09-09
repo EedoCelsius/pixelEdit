@@ -271,7 +271,3 @@ export function pixelsToUnionPath(pixels) {
     }
     return parts.join(' ');
 }
-
-export function findPixelComponents(pixels) {
-    return groupConnectedPixels(pixels);
-}
