@@ -119,10 +119,10 @@ export const useNodeStore = defineStore('nodes', {
             prepareNode(this, id, { ...defaults, ...props, isGroup });
             return id;
         },
-        createLayer(props = {}) {
+        addLayer(props = {}) {
             return this._createNode(props, false);
         },
-        createGroup(props = {}) {
+        addGroup(props = {}) {
             return this._createNode(props, true);
         },
         setName(id, name) {

@@ -6,8 +6,8 @@ import { useNodeStore } from '../src/stores/nodes.js';
 test('store hash differs when swapping names vs colors', () => {
   setActivePinia(createPinia());
   const nodes = useNodeStore();
-  const idA = nodes.createLayer({ name: 'A', color: 0x11223344 });
-  const idB = nodes.createLayer({ name: 'B', color: 0x55667788 });
+  const idA = nodes.addLayer({ name: 'A', color: 0x11223344 });
+  const idB = nodes.addLayer({ name: 'B', color: 0x55667788 });
   const baseline = nodes.serialize();
   const baselineHash = nodes._hash.all;
 

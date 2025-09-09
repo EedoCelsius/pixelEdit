@@ -27,7 +27,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         const baseId = nodeTree.selectedLayerIds[0] || nodeTree.selectedGroupIds[0];
         const maintainedName = nodes.name(baseId) || 'Merged';
         const maintainedAttrs = nodes.attributes(baseId);
-        const newLayerId = nodes.createLayer({
+        const newLayerId = nodes.addLayer({
             name: `Merged ${maintainedName}`,
             color: colorU32,
             attributes: maintainedAttrs,
@@ -50,7 +50,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
             const name = prefix ? `Copy of ${props.name}` : props.name;
             let newId;
             if (props.isGroup) {
-                newId = nodes.createGroup({
+                newId = nodes.addGroup({
                     name,
                     color: props.color,
                     visibility: props.visibility,
@@ -62,7 +62,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
                 const children = info?.node.children || [];
                 for (const child of children) copyInto(child.id, newId, false);
             } else {
-                newId = nodes.createLayer({
+                newId = nodes.addLayer({
                     name,
                     color: props.color,
                     visibility: props.visibility,
@@ -100,7 +100,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
 
             const original = nodes.getProperties(layerId);
             const newIds = components.reverse().map((componentPixels, index) => {
-                const newId = nodes.createLayer({
+                const newId = nodes.addLayer({
                     name: `${original.name} #${components.length - index}`,
                     color: original.color,
                     visibility: original.visibility,
@@ -126,7 +126,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
 
     function groupSelected() {
         const selected = nodeTree.selectedIds;
-        const id = nodes.createGroup({});
+        const id = nodes.addGroup({});
         if (selected.length === 0) {
             nodeTree.append([id], null, false);
         } else {

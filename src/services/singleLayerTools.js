@@ -154,7 +154,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (!cutPixels.length || cutPixels.length === sourcePixels.size) return;
 
         pixelStore.removePixels(sourceId, cutPixels);
-        const id = nodes.createLayer({
+        const id = nodes.addLayer({
             name: `Cut of ${nodes.name(sourceId)}`,
             color: nodes.color(sourceId),
             visibility: nodes.visibility(sourceId),
