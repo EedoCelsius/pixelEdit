@@ -5,42 +5,42 @@
         <div class="absolute inset-0 border-2 border-dashed border-slate-500">
           <div class="absolute inset-0 flex flex-col items-center justify-center text-white/70 space-y-1">
             <label class="flex items-center gap-1">
-              <span>W: {{ width }} →</span>
+              <span>W: {{ viewport.stage.width }} →</span>
               <input type="number" v-model.number="newWidth" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
             </label>
             <label class="flex items-center gap-1">
-              <span>H: {{ height }} →</span>
+              <span>H: {{ viewport.stage.height }} →</span>
               <input type="number" v-model.number="newHeight" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
             </label>
           </div>
         </div>
         <label class="absolute top-7 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
           <span class="mb-1">Top</span>
-          <input type="number" v-model.number="top" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
-          <button @click="adjust('top', 1)" class="absolute top-1/2 right-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▲</button>
-          <button @click="adjust('top', -1)" class="absolute top-1/2 left-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▼</button>
+          <input type="number" v-model.number="offsets.top" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
+          <button @click="offsets.top++" class="absolute top-1/2 right-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▲</button>
+          <button @click="offsets.top--" class="absolute top-1/2 left-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▼</button>
         </label>
         <label class="absolute top-1/2 left-7 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
           <span class="mb-1">Left</span>
-          <input type="number" v-model.number="left" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
-          <button @click="adjust('left', 1)" class="absolute top-1/2 right-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">◀</button>
-          <button @click="adjust('left', -1)" class="absolute top-1/2 left-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▶</button>
+          <input type="number" v-model.number="offsets.left" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
+          <button @click="offsets.left++" class="absolute top-1/2 right-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">◀</button>
+          <button @click="offsets.left--" class="absolute top-1/2 left-12 -translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▶</button>
         </label>
         <label class="absolute bottom-1/2 right-7 translate-x-1/2 translate-y-1/2 flex flex-col items-center">
           <span class="mb-1">Right</span>
-          <input type="number" v-model.number="right" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
-          <button @click="adjust('right', 1)" class="absolute bottom-1/2 left-12 translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▶</button>
-          <button @click="adjust('right', -1)" class="absolute bottom-1/2 right-12 translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">◀</button>
+          <input type="number" v-model.number="offsets.right" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
+          <button @click="offsets.right++" class="absolute bottom-1/2 left-12 translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▶</button>
+          <button @click="offsets.right--" class="absolute bottom-1/2 right-12 translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">◀</button>
         </label>
         <label class="absolute bottom-7 right-1/2 translate-x-1/2 translate-y-1/2 flex flex-col items-center">
           <span class="mb-1">Bottom</span>
-          <input type="number" v-model.number="bottom" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
-          <button @click="adjust('bottom', 1)" class="absolute bottom-1/2 left-12 translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▼</button>
-          <button @click="adjust('bottom', -1)" class="absolute bottom-1/2 right-12 translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▲</button>
+          <input type="number" v-model.number="offsets.bottom" class="w-10 px-1 py-0.5 rounded bg-slate-700" />
+          <button @click="offsets.bottom++" class="absolute bottom-1/2 left-12 translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▼</button>
+          <button @click="offsets.bottom--" class="absolute bottom-1/2 right-12 translate-y-1/2 w-4 h-4 bg-slate-700 rounded text-white">▲</button>
         </label>
         <div class="absolute -bottom-12 -right-8">
           <div class="flex justify-end gap-2">
-            <button @click="close" class="px-2 py-1 rounded bg-white/5 hover:bg-white/10">Cancel</button>
+            <button @click="stageResizeService.close" class="px-2 py-1 rounded bg-white/5 hover:bg-white/10">Cancel</button>
             <button @click="apply" class="px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white">Apply</button>
           </div>
         </div>
@@ -50,58 +50,37 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, reactive } from 'vue';
 import { useService } from '../services';
 import { useStore } from '../stores';
 
 const { stageResize: stageResizeService } = useService();
 const { viewport } = useStore();
+const offsets = reactive({ top: 0, bottom: 0, left: 0, right: 0 });
 
-const top = ref(0);
-const bottom = ref(0);
-const left = ref(0);
-const right = ref(0);
-
-const offsets = { top, bottom, left, right };
-
-const width = computed(() => viewport.stage.width);
-const height = computed(() => viewport.stage.height);
 const newWidth = computed({
   get() {
-    return width.value + left.value + right.value;
+    return viewport.stage.width + left.value + right.value;
   },
   set(val) {
-    const delta = val - width.value;
+    const delta = val - viewport.stage.width;
     left.value = Math.floor(delta / 2);
     right.value = delta - left.value;
   },
 });
 const newHeight = computed({
   get() {
-    return height.value + top.value + bottom.value;
+    return viewport.stage.height + top.value + bottom.value;
   },
   set(val) {
-    const delta = val - height.value;
+    const delta = val - viewport.stage.height;
     top.value = Math.floor(delta / 2);
     bottom.value = delta - top.value;
   },
 });
-const adjust = (edge, delta) => {
-  const refObj = offsets[edge];
-  if (refObj) refObj.value += delta;
-};
 
-const resetOffsets = () => Object.values(offsets).forEach(v => (v.value = 0));
-
-const close = () => stageResizeService.close();
-
-const apply = () => {
-  stageResizeService.apply({
-    top: top.value,
-    bottom: bottom.value,
-    left: left.value,
-    right: right.value,
-  });
-  resetOffsets();
+function apply() {
+  stageResizeService.apply(offsets);
+  Object.assign(offsets, { top: 0, bottom: 0, left: 0, right: 0 });
 };
 </script>
