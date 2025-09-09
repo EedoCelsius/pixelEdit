@@ -146,12 +146,12 @@ export function groupConnectedPixels(pixels) {
     const pixelIdxs = pixels instanceof Map ? pixels.keys() : pixels
     for (const i of pixelIdxs) {
         if (visited.has(i)) continue;
-        const comp = [];
+        const component = new Set();
         const stack = [i];
         visited.add(i);
         while (stack.length) {
             const idx = stack.pop();
-            comp.push(idx);
+            component.add(idx);
             const [x, y] = indexToCoord(idx);
             for (const [dx, dy] of neighbors) {
                 const nx = x + dx;
@@ -164,7 +164,7 @@ export function groupConnectedPixels(pixels) {
                 }
             }
         }
-        components.push(comp);
+        components.push(component);
     }
     return components;
 }
