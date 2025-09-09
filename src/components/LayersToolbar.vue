@@ -30,14 +30,14 @@ import toolbarIcons from '../image/layer_toolbar';
 const { nodeTree, nodes, pixels: pixelStore, output } = useStore();
 const { layerTool: layerSvc, layerPanel, layerQuery } = useService();
 
-const hasEmptyLayers = computed(() => nodeTree.layerOrder.some(id => pixelStore.get(id).length === 0));
-const canSplit = computed(() => nodeTree.selectedLayerIds.some(id => pixelStore.disconnectedCountOfLayer(id) > 1));
+const hasEmptyLayers = computed(() => nodeTree.layerOrder.some(id => pixelStore.sizeOf(id) === 0));
+const canSplit = computed(() => nodeTree.selectedLayerIds.some(id => pixelStore.disconnectedCountOf(id) > 1));
 
 const onAdd = () => {
     output.setRollbackPoint();
     const above = nodeTree.selectedLayerCount ? layerQuery.uppermost(nodeTree.selectedLayerIds) : null;
     const id = nodes.addLayer({color: 0xFFFFFFFF});
-    pixelStore.set(id);
+    pixelStore.addLayer(id);
     nodeTree.insert([id], above, false);
     nodeTree.replaceSelection([id]);
     layerPanel.setScrollRule({ type: 'follow', target: id });

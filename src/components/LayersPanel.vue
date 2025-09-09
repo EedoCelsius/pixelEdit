@@ -6,7 +6,7 @@
         <div class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden" title="그룹 미리보기">
           <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
             <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
-            <path v-for="child in descendantProps(item.id)" :key="child.id" :d="pixelStore.pathOfLayer(child.id)" :fill="rgbaCssU32(child.color)" :opacity="child.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+            <path v-for="child in descendantProps(item.id)" :key="child.id" :d="pixelStore.pathOf(child.id)" :fill="rgbaCssU32(child.color)" :opacity="child.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
           </svg>
         </div>
         <div class="min-w-0 flex-1 relative overflow-hidden fade-mask">
@@ -36,7 +36,7 @@
         <div v-if="item.depth===0" @click.stop="onThumbnailClick(item.id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
           <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
             <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
-            <path :d="pixelStore.pathOfLayer(item.id)" :fill="rgbaCssU32(item.props.color)" :opacity="item.props.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+            <path :d="pixelStore.pathOf(item.id)" :fill="rgbaCssU32(item.props.color)" :opacity="item.props.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
           </svg>
         </div>
         <!-- 색상 -->
@@ -49,14 +49,14 @@
             <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
           </div>
           <div class="text-xs text-slate-400">
-            <template v-if="pixelStore.disconnectedCountOfLayer(item.id) > 1">
+            <template v-if="pixelStore.disconnectedCountOf(item.id) > 1">
               <span class="cursor-pointer" @click.stop="onDisconnectedClick(item.id)">⚠️</span>
-              <span class="cursor-pointer" @click.stop="onPixelCountClick(item.id)" title="같은 크기의 모든 레이어 선택">{{ item.props.pixels.length }}px</span>
+              <span class="cursor-pointer" @click.stop="onPixelCountClick(item.id)" title="같은 크기의 모든 레이어 선택">{{ item.props.count }}px</span>
               <span class="mx-1">|</span>
-              <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(item.id)">{{ pixelStore.disconnectedCountOfLayer(item.id) }} Pieces</span>
+              <span class="cursor-pointer" @click.stop="onDisconnectedCountClick(item.id)">{{ pixelStore.disconnectedCountOf(item.id) }} Pieces</span>
             </template>
             <template v-else>
-              <span class="cursor-pointer" @click.stop="onPixelCountClick(item.id)" title="같은 크기의 모든 레이어 선택">{{ item.props.pixels.length }}px</span>
+              <span class="cursor-pointer" @click.stop="onPixelCountClick(item.id)" title="같은 크기의 모든 레이어 선택">{{ item.props.count }}px</span>
             </template>
           </div>
         </div>
@@ -88,7 +88,7 @@ import blockIcons from '../image/layer_block';
 import { useService } from '../services';
 import { useContextMenuStore } from '../stores/contextMenu';
 
-const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output } = useStore();
+const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output, preview } = useStore();
 const { layerPanel, layerQuery, nodeQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc, clipboard } = useService();
 const contextMenu = useContextMenuStore();
 
@@ -114,9 +114,10 @@ const flatNodes = computed(() => {
   walk(nodeTree.tree, 0);
   const propsList = nodes.getProperties(ids);
   const layerIds = ids.filter(id => !nodes.isGroup(id));
-  const pixelProps = pixelStore.getProperties(layerIds);
-  const pixelMap = Object.fromEntries(pixelProps.map(p => [p.id, p.pixels]));
-  return ids.map((id, i) => ({ id, depth: depths[i], isGroup: propsList[i].isGroup, props: { ...propsList[i], pixels: pixelMap[id] || [] } }));
+  const pixelArr = pixelStore.get(layerIds);
+  const pixelMap = Object.fromEntries(layerIds.map((id, idx) => [id, pixelArr[idx]]));
+  const pixelCountMap = Object.fromEntries(layerIds.map(id => [id, pixelStore.sizeOf(id)]));
+  return ids.map((id, i) => ({ id, depth: depths[i], isGroup: propsList[i].isGroup, props: { ...propsList[i], pixels: pixelMap[id] || new Uint8Array(), count: pixelCountMap[id] || 0 } }));
 });
 
 const ancestorsOfSelected = computed(() => {
@@ -147,7 +148,7 @@ function descendantProps(id) {
 
 function descendantPixels(id) {
   const ids = nodeTree.descendantLayerIds(id);
-  return pixelStore.getProperties(ids);
+  return pixelStore.get(ids);
 }
 
 function selectAndScroll(ids, id, useRange = true) {
@@ -168,7 +169,7 @@ function onThumbnailClick(id) {
 }
 
 function onPixelCountClick(id) {
-  const count = pixelStore.get(id).length;
+  const count = pixelStore.sizeOf(id);
   const ids = count === 0 ? [id] : layerQuery.byPixelCount(count);
   selectAndScroll(ids, id);
 }
@@ -179,7 +180,7 @@ function onDisconnectedClick(id) {
 }
 
 function onDisconnectedCountClick(id) {
-  const count = pixelStore.disconnectedCountOfLayer(id);
+  const count = pixelStore.disconnectedCountOf(id);
   const ids = count <= 1 ? [id] : layerQuery.byDisconnectedCount(count);
   selectAndScroll(ids, id);
 }
@@ -247,10 +248,11 @@ function applyToSelection(id, fn, ids = nodeTree.selectedNodeIds) {
 
 function onColorInput(id, event) {
     const colorU32 = hexToRgbaU32(event.target.value);
-    applyToSelection(id, sid => nodes.setColor(sid, colorU32), nodeTree.selectedLayerIds);
+    applyToSelection(id, sid => preview.applyNodePreview(sid, { color: colorU32 }), nodeTree.selectedLayerIds);
 }
 
 function onColorChange() {
+    preview.commitPreview();
     output.commit();
 }
 
@@ -337,7 +339,7 @@ function deleteNode(id) {
     const belowId = nodeQuery.below(lowermostTarget);
     const removed = nodeTree.remove(targets);
     nodes.remove(removed);
-    pixelStore.remove(removed);
+    pixelStore.removeLayer(removed);
     let newSelectId = null;
     if (nodeTree.has(belowId)) {
         newSelectId = belowId;

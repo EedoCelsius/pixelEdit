@@ -21,11 +21,11 @@
            :style="imageStyle"
            @load="onImageLoad" />
       <!-- 결과 레이어 -->
-      <svg v-show="viewportStore.display==='result'" class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
-        <g>
-            <path v-for="props in nodes.getProperties(nodeTree.layerIdsBottomToTop)" :key="'pix-'+props.id" :d="pixelStore.pathOfLayer(props.id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(props.color)" :visibility="props.visibility?'visible':'hidden'"></path>
-        </g>
-      </svg>
+        <svg v-show="viewportStore.display==='result'" class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
+          <g>
+              <path v-for="id in nodeTree.layerIdsBottomToTop" :key="'pix-'+id" :d="preview.pathOf(id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(preview.nodeColor(id))" :visibility="preview.nodeVisibility(id)?'visible':'hidden'"></path>
+          </g>
+        </svg>
       <!-- 그리드 -->
       <svg class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
         <g :stroke="GRID_STROKE_COLOR" :stroke-width="1/Math.max(1,stage.scale)">
@@ -71,7 +71,7 @@ import { OVERLAY_STYLES, GRID_STROKE_COLOR } from '@/constants';
 import { rgbaCssU32 } from '../utils';
 import { checkerboardPatternUrl } from '../utils/pixels.js';
 
-const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, viewportEvent: viewportEvents } = useStore();
+const { viewport: viewportStore, nodeTree, preview, viewportEvent: viewportEvents } = useStore();
 const { overlay, toolSelection: toolSelectionService, viewport } = useService();
 const viewportEl = useTemplateRef('viewportEl');
 const stage = viewportStore.stage;

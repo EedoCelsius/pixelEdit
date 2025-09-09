@@ -7,7 +7,7 @@ import { useLayerQueryService } from './layerQuery';
 import { useStore } from '../stores';
 import { useToolbarStore } from '../stores/toolbar';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
-import { indexToCoord, ensureOrientationPattern } from '../utils/pixels.js';
+import { indexToCoord, ensureOrientationPattern, getPixelUnion } from '../utils/pixels.js';
 import { PIXEL_ORIENTATIONS } from '../stores/pixels';
 import stageIcons from '../image/stage_toolbar';
 
@@ -28,7 +28,6 @@ export const useSelectToolService = defineStore('selectToolService', () => {
             overlayService.clear(overlayId);
             return;
         }
-        if (!usable.value) return;
         tool.setCursor({ stroke: CURSOR_STYLE.ADD_STROKE, rect: CURSOR_STYLE.ADD_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
@@ -115,7 +114,7 @@ export const useSelectToolService = defineStore('selectToolService', () => {
 });
 
 export const useOrientationToolService = defineStore('orientationToolService', () => {
-    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const tool = useToolSelectionService();
     const layerQuery = useLayerQueryService();
     const overlayService = useOverlayService();
@@ -132,6 +131,34 @@ export const useOrientationToolService = defineStore('orientationToolService', (
         });
         return id;
     });
+    let orientationPreviews = {};
+    function ensurePreview(id) {
+        if (!orientationPreviews[id]) {
+            orientationPreviews[id] = Object.fromEntries(PIXEL_ORIENTATIONS.map(o => [o, new Set()]));
+        }
+    }
+    function toArrayMap(map) {
+        const res = {};
+        for (const [o, set] of Object.entries(map)) if (set.size) res[o] = [...set];
+        return res;
+    }
+    function orientationOfWithPreview(id, pixel) {
+        const previewMap = preview.pixels[id];
+        if (previewMap) {
+            for (const o of PIXEL_ORIENTATIONS) {
+                const arr = previewMap[o];
+                if (arr && arr.includes(pixel)) return o;
+            }
+        }
+        return pixelStore.orientationOf(id, pixel);
+    }
+    function orientationPixels(id, orientation) {
+        const arr = pixelStore.get(id);
+        const target = PIXEL_ORIENTATIONS.indexOf(orientation) + 1;
+        const res = [];
+        for (let i = 0; i < arr.length; i++) if (arr[i] === target) res.push(i);
+        return res;
+    }
     function rebuild() {
         if (tool.current !== 'orientation') return;
         const layerIds = nodeTree.selectedLayerIds;
@@ -144,7 +171,8 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                 for (let i = nodeTree.layerOrder.length - 1; i >= 0; i--) {
                     const id = nodeTree.layerOrder[i];
                     if (!nodes.visibility(id)) continue;
-                    const pixels = pixelStore.getOrientationPixels(orientation, id);
+                    let pixels = preview.pixels[id]?.[orientation];
+                    if (!pixels) pixels = orientationPixels(id, orientation);
                     if (!pixels.length) continue;
                     for (const pixel of pixels) {
                         if (layerQuery.topVisibleAt(pixel) === id) {
@@ -156,7 +184,8 @@ export const useOrientationToolService = defineStore('orientationToolService', (
             }
             else {
                 for (const id of layerIds) {
-                    const pixels = pixelStore.getOrientationPixels(orientation, id);
+                    let pixels = preview.pixels[id]?.[orientation];
+                    if (!pixels) pixels = orientationPixels(id, orientation);
                     if (!pixels.length) continue;
                     overlayService.addPixels(overlayId, pixels);
                 }
@@ -166,9 +195,10 @@ export const useOrientationToolService = defineStore('orientationToolService', (
     watch(() => tool.current === 'orientation', (isOrientation) => {
         if (!isOrientation) {
             overlays.forEach(id => overlayService.clear(id));
+            preview.clearPreview();
+            orientationPreviews = {};
             return;
         }
-        if (!usable.value) return;
         rebuild();
         tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
@@ -185,31 +215,42 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
                 return;
             }
+            ensurePreview(target);
+            for (const o of PIXEL_ORIENTATIONS) orientationPreviews[target][o].delete(pixel);
+            let next;
             if (prevPixel == null) {
-                const current = pixelStore.orientationOf(target, pixel);
+                const current = orientationOfWithPreview(target, pixel);
                 const idx = PIXEL_ORIENTATIONS.indexOf(current);
-                const next = PIXEL_ORIENTATIONS[(idx + 1) % PIXEL_ORIENTATIONS.length];
-                pixelStore.addPixels(target, [pixel], next);
+                next = PIXEL_ORIENTATIONS[(idx + 1) % PIXEL_ORIENTATIONS.length];
             }
             else {
                 const [px, py] = indexToCoord(pixel);
                 const [prevX, prevY] = indexToCoord(prevPixel);
                 if (prevX === px) {
-                    pixelStore.setOrientation(target, pixel, 'vertical');
+                    next = 'vertical';
                     if (prevY < py)
                         tool.setCursor({ stroke: CURSOR_STYLE.DOWN, rect: CURSOR_STYLE.DOWN });
                     else
                         tool.setCursor({ stroke: CURSOR_STYLE.UP, rect: CURSOR_STYLE.UP });
                 }
                 else {
-                    pixelStore.setOrientation(target, pixel, 'horizontal');
+                    next = 'horizontal';
                     if (prevX < px)
                         tool.setCursor({ stroke: CURSOR_STYLE.RIGHT, rect: CURSOR_STYLE.RIGHT });
                     else
                         tool.setCursor({ stroke: CURSOR_STYLE.LEFT, rect: CURSOR_STYLE.LEFT });
                 }
             }
+            orientationPreviews[target][next].add(pixel);
+            preview.applyPixelPreview(target, { orientationMap: toArrayMap(orientationPreviews[target]) });
         }
+        rebuild();
+    });
+    watch(() => tool.affectedPixels, (pixels) => {
+        if (tool.current !== 'orientation') return;
+        if (pixels.length) preview.commitPreview();
+        else preview.clearPreview();
+        orientationPreviews = {};
         rebuild();
     });
     watch(() => nodeTree.selectedIds, rebuild);
@@ -221,16 +262,16 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
     const overlayService = useOverlayService();
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.REMOVE);
-    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const usable = computed(() => tool.shape === 'stroke' || tool.shape === 'rect');
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'globalErase', name: 'Global Erase', icon: stageIcons.globalErase, usable });
     watch(() => tool.current === 'globalErase', (isGlobalErase) => {
         if (!isGlobalErase) {
             overlayService.clear(overlayId);
+            preview.clearPreview();
             return;
         }
-        if (!usable.value) return;
         tool.setCursor({ stroke: CURSOR_STYLE.GLOBAL_ERASE_STROKE, rect: CURSOR_STYLE.GLOBAL_ERASE_RECT });
     });
     watch(() => tool.hoverPixel, (pixel) => {
@@ -242,11 +283,11 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         if (pixel){
             const lockedIds = nodeTree.layerOrder.filter(id => nodes.locked(id));
             for (const id of lockedIds) {
-            const lockedPixels = new Set(pixelStore.get(id));
-            if (lockedPixels.has(pixel)) {
-                tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
-                return;
-            }
+                const lockedPixels = new Set(getPixelUnion(pixelStore.get(id)));
+                if (lockedPixels.has(pixel)) {
+                    tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
+                    return;
+                }
             }
         }
         tool.setCursor({ stroke: CURSOR_STYLE.GLOBAL_ERASE_STROKE, rect: CURSOR_STYLE.GLOBAL_ERASE_RECT });
@@ -258,26 +299,33 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
             const unlockedIds = nodeTree.layerOrder.filter(id => !nodes.locked(id));
             const unlockedPixels = new Set();
             for (const id of unlockedIds) {
-                pixelStore.get(id).forEach(pixel => unlockedPixels.add(pixel));
+                const arr = pixelStore.get(id);
+                for (let i = 0; i < arr.length; i++) if (arr[i]) unlockedPixels.add(i);
             }
             for (const pixel of pixels) {
                 if (unlockedPixels.has(pixel)) erasablePixels.push(pixel);
             }
         }
         overlayService.setPixels(overlayId, erasablePixels);
-    });
-    watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.current !== 'globalErase' || !pixels.length) return;
+        preview.clearPreview();
+        if (!erasablePixels.length) return;
         const targetIds = (nodeTree.layerSelectionExists ? nodeTree.selectedLayerIds : nodeTree.layerOrder)
             .filter(id => !nodes.locked(id));
         for (const id of targetIds) {
-            const targetPixels = new Set(pixelStore.get(id));
+            const targetPixels = new Set(getPixelUnion(pixelStore.get(id)));
             const pixelsToRemove = [];
-            for (const pixel of pixels) {
+            for (const pixel of erasablePixels) {
                 if (targetPixels.has(pixel)) pixelsToRemove.push(pixel);
             }
-            if (pixelsToRemove.length) pixelStore.removePixels(id, pixelsToRemove);
+            if (pixelsToRemove.length) {
+                preview.applyPixelPreview(id, { remove: pixelsToRemove });
+            }
         }
+    });
+    watch(() => tool.affectedPixels, (pixels) => {
+        if (tool.current !== 'globalErase') return;
+        if (!pixels.length) { preview.clearPreview(); return; }
+        preview.commitPreview();
     });
     return { usable };
 });

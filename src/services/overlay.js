@@ -45,7 +45,9 @@ export const useOverlayService = defineStore('overlayService', () => {
         if (!Array.isArray(ids)) ids = [ids];
         for (const layerId of ids) {
             if (layerId == null) continue;
-            const layerPixels = pixelStore.get(layerId);
+            const arr = pixelStore.get(layerId);
+            const layerPixels = [];
+            for (let i = 0; i < arr.length; i++) if (arr[i]) layerPixels.push(i);
             addPixels(id, layerPixels);
         }
     }
