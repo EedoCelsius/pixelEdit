@@ -189,20 +189,20 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                 const current = pixelStore.orientationOf(target, pixel);
                 const idx = PIXEL_ORIENTATIONS.indexOf(current);
                 const next = PIXEL_ORIENTATIONS[(idx + 1) % PIXEL_ORIENTATIONS.length];
-                pixelStore.addPixels(target, [pixel], next);
+                pixelStore.setOrientation(target, pixel, next);
             }
             else {
                 const [px, py] = indexToCoord(pixel);
                 const [prevX, prevY] = indexToCoord(prevPixel);
                 if (prevX === px) {
-                    pixelStore.setOrientation(target, pixel, 'vertical');
+                    pixelStore.addPixels(target, [pixel], 'vertical');
                     if (prevY < py)
                         tool.setCursor({ stroke: CURSOR_STYLE.DOWN, rect: CURSOR_STYLE.DOWN });
                     else
                         tool.setCursor({ stroke: CURSOR_STYLE.UP, rect: CURSOR_STYLE.UP });
                 }
                 else {
-                    pixelStore.setOrientation(target, pixel, 'horizontal');
+                    pixelStore.addPixels(target, [pixel], 'horizontal');
                     if (prevX < px)
                         tool.setCursor({ stroke: CURSOR_STYLE.RIGHT, rect: CURSOR_STYLE.RIGHT });
                     else
@@ -221,7 +221,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
     const overlayService = useOverlayService();
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.REMOVE);
-    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const usable = computed(() => tool.shape === 'stroke' || tool.shape === 'rect');
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'globalErase', name: 'Global Erase', icon: stageIcons.globalErase, usable });
@@ -265,19 +265,25 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
             }
         }
         overlayService.setPixels(overlayId, erasablePixels);
-    });
-    watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.current !== 'globalErase' || !pixels.length) return;
+        preview.clearPreview();
+        if (!erasablePixels.length) return;
         const targetIds = (nodeTree.layerSelectionExists ? nodeTree.selectedLayerIds : nodeTree.layerOrder)
             .filter(id => !nodes.locked(id));
         for (const id of targetIds) {
             const targetPixels = new Set(pixelStore.get(id));
             const pixelsToRemove = [];
-            for (const pixel of pixels) {
+            for (const pixel of erasablePixels) {
                 if (targetPixels.has(pixel)) pixelsToRemove.push(pixel);
             }
-            if (pixelsToRemove.length) pixelStore.removePixels(id, pixelsToRemove);
+            if (pixelsToRemove.length) {
+                preview.applyPixelPreview(id, { remove: pixelsToRemove });
+            }
         }
+    });
+    watch(() => tool.affectedPixels, (pixels) => {
+        if (tool.current !== 'globalErase') { preview.clearPreview(); return; }
+        if (!pixels.length) { preview.clearPreview(); return; }
+        preview.commitPreview();
     });
     return { usable };
 });

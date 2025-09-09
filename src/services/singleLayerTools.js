@@ -14,7 +14,7 @@ export const useDrawToolService = defineStore('drawToolService', () => {
     const overlayService = useOverlayService();
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
-    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const usable = computed(() => (tool.shape === 'stroke' || tool.shape === 'rect') && nodeTree.selectedLayerCount === 1);
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'draw', name: 'Draw', icon: stageIcons.draw, usable });
@@ -44,12 +44,17 @@ export const useDrawToolService = defineStore('drawToolService', () => {
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.current !== 'draw' || !usable.value) return;
         overlayService.setPixels(overlayId, pixels);
+        const id = nodeTree.selectedLayerIds[0];
+        if (nodes.locked(id)) { preview.clearPreview(); return; }
+        if (pixels.length) preview.applyPixelPreview(id, { add: pixels });
+        else preview.clearPreview();
     });
     watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.current !== 'draw' || !usable.value) return;
+        if (tool.current !== 'draw' || !usable.value) { preview.clearPreview(); return; }
         const id = nodeTree.selectedLayerIds[0];
-        if (nodes.locked(id)) return;
-        pixelStore.addPixels(id, pixels);
+        if (nodes.locked(id)) { preview.clearPreview(); return; }
+        if (pixels.length) preview.commitPreview();
+        else preview.clearPreview();
     });
     return { usable };
 });
@@ -59,7 +64,7 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     const overlayService = useOverlayService();
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.REMOVE);
-    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const usable = computed(() => (tool.shape === 'stroke' || tool.shape === 'rect') && nodeTree.selectedLayerCount === 1);
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'erase', name: 'Erase', icon: stageIcons.erase, usable });
@@ -88,15 +93,20 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     });
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.current !== 'erase' || !usable.value) return;
-        const sourceId = nodeTree.selectedLayerIds[0];
-        const sourcePixels = new Set(pixelStore.get(sourceId));
-        overlayService.setPixels(overlayId, pixels.filter(pixel => sourcePixels.has(pixel)));
+        const id = nodeTree.selectedLayerIds[0];
+        const sourcePixels = new Set(pixelStore.get(id));
+        const previewPixels = pixels.filter(pixel => sourcePixels.has(pixel));
+        overlayService.setPixels(overlayId, previewPixels);
+        if (nodes.locked(id)) { preview.clearPreview(); return; }
+        if (previewPixels.length) preview.applyPixelPreview(id, { remove: previewPixels });
+        else preview.clearPreview();
     });
     watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.current !== 'erase' || !usable.value) return;
+        if (tool.current !== 'erase' || !usable.value) { preview.clearPreview(); return; }
         const id = nodeTree.selectedLayerIds[0];
-       if (nodes.locked(id)) return;
-        pixelStore.removePixels(id, pixels);
+        if (nodes.locked(id)) { preview.clearPreview(); return; }
+        if (pixels.length) preview.commitPreview();
+        else preview.clearPreview();
     });
     return { usable };
 });
@@ -107,7 +117,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.REMOVE);
     const layerPanel = useLayerPanelService();
-    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const usable = computed(() => (tool.shape === 'stroke' || tool.shape === 'rect') && nodeTree.selectedLayerCount === 1);
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'cut', name: 'Cut', icon: stageIcons.cut, usable });
@@ -137,23 +147,21 @@ export const useCutToolService = defineStore('cutToolService', () => {
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.current !== 'cut' || !usable.value) return;
         overlayService.setPixels(overlayId, pixels);
+        const sourceId = nodeTree.selectedLayerIds[0];
+        if (nodes.locked(sourceId)) { preview.clearPreview(); return; }
+        const sourcePixels = new Set(pixelStore.get(sourceId));
+        const cutPreview = pixels.filter(pixel => sourcePixels.has(pixel));
+        if (cutPreview.length) preview.applyPixelPreview(sourceId, { remove: cutPreview });
+        else preview.clearPreview();
     });
     watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.current !== 'cut' || !usable.value) return;
+        if (tool.current !== 'cut' || !usable.value) { preview.clearPreview(); return; }
         const sourceId = nodeTree.selectedLayerIds[0];
-        if (nodes.locked(sourceId)) return;
+        if (nodes.locked(sourceId)) { preview.clearPreview(); return; }
         const sourcePixels = new Set(pixelStore.get(sourceId));
-
-        const cutPixels = [];
-        for (const pixel of pixels) {
-            if (sourcePixels.has(pixel)) {
-                cutPixels.push(pixel);
-            }
-        }
-
-        if (!cutPixels.length || cutPixels.length === sourcePixels.size) return;
-
-        pixelStore.removePixels(sourceId, cutPixels);
+        const cutPixels = pixels.filter(pixel => sourcePixels.has(pixel));
+        if (!cutPixels.length || cutPixels.length === sourcePixels.size) { preview.clearPreview(); return; }
+        preview.commitPreview();
         const id = nodes.addLayer({
             name: `Cut of ${nodes.name(sourceId)}`,
             color: nodes.color(sourceId),

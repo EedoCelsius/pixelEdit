@@ -2,6 +2,7 @@ import { useInputStore } from './input';
 import { useNodeTreeStore } from './nodeTree';
 import { useNodeStore } from './nodes';
 import { usePixelStore } from './pixels';
+import { usePreviewStore } from './preview';
 import { useOutputStore } from './output';
 import { useViewportStore } from './viewport';
 import { useViewportEventStore } from './viewportEvent';
@@ -14,6 +15,7 @@ export {
     useNodeTreeStore,
     useNodeStore,
     usePixelStore,
+    usePreviewStore,
     useOutputStore,
     useViewportStore,
     useViewportEventStore,
@@ -27,6 +29,7 @@ export const useStore = () => ({
     nodeTree: useNodeTreeStore(),
     nodes: useNodeStore(),
     pixels: usePixelStore(),
+    preview: usePreviewStore(),
     output: useOutputStore(),
     viewport: useViewportStore(),
     viewportEvent: useViewportEventStore(),
