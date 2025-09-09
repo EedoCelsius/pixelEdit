@@ -19,10 +19,9 @@ function toPixelSet(target) {
 }
 
 export function getPixelUnion(pixelsList = []) {
-    const layers = Array.isArray(pixelsList) ? pixelsList : [pixelsList];
     const union = new Set();
-    for (const layer of layers) {
-        for (const p of toPixelSet(layer)) union.add(p);
+    for (const pixels of pixelsList) {
+        for (const p of pixels.keys()) union.add(p);
     }
     return Array.from(union);
 }
@@ -147,8 +146,7 @@ export function ensureOrientationPattern(orientation, target = document.body) {
     return id;
   }
 
-export function groupConnectedPixels(target) {
-    const pixels = target instanceof Set ? target : toPixelSet(target);
+export function groupConnectedPixels(pixels) {
     const visited = new Set();
     const components = [];
     const neighbors = [
@@ -157,7 +155,7 @@ export function groupConnectedPixels(target) {
         [0, 1],
         [0, -1]
     ];
-    for (const i of pixels) {
+    for (const i of pixels.keys()) {
         if (visited.has(i)) continue;
         const comp = [];
         const stack = [i];
@@ -182,18 +180,17 @@ export function groupConnectedPixels(target) {
     return components;
 }
 
-export function buildOutline(target) {
-    const pixelSet = target instanceof Set ? target : toPixelSet(target);
+export function buildOutline(pixels) {
     const paths = [];
-    const components = groupConnectedPixels(pixelSet);
+    const components = groupConnectedPixels(pixels);
     for (const component of components) {
         const edges = [];
         for (const pixel of component) {
             const [x, y] = indexToCoord(pixel);
-            if (y === 0 || !pixelSet.has(coordToIndex(x, y - 1))) edges.push([[x, y], [x + 1, y]]);
-            if (x === MAX_DIMENSION - 1 || !pixelSet.has(coordToIndex(x + 1, y))) edges.push([[x + 1, y], [x + 1, y + 1]]);
-            if (y === MAX_DIMENSION - 1 || !pixelSet.has(coordToIndex(x, y + 1))) edges.push([[x, y + 1], [x + 1, y + 1]]);
-            if (x === 0 || !pixelSet.has(coordToIndex(x - 1, y))) edges.push([[x, y], [x, y + 1]]);
+            if (y === 0 || !pixels.has(coordToIndex(x, y - 1))) edges.push([[x, y], [x + 1, y]]);
+            if (x === MAX_DIMENSION - 1 || !pixels.has(coordToIndex(x + 1, y))) edges.push([[x + 1, y], [x + 1, y + 1]]);
+            if (y === MAX_DIMENSION - 1 || !pixels.has(coordToIndex(x, y + 1))) edges.push([[x, y + 1], [x + 1, y + 1]]);
+            if (x === 0 || !pixels.has(coordToIndex(x - 1, y))) edges.push([[x, y], [x, y + 1]]);
         }
         paths.push(edges);
     }
