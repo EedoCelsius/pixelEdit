@@ -101,7 +101,7 @@ export const useInputStore = defineStore('input', {
                                     visibility: true
                                 });
                                 pixelStore.addLayer(layerId);
-                                pixelStore.add(layerId, segment.pixels || []);
+                                pixelStore.add(layerId, segment.pixels);
                                 layerIds.push(layerId);
                             }
                             groupLayerMap.push({ groupId, layerIds });
@@ -113,7 +113,7 @@ export const useInputStore = defineStore('input', {
                                 visibility: true
                             });
                             pixelStore.addLayer(id);
-                            pixelStore.add(id, segment.pixels || []);
+                            pixelStore.add(id, segment.pixels);
                             topIds.push(id);
                         }
                     }
@@ -121,15 +121,13 @@ export const useInputStore = defineStore('input', {
                     for (const { groupId, layerIds } of groupLayerMap) nodeTree.append(layerIds, groupId, false);
                 } else {
                     const ids = [nodes.addLayer({}), nodes.addLayer({})];
-                    pixelStore.addLayer(ids);
-                    ids.forEach(id => pixelStore.set(id));
                     nodeTree.insert(ids);
+                    pixelStore.addLayer(ids);
                 }
             } else {
                 const ids = [nodes.addLayer({}), nodes.addLayer({})];
-                pixelStore.addLayer(ids);
-                ids.forEach(id => pixelStore.set(id));
                 nodeTree.insert(ids);
+                pixelStore.addLayer(ids);
             }
             layerPanel.setScrollRule({ type: 'follow', target: nodeTree.layerOrder[nodeTree.layerOrder.length - 1] });
             if (ox || oy) {
