@@ -77,7 +77,6 @@ export const usePixelStore = defineStore('pixels', {
             for (const orientation of PIXEL_ORIENTATIONS) {
                 if (state[`_${orientation}`][id].has(pixel)) return orientation;
             }
-            return 'none';
         },
         pathOfLayer: (state) => (id) => {
             return pixelsToUnionPath([...unionSet(state, id)]);
@@ -166,7 +165,6 @@ export const usePixelStore = defineStore('pixels', {
         setOrientation(id, pixel, orientation) {
             ensureLayer(this, id);
             const current = this.orientationOf(id, pixel);
-            if (current === 'none') return;
             this[`_${current}`][id].delete(pixel);
             this[`_${orientation}`][id].add(pixel);
             rehashLayer(this, id);
@@ -241,4 +239,3 @@ export const usePixelStore = defineStore('pixels', {
         }
     }
 });
-
