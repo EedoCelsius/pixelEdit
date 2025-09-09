@@ -153,10 +153,10 @@ export const useOrientationToolService = defineStore('orientationToolService', (
         return pixelStore.orientationOf(id, pixel);
     }
     function orientationPixels(id, orientation) {
-        const map = pixelStore.get(id);
-        const target = PIXEL_ORIENTATIONS.indexOf(orientation) + 1;
+        const targetId = PIXEL_ORIENTATIONS.indexOf(orientation) + 1;
         const res = [];
-        for (const [i, v] of map) if (v === target) res.push(i);
+        const map = pixelStore.get(id);
+        for (const [idx, orientationId] of map) if (orientationId === targetId) res.push(idx);
         return res;
     }
     function rebuild() {
