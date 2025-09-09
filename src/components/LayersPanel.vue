@@ -150,60 +150,39 @@ function descendantPixels(id) {
   return pixelStore.getProperties(ids);
 }
 
-  function onThumbnailClick(id) {
-      const color = nodes.color(id);
-      const ids = layerQuery.byColor(color);
-      if (ids.length) {
-          nodeTree.replaceSelection(ids);
-          layerPanel.clearRange();
-      }
-      layerPanel.setScrollRule({
-          type: "follow",
-          target: id
-      });
+function selectAndScroll(ids, id, useRange = true) {
+  if (!ids.length) return;
+  if (useRange && ids.length <= 1) {
+    layerPanel.setRange(id, id);
+  } else {
+    nodeTree.replaceSelection(ids);
+    layerPanel.clearRange();
   }
+  layerPanel.setScrollRule({ type: 'follow', target: id });
+}
 
-  function onPixelCountClick(id) {
-      const count = pixelStore.get(id).length;
-      const ids = count === 0 ? [id] : layerQuery.byPixelCount(count);
-      if (ids.length <= 1) {
-          layerPanel.setRange(id, id);
-      } else {
-          nodeTree.replaceSelection(ids);
-          layerPanel.clearRange();
-      }
-      layerPanel.setScrollRule({
-          type: "follow",
-          target: id
-      });
-  }
+function onThumbnailClick(id) {
+  const color = nodes.color(id);
+  const ids = layerQuery.byColor(color);
+  selectAndScroll(ids, id, false);
+}
 
-  function onDisconnectedClick(id) {
-      const ids = layerQuery.disconnected();
-      if (ids.length) {
-          nodeTree.replaceSelection(ids);
-          layerPanel.clearRange();
-      }
-      layerPanel.setScrollRule({
-          type: "follow",
-          target: id
-      });
-  }
+function onPixelCountClick(id) {
+  const count = pixelStore.get(id).length;
+  const ids = count === 0 ? [id] : layerQuery.byPixelCount(count);
+  selectAndScroll(ids, id);
+}
 
-  function onDisconnectedCountClick(id) {
-      const count = pixelStore.disconnectedCountOfLayer(id);
-      const ids = count <= 1 ? [id] : layerQuery.byDisconnectedCount(count);
-      if (ids.length <= 1) {
-          layerPanel.setRange(id, id);
-      } else {
-          nodeTree.replaceSelection(ids);
-          layerPanel.clearRange();
-      }
-      layerPanel.setScrollRule({
-          type: "follow",
-          target: id
-      });
-  }
+function onDisconnectedClick(id) {
+  const ids = layerQuery.disconnected();
+  selectAndScroll(ids, id, false);
+}
+
+function onDisconnectedCountClick(id) {
+  const count = pixelStore.disconnectedCountOfLayer(id);
+  const ids = count <= 1 ? [id] : layerQuery.byDisconnectedCount(count);
+  selectAndScroll(ids, id);
+}
 
 function onDragStart(id, event) {
     dragging.value = true;
@@ -258,15 +237,17 @@ function onColorDown() {
     output.setRollbackPoint();
 }
 
+function applyToSelection(id, fn, ids = nodeTree.selectedNodeIds) {
+  if (nodeTree.selectedNodeIds.includes(id)) {
+    ids.forEach(fn);
+  } else {
+    fn(id);
+  }
+}
+
 function onColorInput(id, event) {
     const colorU32 = hexToRgbaU32(event.target.value);
-    if (nodeTree.selectedNodeIds.includes(id)) {
-        for (const sid of nodeTree.selectedLayerIds) {
-            nodes.setColor(sid, colorU32);
-        }
-    } else {
-        nodes.setColor(id, colorU32);
-    }
+    applyToSelection(id, sid => nodes.setColor(sid, colorU32), nodeTree.selectedLayerIds);
 }
 
 function onColorChange() {
@@ -275,27 +256,15 @@ function onColorChange() {
 
 function toggleVisibility(id) {
     output.setRollbackPoint();
-    if (nodeTree.selectedNodeIds.includes(id)) {
-        const value = !nodes.visibility(id);
-        for (const sid of nodeTree.selectedNodeIds) {
-            nodes.setVisibility(sid, value);
-        }
-    } else {
-        nodes.toggleVisibility(id);
-    }
+    const value = !nodes.visibility(id);
+    applyToSelection(id, sid => nodes.setVisibility(sid, value));
     output.commit();
 }
 
 function toggleLock(id) {
     output.setRollbackPoint();
-    if (nodeTree.selectedNodeIds.includes(id)) {
-        const value = !nodes.locked(id);
-        for (const sid of nodeTree.selectedNodeIds) {
-            nodes.setLocked(sid, value);
-        }
-    } else {
-        nodes.toggleLock(id);
-    }
+    const value = !nodes.locked(id);
+    applyToSelection(id, sid => nodes.setLocked(sid, value));
     output.commit();
 }
 
