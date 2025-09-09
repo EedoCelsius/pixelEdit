@@ -115,7 +115,7 @@ export const useSelectToolService = defineStore('selectToolService', () => {
 });
 
 export const useOrientationToolService = defineStore('orientationToolService', () => {
-    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const tool = useToolSelectionService();
     const layerQuery = useLayerQueryService();
     const overlayService = useOverlayService();
@@ -221,7 +221,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
     const overlayService = useOverlayService();
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.REMOVE);
-    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const usable = computed(() => tool.shape === 'stroke' || tool.shape === 'rect');
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'globalErase', name: 'Global Erase', icon: stageIcons.globalErase, usable });
@@ -251,33 +251,46 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         }
         tool.setCursor({ stroke: CURSOR_STYLE.GLOBAL_ERASE_STROKE, rect: CURSOR_STYLE.GLOBAL_ERASE_RECT });
     });
+    let prevEraseMap = new Map();
     watch(() => tool.previewPixels, (pixels) => {
-        if (tool.current !== 'globalErase') return;
-        const erasablePixels = [];
-        if (pixels.length) {
-            const unlockedIds = nodeTree.layerOrder.filter(id => !nodes.locked(id));
-            const unlockedPixels = new Set();
-            for (const id of unlockedIds) {
-                pixelStore.get(id).forEach(pixel => unlockedPixels.add(pixel));
-            }
-            for (const pixel of pixels) {
-                if (unlockedPixels.has(pixel)) erasablePixels.push(pixel);
-            }
+        if (tool.current !== 'globalErase') {
+            prevEraseMap = new Map();
+            overlayService.clear(overlayId);
+            return;
         }
-        overlayService.setPixels(overlayId, erasablePixels);
-    });
-    watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.current !== 'globalErase' || !pixels.length) return;
+        if (!pixels.length) {
+            overlayService.setPixels(overlayId, []);
+            prevEraseMap = new Map();
+            return;
+        }
         const targetIds = (nodeTree.layerSelectionExists ? nodeTree.selectedLayerIds : nodeTree.layerOrder)
             .filter(id => !nodes.locked(id));
+        const overlaySet = new Set();
+        const nextMap = new Map();
         for (const id of targetIds) {
-            const targetPixels = new Set(pixelStore.get(id));
-            const pixelsToRemove = [];
+            const layerPixels = new Set(pixelStore.get(id));
+            const toRemove = [];
             for (const pixel of pixels) {
-                if (targetPixels.has(pixel)) pixelsToRemove.push(pixel);
+                if (layerPixels.has(pixel)) {
+                    toRemove.push(pixel);
+                    overlaySet.add(pixel);
+                }
             }
-            if (pixelsToRemove.length) pixelStore.removePixels(id, pixelsToRemove);
+            nextMap.set(id, toRemove);
         }
+        overlayService.setPixels(overlayId, [...overlaySet]);
+        for (const [id, toRemove] of nextMap) {
+            const prev = prevEraseMap.get(id) || [];
+            const added = toRemove.filter(p => !prev.includes(p));
+            const removed = prev.filter(p => !toRemove.includes(p));
+            if (added.length || removed.length) preview.applyPixelPreview(id, { add: removed, remove: added });
+        }
+        for (const [id, prev] of prevEraseMap) {
+            if (!nextMap.has(id) && prev.length) {
+                preview.applyPixelPreview(id, { add: prev, remove: [] });
+            }
+        }
+        prevEraseMap = nextMap;
     });
     return { usable };
 });

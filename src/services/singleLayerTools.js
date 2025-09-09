@@ -14,7 +14,7 @@ export const useDrawToolService = defineStore('drawToolService', () => {
     const overlayService = useOverlayService();
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
-    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const usable = computed(() => (tool.shape === 'stroke' || tool.shape === 'rect') && nodeTree.selectedLayerCount === 1);
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'draw', name: 'Draw', icon: stageIcons.draw, usable });
@@ -41,15 +41,24 @@ export const useDrawToolService = defineStore('drawToolService', () => {
             return;
         }
     });
+    let prevDrawPixels = [];
     watch(() => tool.previewPixels, (pixels) => {
-        if (tool.current !== 'draw' || !usable.value) return;
+        if (tool.current !== 'draw' || !usable.value) {
+            prevDrawPixels = [];
+            return;
+        }
+        if (!pixels.length) {
+            overlayService.setPixels(overlayId, []);
+            prevDrawPixels = [];
+            return;
+        }
         overlayService.setPixels(overlayId, pixels);
-    });
-    watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.current !== 'draw' || !usable.value) return;
         const id = nodeTree.selectedLayerIds[0];
         if (nodes.locked(id)) return;
-        pixelStore.addPixels(id, pixels);
+        const add = pixels.filter(p => !prevDrawPixels.includes(p));
+        const remove = prevDrawPixels.filter(p => !pixels.includes(p));
+        if (add.length || remove.length) preview.applyPixelPreview(id, { add, remove });
+        prevDrawPixels = pixels;
     });
     return { usable };
 });
@@ -59,7 +68,7 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     const overlayService = useOverlayService();
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.REMOVE);
-    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const usable = computed(() => (tool.shape === 'stroke' || tool.shape === 'rect') && nodeTree.selectedLayerCount === 1);
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'erase', name: 'Erase', icon: stageIcons.erase, usable });
@@ -86,17 +95,26 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
                 tool.setCursor({ stroke: CURSOR_STYLE.ERASE_STROKE, rect: CURSOR_STYLE.ERASE_RECT });
         }
     });
+    let prevErasePixels = [];
     watch(() => tool.previewPixels, (pixels) => {
-        if (tool.current !== 'erase' || !usable.value) return;
-        const sourceId = nodeTree.selectedLayerIds[0];
-        const sourcePixels = new Set(pixelStore.get(sourceId));
-        overlayService.setPixels(overlayId, pixels.filter(pixel => sourcePixels.has(pixel)));
-    });
-    watch(() => tool.affectedPixels, (pixels) => {
-        if (tool.current !== 'erase' || !usable.value) return;
+        if (tool.current !== 'erase' || !usable.value) {
+            prevErasePixels = [];
+            return;
+        }
         const id = nodeTree.selectedLayerIds[0];
-       if (nodes.locked(id)) return;
-        pixelStore.removePixels(id, pixels);
+        const sourcePixels = new Set(pixelStore.get(id));
+        const filtered = pixels.filter(pixel => sourcePixels.has(pixel));
+        if (!filtered.length) {
+            overlayService.setPixels(overlayId, []);
+            prevErasePixels = [];
+            return;
+        }
+        overlayService.setPixels(overlayId, filtered);
+        if (nodes.locked(id)) return;
+        const added = filtered.filter(p => !prevErasePixels.includes(p));
+        const removed = prevErasePixels.filter(p => !filtered.includes(p));
+        if (added.length || removed.length) preview.applyPixelPreview(id, { add: removed, remove: added });
+        prevErasePixels = filtered;
     });
     return { usable };
 });
