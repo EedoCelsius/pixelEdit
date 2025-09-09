@@ -9,37 +9,38 @@ const ORIENTATION_IDS = Object.fromEntries(PIXEL_ORIENTATIONS.map((o, i) => [o, 
 const ID_TO_ORIENTATION = Object.fromEntries(PIXEL_ORIENTATIONS.map((o, i) => [i + 1, o]));
 const PIXEL_HASHES = crypto.getRandomValues(new Uint32Array(MAX_DIMENSION * MAX_DIMENSION));
 
-function hashLayer(arr) {
+function hashLayer(map) {
     let h = 0;
-    for (let i = 0; i < arr.length; i++) {
-        const v = arr[i];
-        if (v) h ^= mixHash(v, PIXEL_HASHES[i]);
+    if (map instanceof Map) {
+        for (const [i, v] of map) {
+            h ^= mixHash(v, PIXEL_HASHES[i]);
+        }
     }
     return h;
 }
 
 function rehashLayer(store, id) {
-    const arr = store._pixels[id] || new Uint8Array(MAX_DIMENSION * MAX_DIMENSION);
-    const oldHash = store._hash.layers[id] || 0;
-    const layerHash = hashLayer(arr);
-    store._hash.layers[id] = layerHash;
-    store._hash.all ^= mixHash(id, oldHash) ^ mixHash(id, layerHash);
+    const map = store._pixels[id];
+    const oldHash = store._hash.layers[id];
+    const newHash = hashLayer(map);
+    store._hash.layers[id] = newHash;
+    store._hash.all ^= mixHash(id, oldHash) ^ mixHash(id, newHash);
 }
 
 function updatePixelHash(store, id, index, oldVal, newVal) {
-    const oldLayerHash = store._hash.layers[id];
+    const oldHash = store._hash.layers[id];
     const oldMix = oldVal ? mixHash(oldVal, PIXEL_HASHES[index]) : 0;
     const newMix = newVal ? mixHash(newVal, PIXEL_HASHES[index]) : 0;
-    const newLayerHash = oldLayerHash ^ oldMix ^ newMix;
-    store._hash.layers[id] = newLayerHash;
-    store._hash.all ^= mixHash(id, oldLayerHash) ^ mixHash(id, newLayerHash);
+    const newHash = oldHash ^ oldMix ^ newMix;
+    store._hash.layers[id] = newHash;
+    store._hash.all ^= mixHash(id, oldHash) ^ mixHash(id, newHash);
 }
 
 export const usePixelStore = defineStore('pixels', {
     state: () => ({
         _pixels: {},
-        _defaultOrientation: localStorage.getItem('settings.defaultOrientation') || PIXEL_DEFAULT_ORIENTATIONS[0],
-        _hash: { layers: {}, all: 0 }
+        _hash: { layers: {}, all: 0 },
+        _defaultOrientation: localStorage.getItem('settings.defaultOrientation') || PIXEL_DEFAULT_ORIENTATIONS[0]
     }),
     getters: {
         defaultOrientation: (s) => s._defaultOrientation,
@@ -50,32 +51,29 @@ export const usePixelStore = defineStore('pixels', {
             return s._pixels[id];
         },
         sizeOf: (s) => (id) => {
-            const arr = s._pixels[id];
-            let c = 0;
-            for (let i = 0; i < arr.length; i++) if (arr[i]) c++;
-            return c;
+            const map = s._pixels[id];
+            return map.size;
         },
         orientationOf: (s) => (id, pixel) => {
-            const v = s._pixels[id]?.[pixel] || 0;
+            const v = s._pixels[id].get(pixel);
             return ID_TO_ORIENTATION[v];
         },
         pathOf: (s) => (id) => {
             return pixelsToUnionPath(s._pixels[id]);
         },
         disconnectedCountOf: (s) => (id) => {
-            const arr = s._pixels[id];
-            return groupConnectedPixels(arr).length;
+            const map = s._pixels[id];
+            return groupConnectedPixels(map).length;
         },
         has: (s) => (id, pixel) => {
-            return (s._pixels[id]?.[pixel] || 0) > 0;
+            return s._pixels[id].has(pixel);
         }
     },
     actions: {
         addLayer(ids = []) {
             if (!Array.isArray(ids)) ids = [ids];
             for (const id of ids) {
-                if (id == null || this._pixels[id]) continue;
-                this._pixels[id] = new Uint8Array(MAX_DIMENSION * MAX_DIMENSION);
+                this._pixels[id] = new Map();
                 this._hash.layers[id] = 0;
                 this._hash.all ^= mixHash(id, 0);
             }
@@ -83,26 +81,26 @@ export const usePixelStore = defineStore('pixels', {
         set(id, pixels) {
             this._pixels[id] = pixels;
             rehashLayer(this, id);
-        }
+        },
         removeLayer(ids = []) {
             if (!Array.isArray(ids)) ids = [ids];
             for (const id of ids) {
-                const layerHash = this._hash.layers[id] || 0;
+                const layerHash = this._hash.layers[id];
                 this._hash.all ^= mixHash(id, layerHash);
                 delete this._hash.layers[id];
                 delete this._pixels[id];
             }
         },
         add(id, pixels, orientation) {
-            const arr = this._pixels[id];
+            const map = this._pixels[id];
             orientation ??= this._defaultOrientation;
             if (orientation === 'checkerboard') {
                 for (const pixel of pixels) {
                     const [x, y] = indexToCoord(pixel);
                     const o = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
                     const newVal = ORIENTATION_IDS[o];
-                    const oldVal = arr[pixel];
-                    arr[pixel] = newVal;
+                    const oldVal = map.get(pixel) || 0;
+                    map.set(pixel, newVal);
                     updatePixelHash(this, id, pixel, oldVal, newVal);
                 }
             } else if (orientation === 'slopeCheckerboard') {
@@ -110,46 +108,46 @@ export const usePixelStore = defineStore('pixels', {
                     const [x, y] = indexToCoord(pixel);
                     const o = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
                     const newVal = ORIENTATION_IDS[o];
-                    const oldVal = arr[pixel];
-                    arr[pixel] = newVal;
+                    const oldVal = map.get(pixel) || 0;
+                    map.set(pixel, newVal);
                     updatePixelHash(this, id, pixel, oldVal, newVal);
                 }
             } else {
                 const idOri = ORIENTATION_IDS[orientation] || ORIENTATION_IDS.none;
                 for (const pixel of pixels) {
-                    const oldVal = arr[pixel];
-                    arr[pixel] = idOri;
+                    const oldVal = map.get(pixel) || 0;
+                    map.set(pixel, idOri);
                     updatePixelHash(this, id, pixel, oldVal, idOri);
                 }
             }
         },
         remove(id, pixels) {
-            const arr = this._pixels[id];
+            const map = this._pixels[id];
             for (const pixel of pixels) {
-                const oldVal = arr[pixel];
+                const oldVal = map.get(pixel);
                 if (!oldVal) continue;
-                arr[pixel] = 0;
+                map.delete(pixel);
                 updatePixelHash(this, id, pixel, oldVal, 0);
             }
         },
         togglePixel(id, pixel) {
-            const arr = this._pixels[id];
-            const oldVal = arr[pixel];
+            const map = this._pixels[id];
+            const oldVal = map.get(pixel);
             if (oldVal) {
-                arr[pixel] = 0;
+                map.delete(pixel);
                 updatePixelHash(this, id, pixel, oldVal, 0);
                 return;
             }
-            let ori = this._defaultOrientation;
-            if (ori === 'checkerboard') {
+            let orientation = this._defaultOrientation;
+            if (orientation === 'checkerboard') {
                 const [x, y] = indexToCoord(pixel);
-                ori = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
+                orientation = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
             } else if (ori === 'slopeCheckerboard') {
                 const [x, y] = indexToCoord(pixel);
-                ori = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
+                orientation = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
             }
-            const newVal = ORIENTATION_IDS[ori] || ORIENTATION_IDS.none;
-            arr[pixel] = newVal;
+            const newVal = ORIENTATION_IDS[orientation] || ORIENTATION_IDS.none;
+            map.set(pixel, newVal);
             updatePixelHash(this, id, pixel, oldVal, newVal);
         },
         translateAll(dx = 0, dy = 0) {
@@ -158,29 +156,23 @@ export const usePixelStore = defineStore('pixels', {
             const keys = Object.keys(this._pixels);
             for (const idStr of keys) {
                 const id = Number(idStr);
-                const arr = this._pixels[id];
-                const moved = new Uint8Array(arr.length);
-                let layerHash = 0;
-                for (let i = 0; i < arr.length; i++) {
-                    const v = arr[i];
-                    if (!v) continue;
+                const map = this._pixels[id];
+                const moved = new Map();
+                for (const [i, v] of map) {
                     const [x, y] = indexToCoord(i);
                     const nx = x + dx;
                     const ny = y + dy;
                     const ni = coordToIndex(nx, ny);
-                    moved[ni] = v;
-                    layerHash ^= mixHash(v, PIXEL_HASHES[ni]);
+                    moved.set(ni, v);
                 }
-                const oldHash = this._hash.layers[id] || 0;
-                this._hash.layers[id] = layerHash;
-                this._hash.all ^= mixHash(id, oldHash) ^ mixHash(id, layerHash);
                 this._pixels[id] = moved;
+                rehashLayer(this, id);
             }
         },
         serialize() {
             const result = {};
-            for (const [id, arr] of Object.entries(this._pixels)) {
-                result[id] = Array.from(arr);
+            for (const [id, map] of Object.entries(this._pixels)) {
+                result[id] = Array.from(map.entries());
             }
             return result;
         },
@@ -188,8 +180,8 @@ export const usePixelStore = defineStore('pixels', {
             this._pixels = {};
             this._hash = { layers: {}, all: 0 };
             for (const [id, data] of Object.entries(byId)) {
-                const arr = data instanceof Uint8Array ? data : Uint8Array.from(data);
-                this._pixels[id] = arr;
+                const map = data instanceof Map ? data : new Map(data);
+                this._pixels[id] = map;
                 rehashLayer(this, Number(id));
             }
         },
