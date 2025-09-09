@@ -153,10 +153,10 @@ export const useOrientationToolService = defineStore('orientationToolService', (
         return pixelStore.orientationOf(id, pixel);
     }
     function orientationPixels(id, orientation) {
-        const arr = pixelStore.get(id);
+        const map = pixelStore.get(id);
         const target = PIXEL_ORIENTATIONS.indexOf(orientation) + 1;
         const res = [];
-        for (let i = 0; i < arr.length; i++) if (arr[i] === target) res.push(i);
+        for (const [i, v] of map) if (v === target) res.push(i);
         return res;
     }
     function rebuild() {
@@ -299,8 +299,8 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
             const unlockedIds = nodeTree.layerOrder.filter(id => !nodes.locked(id));
             const unlockedPixels = new Set();
             for (const id of unlockedIds) {
-                const arr = pixelStore.get(id);
-                for (let i = 0; i < arr.length; i++) if (arr[i]) unlockedPixels.add(i);
+                const map = pixelStore.get(id);
+                for (const i of map.keys()) unlockedPixels.add(i);
             }
             for (const pixel of pixels) {
                 if (unlockedPixels.has(pixel)) erasablePixels.push(pixel);

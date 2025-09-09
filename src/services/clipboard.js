@@ -25,7 +25,7 @@ function serializeNode(id, nodeTree, nodes, pixelStore) {
         return {
             type: 'layer',
             ...base,
-            pixels: pixelStore.get(id),
+            pixels: Array.from(pixelStore.get(id).entries()),
         };
     }
 }
@@ -59,7 +59,7 @@ export const useClipboardService = defineStore('clipboardService', () => {
         if (data.type === 'layer') {
             const id = nodes.addLayer(base);
             pixelStore.addLayer(id);
-            pixelStore.set(id, data.pixels);
+            pixelStore.set(id, new Map(data.pixels));
             return { id, children: [] };
         }
     }

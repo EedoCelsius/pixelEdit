@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, reactive, watch } from 'vue';
 import { useStore } from '../stores';
-import { MAX_DIMENSION, pixelsToUnionPath } from '../utils/pixels.js';
+import { pixelsToUnionPath } from '../utils/pixels.js';
 import { OVERLAY_STYLES } from '@/constants';
 
 export const useOverlayService = defineStore('overlayService', () => {
@@ -14,7 +14,7 @@ export const useOverlayService = defineStore('overlayService', () => {
 
     function createOverlay(style = OVERLAY_STYLES.ADD) {
         const id = crypto.getRandomValues(new Uint32Array(1))[0];
-        overlayPixels[id] = reactive(new Uint8Array(MAX_DIMENSION * MAX_DIMENSION));
+        overlayPixels[id] = reactive(new Set());
         styles[id] = style;
         return id;
     }
@@ -25,12 +25,12 @@ export const useOverlayService = defineStore('overlayService', () => {
     }
 
     function clear(id) {
-        overlayPixels[id].fill(0);
+        overlayPixels[id].clear();
     }
 
     function addPixels(id, pixels) {
-        const arr = overlayPixels[id];
-        for (const pixel of pixels) arr[pixel] = 1;
+        const set = overlayPixels[id];
+        for (const pixel of pixels) set.add(pixel);
     }
 
     function setPixels(id, pixels) {
@@ -40,10 +40,11 @@ export const useOverlayService = defineStore('overlayService', () => {
 
     function addLayers(id, ids) {
         if (!Array.isArray(ids)) ids = [ids];
-        const overlayArr = overlayPixels[id];
+        const overlaySet = overlayPixels[id];
         for (const layerId of ids) {
-            const layerArr = pixelStore.get(layerId);
-            for (let i = 0; i < layerArr.length; i++) if (layerArr[i]) overlayArr[i] = 1;
+            const layerMap = pixelStore.get(layerId);
+            if (!layerMap) continue;
+            for (const i of layerMap.keys()) overlaySet.add(i);
         }
     }
 

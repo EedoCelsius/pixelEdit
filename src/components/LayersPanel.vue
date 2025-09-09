@@ -117,7 +117,7 @@ const flatNodes = computed(() => {
   const pixelArr = pixelStore.get(layerIds);
   const pixelMap = Object.fromEntries(layerIds.map((id, idx) => [id, pixelArr[idx]]));
   const pixelCountMap = Object.fromEntries(layerIds.map(id => [id, pixelStore.sizeOf(id)]));
-  return ids.map((id, i) => ({ id, depth: depths[i], isGroup: propsList[i].isGroup, props: { ...propsList[i], pixels: pixelMap[id] || new Uint8Array(), count: pixelCountMap[id] || 0 } }));
+  return ids.map((id, i) => ({ id, depth: depths[i], isGroup: propsList[i].isGroup, props: { ...propsList[i], pixels: pixelMap[id] || new Map(), count: pixelCountMap[id] || 0 } }));
 });
 
 const ancestorsOfSelected = computed(() => {

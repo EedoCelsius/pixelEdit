@@ -22,9 +22,8 @@ export const usePreviewStore = defineStore('preview', {
             return (id) => {
                 const delta = state.pixels[id];
                 if (delta) {
-                    const base = pixelStore.get(id) || [];
-                    const set = new Set();
-                    for (let i = 0; i < base.length; i++) if (base[i]) set.add(i);
+                    const base = pixelStore.get(id) || new Map();
+                    const set = new Set(base.keys());
                     if (delta.remove) delta.remove.forEach(p => set.delete(p));
                     if (delta.orientationMap) {
                         for (const arr of Object.values(delta.orientationMap)) {
@@ -32,7 +31,7 @@ export const usePreviewStore = defineStore('preview', {
                         }
                     }
                     if (delta.add) delta.add.forEach(p => set.add(p));
-                    return pixelsToUnionPath([...set]);
+                    return pixelsToUnionPath(set);
                 }
                 return pixelStore.pathOf(id);
             };

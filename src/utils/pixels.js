@@ -19,9 +19,15 @@ function toPixelSet(target) {
 }
 
 export function getPixelUnion(pixelsList = []) {
+    if (!Array.isArray(pixelsList)) pixelsList = [pixelsList];
     const union = new Set();
     for (const pixels of pixelsList) {
-        for (const p of pixels.keys()) union.add(p);
+        if (!pixels) continue;
+        if (pixels instanceof Map || pixels instanceof Set) {
+            for (const p of pixels.keys()) union.add(p);
+        } else if (pixels instanceof Uint8Array || Array.isArray(pixels)) {
+            for (let i = 0; i < pixels.length; i++) if (pixels[i]) union.add(i);
+        }
     }
     return Array.from(union);
 }
