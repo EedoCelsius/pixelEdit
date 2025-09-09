@@ -26,15 +26,7 @@ function rehashLayer(store, id) {
     store._hash.all ^= mixHash(id, oldHash) ^ mixHash(id, layerHash);
 }
 
-function initLayerHash(store, id) {
-    if (store._hash.layers[id] === undefined) {
-        store._hash.layers[id] = 0;
-        store._hash.all ^= mixHash(id, 0);
-    }
-}
-
 function updatePixelHash(store, id, index, oldVal, newVal) {
-    initLayerHash(store, id);
     const oldLayerHash = store._hash.layers[id];
     const oldMix = oldVal ? mixHash(oldVal, PIXEL_HASHES[index]) : 0;
     const newMix = newVal ? mixHash(newVal, PIXEL_HASHES[index]) : 0;
@@ -86,7 +78,8 @@ export const usePixelStore = defineStore('pixels', {
             for (const id of ids) {
                 if (id == null || this._pixels[id]) continue;
                 this._pixels[id] = new Uint8Array(MAX_DIMENSION * MAX_DIMENSION);
-                initLayerHash(this, id);
+                this._hash.layers[id] = 0;
+                this._hash.all ^= mixHash(id, 0);
             }
         },
         set(id, pixels, orientation) {
@@ -122,9 +115,7 @@ export const usePixelStore = defineStore('pixels', {
         },
         add(id, pixels, orientation) {
             const arr = this._pixels[id];
-            if (!arr) return;
-            initLayerHash(this, id);
-            orientation = orientation ?? this._defaultOrientation;
+            orientation ??= this._defaultOrientation;
             if (orientation === 'checkerboard') {
                 for (const pixel of pixels) {
                     const [x, y] = indexToCoord(pixel);
@@ -154,8 +145,6 @@ export const usePixelStore = defineStore('pixels', {
         },
         remove(id, pixels) {
             const arr = this._pixels[id];
-            if (!arr) return;
-            initLayerHash(this, id);
             for (const pixel of pixels) {
                 const oldVal = arr[pixel];
                 if (!oldVal) continue;
@@ -165,8 +154,6 @@ export const usePixelStore = defineStore('pixels', {
         },
         togglePixel(id, pixel) {
             const arr = this._pixels[id];
-            if (!arr) return;
-            initLayerHash(this, id);
             const oldVal = arr[pixel];
             if (oldVal) {
                 arr[pixel] = 0;
@@ -191,7 +178,6 @@ export const usePixelStore = defineStore('pixels', {
             const keys = Object.keys(this._pixels);
             for (const idStr of keys) {
                 const id = Number(idStr);
-                initLayerHash(this, id);
                 const arr = this._pixels[id];
                 const moved = new Uint8Array(arr.length);
                 let layerHash = 0;
