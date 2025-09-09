@@ -113,8 +113,10 @@ const flatNodes = computed(() => {
   };
   walk(nodeTree.tree, 0);
   const propsList = nodes.getProperties(ids);
-  const pixelList = pixelStore.getProperties(ids);
-  return ids.map((id, i) => ({ id, depth: depths[i], isGroup: propsList[i].isGroup, props: { ...propsList[i], pixels: pixelList[i].pixels } }));
+  const layerIds = ids.filter(id => !nodes.isGroup(id));
+  const pixelProps = pixelStore.getProperties(layerIds);
+  const pixelMap = Object.fromEntries(pixelProps.map(p => [p.id, p.pixels]));
+  return ids.map((id, i) => ({ id, depth: depths[i], isGroup: propsList[i].isGroup, props: { ...propsList[i], pixels: pixelMap[id] || [] } }));
 });
 
 const ancestorsOfSelected = computed(() => {
