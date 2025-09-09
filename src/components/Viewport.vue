@@ -23,7 +23,7 @@
       <!-- 결과 레이어 -->
       <svg v-show="viewportStore.display==='result'" class="absolute w-full h-full top-0 left-0 pointer-events-none block" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet">
         <g>
-            <path v-for="props in layerPropsForRender" :key="'pix-'+props.id" :d="pathWithPreview(props.id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(props.color)" :visibility="props.visibility?'visible':'hidden'"></path>
+            <path v-for="props in nodes.getProperties(nodeTree.layerIdsBottomToTop)" :key="'pix-'+props.id" :d="pixelStore.pathOfLayer(props.id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(props.color)" :visibility="props.visibility?'visible':'hidden'"></path>
         </g>
       </svg>
       <!-- 그리드 -->
@@ -69,31 +69,14 @@ import { useStore } from '../stores';
 import { useService } from '../services';
 import { OVERLAY_STYLES, GRID_STROKE_COLOR } from '@/constants';
 import { rgbaCssU32 } from '../utils';
-import { checkerboardPatternUrl, pixelsToUnionPath } from '../utils/pixels.js';
+import { checkerboardPatternUrl } from '../utils/pixels.js';
 
-const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, viewportEvent: viewportEvents, preview } = useStore();
+const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, viewportEvent: viewportEvents } = useStore();
 const { overlay, toolSelection: toolSelectionService, viewport } = useService();
 const viewportEl = useTemplateRef('viewportEl');
 const stage = viewportStore.stage;
 const image = viewportStore.imageRect;
 const dpr = window.devicePixelRatio || 1;
-
-const layerPropsForRender = computed(() => {
-    return nodeTree.layerIdsBottomToTop.map(id => {
-        const base = nodes.getProperties(id);
-        const edit = preview.nodeEdits[id];
-        return { ...base, ...(edit || {}) };
-    });
-});
-
-function pathWithPreview(id) {
-    const diff = preview.pixelEdits[id];
-    if (!diff) return pixelStore.pathOfLayer(id);
-    const base = new Set(pixelStore.get(id));
-    diff.add.forEach(p => base.add(p));
-    diff.remove.forEach(p => base.delete(p));
-    return pixelsToUnionPath([...base]);
-}
 
 const stageStyle = computed(() => {
     const width = stage.width / dpr;
