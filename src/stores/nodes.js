@@ -50,6 +50,25 @@ function rehashAttributes(store, id) {
     updateHashPart(store, id, 'attributes', mixHash(id, attrHash));
 }
 
+const PROP_HASHERS = {
+    name: (store, id) => mixHash(id, store._hash.name[id]),
+    color: (store, id) => mixHash(id, store._color[id]),
+    visibility: (store, id) => mixHash(id, store._visibility[id] ? 3 : 0),
+    locked: (store, id) => mixHash(id, store._locked[id] ? 2 : 0),
+    isGroup: (store, id) => mixHash(id, store._isGroup[id] ? 1 : 0),
+    attributes: (store, id) => mixHash(id, store._hash.attributes[id])
+};
+
+function setSimpleProp(store, id, key, value) {
+    if (!store.has(id)) return;
+    store[`_${key}`][id] = value;
+    if (key === 'name') {
+        const h = murmurHash32(value);
+        store._hash.name[id] = h;
+    }
+    updateHashPart(store, id, key, PROP_HASHERS[key](store, id));
+}
+
 function prepareNode(store, id, { name, visibility, locked, color, isGroup, attributes }) {
     store._name[id] = name;
     store._visibility[id] = visibility;
@@ -118,33 +137,14 @@ export const useNodeStore = defineStore('nodes', {
         addGroup(props = {}) {
             return this._createNode(props, true);
         },
-        setName(id, name) {
-            if (!this.has(id)) return;
-            this._name[id] = name;
-            const h = murmurHash32(name);
-            this._hash.name[id] = h;
-            updateHashPart(this, id, 'name', mixHash(id, h));
-        },
-        setVisibility(id, value) {
-            if (!this.has(id)) return;
-            this._visibility[id] = value;
-            updateHashPart(this, id, 'visibility', mixHash(id, this._visibility[id] ? 3 : 0));
-        },
-        setLocked(id, value) {
-            if (!this.has(id)) return;
-            this._locked[id] = value;
-            updateHashPart(this, id, 'locked', mixHash(id, this._locked[id] ? 2 : 0));
-        },
+        setName(id, name) { setSimpleProp(this, id, 'name', name); },
+        setVisibility(id, value) { setSimpleProp(this, id, 'visibility', value); },
+        setLocked(id, value) { setSimpleProp(this, id, 'locked', value); },
         setColor(id, color) {
-            if (!this.has(id) || this._locked[id]) return;
-            this._color[id] = color;
-            updateHashPart(this, id, 'color', mixHash(id, this._color[id]));
+            if (this._locked[id]) return;
+            setSimpleProp(this, id, 'color', color);
         },
-        setIsGroup(id, value) {
-            if (!this.has(id)) return;
-            this._isGroup[id] = value;
-            updateHashPart(this, id, 'isGroup', mixHash(id, this._isGroup[id] ? 1 : 0));
-        },
+        setIsGroup(id, value) { setSimpleProp(this, id, 'isGroup', value); },
         setAttributes(id, attrs = []) {
             if (!this.has(id)) return;
             this._attributes[id] = reactive(Array.isArray(attrs) ? attrs.map(a => ({ ...a })) : []);
@@ -152,12 +152,17 @@ export const useNodeStore = defineStore('nodes', {
         },
         update(id, props = {}) {
             if (!this.has(id)) return;
-            if (props.name !== undefined) this.setName(id, props.name);
-            if (props.visibility !== undefined) this.setVisibility(id, props.visibility);
-            if (props.locked !== undefined) this.setLocked(id, props.locked);
-            if (props.color !== undefined) this.setColor(id, props.color);
-            if (props.isGroup !== undefined) this.setIsGroup(id, props.isGroup);
-            if (props.attributes !== undefined) this.setAttributes(id, props.attributes);
+            const handlers = {
+                name: this.setName,
+                visibility: this.setVisibility,
+                locked: this.setLocked,
+                color: this.setColor,
+                isGroup: this.setIsGroup,
+                attributes: this.setAttributes
+            };
+            for (const [key, value] of Object.entries(props)) {
+                if (value !== undefined && handlers[key]) handlers[key].call(this, id, value);
+            }
         },
         toggleVisibility(id) {
             this.setVisibility(id, !this._visibility[id]);
@@ -203,14 +208,8 @@ export const useNodeStore = defineStore('nodes', {
         },
         serialize() {
             const allIds = Object.keys(this._name).map(id => Number(id));
-            return Object.fromEntries(allIds.map(id => [id, {
-                name: this._name[id],
-                color: this._color[id],
-                visibility: this._visibility[id],
-                locked: this._locked[id],
-                isGroup: this._isGroup[id],
-                attributes: this._attributes[id]?.map(a => ({ ...a })) || []
-            }]));
+            const propsOf = this.getProperties;
+            return Object.fromEntries(allIds.map(id => [id, propsOf(id)]));
         },
         applySerialized(byId = {}) {
             this._name = {};

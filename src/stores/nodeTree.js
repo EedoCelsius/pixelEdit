@@ -78,6 +78,19 @@ function flattenSelectedNode(tree, selection) {
     return result;
 }
 
+function createTreeNode(id, nodeStore = useNodeStore()) {
+    return nodeStore.isGroup(id) ? { id, children: reactive([]) } : { id };
+}
+
+function prepareNodes(store, ids) {
+    const nodeStore = useNodeStore();
+    return ids.map(id => store._removeFromTree(id) || createTreeNode(id, nodeStore));
+}
+
+function xorSelection(store, id) {
+    store._hash.selection = (store._hash.selection ^ id) >>> 0;
+}
+
 function flattenSelectedLayers(tree, selection) {
     const result = new Set();
     for (const id of selection) {
@@ -93,9 +106,9 @@ function createHashNode(store, node) {
         const children = node.children.map(child => createHashNode(store, child));
         let h = node.id;
         for (const c of children) h = mixHash(h, c.hash);
-        hashNode = { hash: h, children };
+        hashNode = { hash: h >>> 0, children };
     } else {
-        hashNode = { hash: node.id };
+        hashNode = { hash: node.id >>> 0 };
     }
     store._hashNodes[node.id] = hashNode;
     return hashNode;
@@ -119,10 +132,10 @@ function rehashUpFrom(store, id) {
                     hNode.children = tNode.children.map(ch => store._hashNodes[ch.id]);
                     let h = tNode.id;
                     for (const ch of hNode.children) h = mixHash(h, ch.hash);
-                    hNode.hash = h;
+                    hNode.hash = h >>> 0;
                 } else {
                     delete hNode.children;
-                    hNode.hash = tNode.id;
+                    hNode.hash = tNode.id >>> 0;
                 }
             }
         }
@@ -131,7 +144,7 @@ function rehashUpFrom(store, id) {
     store._hash.tree.children = rootChildren;
     let rootHash = 0;
     for (const child of rootChildren) rootHash = mixHash(rootHash, child.hash);
-    store._hash.tree.hash = rootHash;
+    store._hash.tree.hash = rootHash >>> 0;
 }
 
 function rebuildHashTree(store) {
@@ -139,7 +152,7 @@ function rebuildHashTree(store) {
     const children = store._tree.map(node => createHashNode(store, node));
     let rootHash = 0;
     for (const child of children) rootHash = mixHash(rootHash, child.hash);
-    store._hash.tree = { hash: rootHash, children };
+    store._hash.tree = { hash: rootHash >>> 0, children };
 }
 
 export const useNodeTreeStore = defineStore('nodeTree', {
@@ -200,66 +213,39 @@ export const useNodeTreeStore = defineStore('nodeTree', {
             return removed;
         },
         insert(ids, targetId, placeBelow = true) {
-            const nodeStore = useNodeStore();
             const targetInfo = targetId != null ? this._findNode(targetId) : null;
             let parentArr = this._tree;
             let parentHashArr = this._hash.tree.children;
             let index = parentArr.length;
             if (targetInfo) {
                 parentArr = targetInfo.parent ? targetInfo.parent.children : this._tree;
-                if (targetInfo.parent) {
-                    parentHashArr = this._hashNodes[targetInfo.parent.id].children;
-                    if (!parentHashArr) {
-                        this._hashNodes[targetInfo.parent.id].children = [];
-                        parentHashArr = this._hashNodes[targetInfo.parent.id].children;
-                    }
-                } else {
-                    parentHashArr = this._hash.tree.children;
-                }
-                index = targetInfo.index;
-                if (!placeBelow) index++;
+                parentHashArr = targetInfo.parent
+                    ? (this._hashNodes[targetInfo.parent.id].children ||= [])
+                    : this._hash.tree.children;
+                index = targetInfo.index + (placeBelow ? 0 : 1);
             }
 
             const idsSet = new Set(ids);
-            let removedBefore = 0;
-            for (let i = 0; i < index; i++) {
-                if (idsSet.has(parentArr[i].id)) removedBefore++;
-            }
+            const removedBefore = parentArr
+                .slice(0, index)
+                .filter(n => idsSet.has(n.id)).length;
             index -= removedBefore;
 
-            const nodes = ids.map(id => {
-                const existing = this._removeFromTree(id);
-                if (existing) return existing;
-                return nodeStore.isGroup(id)
-                    ? { id, children: reactive([]) }
-                    : { id };
-            });
-
+            const nodes = prepareNodes(this, ids);
             const hashNodes = nodes.map(n => createHashNode(this, n));
             parentArr.splice(index, 0, ...nodes);
             parentHashArr.splice(index, 0, ...hashNodes);
             rehashUpFrom(this, targetInfo ? (targetInfo.parent ? targetInfo.parent.id : null) : null);
         },
         append(ids, groupId, placeTop = true) {
-            const nodeStore = useNodeStore();
-            const nodes = ids.map(id => {
-                const existing = this._removeFromTree(id);
-                if (existing) return existing;
-                return nodeStore.isGroup(id)
-                    ? { id, children: reactive([]) }
-                    : { id };
-            });
+            const nodes = prepareNodes(this, ids);
             const hashNodes = nodes.map(n => createHashNode(this, n));
             let targetArr = this._tree;
             let targetHashArr = this._hash.tree.children;
             if (groupId != null) {
                 const info = this._findNode(groupId);
                 if (info && info.node.children) targetArr = info.node.children;
-                targetHashArr = this._hashNodes[groupId].children;
-                if (!targetHashArr) {
-                    this._hashNodes[groupId].children = [];
-                    targetHashArr = this._hashNodes[groupId].children;
-                }
+                targetHashArr = this._hashNodes[groupId].children ||= [];
             }
             const index = placeTop ? 0 : targetArr.length;
             targetArr.splice(index, 0, ...nodes);
@@ -281,7 +267,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
                     const selected = this._selection.has(node.id);
                     if (ancestorSelected && selected) {
                         this._selection.delete(node.id);
-                        this._hash.selection ^= node.id;
+                        xorSelection(this, node.id);
                     }
                     if (node.children) traverse(node.children, ancestorSelected || selected);
                 }
@@ -289,7 +275,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
             traverse(this._tree, false);
         },
         _deselect(id) {
-            if (this._selection.delete(id)) { this._hash.selection ^= id; return; }
+            if (this._selection.delete(id)) { xorSelection(this, id); return; }
             const ancestor = this._selectedAncestor(id);
             if (!ancestor) return;
             const path = pathTo(this._tree, id);
@@ -301,25 +287,25 @@ export const useNodeTreeStore = defineStore('nodeTree', {
                     for (const child of node.children) {
                         if (!this._selection.has(child.id)) {
                             this._selection.add(child.id);
-                            this._hash.selection ^= child.id;
+                            xorSelection(this, child.id);
                         }
                     }
                 }
             }
-            if (this._selection.delete(ancestor.id)) this._hash.selection ^= ancestor.id;
-            if (this._selection.delete(id)) this._hash.selection ^= id;
+            if (this._selection.delete(ancestor.id)) xorSelection(this, ancestor.id);
+            if (this._selection.delete(id)) xorSelection(this, id);
         },
         replaceSelection(ids = []) {
             this._selection = new Set(ids);
             this._hash.selection = 0;
-            for (const id of this._selection) this._hash.selection ^= id;
+            for (const id of this._selection) xorSelection(this, id);
             this._collapseSelection();
         },
         addToSelection(ids = []) {
             for (const id of ids) {
                 if (!this._selectedAncestor(id) && !this._selection.has(id)) {
                     this._selection.add(id);
-                    this._hash.selection ^= id;
+                    xorSelection(this, id);
                 }
             }
             this._collapseSelection();
@@ -350,7 +336,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
                 if (node) collectIds(node);
             }
             for (const id of removed) {
-                if (this._selection.delete(id)) this._hash.selection ^= id;
+                if (this._selection.delete(id)) xorSelection(this, id);
             }
             return removed;
         },
@@ -369,7 +355,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
             rebuildHashTree(this);
             this._selection = new Set(payload?.selection || []);
             this._hash.selection = 0;
-            for (const id of this._selection) this._hash.selection ^= id;
+            for (const id of this._selection) xorSelection(this, id);
             this._collapseSelection();
         }
     }
