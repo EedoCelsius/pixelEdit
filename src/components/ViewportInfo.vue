@@ -19,7 +19,7 @@ const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, input } = 
 const { toolSelection: toolSelectionService, layerQuery } = useService();
 
 const selectedAreaPixelCount = computed(() => {
-    const pixels = getPixelUnion(pixelStore.getProperties(nodeTree.selectedLayerIds));
+    const pixels = getPixelUnion(pixelStore.get(nodeTree.selectedLayerIds));
     return pixels.length;
   });
 

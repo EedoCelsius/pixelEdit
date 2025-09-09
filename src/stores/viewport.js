@@ -71,12 +71,13 @@ export const useViewportStore = defineStore('viewport', {
             const newWidth = Math.max(1, this._stage.width + left + right);
             const newHeight = Math.max(1, this._stage.height + top + bottom);
             for (const id of tree.layerIdsBottomToTop) {
-                const pixels = pixelStore.get(id);
+                const arr = pixelStore.get(id);
                 const toRemove = [];
-                for (const pixel of pixels) {
-                    const [x, y] = indexToCoord(pixel);
+                for (let i = 0; i < arr.length; i++) {
+                    if (!arr[i]) continue;
+                    const [x, y] = indexToCoord(i);
                     if (x < 0 || y < 0 || x >= newWidth || y >= newHeight) {
-                        toRemove.push(pixel);
+                        toRemove.push(i);
                     }
                 }
                 if (toRemove.length) pixelStore.removePixels(id, toRemove);

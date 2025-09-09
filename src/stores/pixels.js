@@ -5,114 +5,86 @@ import { mixHash } from '../utils/hash.js';
 export const PIXEL_ORIENTATIONS = ['none', 'horizontal', 'downSlope', 'vertical', 'upSlope'];
 export const PIXEL_DEFAULT_ORIENTATIONS = [...PIXEL_ORIENTATIONS, 'checkerboard', 'slopeCheckerboard'];
 
-const ORIENTATION_IDS = Object.fromEntries(PIXEL_ORIENTATIONS.map((d, i) => [d, i + 1]));
+const ORIENTATION_IDS = Object.fromEntries(PIXEL_ORIENTATIONS.map((o, i) => [o, i + 1]));
+const ID_TO_ORIENTATION = Object.fromEntries(PIXEL_ORIENTATIONS.map((o, i) => [i + 1, o]));
 const PIXEL_HASHES = crypto.getRandomValues(new Uint32Array(MAX_DIMENSION * MAX_DIMENSION));
 
-function forEachOrientation(cb) {
-    for (const orientation of PIXEL_ORIENTATIONS) cb(orientation);
-}
-
 function ensureLayer(store, id) {
-    if (store._none[id]) return;
-    forEachOrientation(orientation => { store[`_${orientation}`][id] = new Set(); });
+    if (!store._pixels[id]) store._pixels[id] = new Uint8Array(MAX_DIMENSION * MAX_DIMENSION);
 }
 
-function unionSet(state, id) {
-    const merged = new Set();
-    forEachOrientation(orientation => {
-        for (const pixel of state[`_${orientation}`][id]) merged.add(pixel);
-    });
-    return merged;
-}
-
-function clearPixelAcross(store, id, pixel) {
-    forEachOrientation(orientation => store[`_${orientation}`][id].delete(pixel));
-}
-
-function hashOrientationPixels(store, id, orientation) {
+function hashLayer(arr) {
     let h = 0;
-    for (const p of store[`_${orientation}`][id]) h ^= PIXEL_HASHES[p];
+    for (let i = 0; i < arr.length; i++) {
+        const v = arr[i];
+        if (v) h ^= mixHash(v, PIXEL_HASHES[i]);
+    }
     return h;
 }
 
 function rehashLayer(store, id) {
-    const oldLayerHash = store._hash.layers[id] || 0;
-    let layerHash = 0;
-    for (const dir of PIXEL_ORIENTATIONS) {
-        const dirHash = hashOrientationPixels(store, id, dir);
-        store._hash[dir][id] = dirHash;
-        layerHash ^= mixHash(ORIENTATION_IDS[dir], dirHash);
-    }
+    const arr = store._pixels[id] || new Uint8Array(MAX_DIMENSION * MAX_DIMENSION);
+    const oldHash = store._hash.layers[id] || 0;
+    const layerHash = hashLayer(arr);
     store._hash.layers[id] = layerHash;
-    store._hash.all ^= mixHash(id, oldLayerHash) ^ mixHash(id, layerHash);
+    store._hash.all ^= mixHash(id, oldHash) ^ mixHash(id, layerHash);
 }
 
 export const usePixelStore = defineStore('pixels', {
     state: () => ({
-        _none: {},
-        _horizontal: {},
-        _downSlope: {},
-        _vertical: {},
-        _upSlope: {},
+        _pixels: {},
         _defaultOrientation: localStorage.getItem('settings.defaultOrientation') || PIXEL_DEFAULT_ORIENTATIONS[0],
-        _hash: { none: {}, horizontal: {}, downSlope: {}, vertical: {}, upSlope: {}, layers: {}, all: 0 }
+        _hash: { layers: {}, all: 0 }
     }),
     getters: {
-        defaultOrientation: (state) => state._defaultOrientation,
-        get: (state) => (id) => {
-            return [...unionSet(state, id)];
-        },
-        getOrientationPixels: (state) => (orientation, id) => {
-            return [...state[`_${orientation}`][id]];
-        },
-        getOrientationMap: (state) => (id) => {
-            const result = {};
-            forEachOrientation(orientation => {
-                const set = state[`_${orientation}`][id];
-                if (set.size) result[orientation] = [...set];
-            });
-            return result;
-        },
-        orientationOf: (state) => (id, pixel) => {
-            for (const orientation of PIXEL_ORIENTATIONS) {
-                if (state[`_${orientation}`][id].has(pixel)) return orientation;
+        defaultOrientation: (s) => s._defaultOrientation,
+        get: (s) => (id) => {
+            if (Array.isArray(id)) {
+                return id.map(i => {
+                    ensureLayer(s, i);
+                    return s._pixels[i];
+                });
             }
+            ensureLayer(s, id);
+            return s._pixels[id];
         },
-        pathOfLayer: (state) => (id) => {
-            return pixelsToUnionPath([...unionSet(state, id)]);
+        sizeOf: (s) => (id) => {
+            ensureLayer(s, id);
+            const arr = s._pixels[id];
+            let c = 0;
+            for (let i = 0; i < arr.length; i++) if (arr[i]) c++;
+            return c;
         },
-        disconnectedCountOfLayer: (state) => (id) => {
-            const pixels = [...unionSet(state, id)];
-            if (!pixels.length) return 0;
-            return groupConnectedPixels(pixels).length;
+        orientationOf: (s) => (id, pixel) => {
+            const v = s._pixels[id]?.[pixel] || 0;
+            return ID_TO_ORIENTATION[v];
         },
-        getProperties: (state) => {
-            const propsOf = (id) => ({
-                id,
-                pixels: [...unionSet(state, id)]
-            });
-            return (ids = []) => {
-                if (Array.isArray(ids)) return ids.map(propsOf);
-                return propsOf(ids);
-            };
+        pathOf: (s) => (id) => {
+            return pixelsToUnionPath(s._pixels[id]);
         },
-        has: (state) => (id, pixel) => {
-            for (const orientation of PIXEL_ORIENTATIONS) {
-                if (state[`_${orientation}`][id].has(pixel)) return true;
-            }
-            return false;
+        disconnectedCountOf: (s) => (id) => {
+            const arr = s._pixels[id];
+            if (!arr) return 0;
+            return groupConnectedPixels(arr).length;
+        },
+        has: (s) => (id, pixel) => {
+            return (s._pixels[id]?.[pixel] || 0) > 0;
         }
     },
     actions: {
         set(id, pixels = [], orientation) {
-            ensureLayer(this, id);
-            forEachOrientation(dir => this[`_${dir}`][id].clear());
-            if (Array.isArray(pixels)) {
+            if (pixels instanceof Uint8Array) {
+                this._pixels[id] = pixels;
+            } else if (Array.isArray(pixels)) {
+                ensureLayer(this, id);
+                this._pixels[id].fill(0);
                 this.addPixels(id, pixels, orientation ?? this._defaultOrientation);
             } else {
-                forEachOrientation(dir => {
-                    if (pixels[dir]?.length) this.addPixels(id, pixels[dir], dir);
-                });
+                ensureLayer(this, id);
+                this._pixels[id].fill(0);
+                for (const [ori, arr] of Object.entries(pixels || {})) {
+                    this.addPixels(id, arr, ori);
+                }
             }
             rehashLayer(this, id);
         },
@@ -121,114 +93,96 @@ export const usePixelStore = defineStore('pixels', {
                 const layerHash = this._hash.layers[id] || 0;
                 this._hash.all ^= mixHash(id, layerHash);
                 delete this._hash.layers[id];
-                forEachOrientation(orientation => {
-                    delete this[`_${orientation}`][id];
-                    delete this._hash[orientation][id];
-                });
+                delete this._pixels[id];
             }
         },
         addPixels(id, pixels, orientation) {
             ensureLayer(this, id);
+            const arr = this._pixels[id];
             orientation = orientation ?? this._defaultOrientation;
             if (orientation === 'checkerboard') {
                 for (const pixel of pixels) {
-                    clearPixelAcross(this, id, pixel);
                     const [x, y] = indexToCoord(pixel);
-                    const orientation = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
-                    this[`_${orientation}`][id].add(pixel);
+                    const o = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
+                    arr[pixel] = ORIENTATION_IDS[o];
                 }
-            }
-            else if (orientation === 'slopeCheckerboard') {
+            } else if (orientation === 'slopeCheckerboard') {
                 for (const pixel of pixels) {
-                    clearPixelAcross(this, id, pixel);
                     const [x, y] = indexToCoord(pixel);
-                    const orientation = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
-                    this[`_${orientation}`][id].add(pixel);
+                    const o = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
+                    arr[pixel] = ORIENTATION_IDS[o];
                 }
-            }
-            else {
-                for (const pixel of pixels) {
-                    clearPixelAcross(this, id, pixel);
-                    this[`_${orientation}`][id].add(pixel);
-                }
+            } else {
+                const idOri = ORIENTATION_IDS[orientation] || ORIENTATION_IDS.none;
+                for (const pixel of pixels) arr[pixel] = idOri;
             }
             rehashLayer(this, id);
         },
         removePixels(id, pixels) {
             ensureLayer(this, id);
-            forEachOrientation(orientation => {
-                const set = this[`_${orientation}`][id];
-                for (const pixel of pixels) set.delete(pixel);
-            });
+            const arr = this._pixels[id];
+            for (const pixel of pixels) arr[pixel] = 0;
             rehashLayer(this, id);
         },
         setOrientation(id, pixel, orientation) {
             ensureLayer(this, id);
-            const current = this.orientationOf(id, pixel);
-            this[`_${current}`][id].delete(pixel);
-            this[`_${orientation}`][id].add(pixel);
+            this._pixels[id][pixel] = ORIENTATION_IDS[orientation] || 0;
             rehashLayer(this, id);
         },
         togglePixel(id, pixel) {
             ensureLayer(this, id);
-            for (const orientation of PIXEL_ORIENTATIONS) {
-                const set = this[`_${orientation}`][id];
-                if (set.has(pixel)) {
-                    set.delete(pixel);
-                    rehashLayer(this, id);
-                    return;
-                }
+            const arr = this._pixels[id];
+            if (arr[pixel]) {
+                arr[pixel] = 0;
+                rehashLayer(this, id);
+                return;
             }
-            if (this._defaultOrientation === 'checkerboard') {
+            let ori = this._defaultOrientation;
+            if (ori === 'checkerboard') {
                 const [x, y] = indexToCoord(pixel);
-                const dir = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
-                this[`_${dir}`][id].add(pixel);
-            }
-            else if (this.defaultOrientation === 'slopeCheckerboard') {
+                ori = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
+            } else if (ori === 'slopeCheckerboard') {
                 const [x, y] = indexToCoord(pixel);
-                const dir = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
-                this[`_${dir}`][id].add(pixel);
+                ori = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
             }
-            else {
-                this[`_${this._defaultOrientation}`][id].add(pixel);
-            }
+            arr[pixel] = ORIENTATION_IDS[ori] || ORIENTATION_IDS.none;
             rehashLayer(this, id);
         },
         translateAll(dx = 0, dy = 0) {
             dx |= 0; dy |= 0;
             if (dx === 0 && dy === 0) return;
-            const touched = new Set();
-            forEachOrientation(orientation => {
-                const ids = Object.keys(this[`_${orientation}`]);
-                for (const id of ids) {
-                    const set = this[`_${orientation}`][id];
-                    const moved = new Set();
-                    for (const pixel of set) {
-                        const [x, y] = indexToCoord(pixel);
-                        moved.add(coordToIndex(x + dx, y + dy));
-                    }
-                    this[`_${orientation}`][id] = moved;
-                    touched.add(id);
+            const keys = Object.keys(this._pixels);
+            for (const idStr of keys) {
+                const id = Number(idStr);
+                const arr = this._pixels[id];
+                const moved = new Uint8Array(arr.length);
+                for (let i = 0; i < arr.length; i++) {
+                    const v = arr[i];
+                    if (!v) continue;
+                    const [x, y] = indexToCoord(i);
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    const ni = coordToIndex(nx, ny);
+                    moved[ni] = v;
                 }
-            });
-            for (const id of touched) rehashLayer(this, id);
+                this._pixels[id] = moved;
+                rehashLayer(this, id);
+            }
         },
         serialize() {
             const result = {};
-            const ids = new Set();
-            forEachOrientation(orientation => {
-                for (const id of Object.keys(this[`_${orientation}`])) ids.add(id);
-            });
-            for (const id of ids) {
-                result[id] = [...unionSet(this, id)];
+            for (const [id, arr] of Object.entries(this._pixels)) {
+                result[id] = Array.from(arr);
             }
             return result;
         },
         applySerialized(byId = {}) {
-            forEachOrientation(orientation => { this[`_${orientation}`] = {}; });
-            this._hash = { none: {}, horizontal: {}, downSlope: {}, vertical: {}, upSlope: {}, layers: {}, all: 0 };
-            for (const id of Object.keys(byId)) {
-                this.addPixels(id, byId[id], this._defaultOrientation);
+            this._pixels = {};
+            this._hash = { layers: {}, all: 0 };
+            for (const [id, data] of Object.entries(byId)) {
+                const arr = data instanceof Uint8Array ? data : Uint8Array.from(data);
+                this._pixels[id] = arr;
+                rehashLayer(this, Number(id));
             }
         },
         setDefaultOrientation(orientation) {
@@ -239,3 +193,4 @@ export const usePixelStore = defineStore('pixels', {
         }
     }
 });
+
