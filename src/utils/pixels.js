@@ -137,10 +137,8 @@ export function ensureOrientationPattern(orientation, target = document.body) {
     return id;
   }
 
-export function groupConnectedPixels(pixels) {
-    if (!pixels) return [];
-    const arr = pixels;
-    const visited = new Uint8Array(arr.length);
+export function groupConnectedPixels(target) {
+    const visited = new Uint8Array(target.length);
     const components = [];
     const neighbors = [
         [1, 0],
@@ -148,8 +146,8 @@ export function groupConnectedPixels(pixels) {
         [0, 1],
         [0, -1]
     ];
-    for (let i = 0; i < arr.length; i++) {
-        if (!arr[i] || visited[i]) continue;
+    for (let i = 0; i < target.length; i++) {
+        if (!target[i] || visited[i]) continue;
         const comp = [];
         const stack = [i];
         visited[i] = 1;
@@ -162,7 +160,7 @@ export function groupConnectedPixels(pixels) {
                 const ny = y + dy;
                 if (nx < 0 || ny < 0 || nx >= MAX_DIMENSION || ny >= MAX_DIMENSION) continue;
                 const ni = coordToIndex(nx, ny);
-                if (arr[ni] && !visited[ni]) {
+                if (target[ni] && !visited[ni]) {
                     visited[ni] = 1;
                     stack.push(ni);
                 }
@@ -173,21 +171,17 @@ export function groupConnectedPixels(pixels) {
     return components;
 }
 
-export function buildOutline(pixels) {
-    const arr = pixels;
-    let has = false;
-    for (let i = 0; i < arr.length && !has; i++) if (arr[i]) has = true;
-    if (!has) return [];
+export function buildOutline(target) {
     const paths = [];
-    const components = groupConnectedPixels(arr);
+    const components = groupConnectedPixels(target);
     for (const component of components) {
         const edges = [];
         for (const pixel of component) {
             const [x, y] = indexToCoord(pixel);
-            if (y === 0 || !arr[coordToIndex(x, y - 1)]) edges.push([[x, y], [x + 1, y]]);
-            if (x === MAX_DIMENSION - 1 || !arr[coordToIndex(x + 1, y)]) edges.push([[x + 1, y], [x + 1, y + 1]]);
-            if (y === MAX_DIMENSION - 1 || !arr[coordToIndex(x, y + 1)]) edges.push([[x, y + 1], [x + 1, y + 1]]);
-            if (x === 0 || !arr[coordToIndex(x - 1, y)]) edges.push([[x, y], [x, y + 1]]);
+            if (y === 0 || !target[coordToIndex(x, y - 1)]) edges.push([[x, y], [x + 1, y]]);
+            if (x === MAX_DIMENSION - 1 || !target[coordToIndex(x + 1, y)]) edges.push([[x + 1, y], [x + 1, y + 1]]);
+            if (y === MAX_DIMENSION - 1 || !target[coordToIndex(x, y + 1)]) edges.push([[x, y + 1], [x + 1, y + 1]]);
+            if (x === 0 || !target[coordToIndex(x - 1, y)]) edges.push([[x, y], [x, y + 1]]);
         }
         paths.push(edges);
     }
