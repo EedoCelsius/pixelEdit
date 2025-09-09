@@ -245,7 +245,6 @@ export function edgesToLoops(edges) {
 }
 
 export function pixelsToUnionPath(pixels) {
-    if (!pixels) return '';
     const groups = buildOutline(pixels);
     const parts = [];
     for (const segments of groups) {
