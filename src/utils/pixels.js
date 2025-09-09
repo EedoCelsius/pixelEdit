@@ -6,6 +6,7 @@ export const coordToIndex = (x, y) => x + MAX_DIMENSION * y;
 export const indexToCoord = (index) => [index % MAX_DIMENSION, Math.floor(index / MAX_DIMENSION)];
 
 export function getPixelUnion(pixelsList = []) {
+    if (!Array.isArray(pixelsList)) pixelsList = [pixelsList];
     const union = new Set();
     for (const pixels of pixelsList) {
         const pixelIdxs = pixels instanceof Map ? pixels.keys() : pixels

@@ -25,7 +25,7 @@ function serializeNode(id, nodeTree, nodes, pixelStore) {
         return {
             type: 'layer',
             ...base,
-            pixels: pixelStore.get(id),
+            pixels: pixelStore.get(id)
         };
     }
 }
