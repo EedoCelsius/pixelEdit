@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
 import { useStore } from '../stores';
-import { MAX_DIMENSION } from '../utils';
+import { MAX_DIMENSION } from '../utils/pixels.js';
 
 export const useImageLoadService = defineStore('imageLoadService', () => {
   const show = ref(false);

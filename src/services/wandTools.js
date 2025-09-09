@@ -6,7 +6,7 @@ import { useLayerQueryService } from './layerQuery';
 import { useNodeQueryService } from './nodeQuery';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
-import { coordToIndex, indexToCoord, groupConnectedPixels } from '../utils';
+import { coordToIndex, indexToCoord, groupConnectedPixels } from '../utils/pixels.js';
 
 export const usePathToolService = defineStore('pathToolService', () => {
     const tool = useToolSelectionService();

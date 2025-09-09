@@ -12,7 +12,8 @@
 import { computed } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
-import { getPixelUnion, rgbaCssU32, rgbaCssObj, indexToCoord } from '../utils';
+import { rgbaCssU32, rgbaCssObj } from '../utils';
+import { getPixelUnion, indexToCoord } from '../utils/pixels.js';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, input } = useStore();
 const { toolSelection: toolSelectionService, layerQuery } = useService();

@@ -24,7 +24,8 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue';
 import { useStore } from '../stores';
-import { rgbaCssU32, ensureCheckerboardPattern } from '../utils';
+import { rgbaCssU32 } from '../utils';
+import { ensureCheckerboardPattern } from '../utils/pixels.js';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output } = useStore();
 const text = ref('');

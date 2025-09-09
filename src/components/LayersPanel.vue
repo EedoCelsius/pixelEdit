@@ -81,7 +81,8 @@
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useStore } from '../stores';
-import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, clamp, ensureCheckerboardPattern, getPixelUnion } from '../utils';
+import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, clamp } from '../utils';
+import { ensureCheckerboardPattern, getPixelUnion } from '../utils/pixels.js';
 import blockIcons from '../image/layer_block';
 
 import { useService } from '../services';

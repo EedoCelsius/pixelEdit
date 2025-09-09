@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 import { useStore } from '../stores';
 import { useLayerQueryService } from './layerQuery';
-import { findPixelComponents, getPixelUnion, averageColorU32 } from '../utils';
+import { averageColorU32 } from '../utils';
+import { findPixelComponents, getPixelUnion } from '../utils/pixels.js';
 
 export const useLayerToolService = defineStore('layerToolService', () => {
     const { nodeTree, nodes, pixels } = useStore();

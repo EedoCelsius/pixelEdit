@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, reactive, watch } from 'vue';
 import { useStore } from '../stores';
-import { pixelsToUnionPath } from '../utils';
+import { pixelsToUnionPath } from '../utils/pixels.js';
 import { OVERLAY_STYLES } from '@/constants';
 
 export const useOverlayService = defineStore('overlayService', () => {

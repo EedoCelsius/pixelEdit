@@ -44,7 +44,7 @@
 
 <script setup>
 import { useService } from '../services';
-import { MAX_DIMENSION } from '../utils';
+import { MAX_DIMENSION } from '../utils/pixels.js';
 
 const { imageLoad: imageLoadService } = useService();
 
