@@ -10,7 +10,7 @@ function randColorU32() {
     const r = Math.floor(150 + Math.random() * 105);
     const g = Math.floor(50 + Math.random() * 180);
     const b = Math.floor(50 + Math.random() * 180);
-    return ((r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | (255 << 24)) >>> 0;
+    return (r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | (255 << 24);
 }
 
 function hashAttributes(attrs = []) {
@@ -22,23 +22,23 @@ function nodePartHash(id, value) {
     let h = id ^ value;
     h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
     h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-    return (h ^ (h >>> 16)) >>> 0;
+    return h ^ (h >>> 16);
 }
 
 function initNodeHash(store, id) {
     const node = {
-        id: id >>> 0,
+        id: id,
         name: nodePartHash(id, store._hash.name[id]),
         attributes: nodePartHash(id, store._hash.attributes[id]),
-        color: nodePartHash(id, store._color[id] >>> 0),
-        visibility: nodePartHash(id, store._visibility[id] ? 1 : 0),
+        color: nodePartHash(id, store._color[id]),
+        visibility: nodePartHash(id, store._visibility[id] ? 3 : 0),
         locked: nodePartHash(id, store._locked[id] ? 2 : 0),
         isGroup: nodePartHash(id, store._isGroup[id] ? 1 : 0),
         hash: 0
     };
-    node.hash = (node.id ^ node.name ^ node.attributes ^ node.color ^ node.visibility ^ node.locked ^ node.isGroup) >>> 0;
+    node.hash = node.id ^ node.name ^ node.attributes ^ node.color ^ node.visibility ^ node.locked ^ node.isGroup;
     store._hash.node[id] = node;
-    store._hash.all = (store._hash.all ^ node.hash) >>> 0;
+    store._hash.all ^= node.hash;
 }
 
 function updateHashPart(store, id, part, newValue) {
@@ -46,9 +46,9 @@ function updateHashPart(store, id, part, newValue) {
     if (!node) return;
     const oldNodeHash = node.hash;
     const oldPart = node[part] || 0;
-    node[part] = newValue >>> 0;
-    node.hash = (node.hash ^ oldPart ^ node[part]) >>> 0;
-    store._hash.all = (store._hash.all ^ oldNodeHash ^ node.hash) >>> 0;
+    node[part] = newValue;
+    node.hash ^= oldPart ^ node[part];
+    store._hash.all ^= oldNodeHash ^ node.hash;
 }
 
 function rehashAttributes(store, id) {
@@ -61,7 +61,7 @@ function prepareNode(store, id, { name, visibility, locked, color, isGroup, attr
     store._name[id] = name;
     store._visibility[id] = visibility;
     store._locked[id] = locked;
-    store._color[id] = color >>> 0;
+    store._color[id] = color;
     store._isGroup[id] = isGroup;
 
     const attrs = attributes.map(a => ({ ...a }));
@@ -85,19 +85,19 @@ export const useNodeStore = defineStore('nodes', {
     getters: {
         has: (state) => (id) => state._name[id] != null,
         name: (state) => (id) => state._name[id],
-        color: (state) => (id) => (state._color[id] >>> 0),
-        visibility: (state) => (id) => !!state._visibility[id],
-        locked: (state) => (id) => !!state._locked[id],
-        isGroup: (state) => (id) => !!state._isGroup[id],
+        color: (state) => (id) => state._color[id],
+        visibility: (state) => (id) => state._visibility[id],
+        locked: (state) => (id) => state._locked[id],
+        isGroup: (state) => (id) => state._isGroup[id],
         attributes: (state) => (id) => state._attributes[id]?.map(a => ({ ...a })) || [],
         getProperties: (state) => {
             const propsOf = (id) => ({
                 id,
                 name: state._name[id],
-                color: (state._color[id] >>> 0),
-                visibility: !!state._visibility[id],
-                locked: !!state._locked[id],
-                isGroup: !!state._isGroup[id],
+                color: state._color[id],
+                visibility: state._visibility[id],
+                locked: state._locked[id],
+                isGroup: state._isGroup[id],
                 attributes: state._attributes[id]?.map(a => ({ ...a })) || []
             });
             return (ids = []) => {
@@ -134,22 +134,22 @@ export const useNodeStore = defineStore('nodes', {
         },
         setVisibility(id, value) {
             if (!this.has(id)) return;
-            this._visibility[id] = !!value;
-            updateHashPart(this, id, 'visibility', nodePartHash(id, this._visibility[id] ? 1 : 0));
+            this._visibility[id] = value;
+            updateHashPart(this, id, 'visibility', nodePartHash(id, this._visibility[id] ? 3 : 0));
         },
         setLocked(id, value) {
             if (!this.has(id)) return;
-            this._locked[id] = !!value;
+            this._locked[id] = value;
             updateHashPart(this, id, 'locked', nodePartHash(id, this._locked[id] ? 2 : 0));
         },
         setColor(id, color) {
             if (!this.has(id) || this._locked[id]) return;
-            this._color[id] = (color >>> 0);
+            this._color[id] = color;
             updateHashPart(this, id, 'color', nodePartHash(id, this._color[id]));
         },
         setIsGroup(id, value) {
             if (!this.has(id)) return;
-            this._isGroup[id] = !!value;
+            this._isGroup[id] = value;
             updateHashPart(this, id, 'isGroup', nodePartHash(id, this._isGroup[id] ? 1 : 0));
         },
         setAttributes(id, attrs = []) {
@@ -204,7 +204,7 @@ export const useNodeStore = defineStore('nodes', {
                 delete this._hash.name[id];
                 delete this._hash.attributes[id];
                 delete this._hash.node[id];
-                this._hash.all = (this._hash.all ^ nodeHash) >>> 0;
+                this._hash.all ^= nodeHash;
             }
             return removed;
         },
@@ -212,10 +212,10 @@ export const useNodeStore = defineStore('nodes', {
             const allIds = Object.keys(this._name).map(id => Number(id));
             return Object.fromEntries(allIds.map(id => [id, {
                 name: this._name[id],
-                visibility: !!this._visibility[id],
-                locked: !!this._locked[id],
-                color: (this._color[id] >>> 0),
-                isGroup: !!this._isGroup[id],
+                color: this._color[id],
+                visibility: this._visibility[id],
+                locked: this._locked[id],
+                isGroup: this._isGroup[id],
                 attributes: this._attributes[id]?.map(a => ({ ...a })) || []
             }]));
         },
