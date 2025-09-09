@@ -14,7 +14,7 @@ export const useDrawToolService = defineStore('drawToolService', () => {
     const overlayService = useOverlayService();
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
-    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const usable = computed(() => (tool.shape === 'stroke' || tool.shape === 'rect') && nodeTree.selectedLayerCount === 1);
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'draw', name: 'Draw', icon: stageIcons.draw, usable });
@@ -49,7 +49,7 @@ export const useDrawToolService = defineStore('drawToolService', () => {
         if (tool.current !== 'draw' || !usable.value) return;
         const id = nodeTree.selectedLayerIds[0];
         if (nodes.locked(id)) return;
-        pixelStore.addPixels(id, pixels);
+        preview.applyPixelPreview(id, { add: pixels });
     });
     return { usable };
 });
@@ -59,7 +59,7 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     const overlayService = useOverlayService();
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.REMOVE);
-    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const usable = computed(() => (tool.shape === 'stroke' || tool.shape === 'rect') && nodeTree.selectedLayerCount === 1);
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'erase', name: 'Erase', icon: stageIcons.erase, usable });
@@ -96,7 +96,7 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
         if (tool.current !== 'erase' || !usable.value) return;
         const id = nodeTree.selectedLayerIds[0];
        if (nodes.locked(id)) return;
-        pixelStore.removePixels(id, pixels);
+        preview.applyPixelPreview(id, { remove: pixels });
     });
     return { usable };
 });

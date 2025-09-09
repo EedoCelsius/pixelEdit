@@ -4,7 +4,7 @@ import { useStore } from '../stores';
 import { coordToIndex, indexToCoord } from '../utils/pixels.js';
 
 export const useToolSelectionService = defineStore('toolSelectionService', () => {
-    const { viewport: viewportStore, viewportEvent: viewportEvents, output } = useStore();
+    const { viewport: viewportStore, viewportEvent: viewportEvents, output, preview } = useStore();
 
     const active = ref(false)
     const prepared = ref([]);
@@ -144,6 +144,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
             previewPixels.value = [];
         }
 
+        preview.commitPreview();
         output.commit();
         try { e.target.releasePointerCapture?.(pointer); } catch {}
 
@@ -159,6 +160,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     watch(() => [ viewportEvents.pinchIds, viewportEvents.recent.pointer.cancel ], ([pinches, cancels]) => {
         if (!pinches?.includes(pointer) || !cancels.includes(pointer)) return;
         output.rollbackPending();
+        preview.clearPreview();
         const startEvent = viewportEvents.get('pointerdown', pointer);
         try { startEvent?.target?.releasePointerCapture?.(pointer); } catch {}
         

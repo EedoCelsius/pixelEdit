@@ -115,7 +115,7 @@ export const useSelectToolService = defineStore('selectToolService', () => {
 });
 
 export const useOrientationToolService = defineStore('orientationToolService', () => {
-    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const tool = useToolSelectionService();
     const layerQuery = useLayerQueryService();
     const overlayService = useOverlayService();
@@ -276,7 +276,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
             for (const pixel of pixels) {
                 if (targetPixels.has(pixel)) pixelsToRemove.push(pixel);
             }
-            if (pixelsToRemove.length) pixelStore.removePixels(id, pixelsToRemove);
+            if (pixelsToRemove.length) preview.applyPixelPreview(id, { remove: pixelsToRemove });
         }
     });
     return { usable };

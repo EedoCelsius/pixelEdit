@@ -88,7 +88,7 @@ import blockIcons from '../image/layer_block';
 import { useService } from '../services';
 import { useContextMenuStore } from '../stores/contextMenu';
 
-const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output } = useStore();
+const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output, preview } = useStore();
 const { layerPanel, layerQuery, nodeQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc, clipboard } = useService();
 const contextMenu = useContextMenuStore();
 
@@ -247,10 +247,11 @@ function applyToSelection(id, fn, ids = nodeTree.selectedNodeIds) {
 
 function onColorInput(id, event) {
     const colorU32 = hexToRgbaU32(event.target.value);
-    applyToSelection(id, sid => nodes.setColor(sid, colorU32), nodeTree.selectedLayerIds);
+    applyToSelection(id, sid => preview.applyNodePreview(sid, { color: colorU32 }), nodeTree.selectedLayerIds);
 }
 
 function onColorChange() {
+    preview.commitPreview();
     output.commit();
 }
 
