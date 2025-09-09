@@ -5,25 +5,13 @@ export const MAX_DIMENSION = 128;
 export const coordToIndex = (x, y) => x + MAX_DIMENSION * y;
 export const indexToCoord = (index) => [index % MAX_DIMENSION, Math.floor(index / MAX_DIMENSION)];
 
-function toPixelSet(target) {
-    if (!target) return new Set();
-    if (target instanceof Set) return new Set(target);
-    if (target instanceof Map) return new Set(target.keys());
-    if (Array.isArray(target)) return new Set(target);
-    if (target instanceof Uint8Array) {
-        const s = new Set();
-        for (let i = 0; i < target.length; i++) if (target[i]) s.add(i);
-        return s;
-    }
-    return new Set();
-}
-
 export function getPixelUnion(pixelsList = []) {
     const union = new Set();
     for (const pixels of pixelsList) {
-        for (const p of pixels.keys()) union.add(p);
+        const pixelIdxs = pixels instanceof Map ? pixels.keys() : pixels
+        for (const i of pixelIdxs) union.add(i);
     }
-    return Array.from(union);
+    return union;
 }
 
 export function checkerboardPatternUrl(target = document.body) {
@@ -155,7 +143,8 @@ export function groupConnectedPixels(pixels) {
         [0, 1],
         [0, -1]
     ];
-    for (const i of pixels.keys()) {
+    const pixelIdxs = pixels instanceof Map ? pixels.keys() : pixels
+    for (const i of pixelIdxs) {
         if (visited.has(i)) continue;
         const comp = [];
         const stack = [i];
