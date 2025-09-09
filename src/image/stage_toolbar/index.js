@@ -10,7 +10,7 @@ import resize from './resize.svg';
 import undo from './undo.svg';
 import redo from './redo.svg';
 import path from './path.svg';
-import direction from './direction.svg';
+import orientation from './orientation.svg';
 import relay from './relay.svg';
 import border from './border.svg';
 import expand from './expand.svg';
@@ -27,11 +27,11 @@ export default {
   globalErase,
   top,
   path,
-    direction,
-    relay,
-    border,
-    expand,
-    wand,
+  orientation,
+  relay,
+  border,
+  expand,
+  wand,
   resize,
   undo,
   redo,

@@ -78,6 +78,15 @@ function flattenSelectedNode(tree, selection) {
     return result;
 }
 
+function createTreeNode(id, nodeStore = useNodeStore()) {
+    return nodeStore.isGroup(id) ? { id, children: reactive([]) } : { id };
+}
+
+function prepareNodes(store, ids) {
+    const nodeStore = useNodeStore();
+    return ids.map(id => store._removeFromTree(id) || createTreeNode(id, nodeStore));
+}
+
 function flattenSelectedLayers(tree, selection) {
     const result = new Set();
     for (const id of selection) {
@@ -200,66 +209,39 @@ export const useNodeTreeStore = defineStore('nodeTree', {
             return removed;
         },
         insert(ids, targetId, placeBelow = true) {
-            const nodeStore = useNodeStore();
             const targetInfo = targetId != null ? this._findNode(targetId) : null;
             let parentArr = this._tree;
             let parentHashArr = this._hash.tree.children;
             let index = parentArr.length;
             if (targetInfo) {
                 parentArr = targetInfo.parent ? targetInfo.parent.children : this._tree;
-                if (targetInfo.parent) {
-                    parentHashArr = this._hashNodes[targetInfo.parent.id].children;
-                    if (!parentHashArr) {
-                        this._hashNodes[targetInfo.parent.id].children = [];
-                        parentHashArr = this._hashNodes[targetInfo.parent.id].children;
-                    }
-                } else {
-                    parentHashArr = this._hash.tree.children;
-                }
-                index = targetInfo.index;
-                if (!placeBelow) index++;
+                parentHashArr = targetInfo.parent
+                    ? (this._hashNodes[targetInfo.parent.id].children ||= [])
+                    : this._hash.tree.children;
+                index = targetInfo.index + (placeBelow ? 0 : 1);
             }
 
             const idsSet = new Set(ids);
-            let removedBefore = 0;
-            for (let i = 0; i < index; i++) {
-                if (idsSet.has(parentArr[i].id)) removedBefore++;
-            }
+            const removedBefore = parentArr
+                .slice(0, index)
+                .filter(n => idsSet.has(n.id)).length;
             index -= removedBefore;
 
-            const nodes = ids.map(id => {
-                const existing = this._removeFromTree(id);
-                if (existing) return existing;
-                return nodeStore.isGroup(id)
-                    ? { id, children: reactive([]) }
-                    : { id };
-            });
-
+            const nodes = prepareNodes(this, ids);
             const hashNodes = nodes.map(n => createHashNode(this, n));
             parentArr.splice(index, 0, ...nodes);
             parentHashArr.splice(index, 0, ...hashNodes);
             rehashUpFrom(this, targetInfo ? (targetInfo.parent ? targetInfo.parent.id : null) : null);
         },
         append(ids, groupId, placeTop = true) {
-            const nodeStore = useNodeStore();
-            const nodes = ids.map(id => {
-                const existing = this._removeFromTree(id);
-                if (existing) return existing;
-                return nodeStore.isGroup(id)
-                    ? { id, children: reactive([]) }
-                    : { id };
-            });
+            const nodes = prepareNodes(this, ids);
             const hashNodes = nodes.map(n => createHashNode(this, n));
             let targetArr = this._tree;
             let targetHashArr = this._hash.tree.children;
             if (groupId != null) {
                 const info = this._findNode(groupId);
                 if (info && info.node.children) targetArr = info.node.children;
-                targetHashArr = this._hashNodes[groupId].children;
-                if (!targetHashArr) {
-                    this._hashNodes[groupId].children = [];
-                    targetHashArr = this._hashNodes[groupId].children;
-                }
+                targetHashArr = this._hashNodes[groupId].children ||= [];
             }
             const index = placeTop ? 0 : targetArr.length;
             targetArr.splice(index, 0, ...nodes);

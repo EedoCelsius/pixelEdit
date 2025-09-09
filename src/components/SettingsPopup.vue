@@ -8,16 +8,16 @@
         </div>
         <div v-if="currentTab === 'Pixels'" class="space-y-2 text-white/70">
           <label class="block">
-            <span>Default Direction</span>
-            <select v-model="defaultDirection" class="mt-1 w-full rounded bg-slate-700 px-2 py-1">
-              <option v-for="dir in directions" :key="dir" :value="dir">{{ dir }}</option>
+            <span>Default Orientation</span>
+            <select v-model="defaultOrientation" class="mt-1 w-full rounded bg-slate-700 px-2 py-1">
+              <option v-for="ori in orientations" :key="ori" :value="ori">{{ ori }}</option>
             </select>
           </label>
         </div>
         <div v-else-if="currentTab === 'Stage'" class="space-y-2 text-white/70">
           <label class="block">
             <span>Checkerboard Repeat</span>
-            <input type="number" min="1" v-model.number="checkerboardRepeat" class="mt-1 w-full rounded bg-slate-700 px-2 py-1" />
+            <input type="number" min="1" v-model.number="checkerboardRepeat" class="mt-1 w-full rounded bg-slate-700 px-2 py-1"/>
           </label>
         </div>
       </div>
@@ -31,7 +31,7 @@
 <script setup>
 import { ref, watch } from 'vue';
 import { useService } from '../services';
-import { usePixelStore, PIXEL_DEFAULT_DIRECTIONS } from '@/stores/pixels';
+import { usePixelStore, PIXEL_DEFAULT_ORIENTATIONS } from '@/stores/pixels';
 import { CHECKERBOARD_CONFIG } from '@/constants';
 import { ensureCheckerboardPattern } from '@/utils/pixels.js';
 
@@ -41,9 +41,9 @@ const pixelStore = usePixelStore();
 const tabs = ['Pixels', 'Stage'];
 const currentTab = ref(tabs[0]);
 
-const directions = PIXEL_DEFAULT_DIRECTIONS;
-const defaultDirection = ref(pixelStore.defaultDirection);
-watch(defaultDirection, dir => pixelStore.setDefaultDirection(dir));
+const orientations = PIXEL_DEFAULT_ORIENTATIONS;
+const defaultOrientation = ref(pixelStore.defaultOrientation);
+watch(defaultOrientation, ori => pixelStore.setDefaultOrientation(ori));
 
 const checkerboardRepeat = ref(CHECKERBOARD_CONFIG.REPEAT);
 watch(checkerboardRepeat, repeat => {

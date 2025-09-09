@@ -64,8 +64,8 @@ export function ensureCheckerboardPattern(target = document.body) {
     return id;
 }
 
-export function ensureDirectionPattern(direction, target = document.body) {
-    const id = `pixel-direction-${direction}`;
+export function ensureOrientationPattern(orientation, target = document.body) {
+    const id = `pixel-orientation-${orientation}`;
     if (document.getElementById(id)) return id;
     const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
     svg.setAttribute('width', '0');
@@ -78,10 +78,10 @@ export function ensureDirectionPattern(direction, target = document.body) {
     pattern.setAttribute('width', '1');
     pattern.setAttribute('height', '1');
     pattern.setAttribute('patternUnits', 'userSpaceOnUse');
-    if (direction === 'vertical' || direction === 'horizontal' || direction === 'downSlope' || direction === 'upSlope') {
+    if (orientation === 'vertical' || orientation === 'horizontal' || orientation === 'downSlope' || orientation === 'upSlope') {
         const border = document.createElementNS(SVG_NAMESPACE, 'line');
         const line = document.createElementNS(SVG_NAMESPACE, 'line');
-        if (direction === 'vertical') {
+        if (orientation === 'vertical') {
             border.setAttribute('x1', '.5');
             border.setAttribute('y1', '0');
             border.setAttribute('x2', '.5');
@@ -91,7 +91,7 @@ export function ensureDirectionPattern(direction, target = document.body) {
             line.setAttribute('x2', '.5');
             line.setAttribute('y2', '1');
         }
-        else if (direction === 'horizontal') {
+        else if (orientation === 'horizontal') {
             border.setAttribute('x1', '0');
             border.setAttribute('y1', '.5');
             border.setAttribute('x2', '1');
@@ -101,7 +101,7 @@ export function ensureDirectionPattern(direction, target = document.body) {
             line.setAttribute('x2', '1');
             line.setAttribute('y2', '.5');
         }
-        else if (direction === 'downSlope') {
+        else if (orientation === 'downSlope') {
             border.setAttribute('x1', '0');
             border.setAttribute('y1', '0');
             border.setAttribute('x2', '1');
