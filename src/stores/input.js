@@ -100,7 +100,7 @@ export const useInputStore = defineStore('input', {
                                     color: segment.colorU32,
                                     visibility: true
                                 });
-                                if (segment.pixels?.length) pixelStore.set(layerId, segment.pixels);
+                                pixelStore.set(layerId, segment.pixels || []);
                                 layerIds.push(layerId);
                             }
                             groupLayerMap.push({ groupId, layerIds });
@@ -111,7 +111,7 @@ export const useInputStore = defineStore('input', {
                                 color: segment.colorU32,
                                 visibility: true
                             });
-                            if (segment.pixels?.length) pixelStore.set(id, segment.pixels);
+                            pixelStore.set(id, segment.pixels || []);
                             topIds.push(id);
                         }
                     }
@@ -119,10 +119,12 @@ export const useInputStore = defineStore('input', {
                     for (const { groupId, layerIds } of groupLayerMap) nodeTree.append(layerIds, groupId, false);
                 } else {
                     const ids = [nodes.addLayer({}), nodes.addLayer({})];
+                    ids.forEach(id => pixelStore.set(id));
                     nodeTree.insert(ids);
                 }
             } else {
                 const ids = [nodes.addLayer({}), nodes.addLayer({})];
+                ids.forEach(id => pixelStore.set(id));
                 nodeTree.insert(ids);
             }
             layerPanel.setScrollRule({ type: 'follow', target: nodeTree.layerOrder[nodeTree.layerOrder.length - 1] });

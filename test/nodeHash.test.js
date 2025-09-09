@@ -1,6 +1,6 @@
 import test from 'node:test';
 import { webcrypto as crypto } from 'node:crypto';
-globalThis.crypto = crypto;
+if (!globalThis.crypto) globalThis.crypto = crypto;
 
 import assert from 'node:assert';
 import { createPinia, setActivePinia } from 'pinia';

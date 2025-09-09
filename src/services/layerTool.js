@@ -34,7 +34,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
             attributes: maintainedAttrs,
         });
         const newPixels = pixelUnion;
-        if (newPixels.length) pixels.addPixels(newLayerId, newPixels);
+        pixels.set(newLayerId, newPixels);
         nodeTree.insert([newLayerId], nodeTree.orderedSelection[0], true);
         const removed = nodeTree.remove(nodeTree.selectedNodeIds);
         nodes.remove(removed);
@@ -70,7 +70,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
                     attributes: props.attributes,
                 });
                 const px = pixels.get(srcId);
-                if (px.length) pixels.set(newId, px);
+                pixels.set(newId, px);
                 if (parentId == null) nodeTree.insert([newId], srcId, false);
                 else nodeTree.append([newId], parentId, false);
             }
