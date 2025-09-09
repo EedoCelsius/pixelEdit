@@ -62,6 +62,8 @@ const bottom = ref(0);
 const left = ref(0);
 const right = ref(0);
 
+const offsets = { top, bottom, left, right };
+
 const width = computed(() => viewport.stage.width);
 const height = computed(() => viewport.stage.height);
 const newWidth = computed({
@@ -84,20 +86,22 @@ const newHeight = computed({
     bottom.value = delta - top.value;
   },
 });
+const adjust = (edge, delta) => {
+  const refObj = offsets[edge];
+  if (refObj) refObj.value += delta;
+};
 
-function adjust(edge, delta) {
-  if (edge === 'top') top.value += delta;
-  else if (edge === 'bottom') bottom.value += delta;
-  else if (edge === 'left') left.value += delta;
-  else if (edge === 'right') right.value += delta;
-}
+const resetOffsets = () => Object.values(offsets).forEach(v => (v.value = 0));
 
-function close() {
-  stageResizeService.close();
-}
+const close = () => stageResizeService.close();
 
-function apply() {
-  stageResizeService.apply({ top: top.value, bottom: bottom.value, left: left.value, right: right.value });
-  top.value = bottom.value = left.value = right.value = 0;
-}
+const apply = () => {
+  stageResizeService.apply({
+    top: top.value,
+    bottom: bottom.value,
+    left: left.value,
+    right: right.value,
+  });
+  resetOffsets();
+};
 </script>
