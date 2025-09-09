@@ -43,8 +43,7 @@ export const useOverlayService = defineStore('overlayService', () => {
         const overlaySet = overlayPixels[id];
         for (const layerId of ids) {
             const layerMap = pixelStore.get(layerId);
-            if (!layerMap) continue;
-            for (const i of layerMap.keys()) overlaySet.add(i);
+            for (const idx of layerMap.keys()) overlaySet.add(idx);
         }
     }
 
