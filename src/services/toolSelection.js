@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, reactive, computed, watch } from 'vue';
 import { useStore } from '../stores';
-import { coordToIndex, indexToCoord } from '../utils';
+import { coordToIndex, indexToCoord } from '../utils/pixels.js';
 
 export const useToolSelectionService = defineStore('toolSelectionService', () => {
     const { viewport: viewportStore, viewportEvent: viewportEvents, output } = useStore();

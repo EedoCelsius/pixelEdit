@@ -40,3 +40,10 @@ export function murmurHash32(str, seed = 0) {
   h1 ^= h1 >>> 16;
   return h1 >>> 0;
 }
+
+export function mixHash(a, b) {
+  let h = a ^ b;
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return h ^ (h >>> 16);
+}

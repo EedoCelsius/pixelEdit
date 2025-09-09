@@ -7,7 +7,7 @@ import { useLayerQueryService } from './layerQuery';
 import { useStore } from '../stores';
 import { useToolbarStore } from '../stores/toolbar';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
-import { indexToCoord, ensureDirectionPattern } from '../utils';
+import { indexToCoord, ensureDirectionPattern } from '../utils/pixels.js';
 import { PIXEL_DIRECTIONS } from '../stores/pixels';
 import stageIcons from '../image/stage_toolbar';
 

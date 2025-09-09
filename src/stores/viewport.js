@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { readonly } from 'vue';
-import { clamp, coordToIndex, indexToCoord } from '../utils';
+import { clamp } from '../utils';
+import { coordToIndex, indexToCoord } from '../utils/pixels.js';
 import { MIN_SCALE_RATIO } from '@/constants';
 import { useNodeTreeStore } from './nodeTree';
 import { usePixelStore } from './pixels';

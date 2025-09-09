@@ -1,8 +1,12 @@
 import { defineStore } from 'pinia';
-import { coordToIndex, indexToCoord, pixelsToUnionPath, groupConnectedPixels } from '../utils';
+import { coordToIndex, indexToCoord, pixelsToUnionPath, groupConnectedPixels, MAX_DIMENSION } from '../utils/pixels.js';
+import { mixHash } from '../utils/hash.js';
 
 export const PIXEL_DIRECTIONS = ['none', 'horizontal', 'downSlope', 'vertical', 'upSlope'];
 export const PIXEL_DEFAULT_DIRECTIONS = [...PIXEL_DIRECTIONS, 'checkerboard', 'slopeCheckerboard'];
+
+const DIRECTION_IDS = Object.fromEntries(PIXEL_DIRECTIONS.map((d, i) => [d, i + 1]));
+const PIXEL_HASHES = crypto.getRandomValues(new Uint32Array(MAX_DIMENSION * MAX_DIMENSION));
 
 function unionSet(state, id) {
     const merged = new Set();
@@ -14,6 +18,26 @@ function unionSet(state, id) {
     return merged;
 }
 
+function hashDirectionPixels(store, id, direction) {
+    const set = store[`_${direction}`][id];
+    if (!set) return 0;
+    let h = 0;
+    for (const p of set) h ^= PIXEL_HASHES[p];
+    return h;
+}
+
+function rehashLayer(store, id) {
+    const oldLayerHash = store._hash.layers[id] || 0;
+    let layerHash = 0;
+    for (const dir of PIXEL_DIRECTIONS) {
+        const dirHash = hashDirectionPixels(store, id, dir);
+        store._hash[dir][id] = dirHash;
+        layerHash ^= mixHash(DIRECTION_IDS[dir], dirHash);
+    }
+    store._hash.layers[id] = layerHash;
+    store._hash.all ^= mixHash(id, oldLayerHash) ^ mixHash(id, layerHash);
+}
+
 export const usePixelStore = defineStore('pixels', {
     state: () => ({
         _none: {},
@@ -21,7 +45,8 @@ export const usePixelStore = defineStore('pixels', {
         _downSlope: {},
         _vertical: {},
         _upSlope: {},
-        _defaultDirection: localStorage.getItem('settings.defaultDirection') || PIXEL_DEFAULT_DIRECTIONS[0]
+        _defaultDirection: localStorage.getItem('settings.defaultDirection') || PIXEL_DEFAULT_DIRECTIONS[0],
+        _hash: { none: {}, horizontal: {}, downSlope: {}, vertical: {}, upSlope: {}, layers: {}, all: 0 }
     }),
     getters: {
         defaultDirection: (state) => state._defaultDirection,
@@ -83,10 +108,17 @@ export const usePixelStore = defineStore('pixels', {
                     if (pixels[dir]?.length) this.addPixels(id, pixels[dir], dir);
                 }
             }
+            rehashLayer(this, id);
         },
         remove(ids = []) {
             for (const id of ids) {
-                for (const direction of PIXEL_DIRECTIONS) delete this[`_${direction}`][id];
+                const layerHash = this._hash.layers[id] || 0;
+                this._hash.all ^= mixHash(id, layerHash);
+                delete this._hash.layers[id];
+                for (const direction of PIXEL_DIRECTIONS) {
+                    delete this[`_${direction}`][id];
+                    delete this._hash[direction][id];
+                }
             }
         },
         addPixels(id, pixels, direction) {
@@ -118,6 +150,7 @@ export const usePixelStore = defineStore('pixels', {
                     this[`_${direction}`][id].add(pixel);
                 }
             }
+            rehashLayer(this, id);
         },
         removePixels(id, pixels) {
             for (const direction of PIXEL_DIRECTIONS) {
@@ -125,6 +158,7 @@ export const usePixelStore = defineStore('pixels', {
                 if (!set) continue;
                 for (const pixel of pixels) set.delete(pixel);
             }
+            rehashLayer(this, id);
         },
         setDirection(id, pixel, direction) {
             const current = this.directionOf(id, pixel);
@@ -132,12 +166,14 @@ export const usePixelStore = defineStore('pixels', {
             this[`_${current}`][id].delete(pixel);
             if (!this[`_${direction}`][id]) this[`_${direction}`][id] = new Set();
             this[`_${direction}`][id].add(pixel);
+            rehashLayer(this, id);
         },
         togglePixel(id, pixel) {
             for (const direction of PIXEL_DIRECTIONS) {
                 const set = this[`_${direction}`][id];
                 if (set && set.has(pixel)) {
                     set.delete(pixel);
+                    rehashLayer(this, id);
                     return;
                 }
             }
@@ -157,10 +193,12 @@ export const usePixelStore = defineStore('pixels', {
                 const target = this[`_${this._defaultDirection}`][id];
                 if (target) target.add(pixel);
             }
+            rehashLayer(this, id);
         },
         translateAll(dx = 0, dy = 0) {
             dx |= 0; dy |= 0;
             if (dx === 0 && dy === 0) return;
+            const touched = new Set();
             for (const direction of PIXEL_DIRECTIONS) {
                 const ids = Object.keys(this[`_${direction}`]);
                 for (const id of ids) {
@@ -171,8 +209,10 @@ export const usePixelStore = defineStore('pixels', {
                         moved.add(coordToIndex(x + dx, y + dy));
                     }
                     this[`_${direction}`][id] = moved;
+                    touched.add(id);
                 }
             }
+            for (const id of touched) rehashLayer(this, id);
         },
         serialize() {
             const result = {};
@@ -187,6 +227,7 @@ export const usePixelStore = defineStore('pixels', {
         },
         applySerialized(byId = {}) {
             for (const direction of PIXEL_DIRECTIONS) this[`_${direction}`] = {};
+            this._hash = { none: {}, horizontal: {}, downSlope: {}, vertical: {}, upSlope: {}, layers: {}, all: 0 };
             for (const id of Object.keys(byId)) {
                 this.addPixels(id, byId[id], this._defaultDirection);
             }

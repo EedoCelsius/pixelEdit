@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { reactive } from 'vue';
-import { murmurHash32 } from '../utils/hash.js';
+import { murmurHash32, mixHash } from '../utils/hash.js';
 
 // ---------------------------------------------------------------------------
 // hash helpers
@@ -18,22 +18,15 @@ function hashAttributes(attrs = []) {
     return murmurHash32(str);
 }
 
-function nodePartHash(id, value) {
-    let h = id ^ value;
-    h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
-    h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-    return h ^ (h >>> 16);
-}
-
 function initNodeHash(store, id) {
     const node = {
         id: id,
-        name: nodePartHash(id, store._hash.name[id]),
-        attributes: nodePartHash(id, store._hash.attributes[id]),
-        color: nodePartHash(id, store._color[id]),
-        visibility: nodePartHash(id, store._visibility[id] ? 3 : 0),
-        locked: nodePartHash(id, store._locked[id] ? 2 : 0),
-        isGroup: nodePartHash(id, store._isGroup[id] ? 1 : 0),
+        name: mixHash(id, store._hash.name[id]),
+        attributes: mixHash(id, store._hash.attributes[id]),
+        color: mixHash(id, store._color[id]),
+        visibility: mixHash(id, store._visibility[id] ? 3 : 0),
+        locked: mixHash(id, store._locked[id] ? 2 : 0),
+        isGroup: mixHash(id, store._isGroup[id] ? 1 : 0),
         hash: 0
     };
     node.hash = node.id ^ node.name ^ node.attributes ^ node.color ^ node.visibility ^ node.locked ^ node.isGroup;
@@ -54,7 +47,7 @@ function updateHashPart(store, id, part, newValue) {
 function rehashAttributes(store, id) {
     const attrHash = hashAttributes(store._attributes[id] || []);
     store._hash.attributes[id] = attrHash;
-    updateHashPart(store, id, 'attributes', nodePartHash(id, attrHash));
+    updateHashPart(store, id, 'attributes', mixHash(id, attrHash));
 }
 
 function prepareNode(store, id, { name, visibility, locked, color, isGroup, attributes }) {
@@ -130,27 +123,27 @@ export const useNodeStore = defineStore('nodes', {
             this._name[id] = name;
             const h = murmurHash32(name);
             this._hash.name[id] = h;
-            updateHashPart(this, id, 'name', nodePartHash(id, h));
+            updateHashPart(this, id, 'name', mixHash(id, h));
         },
         setVisibility(id, value) {
             if (!this.has(id)) return;
             this._visibility[id] = value;
-            updateHashPart(this, id, 'visibility', nodePartHash(id, this._visibility[id] ? 3 : 0));
+            updateHashPart(this, id, 'visibility', mixHash(id, this._visibility[id] ? 3 : 0));
         },
         setLocked(id, value) {
             if (!this.has(id)) return;
             this._locked[id] = value;
-            updateHashPart(this, id, 'locked', nodePartHash(id, this._locked[id] ? 2 : 0));
+            updateHashPart(this, id, 'locked', mixHash(id, this._locked[id] ? 2 : 0));
         },
         setColor(id, color) {
             if (!this.has(id) || this._locked[id]) return;
             this._color[id] = color;
-            updateHashPart(this, id, 'color', nodePartHash(id, this._color[id]));
+            updateHashPart(this, id, 'color', mixHash(id, this._color[id]));
         },
         setIsGroup(id, value) {
             if (!this.has(id)) return;
             this._isGroup[id] = value;
-            updateHashPart(this, id, 'isGroup', nodePartHash(id, this._isGroup[id] ? 1 : 0));
+            updateHashPart(this, id, 'isGroup', mixHash(id, this._isGroup[id] ? 1 : 0));
         },
         setAttributes(id, attrs = []) {
             if (!this.has(id)) return;

@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 import { useStore } from '.';
 import { useLayerPanelService } from '../services/layerPanel';
-import { packRGBA, averageColorU32, coordToIndex, indexToCoord, MAX_DIMENSION } from '../utils';
+import { packRGBA, averageColorU32 } from '../utils';
+import { coordToIndex, indexToCoord, MAX_DIMENSION } from '../utils/pixels.js';
 
 export const useInputStore = defineStore('input', {
     state: () => ({

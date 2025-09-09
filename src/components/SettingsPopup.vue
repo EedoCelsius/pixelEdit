@@ -33,7 +33,7 @@ import { ref, watch } from 'vue';
 import { useService } from '../services';
 import { usePixelStore, PIXEL_DEFAULT_DIRECTIONS } from '@/stores/pixels';
 import { CHECKERBOARD_CONFIG } from '@/constants';
-import { ensureCheckerboardPattern } from '@/utils';
+import { ensureCheckerboardPattern } from '@/utils/pixels.js';
 
 const { settings: settingsService } = useService();
 const pixelStore = usePixelStore();
