@@ -51,7 +51,6 @@ export const usePixelStore = defineStore('pixels', {
         },
         sizeOf: (s) => (id) => {
             const arr = s._pixels[id];
-            if (!arr) return 0;
             let c = 0;
             for (let i = 0; i < arr.length; i++) if (arr[i]) c++;
             return c;
@@ -65,7 +64,6 @@ export const usePixelStore = defineStore('pixels', {
         },
         disconnectedCountOf: (s) => (id) => {
             const arr = s._pixels[id];
-            if (!arr) return 0;
             return groupConnectedPixels(arr).length;
         },
         has: (s) => (id, pixel) => {
