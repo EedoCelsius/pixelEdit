@@ -9,25 +9,25 @@ export const useLayerToolService = defineStore('layerToolService', () => {
 
     function mergeSelected() {
         if (nodeTree.selectedLayerCount < 2 && nodeTree.selectedGroupCount === 0) return;
-        const pixelUnion = getPixelUnion(pixels.getProperties(nodeTree.selectedLayerIds));
 
+        const pixelUnion = getPixelUnion(pixels.getProperties(nodeTree.selectedLayerIds));
         const colors = [];
         if (pixelUnion.length) {
             for (const pixel of pixelUnion) {
                 const id = layerQuery.topVisibleAt(pixel, nodeTree.selectedLayerIds);
-                colors.push(id ? nodes.getProperty(id, 'color') : 0);
+                colors.push(id ? nodes.color(id) : 0);
             }
         } else {
             for (const id of nodeTree.selectedLayerIds) {
-                colors.push(nodes.getProperty(id, 'color'));
+                colors.push(nodes.color(id));
             }
         }
         const colorU32 = averageColorU32(colors);
 
         const baseId = nodeTree.selectedLayerIds[0] || nodeTree.selectedGroupIds[0];
-        const maintainedName = nodes.getProperty(baseId, 'name') || 'Merged';
-        const maintainedAttrs = nodes.getProperty(baseId, 'attributes');
-        const newLayerId = nodes.createLayer({
+        const maintainedName = nodes.name(baseId) || 'Merged';
+        const maintainedAttrs = nodes.attributes(baseId);
+        const newLayerId = nodes.addLayer({
             name: `Merged ${maintainedName}`,
             color: colorU32,
             attributes: maintainedAttrs,
@@ -49,19 +49,8 @@ export const useLayerToolService = defineStore('layerToolService', () => {
             const props = nodes.getProperties(srcId);
             const name = prefix ? `Copy of ${props.name}` : props.name;
             let newId;
-            if (props.type === 'layer') {
-                newId = nodes.createLayer({
-                    name,
-                    color: props.color,
-                    visibility: props.visibility,
-                    attributes: props.attributes,
-                });
-                const px = pixels.get(srcId);
-                if (px.length) pixels.set(newId, px);
-                if (parentId == null) nodeTree.insert([newId], srcId, false);
-                else nodeTree.append([newId], parentId, false);
-            } else if (props.type === 'group') {
-                newId = nodes.createGroup({
+            if (props.isGroup) {
+                newId = nodes.addGroup({
                     name,
                     color: props.color,
                     visibility: props.visibility,
@@ -72,6 +61,17 @@ export const useLayerToolService = defineStore('layerToolService', () => {
                 const info = nodeTree._findNode(srcId);
                 const children = info?.node.children || [];
                 for (const child of children) copyInto(child.id, newId, false);
+            } else {
+                newId = nodes.addLayer({
+                    name,
+                    color: props.color,
+                    visibility: props.visibility,
+                    attributes: props.attributes,
+                });
+                const px = pixels.get(srcId);
+                if (px.length) pixels.set(newId, px);
+                if (parentId == null) nodeTree.insert([newId], srcId, false);
+                else nodeTree.append([newId], parentId, false);
             }
             return newId;
         };
@@ -100,7 +100,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
 
             const original = nodes.getProperties(layerId);
             const newIds = components.reverse().map((componentPixels, index) => {
-                const newId = nodes.createLayer({
+                const newId = nodes.addLayer({
                     name: `${original.name} #${components.length - index}`,
                     color: original.color,
                     visibility: original.visibility,
@@ -126,7 +126,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
 
     function groupSelected() {
         const selected = nodeTree.selectedIds;
-        const id = nodes.createGroup({});
+        const id = nodes.addGroup({});
         if (selected.length === 0) {
             nodeTree.append([id], null, false);
         } else {
@@ -139,7 +139,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
     }
 
     function ungroupSelected() {
-        const groupIds = nodeTree.selectedIds.filter(id => nodes.getProperty(id, 'type') === 'group');
+        const groupIds = nodeTree.selectedIds.filter(id => nodes.isGroup(id));
         const newSelection = [];
         for (const groupId of groupIds) {
             const childrenIds = nodeTree._findNode(groupId).node.children.map(c => c.id);
@@ -154,7 +154,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
 
     function flipOrderSelected() {
         const selected = nodeTree.selectedIds;
-        if (selected.length === 1 && nodes.getProperty(selected[0], 'type') === 'group') {
+        if (selected.length === 1 && nodes.isGroup(selected[0])) {
             const info = nodeTree._findNode(selected[0]);
             if (info?.node.children) info.node.children.reverse();
             return;

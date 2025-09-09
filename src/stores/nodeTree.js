@@ -5,7 +5,7 @@ import { useNodeStore } from './nodes';
 function flattenLayers(nodes, result = [], nodeStore = useNodeStore()) {
     for (const node of nodes) {
         if (node.children) flattenLayers(node.children, result, nodeStore);
-        else if (nodeStore.getProperty(node.id, 'type') === 'layer') result.push(node.id);
+        else if (!nodeStore.isGroup(node.id)) result.push(node.id);
     }
     return result;
 }
@@ -57,7 +57,7 @@ function pathTo(nodes, id, stack = []) {
 
 function collectLayerIds(node, result = [], nodeStore = useNodeStore()) {
     if (!node) return result;
-    if (nodeStore.getProperty(node.id, 'type') === 'group') {
+    if (nodeStore.isGroup(node.id)) {
         if (node.children) {
             for (const child of node.children) collectLayerIds(child, result, nodeStore);
         }
@@ -118,7 +118,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
         selectedNodeCount(state) { return this._selectedNodeIds.length },
         selectedGroupIds(state) {
             const nodeStore = useNodeStore();
-            return [...state._selection].filter(id => nodeStore.getProperty(id, 'type') === 'group');
+            return [...state._selection].filter(id => nodeStore.isGroup(id));
         },
         selectedGroupCount(state) { return this.selectedGroupIds.length },
         descendantLayerIds(state) { return (id) => {
@@ -158,7 +158,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
             const nodes = ids.map(id => {
                 const existing = this._removeFromTree(id);
                 if (existing) return existing;
-                return nodeStore.getProperty(id, 'type') === 'group'
+                return nodeStore.isGroup(id)
                     ? { id, children: reactive([]) }
                     : { id };
             });
@@ -170,7 +170,7 @@ export const useNodeTreeStore = defineStore('nodeTree', {
             const nodes = ids.map(id => {
                 const existing = this._removeFromTree(id);
                 if (existing) return existing;
-                return nodeStore.getProperty(id, 'type') === 'group'
+                return nodeStore.isGroup(id)
                     ? { id, children: reactive([]) }
                     : { id };
             });

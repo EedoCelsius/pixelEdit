@@ -25,9 +25,9 @@ export const usePathToolService = defineStore('pathToolService', () => {
         const allPixels = pixelStore.get(layerId);
         const paths = await hamiltonian.traverseFree(allPixels);
 
-        const color = nodes.getProperty(layerId, 'color');
-        const name = nodes.getProperty(layerId, 'name');
-        const groupId = nodes.createGroup({ name: `${name} Paths` });
+        const color = nodes.color(layerId);
+        const name = nodes.name(layerId);
+        const groupId = nodes.addGroup({ name: `${name} Paths` });
 
         nodeTree.insert([groupId], layerQuery.lowermost([layerId]), true);
 
@@ -36,12 +36,12 @@ export const usePathToolService = defineStore('pathToolService', () => {
         pixelStore.remove([layerId]);
 
         paths.forEach((path, idx) => {
-            const subGroupId = nodes.createGroup({ name: `Path ${idx + 1}` });
+            const subGroupId = nodes.addGroup({ name: `Path ${idx + 1}` });
             nodeTree.append([subGroupId], groupId, false);
 
             const ids = [];
             path.forEach((pixel, j) => {
-                const lid = nodes.createLayer({ name: `Pixel ${j + 1}`, color });
+                const lid = nodes.addLayer({ name: `Pixel ${j + 1}`, color });
                 pixelStore.addPixels(lid, [pixel]);
                 ids.push(lid);
             });
@@ -206,8 +206,8 @@ export const useExpandToolService = defineStore('expandToolService', () => {
                     }
                 }
                 if (!layerId) continue;
-                const color = nodes.getProperty(layerId, 'color');
-                const name = nodes.getProperty(layerId, 'name');
+                const color = nodes.color(layerId);
+                const name = nodes.name(layerId);
                 let group = colorGroups.get(color);
                 if (!group) {
                     group = { name, color, pixels: [] };
@@ -221,7 +221,7 @@ export const useExpandToolService = defineStore('expandToolService', () => {
             for (const { name, color, pixels } of colorGroups.values()) {
                 const components = groupConnectedPixels(pixels);
                 for (const comp of components) {
-                    const id = nodes.createLayer({ name, color });
+                    const id = nodes.addLayer({ name, color });
                     pixelStore.set(id, comp);
                     newLayerIds.push(id);
                 }

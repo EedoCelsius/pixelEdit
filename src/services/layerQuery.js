@@ -66,7 +66,7 @@ export const useLayerQueryService = defineStore('layerQueryService', () => {
 
     function byColor(color) {
         return nodeTree.layerOrder.filter(
-            layerId => nodes.getProperty(layerId, 'color') === color
+            layerId => nodes.color(layerId) === color
         );
     }
 

@@ -36,7 +36,7 @@ const canSplit = computed(() => nodeTree.selectedLayerIds.some(id => pixelStore.
 const onAdd = () => {
     output.setRollbackPoint();
     const above = nodeTree.selectedLayerCount ? layerQuery.uppermost(nodeTree.selectedLayerIds) : null;
-    const id = nodes.createLayer({color: 0xFFFFFFFF});
+    const id = nodes.addLayer({color: 0xFFFFFFFF});
     nodeTree.insert([id], above, false);
     nodeTree.replaceSelection([id]);
     layerPanel.setScrollRule({ type: 'follow', target: id });

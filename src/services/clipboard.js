@@ -12,14 +12,14 @@ function serializeNode(id, nodeTree, nodes, pixelStore) {
         locked: props.locked,
         attributes: props.attributes,
     };
-    if (props.type === 'layer') {
+    if (!props.isGroup) {
         return {
             type: 'layer',
             ...base,
             pixels: pixelStore.getDirectional(id),
         };
     }
-    if (props.type === 'group') {
+    if (props.isGroup) {
         const info = nodeTree._findNode(id);
         const children = info?.node.children || [];
         return {
@@ -53,12 +53,12 @@ export const useClipboardService = defineStore('clipboardService', () => {
             attributes: data.attributes,
         };
         if (data.type === 'layer') {
-            const id = nodes.createLayer(base);
+            const id = nodes.addLayer(base);
             if (data.pixels) pixelStore.set(id, data.pixels);
             return { id, children: [] };
         }
         if (data.type === 'group') {
-            const id = nodes.createGroup(base);
+            const id = nodes.addGroup(base);
             const children = (data.children || []).map(c => createFrom(c));
             return { id, children };
         }

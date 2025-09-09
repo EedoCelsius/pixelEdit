@@ -85,7 +85,7 @@ export const useInputStore = defineStore('input', {
                     for (const [color, info] of sortedGroups) {
                         const { segments } = info;
                         if (segments.length > 1) {
-                            const groupId = nodes.createGroup({
+                            const groupId = nodes.addGroup({
                                 name: `Auto Group ${groupCounter++}`,
                                 color,
                                 visibility: true
@@ -94,7 +94,7 @@ export const useInputStore = defineStore('input', {
                             layerPanel.folded[groupId] = true;
                             const layerIds = [];
                             for (const segment of segments) {
-                                const layerId = nodes.createLayer({
+                                const layerId = nodes.addLayer({
                                     name: `Auto ${layerCounter++}`,
                                     color: segment.colorU32,
                                     visibility: true
@@ -105,7 +105,7 @@ export const useInputStore = defineStore('input', {
                             groupLayerMap.push({ groupId, layerIds });
                         } else {
                             const segment = segments[0];
-                            const id = nodes.createLayer({
+                            const id = nodes.addLayer({
                                 name: `Auto ${layerCounter++}`,
                                 color: segment.colorU32,
                                 visibility: true
@@ -117,11 +117,11 @@ export const useInputStore = defineStore('input', {
                     nodeTree.insert(topIds);
                     for (const { groupId, layerIds } of groupLayerMap) nodeTree.append(layerIds, groupId, false);
                 } else {
-                    const ids = [nodes.createLayer({}), nodes.createLayer({})];
+                    const ids = [nodes.addLayer({}), nodes.addLayer({})];
                     nodeTree.insert(ids);
                 }
             } else {
-                const ids = [nodes.createLayer({}), nodes.createLayer({})];
+                const ids = [nodes.addLayer({}), nodes.addLayer({})];
                 nodeTree.insert(ids);
             }
             layerPanel.setScrollRule({ type: 'follow', target: nodeTree.layerOrder[nodeTree.layerOrder.length - 1] });
