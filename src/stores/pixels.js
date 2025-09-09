@@ -13,34 +13,34 @@ function hashLayer(map) {
     let h = 0;
     if (map instanceof Map) {
         for (const [i, v] of map) {
-            if (v) h ^= mixHash(v, PIXEL_HASHES[i]);
+            h ^= mixHash(v, PIXEL_HASHES[i]);
         }
     }
     return h;
 }
 
 function rehashLayer(store, id) {
-    const map = store._pixels[id] || new Map();
-    const oldHash = store._hash.layers[id] || 0;
-    const layerHash = hashLayer(map);
-    store._hash.layers[id] = layerHash;
-    store._hash.all ^= mixHash(id, oldHash) ^ mixHash(id, layerHash);
+    const map = store._pixels[id];
+    const oldHash = store._hash.layers[id];
+    const newHash = hashLayer(map);
+    store._hash.layers[id] = newHash;
+    store._hash.all ^= mixHash(id, oldHash) ^ mixHash(id, newHash);
 }
 
 function updatePixelHash(store, id, index, oldVal, newVal) {
-    const oldLayerHash = store._hash.layers[id] || 0;
+    const oldHash = store._hash.layers[id];
     const oldMix = oldVal ? mixHash(oldVal, PIXEL_HASHES[index]) : 0;
     const newMix = newVal ? mixHash(newVal, PIXEL_HASHES[index]) : 0;
-    const newLayerHash = oldLayerHash ^ oldMix ^ newMix;
-    store._hash.layers[id] = newLayerHash;
-    store._hash.all ^= mixHash(id, oldLayerHash) ^ mixHash(id, newLayerHash);
+    const newHash = oldHash ^ oldMix ^ newMix;
+    store._hash.layers[id] = newHash;
+    store._hash.all ^= mixHash(id, oldHash) ^ mixHash(id, newHash);
 }
 
 export const usePixelStore = defineStore('pixels', {
     state: () => ({
         _pixels: {},
-        _defaultOrientation: localStorage.getItem('settings.defaultOrientation') || PIXEL_DEFAULT_ORIENTATIONS[0],
-        _hash: { layers: {}, all: 0 }
+        _hash: { layers: {}, all: 0 },
+        _defaultOrientation: localStorage.getItem('settings.defaultOrientation') || PIXEL_DEFAULT_ORIENTATIONS[0]
     }),
     getters: {
         defaultOrientation: (s) => s._defaultOrientation,
@@ -52,10 +52,10 @@ export const usePixelStore = defineStore('pixels', {
         },
         sizeOf: (s) => (id) => {
             const map = s._pixels[id];
-            return map ? map.size : 0;
+            return map.size;
         },
         orientationOf: (s) => (id, pixel) => {
-            const v = s._pixels[id]?.get(pixel) || 0;
+            const v = s._pixels[id].get(pixel);
             return ID_TO_ORIENTATION[v];
         },
         pathOf: (s) => (id) => {
@@ -66,27 +66,26 @@ export const usePixelStore = defineStore('pixels', {
             return groupConnectedPixels(map).length;
         },
         has: (s) => (id, pixel) => {
-            return s._pixels[id]?.has(pixel) || false;
+            return s._pixels[id].has(pixel);
         }
     },
     actions: {
         addLayer(ids = []) {
             if (!Array.isArray(ids)) ids = [ids];
             for (const id of ids) {
-                if (id == null || this._pixels[id]) continue;
                 this._pixels[id] = new Map();
                 this._hash.layers[id] = 0;
                 this._hash.all ^= mixHash(id, 0);
             }
         },
         set(id, pixels) {
-            this._pixels[id] = pixels instanceof Map ? pixels : new Map(pixels);
+            this._pixels[id] = pixels;
             rehashLayer(this, id);
         },
         removeLayer(ids = []) {
             if (!Array.isArray(ids)) ids = [ids];
             for (const id of ids) {
-                const layerHash = this._hash.layers[id] || 0;
+                const layerHash = this._hash.layers[id];
                 this._hash.all ^= mixHash(id, layerHash);
                 delete this._hash.layers[id];
                 delete this._pixels[id];
@@ -139,15 +138,15 @@ export const usePixelStore = defineStore('pixels', {
                 updatePixelHash(this, id, pixel, oldVal, 0);
                 return;
             }
-            let ori = this._defaultOrientation;
-            if (ori === 'checkerboard') {
+            let orientation = this._defaultOrientation;
+            if (orientation === 'checkerboard') {
                 const [x, y] = indexToCoord(pixel);
-                ori = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
+                orientation = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
             } else if (ori === 'slopeCheckerboard') {
                 const [x, y] = indexToCoord(pixel);
-                ori = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
+                orientation = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
             }
-            const newVal = ORIENTATION_IDS[ori] || ORIENTATION_IDS.none;
+            const newVal = ORIENTATION_IDS[orientation] || ORIENTATION_IDS.none;
             map.set(pixel, newVal);
             updatePixelHash(this, id, pixel, oldVal, newVal);
         },
