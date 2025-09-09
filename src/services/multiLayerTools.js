@@ -143,7 +143,7 @@ export const useOrientationToolService = defineStore('orientationToolService', (
         return res;
     }
     function orientationOfWithPreview(id, pixel) {
-        const previewMap = preview.pixels[id];
+        const previewMap = preview.pixels[id]?.orientationMap;
         if (previewMap) {
             for (const o of PIXEL_ORIENTATIONS) {
                 const arr = previewMap[o];
@@ -171,7 +171,7 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                 for (let i = nodeTree.layerOrder.length - 1; i >= 0; i--) {
                     const id = nodeTree.layerOrder[i];
                     if (!nodes.visibility(id)) continue;
-                    let pixels = preview.pixels[id]?.[orientation];
+                    let pixels = preview.pixels[id]?.orientationMap?.[orientation];
                     if (!pixels) pixels = orientationPixels(id, orientation);
                     if (!pixels.length) continue;
                     for (const pixel of pixels) {
@@ -184,7 +184,7 @@ export const useOrientationToolService = defineStore('orientationToolService', (
             }
             else {
                 for (const id of layerIds) {
-                    let pixels = preview.pixels[id]?.[orientation];
+                    let pixels = preview.pixels[id]?.orientationMap?.[orientation];
                     if (!pixels) pixels = orientationPixels(id, orientation);
                     if (!pixels.length) continue;
                     overlayService.addPixels(overlayId, pixels);
