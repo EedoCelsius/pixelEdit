@@ -356,7 +356,7 @@ class PathCoverSolver {
       };
       return this.search(ctx, [], initial);
     });
-    await Promise.race(tasks);
+    if (tasks.length) await Promise.race(tasks);
     return this.best.paths;
   }
 }
