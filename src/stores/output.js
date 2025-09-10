@@ -29,7 +29,7 @@ export const useOutputStore = defineStore('output', {
             const rule = layerPanel.scrollRule;
             layerPanel.unfoldTo(rule.target);
             nextTick(() => layerPanel.ensureBlockVisibility(rule));
-            
+
             this._lastSnapshot = snapshot;
             this._lastHash = this._calcHash();
         },
@@ -72,7 +72,7 @@ export const useOutputStore = defineStore('output', {
             }
             const { nodeTree, nodes, pixels } = useStore();
             const layerPanel = useLayerPanelService();
-            watch(() => nodeTree._hash.selection, () => {
+            watch(() => [nodeTree._hash.selection, layerPanel.anchorId, layerPanel.tailId], () => {
                 nextTick(() => {
                     const rule = layerPanel.scrollRule
                     layerPanel.ensureBlockVisibility(rule)

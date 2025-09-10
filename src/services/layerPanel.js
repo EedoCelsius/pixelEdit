@@ -108,9 +108,9 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
     function unfoldTo(id) {
         let info = nodeTree._findNode(id);
         while (info) {
-            folded[info.node.id] = false;
             if (!info.parent) break;
             info = nodeTree._findNode(info.parent.id);
+            folded[info.node.id] = false;
         }
     }
 
@@ -265,13 +265,18 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         if (!hasAnchor) {
             if (single) {
                 const id = selected[0];
-                if (shift) return; // undefined behaviour
-                const nextId = adjVisible(id, !ctrl);
-                if (nextId == null) return;
-                setRange(nextId, nextId);
-                setScrollRule({ type: scrollType, target: nextId });
+                if (ctrl) {
+                    const nextId = adjVisible(id, false);
+                    if (nextId == null) return;
+                    setRange(nextId, nextId);
+                    setScrollRule({ type: scrollType, target: nextId });
+                } else {
+                    const nextId = adjVisible(id, true);
+                    if (nextId == null) return;
+                    setRange(nextId, nextId);
+                    setScrollRule({ type: scrollType, target: nextId });
+                }
             } else if (selected.length > 1) {
-                if (shift) return; // undefined
                 if (ctrl) {
                     const target = extremeVisibleSelected(selected);
                     if (target == null) return;
