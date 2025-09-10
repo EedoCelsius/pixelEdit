@@ -69,8 +69,7 @@ export const useInputStore = defineStore('input', {
             viewportStore.setImage(this.src || '', this.width, this.height);
             
             viewportStore.recalcContentSize();
-            const stage = viewportStore.stage
-            viewportStore.setScale(stage.containScale * 3/4);
+            viewportStore.setScale(viewportStore.stage.containScale * 3/4);
             viewportStore.setOffset(0, 0);
         
             if (initializeLayers) {
