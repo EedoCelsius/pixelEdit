@@ -6,7 +6,7 @@ import { useLayerQueryService } from './layerQuery';
 import { useNodeQueryService } from './nodeQuery';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
-import { coordToIndex, indexToCoord, groupConnectedPixels } from '../utils/pixels.js';
+import { coordToIndex, indexToCoord, getPixelUnion, groupConnectedPixels } from '../utils/pixels.js';
 import { OT } from '../stores/pixels';
 
 export const usePathToolService = defineStore('pathToolService', () => {
@@ -209,10 +209,10 @@ export const useExpandToolService = defineStore('expandToolService', () => {
                 const name = nodes.name(layerId);
                 let group = colorGroups.get(color);
                 if (!group) {
-                    group = { name, color, pixels: [] };
+                    group = { name, color, pixels: new Set() };
                     colorGroups.set(color, group);
                 }
-                group.pixels.push(pixel);
+                group.pixels.add(pixel);
             }
 
             const topId = nodeQuery.uppermost(nodeTree.selectedIds);

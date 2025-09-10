@@ -8,14 +8,13 @@ import { useStore } from '../stores';
 import { useToolbarStore } from '../stores/toolbar';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
-// Tools now access pixelStore maps directly instead of using getPixelUnion
 
 export const useDrawToolService = defineStore('drawToolService', () => {
     const tool = useToolSelectionService();
     const overlayService = useOverlayService();
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.DRAW);
-    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
+    const { nodeTree, nodes, preview } = useStore();
     const usable = computed(() => (tool.shape === 'stroke' || tool.shape === 'rect') && nodeTree.selectedLayerCount === 1);
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'draw', name: 'Draw', icon: stageIcons.draw, usable });
@@ -95,9 +94,9 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
         const sourcePx = pixelStore.get(sourceId);
         const previewPixels = pixels.filter(pixel => sourcePx.has(pixel));
         overlayService.setPixels(overlayId, previewPixels);
-        if (nodes.locked(id)) return;
+        if (nodes.locked(sourceId)) return;
         preview.clear();
-        preview.removePixels(id, previewPixels);
+        preview.removePixels(sourceId, previewPixels);
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.current !== 'erase') return;

@@ -261,7 +261,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         if (!erasablePixels.length) return;
         const targetLayers = nodeTree.layerSelectionExists ? nodeTree.selectedLayerIds : nodeTree.layerOrder
         for (const layer of targetLayers) {
-            if (nodes.locked(id)) return;
+            if (nodes.locked(layer)) continue;
             preview.removePixels(layer, erasablePixels);
         }
     });
