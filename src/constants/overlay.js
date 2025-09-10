@@ -22,5 +22,47 @@ export const OVERLAY_STYLES = {
         STROKE_COLOR: 'rgba(248, 113, 113, 1.0)',
         STROKE_WIDTH_SCALE: 2,
         FILL_RULE: 'evenodd',
+    },
+    DRAW: {
+        FILL_COLOR: 'rgba(74, 222, 128, 0.25)',
+        STROKE_COLOR: 'rgba(74, 222, 128, 1.0)',
+        STROKE_WIDTH_SCALE: 2,
+        FILL_RULE: 'evenodd',
+    },
+    TOP: {
+        FILL_COLOR: 'rgba(74, 222, 128, 0.25)',
+        STROKE_COLOR: 'rgba(74, 222, 128, 1.0)',
+        STROKE_WIDTH_SCALE: 2,
+        FILL_RULE: 'evenodd',
+    },
+    SELECT_ADD: {
+        FILL_COLOR: 'rgba(74, 222, 128, 0.25)',
+        STROKE_COLOR: 'rgba(74, 222, 128, 1.0)',
+        STROKE_WIDTH_SCALE: 2,
+        FILL_RULE: 'evenodd',
+    },
+    SELECT_REMOVE: {
+        FILL_COLOR: 'rgba(248, 113, 113, 0.25)',
+        STROKE_COLOR: 'rgba(248, 113, 113, 1.0)',
+        STROKE_WIDTH_SCALE: 2,
+        FILL_RULE: 'evenodd',
+    },
+    ORIENTATION: {
+        FILL_COLOR: 'rgba(74, 222, 128, 0.25)',
+        STROKE_COLOR: 'rgba(74, 222, 128, 1.0)',
+        STROKE_WIDTH_SCALE: 2,
+        FILL_RULE: 'evenodd',
+    },
+    ORIENTATION_PREV: {
+        FILL_COLOR: 'rgba(74, 222, 128, 0.25)',
+        STROKE_COLOR: 'rgba(74, 222, 128, 1.0)',
+        STROKE_WIDTH_SCALE: 2,
+        FILL_RULE: 'evenodd',
+    },
+    GLOBAL_ERASE: {
+        FILL_COLOR: 'rgba(248, 113, 113, 0.25)',
+        STROKE_COLOR: 'rgba(248, 113, 113, 1.0)',
+        STROKE_WIDTH_SCALE: 2,
+        FILL_RULE: 'evenodd',
     }
 };

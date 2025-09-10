@@ -15,7 +15,7 @@ export const useSelectToolService = defineStore('selectToolService', () => {
     const tool = useToolSelectionService();
     const overlayService = useOverlayService();
     const overlayId = overlayService.createOverlay();
-    overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
+    overlayService.setStyles(overlayId, OVERLAY_STYLES.SELECT_ADD);
     const layerPanel = useLayerPanelService();
     const { nodeTree, nodes, keyboardEvent: keyboardEvents } = useStore();
     const layerQuery = useLayerQueryService();
@@ -39,15 +39,15 @@ export const useSelectToolService = defineStore('selectToolService', () => {
         const id = layerQuery.topVisibleAt(pixel);
         if (!keyboardEvents.isPressed('Shift')) {
             mode = 'select';
-            overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
+            overlayService.setStyles(overlayId, OVERLAY_STYLES.SELECT_ADD);
             tool.setCursor({ stroke: CURSOR_STYLE.ADD_STROKE, rect: CURSOR_STYLE.ADD_RECT });
         } else if (nodeTree.selectedLayerIds.includes(id)) {
             mode = 'remove';
-            overlayService.setStyles(overlayId, OVERLAY_STYLES.REMOVE);
+            overlayService.setStyles(overlayId, OVERLAY_STYLES.SELECT_REMOVE);
             tool.setCursor({ stroke: CURSOR_STYLE.REMOVE_STROKE, rect: CURSOR_STYLE.REMOVE_RECT });
         } else {
             mode = 'add';
-            overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
+            overlayService.setStyles(overlayId, OVERLAY_STYLES.SELECT_ADD);
             tool.setCursor({ stroke: CURSOR_STYLE.ADD_STROKE, rect: CURSOR_STYLE.ADD_RECT });
         }
 
@@ -119,13 +119,9 @@ export const useOrientationToolService = defineStore('orientationToolService', (
     const layerQuery = useLayerQueryService();
     const overlayService = useOverlayService();
     const currentOverlayId = overlayService.createOverlay();
-    overlayService.setStyles(currentOverlayId, OVERLAY_STYLES.ADD);
+    overlayService.setStyles(currentOverlayId, OVERLAY_STYLES.ORIENTATION);
     const prevOverlayId = overlayService.createOverlay();
-    overlayService.setStyles(prevOverlayId, {
-        ...OVERLAY_STYLES.ADD,
-        FILL_COLOR: 'rgba(74, 222, 128, 0.1)',
-        STROKE_COLOR: 'rgba(74, 222, 128, 0.5)',
-    });
+    overlayService.setStyles(prevOverlayId, OVERLAY_STYLES.ORIENTATION_PREV);
     const usable = computed(() => tool.shape === 'stroke' || tool.shape === 'rect');
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'orientation', name: 'Orientation', icon: stageIcons.orientation, usable });
@@ -216,7 +212,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
     const tool = useToolSelectionService();
     const overlayService = useOverlayService();
     const overlayId = overlayService.createOverlay();
-    overlayService.setStyles(overlayId, OVERLAY_STYLES.REMOVE);
+    overlayService.setStyles(overlayId, OVERLAY_STYLES.GLOBAL_ERASE);
     const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const usable = computed(() => tool.shape === 'stroke' || tool.shape === 'rect');
     const toolbar = useToolbarStore();
