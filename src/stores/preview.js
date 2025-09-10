@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { useNodeStore } from './nodes';
-import { usePixelStore } from './pixels';
+import { usePixelStore, OT } from './pixels';
 import { pixelsToUnionPath } from '../utils/pixels.js';
 
 export const usePreviewStore = defineStore('preview', {
@@ -41,25 +41,23 @@ export const usePreviewStore = defineStore('preview', {
             if (Object.keys(merged).length) this.properties[id] = merged;
             else delete this.properties[id];
         },
-        addPixels(id, pixels = [], orientation) {
+        addPixels(id, pixels = [], orientation = OT.DEFAULT) {
             if (!pixels.length) return;
             const entry = this.pixels[id] || {};
             for (const p of pixels) entry[p] = orientation;
-            if (Object.keys(entry).length) this.pixels[id] = entry;
-            else delete this.pixels[id];
+            this.pixels[id] = entry;
         },
         removePixels(id, pixels = []) {
             if (!pixels.length) return;
             const entry = this.pixels[id] || {};
             for (const p of pixels) entry[p] = 0;
-            if (Object.keys(entry).length) this.pixels[id] = entry;
-            else delete this.pixels[id];
+            this.pixels[id] = entry;
         },
         updatePixels(id, update = {}) {
+            if (!Object.keys(update).length) return;
             const entry = this.pixels[id] || {};
             Object.assign(entry, update);
-            if (Object.keys(entry).length) this.pixels[id] = entry;
-            else delete this.pixels[id];
+            this.pixels[id] = entry;
         },
         commitPreview() {
             const nodeStore = useNodeStore();
@@ -74,7 +72,7 @@ export const usePreviewStore = defineStore('preview', {
             this.clear();
         },
         clear(id) {
-            if (id == null) {
+            if (!id) {
                 this.properties = {};
                 this.pixels = {};
             } else {
@@ -83,7 +81,7 @@ export const usePreviewStore = defineStore('preview', {
             }
         },
         clearProperty(id, property) {
-            if (id == null) {
+            if (!id) {
                 this.properties = {};
                 return;
             }
@@ -98,11 +96,11 @@ export const usePreviewStore = defineStore('preview', {
             }
         },
         clearPixel(id, pixel) {
-            if (id == null) {
+            if (!id) {
                 this.pixels = {};
                 return;
             }
-            if (pixel == null) {
+            if (!pixel) {
                 delete this.pixels[id];
                 return;
             }
