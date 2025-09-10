@@ -254,7 +254,7 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                 }
             }
             orientationPreviews[target][next].add(pixel);
-            preview.clearPixel(target);
+            preview.clear();
             preview.updatePixels(target, toUpdateMap(orientationPreviews[target]));
         }
         rebuild();
