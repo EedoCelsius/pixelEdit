@@ -119,7 +119,6 @@ export const usePreviewStore = defineStore('preview', {
             const overlayService = useOverlayService();
             const pixelStore = usePixelStore();
             const nodeTree = useNodeTreeStore();
-            const nodes = useNodeStore();
             this._orientationOverlays = PIXEL_ORIENTATIONS.map(o => {
                 const id = overlayService.createOverlay();
                 overlayService.setStyles(id, {
@@ -146,14 +145,23 @@ export const usePreviewStore = defineStore('preview', {
                 return pixels;
             };
             const render = () => {
-                PIXEL_ORIENTATIONS.forEach((orientation, idx) => {
-                    const overlayId = this._orientationOverlays[idx];
-                    overlayService.clear(overlayId);
-                    for (const id of this.orientationLayers) {
-                        const pixels = getOrientationPixels(id, orientation);
-                        if (pixels.length) overlayService.addPixels(overlayId, pixels);
-                    }
-                });
+                const overlays = this._orientationOverlays;
+                overlays.forEach(id => overlayService.clear(id));
+
+                const seen = new Set();
+                const layers = nodeTree.layerIdsTopToBottom
+                    .filter(id => this.orientationLayers.includes(id) && this.nodeVisibility(id));
+
+                for (const id of layers) {
+                    PIXEL_ORIENTATIONS.forEach((orientation, idx) => {
+                        let pixels = getOrientationPixels(id, orientation)
+                            .filter(p => !seen.has(p));
+                        if (pixels.length) {
+                            overlayService.addPixels(overlays[idx], pixels);
+                            pixels.forEach(p => seen.add(p));
+                        }
+                    });
+                }
             };
             watch(() => this.pixels, render, { deep: true });
             watch(() => this.orientationLayers.slice(), render);
