@@ -7,6 +7,7 @@ import { useNodeQueryService } from './nodeQuery';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
 import { coordToIndex, indexToCoord, groupConnectedPixels, getPixelUnion } from '../utils/pixels.js';
+import { OT } from '../stores/pixels';
 
 export const usePathToolService = defineStore('pathToolService', () => {
     const tool = useToolSelectionService();
@@ -98,8 +99,8 @@ export const useRelayToolService = defineStore('relayToolService', () => {
                 const dx = bottomAvg[0] - topAvg[0];
                 const dy = bottomAvg[1] - topAvg[1];
                 if (Math.abs(dx) === Math.abs(dy)) continue;
-                orientation = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
-                if (dist >= 2) orientation = orientation === 'horizontal' ? 'vertical' : 'horizontal';
+                orientation = Math.abs(dx) > Math.abs(dy) ? OT.HORIZONTAL : OT.VERTICAL;
+                if (dist >= 2) orientation = orientation === OT.HORIZONTAL ? OT.VERTICAL : OT.HORIZONTAL;
                 break;
             }
             if (!orientation) continue;

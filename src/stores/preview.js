@@ -6,7 +6,7 @@ import { pixelsToUnionPath } from '../utils/pixels.js';
 export const usePreviewStore = defineStore('preview', {
     state: () => ({
         nodes: {}, // id -> partial node props
-        pixels: {} // id -> delta of pixel changes
+        pixels: {} // id -> { add?, remove?, update? }
     }),
     getters: {
         nodeColor(state) {
@@ -24,13 +24,14 @@ export const usePreviewStore = defineStore('preview', {
                 if (delta) {
                     const base = pixelStore.get(id) || new Map();
                     const set = new Set(base.keys());
+                    if (delta.add) delta.add.pixels.forEach(p => set.add(p));
                     if (delta.remove) delta.remove.forEach(p => set.delete(p));
-                    if (delta.orientationMap) {
-                        for (const arr of Object.values(delta.orientationMap)) {
-                            arr.forEach(p => set.add(p));
+                    if (delta.update) {
+                        for (const [p, o] of Object.entries(delta.update)) {
+                            const idx = Number(p);
+                            if (o) set.add(idx); else set.delete(idx);
                         }
                     }
-                    if (delta.add) delta.add.forEach(p => set.add(p));
                     return pixelsToUnionPath(set);
                 }
                 return pixelStore.pathOf(id);
@@ -38,19 +39,26 @@ export const usePreviewStore = defineStore('preview', {
         }
     },
     actions: {
-        applyNodePreview(id, props = {}) {
+        applyProperty(id, props = {}) {
             if (Object.keys(props).length) this.nodes[id] = { ...props };
             else delete this.nodes[id];
         },
-        applyPixelPreview(id, { add = [], remove = [], orientation, orientationMap } = {}) {
-            const entry = {};
-            if (add.length) {
-                entry.add = [...add];
-                if (orientation != null) entry.orientation = orientation;
-            }
-            if (remove.length) entry.remove = [...remove];
-            if (orientationMap && Object.keys(orientationMap).length) entry.orientationMap = { ...orientationMap };
-            if (Object.keys(entry).length) this.pixels[id] = entry;
+        applyPixelAdd(id, pixels = [], orientation) {
+            const entry = this.pixels[id] || {};
+            entry.add = { pixels: [...pixels], orientation };
+            if (entry.remove || entry.update || entry.add.pixels.length) this.pixels[id] = entry;
+            else delete this.pixels[id];
+        },
+        applyPixelRemove(id, pixels = []) {
+            const entry = this.pixels[id] || {};
+            entry.remove = [...pixels];
+            if (entry.add || entry.update || entry.remove.length) this.pixels[id] = entry;
+            else delete this.pixels[id];
+        },
+        applyPixelUpdate(id, update = {}) {
+            const entry = this.pixels[id] || {};
+            entry.update = { ...update };
+            if (entry.add || entry.remove || Object.keys(entry.update).length) this.pixels[id] = entry;
             else delete this.pixels[id];
         },
         commitPreview() {
@@ -61,13 +69,9 @@ export const usePreviewStore = defineStore('preview', {
             const pixelStore = usePixelStore();
             for (const [id, delta] of Object.entries(this.pixels)) {
                 const numId = Number(id);
-                if (delta.remove?.length) pixelStore.remove(numId, delta.remove);
-                if (delta.orientationMap) {
-                    for (const [ori, arr] of Object.entries(delta.orientationMap)) {
-                        pixelStore.add(numId, arr, ori);
-                    }
-                }
-                if (delta.add?.length) pixelStore.add(numId, delta.add, delta.orientation);
+                if (delta.add) pixelStore.add(numId, delta.add.pixels, delta.add.orientation);
+                if (delta.remove) pixelStore.remove(numId, delta.remove);
+                if (delta.update) pixelStore.update(numId, delta.update);
             }
             this.clearPreview();
         },

@@ -13,6 +13,14 @@
               <option v-for="ori in orientations" :key="ori" :value="ori">{{ ori }}</option>
             </select>
           </label>
+          <div v-if="defaultOrientation === 'checkerboard'" class="flex gap-2">
+            <select v-model="cbOriA" class="flex-1 rounded bg-slate-700 px-2 py-1">
+              <option v-for="ori in pixelOrientations" :key="ori" :value="ori">{{ ori }}</option>
+            </select>
+            <select v-model="cbOriB" class="flex-1 rounded bg-slate-700 px-2 py-1">
+              <option v-for="ori in pixelOrientations" :key="ori" :value="ori">{{ ori }}</option>
+            </select>
+          </div>
         </div>
         <div v-else-if="currentTab === 'Stage'" class="space-y-2 text-white/70">
           <label class="block">
@@ -31,7 +39,7 @@
 <script setup>
 import { ref, watch } from 'vue';
 import { useService } from '../services';
-import { usePixelStore, PIXEL_DEFAULT_ORIENTATIONS } from '@/stores/pixels';
+import { usePixelStore, PIXEL_DEFAULT_ORIENTATIONS, PIXEL_ORIENTATIONS } from '@/stores/pixels';
 import { CHECKERBOARD_CONFIG } from '@/constants';
 import { checkerboardPatternUrl } from '@/utils/pixels.js';
 
@@ -42,8 +50,13 @@ const tabs = ['Pixels', 'Stage'];
 const currentTab = ref(tabs[0]);
 
 const orientations = PIXEL_DEFAULT_ORIENTATIONS;
+const pixelOrientations = PIXEL_ORIENTATIONS;
 const defaultOrientation = ref(pixelStore.defaultOrientation);
 watch(defaultOrientation, ori => pixelStore.setDefaultOrientation(ori));
+const [initialA, initialB] = pixelStore.checkerboardOrientations;
+const cbOriA = ref(initialA);
+const cbOriB = ref(initialB);
+watch([cbOriA, cbOriB], ([a, b]) => pixelStore.setCheckerboardOrientations(a, b));
 
 const checkerboardRepeat = ref(CHECKERBOARD_CONFIG.REPEAT);
 watch(checkerboardRepeat, repeat => {
