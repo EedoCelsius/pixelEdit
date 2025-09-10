@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia';
 import { computed, reactive, watch } from 'vue';
-import { useStore } from '../stores';
+import { useNodeTreeStore } from '../stores/nodeTree.js';
+import { usePixelStore } from '../stores/pixels.js';
 import { pixelsToUnionPath } from '../utils/pixels.js';
 import { OVERLAY_STYLES } from '@/constants';
 
 export const useOverlayService = defineStore('overlayService', () => {
-    const { nodeTree, pixels: pixelStore } = useStore();
+    const nodeTree = useNodeTreeStore();
+    const pixelStore = usePixelStore();
 
     const overlayPixels = reactive({});
     const styles = reactive({});

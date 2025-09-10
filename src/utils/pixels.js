@@ -66,9 +66,9 @@ export function checkerboardPatternUrl(target = document.body) {
     return `url(#${id})`;
 }
 
-export function ensureOrientationPattern(orientation, target = document.body) {
+export function orientationPatternUrl(orientation, target = document.body) {
     const id = `pixel-orientation-${orientation}`;
-    if (document.getElementById(id)) return id;
+    if (document.getElementById(id)) return `url(#${id})`;
     const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
     svg.setAttribute('width', '0');
     svg.setAttribute('height', '0');
@@ -133,7 +133,7 @@ export function ensureOrientationPattern(orientation, target = document.body) {
     defs.appendChild(pattern);
     svg.appendChild(defs);
     target.appendChild(svg);
-    return id;
+    return `url(#${id})`;
 }
 
 export function groupConnectedPixels(pixels) {

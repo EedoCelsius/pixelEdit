@@ -1,13 +1,13 @@
 import { defineStore } from 'pinia';
 import { watch, computed } from 'vue';
 import { useToolSelectionService } from './toolSelection';
-import { useOverlayService } from './overlay';
 import { useLayerPanelService } from './layerPanel';
 import { useLayerQueryService } from './layerQuery';
+import { useOverlayService } from './overlay';
 import { useStore } from '../stores';
 import { useToolbarStore } from '../stores/toolbar';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
-import { indexToCoord, ensureOrientationPattern } from '../utils/pixels.js';
+import { indexToCoord } from '../utils/pixels.js';
 import { PIXEL_ORIENTATIONS, OT } from '../stores/pixels';
 import stageIcons from '../image/stage_toolbar';
 
@@ -117,106 +117,39 @@ export const useOrientationToolService = defineStore('orientationToolService', (
     const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const tool = useToolSelectionService();
     const layerQuery = useLayerQueryService();
-    const overlayService = useOverlayService();
     const usable = computed(() => tool.shape === 'stroke' || tool.shape === 'rect');
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'orientation', name: 'Orientation', icon: stageIcons.orientation, usable });
-    const overlays = PIXEL_ORIENTATIONS.map(orientation => {
-        const id = overlayService.createOverlay();
-        overlayService.setStyles(id, {
-            FILL_COLOR: `url(#${ensureOrientationPattern(orientation)})`,
-            STROKE_COLOR: 'none',
-            STROKE_WIDTH_SCALE: 0,
-            FILL_RULE: 'evenodd'
-        });
-        return id;
-    });
-    let orientationPreviews = {};
-    function ensurePreview(id) {
-        if (!orientationPreviews[id]) {
-            orientationPreviews[id] = Object.fromEntries(PIXEL_ORIENTATIONS.map(o => [o, new Set()]));
+
+    const orientationPreviews = new Map();
+
+    const getPreviewMap = (id) => {
+        if (!orientationPreviews.has(id)) {
+            orientationPreviews.set(id, new Map(PIXEL_ORIENTATIONS.map(o => [o, new Set()])));
         }
-    }
-    function toUpdateMap(map) {
-        const res = {};
-        for (const [o, set] of Object.entries(map)) {
-            for (const p of set) res[p] = Number(o);
-        }
-        return res;
-    }
-    function orientationOfWithPreview(id, pixel) {
-        const previewMap = preview.pixels[id];
-        if (previewMap && previewMap[pixel] != null) return previewMap[pixel];
-        return pixelStore.orientationOf(id, pixel);
-    }
-    function orientationPixels(id, orientation) {
-        const res = [];
-        const map = pixelStore.get(id);
-        for (const [idx, orientationId] of map) if (orientationId === orientation) res.push(idx);
-        return res;
-    }
-    function rebuild() {
-        if (tool.current !== 'orientation') return;
-        const layerIds = nodeTree.selectedLayerIds;
-        const showAll = layerIds.length === 0;
-        PIXEL_ORIENTATIONS.forEach((orientation, idx) => {
-            const overlayId = overlays[idx];
-            overlayService.clear(overlayId);
-            if (showAll) {
-                const add = new Set();
-                for (let i = nodeTree.layerOrder.length - 1; i >= 0; i--) {
-                    const id = nodeTree.layerOrder[i];
-                    if (!nodes.visibility(id)) continue;
-                    let pixels = orientationPixels(id, orientation);
-                    const delta = preview.pixels[id];
-                    if (delta) {
-                        const set = new Set(pixels);
-                        for (const [pStr, o] of Object.entries(delta)) {
-                            const p = Number(pStr);
-                            if (o === orientation) set.add(p); else set.delete(p);
-                        }
-                        pixels = [...set];
-                    }
-                    if (!pixels.length) continue;
-                    for (const pixel of pixels) {
-                        if (layerQuery.topVisibleAt(pixel) === id) {
-                            add.add(pixel);
-                        }
-                    }
-                }
-                overlayService.addPixels(overlayId, [...add]);
-            }
-            else {
-                for (const id of layerIds) {
-                    let pixels = orientationPixels(id, orientation);
-                    const delta = preview.pixels[id];
-                    if (delta) {
-                        const set = new Set(pixels);
-                        for (const [pStr, o] of Object.entries(delta)) {
-                            const p = Number(pStr);
-                            if (o === orientation) set.add(p); else set.delete(p);
-                        }
-                        pixels = [...set];
-                    }
-                    if (!pixels.length) continue;
-                    overlayService.addPixels(overlayId, pixels);
-                }
-            }
-        });
-    }
-    watch(() => tool.current === 'orientation', (isOrientation) => {
+        return orientationPreviews.get(id);
+    };
+
+    const previewToObject = (map) => Object.fromEntries(
+        [...map.entries()].flatMap(([o, set]) => [...set].map(p => [p, o]))
+    );
+
+    watch(() => tool.current === 'orientation', isOrientation => {
         if (!isOrientation) {
-            overlays.forEach(id => overlayService.clear(id));
-            orientationPreviews = {};
+            preview.clearOrientationLayers();
+            orientationPreviews.clear();
             return;
         }
-        rebuild();
+        preview.initOrientationRenderer();
+        preview.setOrientationLayers(nodeTree.selectedLayerIds);
         tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
-    watch(() => tool.hoverPixel, (pixel) => {
+
+    watch(() => tool.hoverPixel, pixel => {
         if (tool.current !== 'orientation' || !pixel) return;
         tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
+
     watch(() => tool.dragPixel, (pixel, prevPixel) => {
         if (tool.current !== 'orientation' || pixel == null) return;
         const target = layerQuery.topVisibleAt(pixel);
@@ -227,33 +160,28 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                 return;
             }
             if (prevPixel != null) {
-                ensurePreview(target);
-                for (const o of PIXEL_ORIENTATIONS) orientationPreviews[target][o].delete(pixel);
+                const previewMap = getPreviewMap(target);
+                for (const set of previewMap.values()) set.delete(pixel);
                 const [px, py] = indexToCoord(pixel);
                 const [prevX, prevY] = indexToCoord(prevPixel);
                 let next;
                 if (prevX === px) {
                     next = OT.VERTICAL;
-                    if (prevY < py)
-                        tool.setCursor({ stroke: CURSOR_STYLE.DOWN, rect: CURSOR_STYLE.DOWN });
-                    else
-                        tool.setCursor({ stroke: CURSOR_STYLE.UP, rect: CURSOR_STYLE.UP });
-                }
-                else {
+                    tool.setCursor({ stroke: prevY < py ? CURSOR_STYLE.DOWN : CURSOR_STYLE.UP,
+                                     rect: prevY < py ? CURSOR_STYLE.DOWN : CURSOR_STYLE.UP });
+                } else {
                     next = OT.HORIZONTAL;
-                    if (prevX < px)
-                        tool.setCursor({ stroke: CURSOR_STYLE.RIGHT, rect: CURSOR_STYLE.RIGHT });
-                    else
-                        tool.setCursor({ stroke: CURSOR_STYLE.LEFT, rect: CURSOR_STYLE.LEFT });
+                    tool.setCursor({ stroke: prevX < px ? CURSOR_STYLE.RIGHT : CURSOR_STYLE.LEFT,
+                                     rect: prevX < px ? CURSOR_STYLE.RIGHT : CURSOR_STYLE.LEFT });
                 }
-                orientationPreviews[target][next].add(pixel);
+                previewMap.get(next).add(pixel);
                 preview.clear();
-                preview.updatePixels(target, toUpdateMap(orientationPreviews[target]));
+                preview.updatePixels(target, previewToObject(previewMap));
             }
         }
-        rebuild();
     });
-    watch(() => tool.affectedPixels, (pixels) => {
+
+    watch(() => tool.affectedPixels, pixels => {
         if (tool.current !== 'orientation') return;
         if (pixels.length === 1) {
             const pixel = pixels[0];
@@ -267,10 +195,13 @@ export const useOrientationToolService = defineStore('orientationToolService', (
             }
         }
         preview.commitPreview();
-        orientationPreviews = {};
-        rebuild();
+        orientationPreviews.clear();
     });
-    watch(() => nodeTree.selectedIds, rebuild);
+
+    watch(() => nodeTree.selectedLayerIds.slice(), ids => {
+        if (tool.current === 'orientation') preview.setOrientationLayers(ids);
+    });
+
     return { usable };
 });
 
