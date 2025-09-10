@@ -9,12 +9,8 @@ export const useOutputStore = defineStore('output', {
         _pointer: -1,
         _lastSnapshot: null,
         _lastHash: 0,
-        _commitVersion: 0,
         _tickScheduled: false
     }),
-    getters: {
-        commitVersion: (state) => state._commitVersion
-    },
     actions: {
         _calcHash() {
             const { nodeTree, nodes, pixels } = useStore();
@@ -31,7 +27,6 @@ export const useOutputStore = defineStore('output', {
             viewport.applySerialized(parsed.viewportState);
             this._lastSnapshot = snapshot;
             this._lastHash = this._calcHash();
-            this._commitVersion++; // ← Undo/Redo 시에도 썸네일 갱신
         },
         _schedule() {
             if (this._tickScheduled) return;
@@ -47,7 +42,6 @@ export const useOutputStore = defineStore('output', {
                 this._pointer = this._stack.length - 1;
                 this._lastSnapshot = after;
                 this._lastHash = hash;
-                this._commitVersion++;
             });
         },
         currentSnap() {
@@ -67,10 +61,7 @@ export const useOutputStore = defineStore('output', {
                 this._lastHash = this._calcHash();
             }
             const { nodeTree, nodes, pixels } = useStore();
-            watch(
-                () => [nodeTree._hash.tree.hash, nodes._hash.all, pixels._hash.all],
-                () => this._schedule()
-            );
+            watch(() => [nodeTree._hash.tree.hash, nodes._hash.all, pixels._hash.all], this._schedule);
         },
         undo() {
             if (this._pointer < 0) return;
@@ -87,9 +78,9 @@ export const useOutputStore = defineStore('output', {
         exportToJSON() {
             const { input } = useStore();
             return `{
-        "input": { "src": "${input.src || ''}", "size": { "w": ${input.width || 0}, "h": ${input.height || 0} } },
-        "state": ${this.currentSnap()}
-      }`;
+                "input": { "src": "${input.src || ''}", "size": { "w": ${input.width || 0}, "h": ${input.height || 0} } },
+                "state": ${this.currentSnap()}
+            }`;
         }
     }
 });
