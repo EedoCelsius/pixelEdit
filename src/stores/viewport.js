@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia';
 import { readonly } from 'vue';
-import { clamp } from '../utils';
 import { coordToIndex, indexToCoord } from '../utils/pixels.js';
 import { MIN_SCALE_RATIO } from '@/constants';
 import { useNodeTreeStore } from './nodeTree';
@@ -125,48 +124,25 @@ export const useViewportStore = defineStore('viewport', {
         },
         serialize() {
             return {
-                stage: {
-                    width: this._stage.width,
-                    height: this._stage.height,
-                    scale: this._stage.scale,
-                    offset: { ...this._stage.offset },
-                },
+                stage: { ...this._stage },
                 image: { ...this._image }
             };
         },
         applySerialized(payload) {
-            const stage = payload?.stage || {};
-            const image = payload?.image || {};
-            if (stage.width != null) this._stage.width = stage.width;
-            if (stage.height != null) this._stage.height = stage.height;
+            const stage = payload.stage;
+            this._stage.width = stage.width;
+            this._stage.height = stage.height;
+            this._stage.scale = stage.scale;
+            this._stage.offset.x = stage.offset.x;
+            this._stage.offset.y = stage.offset.y;
             this.recalcContentSize();
-            if (stage.scale != null) this._stage.scale = stage.scale;
-            if (stage.offset) {
-                if (stage.offset.x != null) this._stage.offset.x = stage.offset.x;
-                if (stage.offset.y != null) this._stage.offset.y = stage.offset.y;
-            }
-            // Only update image fields if values actually changed. Setting the
-            // ``src`` attribute on an ``img`` element to the same value causes it
-            // to reload in the browser, which in turn triggers the image load
-            // handler that recenters and zooms the viewport. When undoing back
-            // to the very first snapshot we do not want this implicit zoom to
-            // occur, so we skip assignments if the value is identical to the
-            // current state.
-            if (image.src != null && image.src !== this._image.src) {
-                this._image.src = image.src;
-            }
-            if (image.x != null && image.x !== this._image.x) {
-                this._image.x = image.x;
-            }
-            if (image.y != null && image.y !== this._image.y) {
-                this._image.y = image.y;
-            }
-            if (image.width != null && image.width !== this._image.width) {
-                this._image.width = image.width;
-            }
-            if (image.height != null && image.height !== this._image.height) {
-                this._image.height = image.height;
-            }
+            
+            const image = payload.image;
+            this._image.src = image.src;
+            this._image.x = image.x;
+            this._image.y = image.y;
+            this._image.width = image.width;
+            this._image.height = image.height;
         },
     }
 });
