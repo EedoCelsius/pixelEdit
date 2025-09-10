@@ -14,7 +14,7 @@ export const useDrawToolService = defineStore('drawToolService', () => {
     const tool = useToolSelectionService();
     const overlayService = useOverlayService();
     const overlayId = overlayService.createOverlay();
-    overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
+    overlayService.setStyles(overlayId, OVERLAY_STYLES.DRAW);
     const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const usable = computed(() => (tool.shape === 'stroke' || tool.shape === 'rect') && nodeTree.selectedLayerCount === 1);
     const toolbar = useToolbarStore();
@@ -173,7 +173,7 @@ export const useTopToolService = defineStore('topToolService', () => {
     const tool = useToolSelectionService();
     const overlayService = useOverlayService();
     const overlayId = overlayService.createOverlay();
-    overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
+    overlayService.setStyles(overlayId, OVERLAY_STYLES.TOP);
     const layerPanel = useLayerPanelService();
     const layerQuery = useLayerQueryService();
     const { nodeTree, nodes } = useStore();
