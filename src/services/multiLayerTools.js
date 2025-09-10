@@ -141,8 +141,6 @@ export const useOrientationToolService = defineStore('orientationToolService', (
         preview.initOrientationRenderer();
         const ids = nodeTree.selectedLayerIds.length ? nodeTree.selectedLayerIds : nodeTree.layerOrder;
         preview.setOrientationLayers(ids);
-        overlayService.clear(currentOverlayId);
-        overlayService.clear(prevOverlayId);
         tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
 
@@ -200,13 +198,13 @@ export const useOrientationToolService = defineStore('orientationToolService', (
         preview.commitPreview();
     });
 
-    watch(() => nodeTree.selectedLayerIds.slice(), ids => {
+    watch(() => nodeTree.selectedLayerIds, ids => {
         if (tool.current !== 'orientation') return;
         const layers = ids.length ? ids : nodeTree.layerOrder;
         preview.setOrientationLayers(layers);
     });
 
-    watch(() => nodeTree.layerOrder.slice(), ids => {
+    watch(() => nodeTree.layerOrder, ids => {
         if (tool.current !== 'orientation') return;
         if (nodeTree.selectedLayerIds.length === 0) preview.setOrientationLayers(ids);
     });
