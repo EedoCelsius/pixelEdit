@@ -16,8 +16,10 @@ function dirPriority(dx, dy) {
 
 // Build adjacency info for pixels with 8-way connectivity
 // Returns adjacency list `neighbors` only
-function buildGraphFromPixels(pixels) {
-  const indexMap = new Map(pixels.map((p, i) => [p, i]));
+function buildGraphFromPixels(pixelMap) {
+  const pixels = Array.from(pixelMap.keys());
+  const indexMap = new Map();
+  for (let i = 0; i < pixels.length; i++) indexMap.set(pixels[i], i);
   const neighbors = [];
 
   for (let i = 0; i < pixels.length; i++) {
@@ -418,9 +420,9 @@ async function solve(neighbors, opts = {}) {
   return await solver.run();
 }
 
-async function solveFromPixels(pixels, opts = {}) {
-  const nodes = Array.from(new Set(pixels));
-  const neighbors = buildGraphFromPixels(nodes);
+async function solveFromPixels(pixelMap, opts = {}) {
+  const nodes = Array.from(pixelMap.keys());
+  const neighbors = buildGraphFromPixels(pixelMap);
   const anchors = (opts.anchors || []).map((anchor) => {
     const idx = nodes.indexOf(anchor);
     if (idx === -1) throw new Error('Anchor pixel missing');
@@ -431,16 +433,16 @@ async function solveFromPixels(pixels, opts = {}) {
 }
 
 class HamiltonianService {
-  async traverseWithStart(pixels, start) {
-    return await solveFromPixels(pixels, { anchors: [start] });
+  async traverseWithStart(pixelMap, start) {
+    return await solveFromPixels(pixelMap, { anchors: [start] });
   }
 
-  async traverseWithStartEnd(pixels, start, end) {
-    return await solveFromPixels(pixels, { anchors: [start, end] });
+  async traverseWithStartEnd(pixelMap, start, end) {
+    return await solveFromPixels(pixelMap, { anchors: [start, end] });
   }
 
-  async traverseFree(pixels) {
-    return await solveFromPixels(pixels);
+  async traverseFree(pixelMap) {
+    return await solveFromPixels(pixelMap);
   }
 }
 
