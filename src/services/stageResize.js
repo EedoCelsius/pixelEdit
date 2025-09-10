@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { useStore } from '../stores';
 
 export const useStageResizeService = defineStore('stageResizeService', () => {
-  const { viewport, output } = useStore();
+  const { viewport } = useStore();
   const show = ref(false);
 
   function open() {
@@ -15,7 +15,6 @@ export const useStageResizeService = defineStore('stageResizeService', () => {
   }
 
   function apply(payload) {
-    output.setRollbackPoint();
     viewport.resizeByEdges(payload);
     viewport.recalcContentSize();
     viewport.setScale(viewport.stage.containScale * 0.75);
@@ -24,7 +23,6 @@ export const useStageResizeService = defineStore('stageResizeService', () => {
     const x = (viewport.content.width - w) / 2;
     const y = (viewport.content.height - h) / 2;
     viewport.setOffset(x, y);
-    output.commit();
     close();
   }
 
