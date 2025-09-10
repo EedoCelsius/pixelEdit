@@ -117,6 +117,15 @@ export const useOrientationToolService = defineStore('orientationToolService', (
     const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
     const tool = useToolSelectionService();
     const layerQuery = useLayerQueryService();
+    const overlayService = useOverlayService();
+    const currentOverlayId = overlayService.createOverlay();
+    overlayService.setStyles(currentOverlayId, OVERLAY_STYLES.ADD);
+    const prevOverlayId = overlayService.createOverlay();
+    overlayService.setStyles(prevOverlayId, {
+        ...OVERLAY_STYLES.ADD,
+        FILL_COLOR: 'rgba(74, 222, 128, 0.1)',
+        STROKE_COLOR: 'rgba(74, 222, 128, 0.5)',
+    });
     const usable = computed(() => tool.shape === 'stroke' || tool.shape === 'rect');
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'orientation', name: 'Orientation', icon: stageIcons.orientation, usable });
@@ -125,20 +134,29 @@ export const useOrientationToolService = defineStore('orientationToolService', (
         if (!isOrientation) {
             preview.clearOrientationLayers();
             preview.clear();
+            overlayService.clear(currentOverlayId);
+            overlayService.clear(prevOverlayId);
             return;
         }
         preview.initOrientationRenderer();
-        preview.setOrientationLayers(nodeTree.selectedLayerIds);
+        const ids = nodeTree.selectedLayerIds.length ? nodeTree.selectedLayerIds : nodeTree.layerOrder;
+        preview.setOrientationLayers(ids);
         tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
 
     watch(() => tool.hoverPixel, pixel => {
-        if (tool.current !== 'orientation' || !pixel) return;
-        tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
+        if (tool.current !== 'orientation') return;
+        overlayService.setPixels(prevOverlayId, []);
+        overlayService.setPixels(currentOverlayId, pixel ? [pixel] : []);
+        if (pixel)
+            tool.setCursor({ stroke: CURSOR_STYLE.CHANGE, rect: CURSOR_STYLE.CHANGE });
     });
 
     watch(() => tool.dragPixel, (pixel, prevPixel) => {
-        if (tool.current !== 'orientation' || pixel == null) return;
+        if (tool.current !== 'orientation') return;
+        overlayService.setPixels(currentOverlayId, pixel != null ? [pixel] : []);
+        overlayService.setPixels(prevOverlayId, pixel != null && prevPixel != null ? [prevPixel] : []);
+        if (pixel == null) return;
         const target = layerQuery.topVisibleAt(pixel);
         const editable = nodeTree.selectedLayerIds.length === 0 || nodeTree.selectedLayerIds.includes(target);
         if (target != null && editable) {
@@ -180,8 +198,15 @@ export const useOrientationToolService = defineStore('orientationToolService', (
         preview.commitPreview();
     });
 
-    watch(() => nodeTree.selectedLayerIds.slice(), ids => {
-        if (tool.current === 'orientation') preview.setOrientationLayers(ids);
+    watch(() => nodeTree.selectedLayerIds, ids => {
+        if (tool.current !== 'orientation') return;
+        const layers = ids.length ? ids : nodeTree.layerOrder;
+        preview.setOrientationLayers(layers);
+    });
+
+    watch(() => nodeTree.layerOrder, ids => {
+        if (tool.current !== 'orientation') return;
+        if (nodeTree.selectedLayerIds.length === 0) preview.setOrientationLayers(ids);
     });
 
     return { usable };

@@ -149,21 +149,9 @@ export const usePreviewStore = defineStore('preview', {
                 PIXEL_ORIENTATIONS.forEach((orientation, idx) => {
                     const overlayId = this._orientationOverlays[idx];
                     overlayService.clear(overlayId);
-                    if (this.orientationLayers.length === 0) {
-                        const add = new Set();
-                        for (let i = nodeTree.layerOrder.length - 1; i >= 0; i--) {
-                            const id = nodeTree.layerOrder[i];
-                            if (!nodes.visibility(id)) continue;
-                            for (const pixel of getOrientationPixels(id, orientation)) {
-                                if (!add.has(pixel)) add.add(pixel);
-                            }
-                        }
-                        overlayService.addPixels(overlayId, [...add]);
-                    } else {
-                        for (const id of this.orientationLayers) {
-                            const pixels = getOrientationPixels(id, orientation);
-                            if (pixels.length) overlayService.addPixels(overlayId, pixels);
-                        }
+                    for (const id of this.orientationLayers) {
+                        const pixels = getOrientationPixels(id, orientation);
+                        if (pixels.length) overlayService.addPixels(overlayId, pixels);
                     }
                 });
             };
