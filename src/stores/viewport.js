@@ -116,8 +116,10 @@ export const useViewportStore = defineStore('viewport', {
             }
         },
         clientToIndex(event, { allowViewport } = {}) {
-            const left = this._content.left + this._stage.offset.x;
-            const top = this._content.top + this._stage.offset.y;
+            const centerX = (this._content.width - this._stage.width * this._stage.scale) / 2;
+            const centerY = (this._content.height - this._stage.height * this._stage.scale) / 2;
+            const left = this._content.left + centerX + this._stage.offset.x;
+            const top = this._content.top + centerY + this._stage.offset.y;
             let x = Math.floor((event.clientX - left) / this._stage.scale);
             let y = Math.floor((event.clientY - top) / this._stage.scale);
             if (!allowViewport && (x < 0 || y < 0 || x >= this._stage.width || y >= this._stage.height)) return null;

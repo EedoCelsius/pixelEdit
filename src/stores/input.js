@@ -69,11 +69,8 @@ export const useInputStore = defineStore('input', {
             viewportStore.setImage(this.src || '', this.width, this.height);
             
             viewportStore.recalcContentSize();
-            const stage = viewportStore.stage
-            viewportStore.setScale(stage.containScale * 3/4);
-            const offsetX = (viewportStore.content.width - stage.width * stage.scale) / 2;
-            const offsetY = (viewportStore.content.height - stage.height * stage.scale) / 2;
-            viewportStore.setOffset(offsetX, offsetY);
+            viewportStore.setScale(viewportStore.stage.containScale * 3/4);
+            viewportStore.setOffset(0, 0);
         
             if (initializeLayers) {
                 const autoSegments = this.segment(segmentTolerance);

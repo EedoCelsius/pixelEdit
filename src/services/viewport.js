@@ -13,26 +13,36 @@ export const useViewportService = defineStore('viewportService', () => {
     viewportStore.setElement(el);
   }
 
+  function zoomAt(px, py, factor) {
+    const oldScale = viewportStore.stage.scale;
+    const newScale = oldScale * factor;
+    const clamped = Math.max(viewportStore.stage.minScale, newScale);
+    const ratio = clamped / oldScale;
+    const { offset } = viewportStore.stage;
+    const centerX0 = (viewportStore.content.width - viewportStore.stage.width * oldScale) / 2;
+    const centerY0 = (viewportStore.content.height - viewportStore.stage.height * oldScale) / 2;
+    const t0x = offset.x + centerX0;
+    const t0y = offset.y + centerY0;
+    const t1x = px - ratio * (px - t0x);
+    const t1y = py - ratio * (py - t0y);
+    const centerX1 = (viewportStore.content.width - viewportStore.stage.width * clamped) / 2;
+    const centerY1 = (viewportStore.content.height - viewportStore.stage.height * clamped) / 2;
+    viewportStore.setOffset(t1x - centerX1, t1y - centerY1);
+    viewportStore.setScale(clamped);
+  }
+
   function handleWheel(e) {
     if (!viewportStore.element) return;
-    const { offset } = viewportStore.stage;
     if (!e.ctrlKey) {
+      const { offset } = viewportStore.stage;
       viewportStore.setOffset(offset.x - e.deltaX, offset.y - e.deltaY);
     } else {
       if (e.deltaY === 0) return;
       const px = e.clientX - viewportStore.content.left;
       const py = e.clientY - viewportStore.content.top;
-      const oldScale = viewportStore.stage.scale;
       const factor = e.deltaY < 0 ? WHEEL_ZOOM_IN_FACTOR : WHEEL_ZOOM_OUT_FACTOR;
-      const newScale = oldScale * factor;
-      const clamped = Math.max(viewportStore.stage.minScale, newScale);
-      const ratio = clamped / oldScale;
-      viewportStore.setOffset(
-        px - ratio * (px - offset.x),
-        py - ratio * (py - offset.y)
-      );
-      viewportStore.setScale(clamped);
-      if (newScale < oldScale) interpolatePosition(true);
+      zoomAt(px, py, factor);
+      if (factor < 1) interpolatePosition();
     }
   }
 
@@ -44,43 +54,22 @@ export const useViewportService = defineStore('viewportService', () => {
     const cy = (e1.clientY + e2.clientY) / 2 - viewportStore.content.top;
     const dist = Math.hypot(e2.clientX - e1.clientX, e2.clientY - e1.clientY);
     if (lastTouchDistance) {
-      const oldScale = viewportStore.stage.scale;
-      const newScale = oldScale * (dist / lastTouchDistance);
-      const clamped = Math.max(viewportStore.stage.minScale, newScale);
-      const ratio = clamped / oldScale;
-      const { offset } = viewportStore.stage;
-      viewportStore.setOffset(
-        cx - ratio * (cx - offset.x),
-        cy - ratio * (cy - offset.y)
-      );
-      viewportStore.setScale(clamped);
-      if (newScale < oldScale) interpolatePosition(true);
+      const factor = dist / lastTouchDistance
+      zoomAt(cx, cy, factor);
+      if (factor < 1) interpolatePosition();
     }
     lastTouchDistance = dist;
   }
 
   function interpolatePosition() {
     const stage = viewportStore.stage
-    const width = viewportStore.content.width;
-    const height = viewportStore.content.height;
-    const scaledWidth = stage.width * stage.scale;
-    const scaledHeight = stage.height * stage.scale;
     const strength = (stage.minScale / stage.scale) ** POSITION_LERP_EXPONENT;
     viewportStore.setOffset(
-      stage.offset.x + ((width - scaledWidth) / 2 - stage.offset.x) * strength,
-      stage.offset.y + ((height - scaledHeight) / 2 - stage.offset.y) * strength
+      stage.offset.x - stage.offset.x * strength,
+      stage.offset.y - stage.offset.y * strength
     );
   }
-
-  function centerPosition() {
-    const stage = viewportStore.stage
-    const width = viewportStore.content.width;
-    const height = viewportStore.content.height;
-    const scaledWidth = stage.width * stage.scale;
-    const scaledHeight = stage.height * stage.scale;
-    viewportStore.setOffset((width - scaledWidth) / 2, (height - scaledHeight) / 2);
-  }
-
+  
   watch(() => viewportEvents.recent.pointer.move, () => {
       if (viewportEvents.pinchIds) handlePinch();
   });
@@ -95,7 +84,6 @@ export const useViewportService = defineStore('viewportService', () => {
 
   return {
     element,
-    setElement,
-    centerPosition
+    setElement
   };
 });

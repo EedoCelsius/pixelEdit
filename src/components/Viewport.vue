@@ -81,10 +81,12 @@ const dpr = window.devicePixelRatio || 1;
 const stageStyle = computed(() => {
     const width = stage.width / dpr;
     const height = stage.height / dpr;
+    const offsetX = stage.offset.x + (viewportStore.content.width - stage.width * stage.scale) / 2;
+    const offsetY = stage.offset.y + (viewportStore.content.height - stage.height * stage.scale) / 2;
     return {
         width: width + 'px',
         height: height + 'px',
-        transform: `translate3d(${stage.offset.x}px, ${stage.offset.y}px, 0) scale(${stage.scale * dpr})`,
+        transform: `translate3d(${offsetX}px, ${offsetY}px, 0) scale(${stage.scale * dpr})`,
         transformOrigin: 'top left',
         willChange: 'transform'
     };

@@ -18,11 +18,7 @@ export const useStageResizeService = defineStore('stageResizeService', () => {
     viewport.resizeByEdges(payload);
     viewport.recalcContentSize();
     viewport.setScale(viewport.stage.containScale * 0.75);
-    const w = viewport.stage.width * viewport.stage.scale;
-    const h = viewport.stage.height * viewport.stage.scale;
-    const x = (viewport.content.width - w) / 2;
-    const y = (viewport.content.height - h) / 2;
-    viewport.setOffset(x, y);
+    viewport.setOffset(0, 0);
     close();
   }
 
