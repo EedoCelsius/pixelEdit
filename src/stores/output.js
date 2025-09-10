@@ -25,11 +25,11 @@ export const useOutputStore = defineStore('output', {
             pixels.applySerialized(parsed.pixelState);
             layerPanel.applySerialized(parsed.layerPanelState);
             viewport.applySerialized(parsed.viewportState);
+
             const rule = layerPanel.scrollRule;
-            if (rule) {
-                layerPanel.unfoldTo(rule.target);
-                layerPanel.ensureBlockVisibility(rule);
-            }
+            layerPanel.unfoldTo(rule.target);
+            nextTick(() => layerPanel.ensureBlockVisibility(rule));
+            
             this._lastSnapshot = snapshot;
             this._lastHash = this._calcHash();
         },
@@ -51,7 +51,7 @@ export const useOutputStore = defineStore('output', {
                 const layerPanel = useLayerPanelService();
                 const rule = layerPanel.scrollRule
                 layerPanel.unfoldTo(rule.target);
-                layerPanel.ensureBlockVisibility(rule)
+                nextTick(() => layerPanel.ensureBlockVisibility(rule));
             });
         },
         currentSnap() {
