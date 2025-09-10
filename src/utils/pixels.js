@@ -1,5 +1,6 @@
 import { SVG_NAMESPACE } from '../constants/svg.js';
 import { CHECKERBOARD_CONFIG } from '../constants/stage.js';
+import { OT } from '../constants/orientation.js';
 
 export const MAX_DIMENSION = 128;
 export const coordToIndex = (x, y) => x + MAX_DIMENSION * y;
@@ -79,10 +80,10 @@ export function ensureOrientationPattern(orientation, target = document.body) {
     pattern.setAttribute('width', '1');
     pattern.setAttribute('height', '1');
     pattern.setAttribute('patternUnits', 'userSpaceOnUse');
-    if (orientation === 'vertical' || orientation === 'horizontal' || orientation === 'downSlope' || orientation === 'upSlope') {
+    if (orientation === OT.VERTICAL || orientation === OT.HORIZONTAL || orientation === OT.DOWNSLOPE || orientation === OT.UPSLOPE) {
         const border = document.createElementNS(SVG_NAMESPACE, 'line');
         const line = document.createElementNS(SVG_NAMESPACE, 'line');
-        if (orientation === 'vertical') {
+        if (orientation === OT.VERTICAL) {
             border.setAttribute('x1', '.5');
             border.setAttribute('y1', '0');
             border.setAttribute('x2', '.5');
@@ -92,7 +93,7 @@ export function ensureOrientationPattern(orientation, target = document.body) {
             line.setAttribute('x2', '.5');
             line.setAttribute('y2', '1');
         }
-        else if (orientation === 'horizontal') {
+        else if (orientation === OT.HORIZONTAL) {
             border.setAttribute('x1', '0');
             border.setAttribute('y1', '.5');
             border.setAttribute('x2', '1');
@@ -102,7 +103,7 @@ export function ensureOrientationPattern(orientation, target = document.body) {
             line.setAttribute('x2', '1');
             line.setAttribute('y2', '.5');
         }
-        else if (orientation === 'downSlope') {
+        else if (orientation === OT.DOWNSLOPE) {
             border.setAttribute('x1', '0');
             border.setAttribute('y1', '0');
             border.setAttribute('x2', '1');
@@ -112,7 +113,7 @@ export function ensureOrientationPattern(orientation, target = document.body) {
             line.setAttribute('x2', '1');
             line.setAttribute('y2', '1');
         }
-        else { // upSlope
+        else { // OT.UPSLOPE
             border.setAttribute('x1', '0');
             border.setAttribute('y1', '1');
             border.setAttribute('x2', '1');
@@ -133,7 +134,7 @@ export function ensureOrientationPattern(orientation, target = document.body) {
     svg.appendChild(defs);
     target.appendChild(svg);
     return id;
-  }
+}
 
 export function groupConnectedPixels(pixels) {
     const visited = new Set();

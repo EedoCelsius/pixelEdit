@@ -1,12 +1,9 @@
 import { defineStore } from 'pinia';
 import { coordToIndex, indexToCoord, pixelsToUnionPath, groupConnectedPixels, MAX_DIMENSION } from '../utils/pixels.js';
 import { mixHash } from '../utils/hash.js';
+import { OT, PIXEL_ORIENTATIONS, PIXEL_DEFAULT_ORIENTATIONS, DEFAULT_CHECKERBOARD_ORIENTATIONS } from '../constants/orientation.js';
 
-export const PIXEL_ORIENTATIONS = ['none', 'horizontal', 'downSlope', 'vertical', 'upSlope'];
-export const PIXEL_DEFAULT_ORIENTATIONS = [...PIXEL_ORIENTATIONS, 'checkerboard', 'slopeCheckerboard'];
-
-const ORIENTATION_IDS = Object.fromEntries(PIXEL_ORIENTATIONS.map((o, i) => [o, i + 1]));
-const ID_TO_ORIENTATION = Object.fromEntries(PIXEL_ORIENTATIONS.map((o, i) => [i + 1, o]));
+export { OT, PIXEL_ORIENTATIONS, PIXEL_DEFAULT_ORIENTATIONS, DEFAULT_CHECKERBOARD_ORIENTATIONS };
 const PIXEL_HASHES = crypto.getRandomValues(new Uint32Array(MAX_DIMENSION * MAX_DIMENSION));
 
 function hashLayer(map) {
@@ -40,10 +37,21 @@ export const usePixelStore = defineStore('pixels', {
     state: () => ({
         _pixels: {},
         _hash: { layers: {}, all: 0 },
-        _defaultOrientation: localStorage.getItem('settings.defaultOrientation') || PIXEL_DEFAULT_ORIENTATIONS[0]
+        _defaultOrientation: (() => {
+            const saved = localStorage.getItem('settings.defaultOrientation');
+            if (saved === null) return PIXEL_DEFAULT_ORIENTATIONS[0];
+            return saved === 'checkerboard' ? saved : Number(saved);
+        })(),
+        _checkerboardOrientations: (() => {
+            const saved = localStorage.getItem('settings.checkerboardOrientations');
+            if (!saved) return [...DEFAULT_CHECKERBOARD_ORIENTATIONS];
+            const arr = saved.split(',').map(Number);
+            return arr.length === 2 && arr.every(o => PIXEL_ORIENTATIONS.includes(o)) ? arr : [...DEFAULT_CHECKERBOARD_ORIENTATIONS];
+        })()
     }),
     getters: {
         defaultOrientation: (s) => s._defaultOrientation,
+        checkerboardOrientations: (s) => s._checkerboardOrientations,
         get: (s) => (id) => {
             if (Array.isArray(id)) {
                 return id.map(i => s._pixels[i]);
@@ -55,8 +63,7 @@ export const usePixelStore = defineStore('pixels', {
             return map.size;
         },
         orientationOf: (s) => (id, pixel) => {
-            const v = s._pixels[id].get(pixel);
-            return ID_TO_ORIENTATION[v];
+            return s._pixels[id].get(pixel);
         },
         pathOf: (s) => (id) => {
             return pixelsToUnionPath(s._pixels[id]);
@@ -91,29 +98,45 @@ export const usePixelStore = defineStore('pixels', {
             this._pixels[id] = pixels;
             rehashLayer(this, id);
         },
+        update(id, orientationMap = {}) {
+            const map = this._pixels[id];
+            for (const [idxStr, oriVal] of Object.entries(orientationMap)) {
+                const pixel = Number(idxStr);
+                let orientation = oriVal;
+                if (orientation === 0) {
+                    const oldVal = map.get(pixel);
+                    if (!oldVal) continue;
+                    map.delete(pixel);
+                    updatePixelHash(this, id, pixel, oldVal, 0);
+                    continue;
+                }
+                if (orientation === OT.DEFAULT) orientation = this._defaultOrientation;
+                if (orientation === 'checkerboard') {
+                    const [o1, o2] = this._checkerboardOrientations;
+                    const [x, y] = indexToCoord(pixel);
+                    orientation = (x + y) % 2 === 0 ? o1 : o2;
+                }
+                if (!orientation) orientation = OT.NONE;
+                const oldVal = map.get(pixel) || 0;
+                map.set(pixel, orientation);
+                updatePixelHash(this, id, pixel, oldVal, orientation);
+            }
+        },
         add(id, pixels, orientation) {
             const map = this._pixels[id];
             orientation ??= this._defaultOrientation;
+            if (orientation === OT.DEFAULT) orientation = this._defaultOrientation;
             if (orientation === 'checkerboard') {
+                const [o1, o2] = this._checkerboardOrientations;
                 for (const pixel of pixels) {
                     const [x, y] = indexToCoord(pixel);
-                    const o = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
-                    const newVal = ORIENTATION_IDS[o];
+                    const o = (x + y) % 2 === 0 ? o1 : o2;
                     const oldVal = map.get(pixel) || 0;
-                    map.set(pixel, newVal);
-                    updatePixelHash(this, id, pixel, oldVal, newVal);
-                }
-            } else if (orientation === 'slopeCheckerboard') {
-                for (const pixel of pixels) {
-                    const [x, y] = indexToCoord(pixel);
-                    const o = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
-                    const newVal = ORIENTATION_IDS[o];
-                    const oldVal = map.get(pixel) || 0;
-                    map.set(pixel, newVal);
-                    updatePixelHash(this, id, pixel, oldVal, newVal);
+                    map.set(pixel, o);
+                    updatePixelHash(this, id, pixel, oldVal, o);
                 }
             } else {
-                const idOri = ORIENTATION_IDS[orientation] || ORIENTATION_IDS.none;
+                const idOri = orientation || OT.NONE;
                 for (const pixel of pixels) {
                     const oldVal = map.get(pixel) || 0;
                     map.set(pixel, idOri);
@@ -141,12 +164,10 @@ export const usePixelStore = defineStore('pixels', {
             let orientation = this._defaultOrientation;
             if (orientation === 'checkerboard') {
                 const [x, y] = indexToCoord(pixel);
-                orientation = (x + y) % 2 === 0 ? 'horizontal' : 'vertical';
-            } else if (ori === 'slopeCheckerboard') {
-                const [x, y] = indexToCoord(pixel);
-                orientation = (x + y) % 2 === 0 ? 'downSlope' : 'upSlope';
+                const [o1, o2] = this._checkerboardOrientations;
+                orientation = (x + y) % 2 === 0 ? o1 : o2;
             }
-            const newVal = ORIENTATION_IDS[orientation] || ORIENTATION_IDS.none;
+            const newVal = orientation || OT.NONE;
             map.set(pixel, newVal);
             updatePixelHash(this, id, pixel, oldVal, newVal);
         },
@@ -189,6 +210,12 @@ export const usePixelStore = defineStore('pixels', {
             if (PIXEL_DEFAULT_ORIENTATIONS.includes(orientation)) {
                 this._defaultOrientation = orientation;
                 localStorage.setItem('settings.defaultOrientation', orientation);
+            }
+        },
+        setCheckerboardOrientations(o1, o2) {
+            if (PIXEL_ORIENTATIONS.includes(o1) && PIXEL_ORIENTATIONS.includes(o2)) {
+                this._checkerboardOrientations = [o1, o2];
+                localStorage.setItem('settings.checkerboardOrientations', `${o1},${o2}`);
             }
         }
     }

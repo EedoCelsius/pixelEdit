@@ -9,6 +9,7 @@ import { useToolbarStore } from '../stores/toolbar';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 import { getPixelUnion } from '../utils/pixels.js';
+import { OT } from '../stores/pixels';
 
 export const useDrawToolService = defineStore('drawToolService', () => {
     const tool = useToolSelectionService();
@@ -48,7 +49,9 @@ export const useDrawToolService = defineStore('drawToolService', () => {
         overlayService.setPixels(overlayId, pixels);
         const id = nodeTree.selectedLayerIds[0];
         if (nodes.locked(id)) { preview.clearPreview(); return; }
-        if (pixels.length) preview.applyPixelPreview(id, { add: pixels });
+        if (pixels.length) {
+            preview.applyPixelAdd(id, pixels, OT.DEFAULT);
+        }
         else preview.clearPreview();
     });
     watch(() => tool.affectedPixels, (pixels) => {
@@ -101,7 +104,7 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
         const previewPixels = pixels.filter(pixel => sourcePixels.has(pixel));
         overlayService.setPixels(overlayId, previewPixels);
         if (nodes.locked(id)) { preview.clearPreview(); return; }
-        if (previewPixels.length) preview.applyPixelPreview(id, { remove: previewPixels });
+        if (previewPixels.length) preview.applyPixelRemove(id, previewPixels);
         else preview.clearPreview();
     });
     watch(() => tool.affectedPixels, (pixels) => {
@@ -154,7 +157,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (nodes.locked(sourceId)) { preview.clearPreview(); return; }
         const sourcePixels = new Set(pixelsOf(sourceId));
         const cutPreview = pixels.filter(pixel => sourcePixels.has(pixel));
-        if (cutPreview.length) preview.applyPixelPreview(sourceId, { remove: cutPreview });
+        if (cutPreview.length) preview.applyPixelRemove(sourceId, cutPreview);
         else preview.clearPreview();
     });
     watch(() => tool.affectedPixels, (pixels) => {

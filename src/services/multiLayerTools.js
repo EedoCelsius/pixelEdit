@@ -8,7 +8,7 @@ import { useStore } from '../stores';
 import { useToolbarStore } from '../stores/toolbar';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
 import { indexToCoord, ensureOrientationPattern, getPixelUnion } from '../utils/pixels.js';
-import { PIXEL_ORIENTATIONS } from '../stores/pixels';
+import { PIXEL_ORIENTATIONS, OT } from '../stores/pixels';
 import stageIcons from '../image/stage_toolbar';
 
 export const useSelectToolService = defineStore('selectToolService', () => {
@@ -137,26 +137,22 @@ export const useOrientationToolService = defineStore('orientationToolService', (
             orientationPreviews[id] = Object.fromEntries(PIXEL_ORIENTATIONS.map(o => [o, new Set()]));
         }
     }
-    function toArrayMap(map) {
+    function toUpdateMap(map) {
         const res = {};
-        for (const [o, set] of Object.entries(map)) if (set.size) res[o] = [...set];
+        for (const [o, set] of Object.entries(map)) {
+            for (const p of set) res[p] = Number(o);
+        }
         return res;
     }
     function orientationOfWithPreview(id, pixel) {
-        const previewMap = preview.pixels[id]?.orientationMap;
-        if (previewMap) {
-            for (const o of PIXEL_ORIENTATIONS) {
-                const arr = previewMap[o];
-                if (arr && arr.includes(pixel)) return o;
-            }
-        }
+        const previewMap = preview.pixels[id]?.update;
+        if (previewMap && previewMap[pixel] != null) return previewMap[pixel];
         return pixelStore.orientationOf(id, pixel);
     }
     function orientationPixels(id, orientation) {
-        const targetId = PIXEL_ORIENTATIONS.indexOf(orientation) + 1;
         const res = [];
         const map = pixelStore.get(id);
-        for (const [idx, orientationId] of map) if (orientationId === targetId) res.push(idx);
+        for (const [idx, orientationId] of map) if (orientationId === orientation) res.push(idx);
         return res;
     }
     function rebuild() {
@@ -171,8 +167,16 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                 for (let i = nodeTree.layerOrder.length - 1; i >= 0; i--) {
                     const id = nodeTree.layerOrder[i];
                     if (!nodes.visibility(id)) continue;
-                    let pixels = preview.pixels[id]?.orientationMap?.[orientation];
-                    if (!pixels) pixels = orientationPixels(id, orientation);
+                    let pixels = orientationPixels(id, orientation);
+                    const delta = preview.pixels[id]?.update;
+                    if (delta) {
+                        const set = new Set(pixels);
+                        for (const [pStr, o] of Object.entries(delta)) {
+                            const p = Number(pStr);
+                            if (o === orientation) set.add(p); else set.delete(p);
+                        }
+                        pixels = [...set];
+                    }
                     if (!pixels.length) continue;
                     for (const pixel of pixels) {
                         if (layerQuery.topVisibleAt(pixel) === id) {
@@ -184,8 +188,16 @@ export const useOrientationToolService = defineStore('orientationToolService', (
             }
             else {
                 for (const id of layerIds) {
-                    let pixels = preview.pixels[id]?.orientationMap?.[orientation];
-                    if (!pixels) pixels = orientationPixels(id, orientation);
+                    let pixels = orientationPixels(id, orientation);
+                    const delta = preview.pixels[id]?.update;
+                    if (delta) {
+                        const set = new Set(pixels);
+                        for (const [pStr, o] of Object.entries(delta)) {
+                            const p = Number(pStr);
+                            if (o === orientation) set.add(p); else set.delete(p);
+                        }
+                        pixels = [...set];
+                    }
                     if (!pixels.length) continue;
                     overlayService.addPixels(overlayId, pixels);
                 }
@@ -227,14 +239,14 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                 const [px, py] = indexToCoord(pixel);
                 const [prevX, prevY] = indexToCoord(prevPixel);
                 if (prevX === px) {
-                    next = 'vertical';
+                    next = OT.VERTICAL;
                     if (prevY < py)
                         tool.setCursor({ stroke: CURSOR_STYLE.DOWN, rect: CURSOR_STYLE.DOWN });
                     else
                         tool.setCursor({ stroke: CURSOR_STYLE.UP, rect: CURSOR_STYLE.UP });
                 }
                 else {
-                    next = 'horizontal';
+                    next = OT.HORIZONTAL;
                     if (prevX < px)
                         tool.setCursor({ stroke: CURSOR_STYLE.RIGHT, rect: CURSOR_STYLE.RIGHT });
                     else
@@ -242,7 +254,7 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                 }
             }
             orientationPreviews[target][next].add(pixel);
-            preview.applyPixelPreview(target, { orientationMap: toArrayMap(orientationPreviews[target]) });
+            preview.applyPixelUpdate(target, toUpdateMap(orientationPreviews[target]));
         }
         rebuild();
     });
@@ -318,7 +330,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
                 if (targetPixels.has(pixel)) pixelsToRemove.push(pixel);
             }
             if (pixelsToRemove.length) {
-                preview.applyPixelPreview(id, { remove: pixelsToRemove });
+                preview.applyPixelRemove(id, pixelsToRemove);
             }
         }
     });
