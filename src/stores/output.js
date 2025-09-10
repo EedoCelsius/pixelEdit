@@ -28,7 +28,7 @@ export const useOutputStore = defineStore('output', {
             const rule = layerPanel.scrollRule;
             if (rule) {
                 layerPanel.unfoldTo(rule.target);
-                nextTick(() => layerPanel.ensureBlockVisibility(rule));
+                layerPanel.ensureBlockVisibility(rule);
             }
             this._lastSnapshot = snapshot;
             this._lastHash = this._calcHash();
@@ -47,6 +47,11 @@ export const useOutputStore = defineStore('output', {
                 this._pointer = this._stack.length - 1;
                 this._lastSnapshot = after;
                 this._lastHash = hash;
+
+                const layerPanel = useLayerPanelService();
+                const rule = layerPanel.scrollRule
+                layerPanel.unfoldTo(rule.target);
+                layerPanel.ensureBlockVisibility(rule)
             });
         },
         currentSnap() {
@@ -67,20 +72,13 @@ export const useOutputStore = defineStore('output', {
             }
             const { nodeTree, nodes, pixels } = useStore();
             const layerPanel = useLayerPanelService();
-            watch(() => layerPanel.scrollRule, rule => {
-                if (rule) nextTick(() => layerPanel.ensureBlockVisibility(rule));
+            watch(() => nodeTree._hash.selection, () => {
+                nextTick(() => {
+                    const rule = layerPanel.scrollRule
+                    layerPanel.ensureBlockVisibility(rule)
+                });
             });
-            watch(
-                () => [nodeTree._hash.tree.hash, nodes._hash.all, pixels._hash.all],
-                () => {
-                    this._schedule();
-                    const rule = layerPanel.scrollRule;
-                    if (rule) {
-                        layerPanel.unfoldTo(rule.target);
-                        nextTick(() => layerPanel.ensureBlockVisibility(rule));
-                    }
-                }
-            );
+            watch(() => [nodeTree._hash.tree.hash, nodes._hash.all, pixels._hash.all], this._schedule);
         },
         undo() {
             if (this._pointer < 0) return;
