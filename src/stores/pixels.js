@@ -122,25 +122,23 @@ export const usePixelStore = defineStore('pixels', {
                 updatePixelHash(this, id, pixel, oldVal, orientation);
             }
         },
-        add(id, pixels, orientation) {
+        add(id, pixels, orientation = OT.DEFAULT) {
             const map = this._pixels[id];
-            orientation ??= this._defaultOrientation;
             if (orientation === OT.DEFAULT) orientation = this._defaultOrientation;
             if (orientation === 'checkerboard') {
                 const [o1, o2] = this._checkerboardOrientations;
                 for (const pixel of pixels) {
                     if (map.has(pixel)) continue;
                     const [x, y] = indexToCoord(pixel);
-                    const o = (x + y) % 2 === 0 ? o1 : o2;
-                    map.set(pixel, o);
-                    updatePixelHash(this, id, pixel, 0, o);
+                    const value = (x + y) % 2 === 0 ? o1 : o2;
+                    map.set(pixel, value);
+                    updatePixelHash(this, id, pixel, 0, value);
                 }
             } else {
-                const idOri = orientation || OT.NONE;
                 for (const pixel of pixels) {
                     if (map.has(pixel)) continue;
-                    map.set(pixel, idOri);
-                    updatePixelHash(this, id, pixel, 0, idOri);
+                    map.set(pixel, orientation);
+                    updatePixelHash(this, id, pixel, 0, orientation);
                 }
             }
         },
