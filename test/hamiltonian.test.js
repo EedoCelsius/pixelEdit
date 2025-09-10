@@ -16,11 +16,10 @@ test('buildGraphFromPixels orders neighbors around a center pixel', () => {
       grid.set(coordToIndex(x, y), 1);
     }
   }
-  const neighbors = buildGraphFromPixels(grid);
-  const keys = Array.from(grid.keys());
+  const { nodes, neighbors } = buildGraphFromPixels(grid);
   const center = coordToIndex(1, 1);
-  const centerIdx = keys.indexOf(center);
-  const neighborPixels = neighbors[centerIdx].map((i) => keys[i]);
+  const centerIdx = nodes.indexOf(center);
+  const neighborPixels = neighbors[centerIdx].map((i) => nodes[i]);
   const expected = [
     coordToIndex(1, 0), // up
     coordToIndex(2, 1), // right
@@ -39,7 +38,7 @@ test('partitionAtEdgeCut detects a bridge in a line of three pixels', () => {
   const p1 = coordToIndex(1, 0);
   const p2 = coordToIndex(2, 0);
   const map = new Map([[p0, 1], [p1, 1], [p2, 1]]);
-  const neighbors = buildGraphFromPixels(map);
+  const { neighbors } = buildGraphFromPixels(map);
   const res = partitionAtEdgeCut(neighbors);
   assert(res);
   assert.strictEqual(res.edges.length, 1);

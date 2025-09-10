@@ -10,9 +10,9 @@ function buildGraphFromPixels(pixels) {
     const x = p % MAX_DIMENSION;
     const y = Math.floor(p / MAX_DIMENSION);
     const nbs = [];
-    for (const [dx, dy] in DIRECTION_PRIORITY) {
+    for (const [dx, dy] of DIRECTION_PRIORITY) {
       const neighbor = x + dx + MAX_DIMENSION * (y + dy);
-      const idx = nodes.indexOf(neighbor)
+      const idx = nodes.indexOf(neighbor);
       if (idx !== -1) nbs.push(idx);
     }
     neighbors.push(nbs);
