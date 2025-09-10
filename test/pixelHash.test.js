@@ -46,7 +46,7 @@ test('changing pixel orientation updates hash', () => {
   const px = coordToIndex(0, 0);
   store.add(layer, [px], OT.HORIZONTAL);
   const hash1 = store._hash.all;
-  store.add(layer, [px], OT.VERTICAL);
+  store.update(layer, { [px]: OT.VERTICAL });
   const hash2 = store._hash.all;
   assert.notStrictEqual(hash1, hash2);
 });
