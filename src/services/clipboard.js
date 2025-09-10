@@ -70,11 +70,11 @@ export const useClipboardService = defineStore('clipboardService', () => {
         const infos = clipboardData.map(createFrom);
         const topIds = infos.map(info => info.id);
         const uppermost = nodeQuery.uppermost(nodeTree.selectedIds);
-        nodeTree.insert(topIds, uppermost, false);
+        nodeTree.insert(topIds, uppermost, true);
         const attach = (info) => {
             if (info.children.length) {
                 const ids = info.children.map(c => c.id);
-                nodeTree.append(ids, info.id, false);
+                nodeTree.append(ids, info.id);
                 info.children.forEach(attach);
             }
         };

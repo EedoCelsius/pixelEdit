@@ -1,6 +1,6 @@
 <template>
   <div ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
-    <div v-for="item in flatNodes" class="layer group relative flex flex-none items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none overflow-hidden" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.selectedNodeIds.includes(item.id), anchor: layerPanel.anchorId===item.id, dragging: dragId===item.id, 'descendant-selected': ancestorsOfSelected.has(item.id) }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)" @contextmenu.prevent="onContextMenu(item,$event)">
+    <div v-for="item in flatNodes" class="layer group relative flex flex-none items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none overflow-hidden" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.selectedNodeIds.includes(item.id), tail: layerPanel.tailId===item.id, dragging: dragId===item.id, 'descendant-selected': ancestorsOfSelected.has(item.id) }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)" @contextmenu.prevent="onContextMenu(item,$event)">
       <template v-if="item.isGroup">
         <div class="w-4 text-center cursor-pointer" @click.stop="toggleFold(item.id)">{{ folded[item.id] ? '▶' : '▼' }}</div>
         <div class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden" title="그룹 미리보기">
@@ -14,7 +14,7 @@
             <span class="nameText pointer-events-auto inline-block max-w-full whitespace-nowrap overflow-hidden text-ellipsis" @dblclick="startRename(item.id)" @keydown="onNameKey(item.id,$event)" @blur="finishRename(item.id,$event)">{{ item.props.name }}</span>
           </div>
           <div class="text-xs text-slate-400">
-            <span>{{ getPixelUnion(descendantPixels(item.id)).length }}px</span>
+            <span>{{ getPixelUnion(descendantPixels(item.id)).size }}px</span>
             <span class="mx-1">|</span>
             <span>{{ nodeTree.descendantLayerIds(item.id).length }} Layers</span>
           </div>
@@ -79,9 +79,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useStore } from '../stores';
-import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, clamp } from '../utils';
+import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32 } from '../utils';
 import { checkerboardPatternUrl, getPixelUnion } from '../utils/pixels.js';
 import blockIcons from '../image/layer_block';
 
@@ -336,78 +336,8 @@ function deleteNode(id) {
     }
 }
 
-function ensureBlockVisibility({
-    type,
-    target
-}) {
-    const container = listElement.value;
-    const row = container?.querySelector(`.layer[data-id="${target}"]`);
-    if (!row) return;
-
-    const containerRect = container.getBoundingClientRect(),
-        rowRect = row.getBoundingClientRect();
-    const viewTop = container.scrollTop,
-        viewBottom = viewTop + container.clientHeight;
-    const elTop = rowRect.top - containerRect.top + container.scrollTop,
-        elBottom = elTop + rowRect.height;
-
-    let scrollToPosition
-    if (viewTop < elBottom && elTop < viewBottom) {
-        // 이동 전 약간이라도 보임
-        const half = container.scrollTop + container.clientHeight * 0.5;
-        if (type === "follow-up") {
-            // 위로 이동
-            if (half < elTop)
-                scrollToPosition = container.scrollTop;
-            else {
-                // 상단에 위치함
-                scrollToPosition = elTop - container.clientHeight * 0.5;
-            }
-        } else if (type === "follow-down") {
-            // 아래로 이동
-            if (elBottom < half)
-                scrollToPosition = container.scrollTop;
-            else {
-                // 하단에 위치함
-                scrollToPosition = elBottom - container.clientHeight * 0.5;
-            }
-        } else {
-            if (elTop < viewTop) {
-                // 위로 약간 가림
-                scrollToPosition = elTop
-            } else if (elBottom > viewBottom) {
-                // 아래로 약간 가림
-                scrollToPosition = elBottom - container.clientHeight;
-            } else {
-                scrollToPosition = container.scrollTop;
-            }
-        }
-    } else {
-        // 이동 전 전혀 안보임
-        if (type === "follow-up")
-            // 위로 이동
-            scrollToPosition = elTop - container.clientHeight * 0.5;
-        else if (type === "follow-down")
-            // 아래로 이동
-            scrollToPosition = elBottom - container.clientHeight * 0.5;
-        else {
-            if (elBottom <= viewTop)
-                // 위에 있음
-                scrollToPosition = elBottom - container.clientHeight * 0.5;
-            else if (elTop >= viewBottom)
-                // 아래에 있음
-                scrollToPosition = elTop - container.clientHeight * 0.5;
-        }
-    }
-
-    const max = Math.max(0, container.scrollHeight - container.clientHeight);
-    container.scrollTo({
-        top: clamp(scrollToPosition, 0, max),
-        behavior: 'smooth'
-    });
-}
-
-  watch(() => layerPanel.scrollRule, rule => nextTick(() => ensureBlockVisibility(rule)));
+onMounted(() => layerPanel.setContainer(listElement.value));
+onUnmounted(() => layerPanel.setContainer(null));
 
 function startRename(id) {
     const element = document.querySelector(`.layer[data-id="${id}"] .nameText`);
@@ -444,11 +374,9 @@ function finishRename(id, event) {
 function onNameKey(id, event) {
     const name = nodes.name(id);
     if (event.key === 'Enter') {
-        event.preventDefault();
         event.target.blur();
     }
     if (event.key === 'Escape') {
-        event.preventDefault();
         event.target.innerText = name;
         event.target.blur();
     }
@@ -514,7 +442,7 @@ onUnmounted(() => {
   outline:2px solid rgba(56,189,248,.70);
   background:linear-gradient(180deg,rgba(56,189,248,.12),rgba(56,189,248,.05));
 }
-.layer.selected.anchor{
+.layer.selected.tail{
   outline:3px solid rgba(56,189,248,.95);
   background:linear-gradient(180deg,rgba(56,189,248,.18),rgba(56,189,248,.07));
 }
