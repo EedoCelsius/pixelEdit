@@ -18,8 +18,6 @@ export const useShortcutService = defineStore('shortcutService', () => {
     const toolbar = useToolbarStore();
     const clipboard = useClipboardService();
 
-    let modifierActive = false;
-
     function deleteSelection() {
         if (!nodeTree.selectedNodeCount) return;
         const ids = nodeTree.selectedIds;
@@ -79,7 +77,6 @@ export const useShortcutService = defineStore('shortcutService', () => {
             if (map && !e.repeat) {
                 const changeType = map[toolSelectionService.current] ?? map.default;
                 if (changeType) {
-                    modifierActive = true;
                     const tool = toolbar.tools.find(t => t.type === changeType);
                     if (tool) toolSelectionService.addPrepared(tool);
                     break;
@@ -101,14 +98,8 @@ export const useShortcutService = defineStore('shortcutService', () => {
                     deleteSelection();
                     break;
                 case 'Enter':
-                    if (!ctrl && !shift && nodeTree.selectedLayerCount === 1) {
-                        const selectedId = nodeTree.selectedLayerIds[0];
-                        const row = document.querySelector(`.layer[data-id="${selectedId}"] .nameText`);
-                        if (row) {
-                            e.preventDefault();
-                            row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-                        }
-                    }
+                    e.preventDefault();
+                    layerPanel.onEnter(e)
                     break;
                 case 'Escape':
                     nodeTree.clearSelection();
@@ -136,14 +127,12 @@ export const useShortcutService = defineStore('shortcutService', () => {
         for (const e of ups) {
             if (e.key === 'Shift') {
                 toolSelectionService.useRecent();
-                modifierActive = false;
                 break;
             }
             if (e.key === 'Control' || e.key === 'Meta') {
                 const down = keyboardEvents.get('keydown', e.key);
                 if (!down || !down.repeat) continue;
                 toolSelectionService.useRecent();
-                modifierActive = false;
                 break;
             }
         }
