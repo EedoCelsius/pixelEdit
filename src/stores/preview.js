@@ -24,14 +24,14 @@ export const usePreviewStore = defineStore('preview', {
                 if (delta) {
                     const base = pixelStore.get(id) || new Map();
                     const set = new Set(base.keys());
+                    if (delta.add) delta.add.pixels.forEach(p => set.add(p));
                     if (delta.remove) delta.remove.forEach(p => set.delete(p));
                     if (delta.update) {
                         for (const [p, o] of Object.entries(delta.update)) {
                             const idx = Number(p);
-                            if (o === 0) set.delete(idx); else set.add(idx);
+                            if (o) set.add(idx); else set.delete(idx);
                         }
                     }
-                    if (delta.add) delta.add.pixels.forEach(p => set.add(p));
                     return pixelsToUnionPath(set);
                 }
                 return pixelStore.pathOf(id);
@@ -69,9 +69,9 @@ export const usePreviewStore = defineStore('preview', {
             const pixelStore = usePixelStore();
             for (const [id, delta] of Object.entries(this.pixels)) {
                 const numId = Number(id);
-                if (delta.remove?.length) pixelStore.remove(numId, delta.remove);
-                if (delta.update) pixelStore.update(numId, delta.update);
                 if (delta.add) pixelStore.add(numId, delta.add.pixels, delta.add.orientation);
+                if (delta.remove) pixelStore.remove(numId, delta.remove);
+                if (delta.update) pixelStore.update(numId, delta.update);
             }
             this.clearPreview();
         },
