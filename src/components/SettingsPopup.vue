@@ -10,15 +10,15 @@
           <label class="block">
             <span>Default Orientation</span>
             <select v-model="defaultOrientation" class="mt-1 w-full rounded bg-slate-700 px-2 py-1">
-              <option v-for="ori in orientations" :key="ori" :value="ori">{{ ori }}</option>
+              <option v-for="ori in orientations" :key="ori" :value="ori">{{ ORIENTATION_LABELS[ori] }}</option>
             </select>
           </label>
           <div v-if="defaultOrientation === 'checkerboard'" class="flex gap-2">
             <select v-model="cbOriA" class="flex-1 rounded bg-slate-700 px-2 py-1">
-              <option v-for="ori in pixelOrientations" :key="ori" :value="ori">{{ ori }}</option>
+              <option v-for="ori in pixelOrientations" :key="ori" :value="ori">{{ ORIENTATION_LABELS[ori] }}</option>
             </select>
             <select v-model="cbOriB" class="flex-1 rounded bg-slate-700 px-2 py-1">
-              <option v-for="ori in pixelOrientations" :key="ori" :value="ori">{{ ori }}</option>
+              <option v-for="ori in pixelOrientations" :key="ori" :value="ori">{{ ORIENTATION_LABELS[ori] }}</option>
             </select>
           </div>
         </div>
@@ -41,6 +41,7 @@ import { ref, watch } from 'vue';
 import { useService } from '../services';
 import { usePixelStore, PIXEL_DEFAULT_ORIENTATIONS, PIXEL_ORIENTATIONS } from '@/stores/pixels';
 import { CHECKERBOARD_CONFIG } from '@/constants';
+import { ORIENTATION_LABELS } from '@/constants/orientation.js';
 import { checkerboardPatternUrl } from '@/utils/pixels.js';
 
 const { settings: settingsService } = useService();

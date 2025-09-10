@@ -10,3 +10,11 @@ export const OT = Object.freeze({
 export const PIXEL_ORIENTATIONS = Object.values(OT).filter(o => o !== OT.DEFAULT);
 export const PIXEL_DEFAULT_ORIENTATIONS = [...PIXEL_ORIENTATIONS, 'checkerboard'];
 export const DEFAULT_CHECKERBOARD_ORIENTATIONS = [OT.HORIZONTAL, OT.VERTICAL];
+export const ORIENTATION_LABELS = {
+  [OT.NONE]: 'none',
+  [OT.HORIZONTAL]: 'horizontal',
+  [OT.DOWNSLOPE]: 'downslope',
+  [OT.VERTICAL]: 'vertical',
+  [OT.UPSLOPE]: 'upslope',
+  checkerboard: 'checkerboard'
+};
