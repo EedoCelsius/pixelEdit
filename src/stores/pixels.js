@@ -100,10 +100,9 @@ export const usePixelStore = defineStore('pixels', {
         },
         update(id, orientationMap = {}) {
             const map = this._pixels[id];
-            for (const [idxStr, oriVal] of Object.entries(orientationMap)) {
-                const pixel = Number(idxStr);
-                let orientation = oriVal;
-                if (orientation === 0) {
+            for (let [pixel, orientation] of Object.entries(orientationMap)) {
+                pixel = Number(pixel);
+                if (!orientation) {
                     const oldVal = map.get(pixel);
                     if (!oldVal) continue;
                     map.delete(pixel);
@@ -116,32 +115,29 @@ export const usePixelStore = defineStore('pixels', {
                     const [x, y] = indexToCoord(pixel);
                     orientation = (x + y) % 2 === 0 ? o1 : o2;
                 }
-                if (!orientation) orientation = OT.NONE;
                 const oldVal = map.get(pixel) || 0;
                 map.set(pixel, orientation);
                 updatePixelHash(this, id, pixel, oldVal, orientation);
             }
         },
-        add(id, pixels, orientation) {
+        add(id, pixels, orientation = OT.DEFAULT) {
             const map = this._pixels[id];
-            orientation ??= this._defaultOrientation;
             if (orientation === 'checkerboard') {
                 const [o1, o2] = this._checkerboardOrientations;
                 for (const pixel of pixels) {
                     const [x, y] = indexToCoord(pixel);
-                    const o = (x + y) % 2 === 0 ? o1 : o2;
+                    const newVal = (x + y) % 2 === 0 ? o1 : o2;
                     const oldVal = map.get(pixel) || 0;
-                    map.set(pixel, o);
-                    updatePixelHash(this, id, pixel, oldVal, o);
+                    map.set(pixel, newVal);
+                    updatePixelHash(this, id, pixel, oldVal, newVal);
                 }
             } else {
                 for (const pixel of pixels) {
-                    let o = orientation;
-                    if (o === OT.DEFAULT) o = map.get(pixel) ?? this._defaultOrientation;
-                    const idOri = o || OT.NONE;
+                    let newVal = orientation;
+                    if (newVal === OT.DEFAULT) newVal = map.get(pixel) ?? this._defaultOrientation;
                     const oldVal = map.get(pixel) || 0;
-                    map.set(pixel, idOri);
-                    updatePixelHash(this, id, pixel, oldVal, idOri);
+                    map.set(pixel, newVal);
+                    updatePixelHash(this, id, pixel, oldVal, newVal);
                 }
             }
         },
@@ -168,9 +164,8 @@ export const usePixelStore = defineStore('pixels', {
                 const [o1, o2] = this._checkerboardOrientations;
                 orientation = (x + y) % 2 === 0 ? o1 : o2;
             }
-            const newVal = orientation || OT.NONE;
-            map.set(pixel, newVal);
-            updatePixelHash(this, id, pixel, oldVal, newVal);
+            map.set(pixel, orientation);
+            updatePixelHash(this, id, pixel, oldVal, orientation);
         },
         translateAll(dx = 0, dy = 0) {
             dx |= 0; dy |= 0;
