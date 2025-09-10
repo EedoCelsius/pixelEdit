@@ -114,9 +114,8 @@ const flatNodes = computed(() => {
   walk(nodeTree.tree, 0);
   const propsList = nodes.getProperties(ids);
   const layerIds = ids.filter(id => !nodes.isGroup(id));
-  const pixelArr = pixelStore.get(layerIds);
-  const pixelMap = Object.fromEntries(layerIds.map((id, idx) => [id, pixelArr[idx]]));
-  return ids.map((id, i) => ({ id, depth: depths[i], isGroup: propsList[i].isGroup, props: { ...propsList[i], pixels: pixelMap[id], count: pixelMap[id].size } }));
+  const pixelMap = Object.fromEntries(layerIds.map((id) => [id, pixelStore.get(id)]));
+  return ids.map((id, i) => ({ id, depth: depths[i], isGroup: propsList[i].isGroup, props: { ...propsList[i], pixels: pixelMap[id], count: pixelMap[id]?.size } }));
 });
 
 const ancestorsOfSelected = computed(() => {
