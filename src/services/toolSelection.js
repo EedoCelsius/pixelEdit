@@ -4,7 +4,7 @@ import { useStore } from '../stores';
 import { coordToIndex, indexToCoord } from '../utils/pixels.js';
 
 export const useToolSelectionService = defineStore('toolSelectionService', () => {
-    const { viewport: viewportStore, viewportEvent: viewportEvents, output } = useStore();
+    const { viewport: viewportStore, viewportEvent: viewportEvents } = useStore();
 
     const active = ref(false)
     const prepared = ref([]);
@@ -26,10 +26,8 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     const current = computed(() => currentTool.value?.type);
     const waitingTool = { type: 'waiting', name: 'Waiting', usable: computed(() => shape.value === 'wand') };
 
-    function addPrepared(t, recordRollback = true) {
+    function addPrepared(t) {
         prepared.value.push(t);
-        if (recordRollback && shape.value === 'wand' && t !== waitingTool)
-            output.setRollbackPoint();
         findUsable();
     }
     function findUsable() {
@@ -46,8 +44,7 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
     }
     function useRecent() {
         if (current.value === recent.value) findUsable();
-        else addPrepared(recent.value, false);
-        if (output.hasPendingRollback) output.commit();
+        else addPrepared(recent.value);
     }
     function setShape(s) {
         if (active.value) nextShape = s;
@@ -83,7 +80,6 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
         for (const e of downs) {
             if (e.button !== 0 || viewportEvents.pinchIds) continue;
 
-            output.setRollbackPoint();
             try { e.target.setPointerCapture?.(e.pointerId); } catch {}
 
             const pixel = viewportStore.clientToIndex(e);
@@ -144,7 +140,6 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
             previewPixels.value = [];
         }
 
-        output.commit();
         try { e.target.releasePointerCapture?.(pointer); } catch {}
 
         active.value = false;
@@ -158,7 +153,6 @@ export const useToolSelectionService = defineStore('toolSelectionService', () =>
 
     watch(() => [ viewportEvents.pinchIds, viewportEvents.recent.pointer.cancel ], ([pinches, cancels]) => {
         if (!pinches?.includes(pointer) || !cancels.includes(pointer)) return;
-        output.rollbackPending();
         const startEvent = viewportEvents.get('pointerdown', pointer);
         try { startEvent?.target?.releasePointerCapture?.(pointer); } catch {}
         

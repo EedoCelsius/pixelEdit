@@ -22,7 +22,6 @@ export const useShortcutService = defineStore('shortcutService', () => {
 
     function deleteSelection() {
         if (!nodeTree.selectedNodeCount) return;
-        output.setRollbackPoint();
         const ids = nodeTree.selectedIds;
         const lowermostTarget = nodeQuery.lowermost(ids);
         const parentId = nodeQuery.parentOf(lowermostTarget);
@@ -44,7 +43,6 @@ export const useShortcutService = defineStore('shortcutService', () => {
         }
         layerPanel.setRange(newSelect, newSelect);
         if (newSelect) layerPanel.setScrollRule({ type: 'follow', target: newSelect });
-        output.commit();
     }
 
     watch(() => keyboardEvents.recent.down, (downs) => {
@@ -113,12 +111,7 @@ export const useShortcutService = defineStore('shortcutService', () => {
                     }
                     break;
                 case 'Escape':
-                    if (output.hasPendingRollback) {
-                        e.preventDefault();
-                        output.rollbackPending();
-                    } else {
-                        nodeTree.clearSelection();
-                    }
+                    nodeTree.clearSelection();
                     break;
             }
 
@@ -129,13 +122,11 @@ export const useShortcutService = defineStore('shortcutService', () => {
                     layerPanel.selectAll();
                 } else if (lower === 'g') {
                     e.preventDefault();
-                    output.setRollbackPoint();
                     const ordered = nodeTree.orderedSelection;
                     nodeTree.replaceSelection(ordered);
                     const id = layerSvc.groupSelected();
                     layerPanel.setRange(id, id);
                     layerPanel.setScrollRule({ type: 'follow', target: id });
-                    output.commit();
                 }
             }
         }

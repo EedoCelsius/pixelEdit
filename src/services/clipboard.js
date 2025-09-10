@@ -31,7 +31,7 @@ function serializeNode(id, nodeTree, nodes, pixelStore) {
 }
 
 export const useClipboardService = defineStore('clipboardService', () => {
-    const { nodeTree, nodes, pixels: pixelStore, output } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore } = useStore();
     const nodeQuery = useNodeQueryService();
     const layerPanel = useLayerPanelService();
 
@@ -67,7 +67,6 @@ export const useClipboardService = defineStore('clipboardService', () => {
     function paste() {
         if (!clipboardData.length) return [];
 
-        output.setRollbackPoint();
         const infos = clipboardData.map(createFrom);
         const topIds = infos.map(info => info.id);
         const uppermost = nodeQuery.uppermost(nodeTree.selectedIds);
@@ -83,7 +82,6 @@ export const useClipboardService = defineStore('clipboardService', () => {
         nodeTree.replaceSelection(topIds);
         layerPanel.setRange(topIds[0], topIds[topIds.length - 1]);
         layerPanel.setScrollRule({ type: 'follow', target: topIds[0] });
-        output.commit();
         return topIds;
     }
 

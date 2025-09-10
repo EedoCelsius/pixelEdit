@@ -41,7 +41,7 @@
         </div>
         <!-- 색상 -->
         <div class="h-6 w-6 rounded border border-white/25 p-0 relative overflow-hidden">
-          <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :class="{ 'cursor-not-allowed': item.props.locked }" :disabled="item.props.locked" :value="rgbaToHexU32(item.props.color)" @pointerdown.stop @mousedown.stop @click.stop="onColorDown()" @input.stop="onColorInput(item.id, $event)" @change.stop="onColorChange()" title="색상 변경" />
+          <input type="color" class="h-10 w-10 p-0 cursor-pointer absolute -top-2 -left-2" :class="{ 'cursor-not-allowed': item.props.locked }" :disabled="item.props.locked" :value="rgbaToHexU32(item.props.color)" @pointerdown.stop @mousedown.stop @input.stop="onColorInput(item.id, $event)" @change.stop="onColorChange()" title="색상 변경" />
         </div>
         <!-- 이름/픽셀 -->
         <div class="min-w-0 flex-1 relative overflow-hidden fade-mask">
@@ -185,7 +185,6 @@ function onDisconnectedCountClick(id) {
 function onDragStart(id, event) {
     dragging.value = true;
     dragId.value = id;
-    output.setRollbackPoint();
     event.dataTransfer.setData('text/plain', String(id));
 }
 
@@ -228,11 +227,6 @@ function onDrop(item, event) {
         const placeBelow = y > rect.height * 0.5;
         nodeTree.insert(ids, item.id, placeBelow);
     }
-    output.commit();
-}
-
-function onColorDown() {
-    output.setRollbackPoint();
 }
 
 function applyToSelection(id, fn, ids = nodeTree.selectedNodeIds) {
@@ -250,21 +244,16 @@ function onColorInput(id, event) {
 
 function onColorChange() {
     preview.commitPreview();
-    output.commit();
 }
 
 function toggleVisibility(id) {
-    output.setRollbackPoint();
     const value = !nodes.visibility(id);
     applyToSelection(id, sid => nodes.setVisibility(sid, value));
-    output.commit();
 }
 
 function toggleLock(id) {
-    output.setRollbackPoint();
     const value = !nodes.locked(id);
     applyToSelection(id, sid => nodes.setLocked(sid, value));
-    output.commit();
 }
 
 function onContextMenu(item, event) {
@@ -283,13 +272,11 @@ function onContextMenu(item, event) {
         {
             label: 'Group',
             action: () => {
-                output.setRollbackPoint();
                 const ordered = nodeTree.orderedSelection;
                 nodeTree.replaceSelection(ordered);
                 const id = layerSvc.groupSelected();
                 layerPanel.setRange(id, id);
                 layerPanel.setScrollRule({ type: 'follow', target: id });
-                output.commit();
             }
         },
         {
@@ -309,9 +296,7 @@ function onContextMenu(item, event) {
             disabled: !flipEnabled,
             action: () => {
                 if (!flipEnabled) return;
-                output.setRollbackPoint();
                 layerSvc.flipOrderSelected();
-                output.commit();
             }
         }
     ];
@@ -319,9 +304,7 @@ function onContextMenu(item, event) {
         items.push({
             label: 'Ungroup',
             action: () => {
-                output.setRollbackPoint();
                 layerSvc.ungroupSelected();
-                output.commit();
             }
         });
     }
@@ -329,7 +312,6 @@ function onContextMenu(item, event) {
 }
 
 function deleteNode(id) {
-    output.setRollbackPoint();
     const targets = nodeTree.selectedNodeIds.includes(id) ? nodeTree.selectedIds : [id];
     const lowermostTarget = nodeQuery.lowermost(targets);
     const parentId = nodeQuery.parentOf(lowermostTarget);
@@ -353,7 +335,6 @@ function deleteNode(id) {
     if (newSelectId) {
         layerPanel.setScrollRule({ type: 'follow', target: newSelectId });
     }
-    output.commit();
 }
 
 function ensureBlockVisibility({
@@ -430,7 +411,6 @@ function ensureBlockVisibility({
   watch(() => layerPanel.scrollRule, rule => nextTick(() => ensureBlockVisibility(rule)));
 
 function startRename(id) {
-    output.setRollbackPoint();
     const element = document.querySelector(`.layer[data-id="${id}"] .nameText`);
     element.contentEditable = true;
     const range = document.createRange();
@@ -453,10 +433,8 @@ function finishRename(id, event) {
     editingId.value = null;
     if (text && text !== oldName) {
         nodes.setName(id, text);
-        output.commit();
     } else {
         event.target.innerText = oldName;
-        output.clearRollbackPoint();
     }
     layerPanel.setScrollRule({
         type: "follow",

@@ -27,42 +27,34 @@ import { useService } from '../services';
 import { computed } from 'vue';
 import toolbarIcons from '../image/layer_toolbar';
 
-const { nodeTree, nodes, pixels: pixelStore, output } = useStore();
+const { nodeTree, nodes, pixels: pixelStore } = useStore();
 const { layerTool: layerSvc, layerPanel, layerQuery } = useService();
 
 const hasEmptyLayers = computed(() => nodeTree.layerOrder.some(id => pixelStore.sizeOf(id) === 0));
 const canSplit = computed(() => nodeTree.selectedLayerIds.some(id => pixelStore.disconnectedCountOf(id) > 1));
 
 const onAdd = () => {
-    output.setRollbackPoint();
     const above = nodeTree.selectedLayerCount ? layerQuery.uppermost(nodeTree.selectedLayerIds) : null;
     const id = nodes.addLayer({color: 0xFFFFFFFF});
     pixelStore.addLayer(id);
     nodeTree.insert([id], above, false);
     nodeTree.replaceSelection([id]);
     layerPanel.setScrollRule({ type: 'follow', target: id });
-    output.commit();
 };
 const onAddGroup = () => {
-    output.setRollbackPoint();
     const id = layerSvc.groupSelected();
     layerPanel.setRange(id, id);
     layerPanel.setScrollRule({ type: 'follow', target: id });
-    output.commit();
 };
 const onMerge = () => {
-    output.setRollbackPoint();
     const id = layerSvc.mergeSelected();
     nodeTree.replaceSelection([id]);
     layerPanel.setScrollRule({ type: 'follow', target: id });
-    output.commit();
 };
 const onCopy = () => {
-    output.setRollbackPoint();
     const ids = layerSvc.copySelected();
     nodeTree.replaceSelection(ids);
     layerPanel.setScrollRule({ type: 'follow', target: ids[0] });
-    output.commit();
 };
 const onSelectEmpty = () => {
     const ids = layerQuery.empty();
@@ -70,9 +62,7 @@ const onSelectEmpty = () => {
     layerPanel.setScrollRule({ type: 'follow', target: ids[0] });
 };
 const onSplit = () => {
-    output.setRollbackPoint();
     const newIds = layerSvc.splitSelected();
     layerPanel.setScrollRule({ type: 'follow', target: newIds[0] });
-    output.commit();
 };
 </script>
