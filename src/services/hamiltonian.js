@@ -1,47 +1,23 @@
 const MAX_DIMENSION = 128;
 const TIME_LIMIT = 5000;
 
-// Return a orientation priority for a given offset.
-function dirPriority(dx, dy) {
-  if (dx === 0 && dy === -1) return 0; // up
-  if (dx === 1 && dy === 0) return 1; // right
-  if (dx === 0 && dy === 1) return 2; // down
-  if (dx === -1 && dy === 0) return 3; // left
-  if (dx === -1 && dy === -1) return 4; // left-up
-  if (dx === -1 && dy === 1) return 5; // left-down
-  if (dx === 1 && dy === 1) return 6; // right-down
-  if (dx === 1 && dy === -1) return 7; // right-up
-  return 8;
-}
+const DIRECTION_PRIORITY = [[0, -1], [1, 0], [0, 1], [-1, 0], [-1, -1], [-1, 1], [1, 1], [1, -1]]
 
-// Build adjacency info for pixels with 8-way connectivity
-// Returns adjacency list `neighbors` only
-function buildGraphFromPixels(pixelMap) {
-  const pixels = Array.from(pixelMap.keys());
-  const indexMap = new Map();
-  for (let i = 0; i < pixels.length; i++) indexMap.set(pixels[i], i);
+function buildGraphFromPixels(pixels) {
+  const nodes = Array.from(pixels.keys());
   const neighbors = [];
-
-  for (let i = 0; i < pixels.length; i++) {
-    const p = pixels[i];
+  for (const p of nodes) {
     const x = p % MAX_DIMENSION;
     const y = Math.floor(p / MAX_DIMENSION);
     const nbs = [];
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        if (dx === 0 && dy === 0) continue;
-        const nPixel = x + dx + MAX_DIMENSION * (y + dy);
-        const idx = indexMap.get(nPixel);
-        if (idx !== undefined) {
-          nbs.push({ idx, order: dirPriority(dx, dy) });
-        }
-      }
+    for (const [dx, dy] in DIRECTION_PRIORITY) {
+      const neighbor = x + dx + MAX_DIMENSION * (y + dy);
+      const idx = nodes.indexOf(neighbor)
+      if (idx !== -1) nbs.push(idx);
     }
-    nbs.sort((a, b) => a.order - b.order);
-    neighbors.push(nbs.map((n) => n.idx));
+    neighbors.push(nbs);
   }
-
-  return neighbors;
+  return { nodes, neighbors };
 }
 
 // Check if removing specific edges disconnects the graph
@@ -420,9 +396,8 @@ async function solve(neighbors, opts = {}) {
   return await solver.run();
 }
 
-async function solveFromPixels(pixelMap, opts = {}) {
-  const nodes = Array.from(pixelMap.keys());
-  const neighbors = buildGraphFromPixels(pixelMap);
+async function solveFromPixels(pixels, opts = {}) {
+  const { nodes, neighbors } = buildGraphFromPixels(pixels);
   const anchors = (opts.anchors || []).map((anchor) => {
     const idx = nodes.indexOf(anchor);
     if (idx === -1) throw new Error('Anchor pixel missing');
@@ -433,16 +408,16 @@ async function solveFromPixels(pixelMap, opts = {}) {
 }
 
 class HamiltonianService {
-  async traverseWithStart(pixelMap, start) {
-    return await solveFromPixels(pixelMap, { anchors: [start] });
+  async traverseWithStart(pixels, start) {
+    return await solveFromPixels(pixels, { anchors: [start] });
   }
 
-  async traverseWithStartEnd(pixelMap, start, end) {
-    return await solveFromPixels(pixelMap, { anchors: [start, end] });
+  async traverseWithStartEnd(pixels, start, end) {
+    return await solveFromPixels(pixels, { anchors: [start, end] });
   }
 
-  async traverseFree(pixelMap) {
-    return await solveFromPixels(pixelMap);
+  async traverseFree(pixels) {
+    return await solveFromPixels(pixels);
   }
 }
 
