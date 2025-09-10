@@ -145,11 +145,28 @@ export const useViewportStore = defineStore('viewport', {
                 if (stage.offset.x != null) this._stage.offset.x = stage.offset.x;
                 if (stage.offset.y != null) this._stage.offset.y = stage.offset.y;
             }
-            if (image.src != null) this._image.src = image.src;
-            if (image.x != null) this._image.x = image.x;
-            if (image.y != null) this._image.y = image.y;
-            if (image.width != null) this._image.width = image.width;
-            if (image.height != null) this._image.height = image.height;
+            // Only update image fields if values actually changed. Setting the
+            // ``src`` attribute on an ``img`` element to the same value causes it
+            // to reload in the browser, which in turn triggers the image load
+            // handler that recenters and zooms the viewport. When undoing back
+            // to the very first snapshot we do not want this implicit zoom to
+            // occur, so we skip assignments if the value is identical to the
+            // current state.
+            if (image.src != null && image.src !== this._image.src) {
+                this._image.src = image.src;
+            }
+            if (image.x != null && image.x !== this._image.x) {
+                this._image.x = image.x;
+            }
+            if (image.y != null && image.y !== this._image.y) {
+                this._image.y = image.y;
+            }
+            if (image.width != null && image.width !== this._image.width) {
+                this._image.width = image.width;
+            }
+            if (image.height != null && image.height !== this._image.height) {
+                this._image.height = image.height;
+            }
         },
     }
 });
