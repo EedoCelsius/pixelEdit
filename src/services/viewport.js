@@ -69,11 +69,7 @@ export const useViewportService = defineStore('viewportService', () => {
       stage.offset.y - stage.offset.y * strength
     );
   }
-
-  function centerPosition() {
-    viewportStore.setOffset(0, 0);
-  }
-
+  
   watch(() => viewportEvents.recent.pointer.move, () => {
       if (viewportEvents.pinchIds) handlePinch();
   });
@@ -88,7 +84,6 @@ export const useViewportService = defineStore('viewportService', () => {
 
   return {
     element,
-    setElement,
-    centerPosition
+    setElement
   };
 });
