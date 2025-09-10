@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { watch, nextTick } from 'vue';
 import { useStore } from '.';
 import { useLayerPanelService } from '../services/layerPanel';
 
@@ -8,7 +9,8 @@ export const useOutputStore = defineStore('output', {
         _pointer: -1,
         _lastSnapshot: null,
         _lastHash: 0,
-        _commitVersion: 0
+        _commitVersion: 0,
+        _tickScheduled: false
     }),
     getters: {
         commitVersion: (state) => state._commitVersion
@@ -31,7 +33,7 @@ export const useOutputStore = defineStore('output', {
             this._lastHash = this._calcHash();
             this._commitVersion++; // ← Undo/Redo 시에도 썸네일 갱신
         },
-        _tick() {
+        _record() {
             const hash = this._calcHash();
             if (hash !== this._lastHash) {
                 const before = this._lastSnapshot;
@@ -43,7 +45,14 @@ export const useOutputStore = defineStore('output', {
                 this._lastHash = hash;
                 this._commitVersion++;
             }
-            requestAnimationFrame(() => this._tick());
+        },
+        _scheduleRecord() {
+            if (this._tickScheduled) return;
+            this._tickScheduled = true;
+            nextTick(() => {
+                this._tickScheduled = false;
+                this._record();
+            });
         },
         currentSnap() {
             const { nodeTree, nodes, pixels, viewport } = useStore();
@@ -61,7 +70,10 @@ export const useOutputStore = defineStore('output', {
                 this._lastSnapshot = this.currentSnap();
                 this._lastHash = this._calcHash();
             }
-            this._tick();
+            const { nodeTree, nodes, pixels } = useStore();
+            watch(() => nodeTree._hash.tree.hash, () => this._scheduleRecord());
+            watch(() => nodes._hash.all, () => this._scheduleRecord());
+            watch(() => pixels._hash.all, () => this._scheduleRecord());
         },
         undo() {
             if (this._pointer < 0) return;
