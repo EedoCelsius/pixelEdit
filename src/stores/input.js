@@ -63,12 +63,18 @@ export const useInputStore = defineStore('input', {
         initialize({ initializeLayers = true, segmentTolerance = 40, canvasWidth, canvasHeight } = {}) {
             const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore } = useStore();
             const layerPanel = useLayerPanelService();
-            const width = Math.min(canvasWidth ?? this.width, MAX_DIMENSION);
-            const height = Math.min(canvasHeight ?? this.height, MAX_DIMENSION);
-            const ox = Math.floor((width - this.width) / 2);
-            const oy = Math.floor((height - this.height) / 2);
+            const width = Math.min(canvasWidth, MAX_DIMENSION);
+            const height = Math.min(canvasHeight, MAX_DIMENSION);
             viewportStore.setSize(width, height);
             viewportStore.setImage(this.src || '', this.width, this.height);
+            
+            viewportStore.recalcContentSize();
+            const stage = viewportStore.stage
+            viewportStore.setScale(stage.containScale * 3/4);
+            const offsetX = (viewportStore.content.width - stage.width * stage.scale) / 2;
+            const offsetY = (viewportStore.content.height - stage.height * stage.scale) / 2;
+            viewportStore.setOffset(offsetX, offsetY);
+        
             if (initializeLayers) {
                 const autoSegments = this.segment(segmentTolerance);
                 if (autoSegments.length) {
@@ -130,6 +136,9 @@ export const useInputStore = defineStore('input', {
                 pixelStore.addLayer(ids);
             }
             layerPanel.setScrollRule({ type: 'follow', target: nodeTree.layerOrder[nodeTree.layerOrder.length - 1] });
+            
+            const ox = Math.floor((width - this.width) / 2);
+            const oy = Math.floor((height - this.height) / 2);
             if (ox || oy) {
                 pixelStore.translateAll(ox, oy);
                 viewportStore.setImagePosition(ox, oy);
