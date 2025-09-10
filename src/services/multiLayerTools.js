@@ -293,7 +293,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         if (pixel){
             const lockedIds = nodeTree.layerOrder.filter(id => nodes.locked(id));
             for (const id of lockedIds) {
-                const lockedPixels = new Set(pixelStore.get(id).keys());
+                const lockedPixels = pixelStore.get(id);
                 if (lockedPixels.has(pixel)) {
                     tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
                     return;
@@ -319,15 +319,10 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         overlayService.setPixels(overlayId, erasablePixels);
         preview.clear();
         if (!erasablePixels.length) return;
-        const targetIds = (nodeTree.layerSelectionExists ? nodeTree.selectedLayerIds : nodeTree.layerOrder)
-            .filter(id => !nodes.locked(id));
-        for (const id of targetIds) {
-            const targetPixels = pixelStore.get(id);
-            const pixelsToRemove = [];
-            for (const pixel of erasablePixels) {
-                if (targetPixels.has(pixel)) pixelsToRemove.push(pixel);
-            }
-            preview.removePixels(id, pixelsToRemove);
+        const targetLayers = nodeTree.layerSelectionExists ? nodeTree.selectedLayerIds : nodeTree.layerOrder
+        for (const layer of targetLayers) {
+            if (nodes.locked(id)) return;
+            preview.removePixels(layer, erasablePixels);
         }
     });
     watch(() => tool.affectedPixels, (pixels) => {
