@@ -125,6 +125,52 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         state.scrollRule = rule;
     }
 
+    function unfoldAncestors(id) {
+        let info = nodeTree._findNode(id);
+        while (info?.parent) {
+            folded[info.parent.id] = false;
+            info = nodeTree._findNode(info.parent.id);
+        }
+    }
+
+    function moveByVisible(id, dir) {
+        const { order } = dfs(true);
+        if (!order.length) return id;
+        const orderSet = new Set(order);
+        let target = orderSet.has(id) ? id : visibleAncestor(id, orderSet);
+        if (target == null) return id;
+        const idx = order.indexOf(target);
+        const nextIdx = dir === 'up' ? idx - 1 : idx + 1;
+        return order[nextIdx] ?? target;
+    }
+
+    function moveSibling(id, dir) {
+        let info = nodeTree._findNode(id);
+        if (!info) return id;
+        const siblings = info.parent ? info.parent.children : nodeTree.tree;
+        const idx = siblings.findIndex(n => n.id === id);
+        if (dir === 'up') {
+            if (idx < siblings.length - 1) {
+                return siblings[idx + 1].id;
+            } else {
+                return info.parent ? info.parent.id : id;
+            }
+        } else {
+            if (idx > 0) {
+                return siblings[idx - 1].id;
+            } else {
+                let parentInfo = info.parent ? nodeTree._findNode(info.parent.id) : null;
+                while (parentInfo) {
+                    const arr = parentInfo.parent ? parentInfo.parent.children : nodeTree.tree;
+                    const pIdx = arr.findIndex(n => n.id === parentInfo.node.id);
+                    if (pIdx > 0) return arr[pIdx - 1].id;
+                    parentInfo = parentInfo.parent ? nodeTree._findNode(parentInfo.parent.id) : null;
+                }
+                return id;
+            }
+        }
+    }
+
     function onLayerClick(id, event) {
         if (event.shiftKey) {
             setRange(state.anchorId ?? id, id);
@@ -136,52 +182,112 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         setScrollRule({ type: 'follow', target: id });
     }
 
-    function onArrowUp(shift, ctrl) {
-        if (!nodeTree.exists || ctrl) return;
-        const { order } = dfs(true);
-        if (!order.length) return;
-        const orderSet = new Set(order);
-        if (shift) {
-            if (!nodeTree.layerSelectionExists) return;
-            const tailVis = visibleAncestor(state.tailId, orderSet);
-            const anchorVis = visibleAncestor(state.anchorId, orderSet);
-            if (tailVis == null || anchorVis == null) return;
-            const idx = order.indexOf(tailVis);
-            const newTail = order[idx - 1] ?? order[0];
-            setRange(anchorVis, newTail);
-            setScrollRule({ type: 'follow-up', target: newTail });
+    function handleArrow(dir, shift, ctrl) {
+        if (!nodeTree.exists) return;
+
+        const followType = dir === 'up' ? 'follow-up' : 'follow-down';
+        const selected = nodeTree.selectedIds;
+        const hasAnchor = state.anchorId != null && state.tailId != null;
+
+        if (!hasAnchor) {
+            if (selected.length === 1) {
+                const cur = selected[0];
+                if (!ctrl) unfoldAncestors(cur);
+                const target = moveByVisible(cur, dir);
+                setRange(target, target);
+                setScrollRule({ type: followType, target });
+            } else if (selected.length > 1) {
+                if (ctrl) {
+                    const { order } = dfs(true);
+                    const selSet = new Set(selected);
+                    const visible = order.filter(id => selSet.has(id));
+                    if (!visible.length) return;
+                    const target = dir === 'up' ? visible[0] : visible[visible.length - 1];
+                    setRange(target, target);
+                    setScrollRule({ type: followType, target });
+                } else {
+                    const { order } = dfs(false);
+                    const selSet = new Set(selected);
+                    const ordered = order.filter(id => selSet.has(id));
+                    if (!ordered.length) return;
+                    const target = dir === 'up' ? ordered[0] : ordered[ordered.length - 1];
+                    unfoldAncestors(target);
+                    setRange(target, target);
+                    setScrollRule({ type: followType, target });
+                }
+            }
+            return;
+        }
+
+        const anchor = state.anchorId;
+        const tail = state.tailId;
+        const single = anchor === tail;
+
+        if (single) {
+            if (ctrl && !shift) {
+                unfoldAncestors(tail);
+                const target = moveSibling(tail, dir);
+                setRange(target, target);
+                setScrollRule({ type: followType, target });
+            } else if (ctrl && shift) {
+                unfoldAncestors(tail);
+                const newTail = moveSibling(tail, dir);
+                setRange(anchor, newTail);
+                setScrollRule({ type: followType, target: newTail });
+            } else if (!ctrl && shift) {
+                unfoldAncestors(tail);
+                const newTail = moveByVisible(tail, dir);
+                setRange(anchor, newTail);
+                setScrollRule({ type: followType, target: newTail });
+            } else {
+                unfoldAncestors(tail);
+                const target = moveByVisible(tail, dir);
+                setRange(target, target);
+                setScrollRule({ type: followType, target });
+            }
+            return;
+        }
+
+        if (ctrl && shift) {
+            unfoldAncestors(tail);
+            const newTail = moveSibling(tail, dir);
+            setRange(anchor, newTail);
+            setScrollRule({ type: followType, target: newTail });
+        } else if (ctrl && !shift) {
+            const { order } = dfs(true);
+            const idxA = order.indexOf(anchor);
+            const idxT = order.indexOf(tail);
+            if (idxA === -1 || idxT === -1) return;
+            const start = Math.min(idxA, idxT);
+            const end = Math.max(idxA, idxT);
+            const target = dir === 'up' ? order[start] : order[end];
+            setRange(target, target);
+            setScrollRule({ type: followType, target });
+        } else if (!ctrl && shift) {
+            unfoldAncestors(tail);
+            const newTail = moveByVisible(tail, dir);
+            setRange(anchor, newTail);
+            setScrollRule({ type: followType, target: newTail });
         } else {
-            const anchorVis = visibleAncestor(state.anchorId, orderSet);
-            if (anchorVis == null) return;
-            const idx = order.indexOf(anchorVis);
-            const nextId = order[idx - 1] ?? anchorVis;
-            setRange(nextId, nextId);
-            setScrollRule({ type: 'follow-up', target: nextId });
+            const { order } = dfs(false);
+            const idxA = order.indexOf(anchor);
+            const idxT = order.indexOf(tail);
+            if (idxA === -1 || idxT === -1) return;
+            const start = Math.min(idxA, idxT);
+            const end = Math.max(idxA, idxT);
+            const target = dir === 'up' ? order[start] : order[end];
+            unfoldAncestors(target);
+            setRange(target, target);
+            setScrollRule({ type: followType, target });
         }
     }
 
+    function onArrowUp(shift, ctrl) {
+        handleArrow('up', shift, ctrl);
+    }
+
     function onArrowDown(shift, ctrl) {
-        if (!nodeTree.exists || ctrl) return;
-        const { order } = dfs(true);
-        if (!order.length) return;
-        const orderSet = new Set(order);
-        if (shift) {
-            if (!nodeTree.layerSelectionExists) return;
-            const tailVis = visibleAncestor(state.tailId, orderSet);
-            const anchorVis = visibleAncestor(state.anchorId, orderSet);
-            if (tailVis == null || anchorVis == null) return;
-            const idx = order.indexOf(tailVis);
-            const newTail = order[idx + 1] ?? order[order.length - 1];
-            setRange(anchorVis, newTail);
-            setScrollRule({ type: 'follow-down', target: newTail });
-        } else {
-            const anchorVis = visibleAncestor(state.anchorId, orderSet);
-            if (anchorVis == null) return;
-            const idx = order.indexOf(anchorVis);
-            const nextId = order[idx + 1] ?? anchorVis;
-            setRange(nextId, nextId);
-            setScrollRule({ type: 'follow-down', target: nextId });
-        }
+        handleArrow('down', shift, ctrl);
     }
 
     function toggleFold(id) {
