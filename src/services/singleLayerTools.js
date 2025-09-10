@@ -82,8 +82,8 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
         if (tool.current !== 'erase') return;
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.locked(sourceId)) {
-            const sourceMap = pixelStore.get(sourceId);
-            if (pixel != null && sourceMap.has(pixel))
+            const sourcePx = pixelStore.get(sourceId);
+            if (pixel != null && sourcePx.has(pixel))
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
             else
                 tool.setCursor({ stroke: CURSOR_STYLE.ERASE_STROKE, rect: CURSOR_STYLE.ERASE_RECT });
@@ -91,9 +91,9 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     });
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.current !== 'erase') return;
-        const id = nodeTree.selectedLayerIds[0];
-        const sourceMap = pixelStore.get(id);
-        const previewPixels = pixels.filter(pixel => sourceMap.has(pixel));
+        const sourceId = nodeTree.selectedLayerIds[0];
+        const sourcePx = pixelStore.get(sourceId);
+        const previewPixels = pixels.filter(pixel => sourcePx.has(pixel));
         overlayService.setPixels(overlayId, previewPixels);
         if (nodes.locked(id)) return;
         preview.clear();
@@ -133,8 +133,8 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (tool.current !== 'cut') return;
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.locked(sourceId)) {
-            const sourceMap = pixelStore.get(sourceId);
-            if (pixel != null && sourceMap.has(pixel))
+            const sourcePx = pixelStore.get(sourceId);
+            if (pixel != null && sourcePx.has(pixel))
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
             else
                 tool.setCursor({ stroke: CURSOR_STYLE.CUT_STROKE, rect: CURSOR_STYLE.CUT_RECT });
@@ -150,9 +150,9 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (tool.current !== 'cut') return;
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.locked(sourceId)) return;
-        const sourceMap = pixelStore.get(sourceId);
-        const cutPixels = pixels.filter(pixel => sourceMap.has(pixel));
-        if (!cutPixels.length || cutPixels.length === sourceMap.size) return;
+        const sourcePx = pixelStore.get(sourceId);
+        const cutPixels = pixels.filter(pixel => sourcePx.has(pixel));
+        if (!cutPixels.length || cutPixels.length === sourcePx.size) return;
         pixelStore.remove(sourceId, cutPixels);
         const id = nodes.addLayer({
             name: `Cut of ${nodes.name(sourceId)}`,
