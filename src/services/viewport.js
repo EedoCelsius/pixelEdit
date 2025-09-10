@@ -29,7 +29,6 @@ export const useViewportService = defineStore('viewportService', () => {
     const centerY1 = (viewportStore.content.height - viewportStore.stage.height * clamped) / 2;
     viewportStore.setOffset(t1x - centerX1, t1y - centerY1);
     viewportStore.setScale(clamped);
-    return newScale < oldScale;
   }
 
   function handleWheel(e) {
@@ -42,8 +41,8 @@ export const useViewportService = defineStore('viewportService', () => {
       const px = e.clientX - viewportStore.content.left;
       const py = e.clientY - viewportStore.content.top;
       const factor = e.deltaY < 0 ? WHEEL_ZOOM_IN_FACTOR : WHEEL_ZOOM_OUT_FACTOR;
-      const shrink = zoomAt(px, py, factor);
-      if (shrink) interpolatePosition(true);
+      zoomAt(px, py, factor);
+      if (factor < 1) interpolatePosition();
     }
   }
 
@@ -55,8 +54,9 @@ export const useViewportService = defineStore('viewportService', () => {
     const cy = (e1.clientY + e2.clientY) / 2 - viewportStore.content.top;
     const dist = Math.hypot(e2.clientX - e1.clientX, e2.clientY - e1.clientY);
     if (lastTouchDistance) {
-      const shrink = zoomAt(cx, cy, dist / lastTouchDistance);
-      if (shrink) interpolatePosition(true);
+      const factor = dist / lastTouchDistance
+      zoomAt(cx, cy, factor);
+      if (factor < 1) interpolatePosition();
     }
     lastTouchDistance = dist;
   }
