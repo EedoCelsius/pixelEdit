@@ -4,6 +4,7 @@ import { useToolSelectionService } from './toolSelection';
 import { useHamiltonianService } from './hamiltonian';
 import { useLayerQueryService } from './layerQuery';
 import { useNodeQueryService } from './nodeQuery';
+import { useLayerToolService } from './layerTool';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
 import { coordToIndex, indexToCoord, getPixelUnion, groupConnectedPixels } from '../utils/pixels.js';
@@ -13,15 +14,21 @@ export const usePathToolService = defineStore('pathToolService', () => {
     const tool = useToolSelectionService();
     const hamiltonian = useHamiltonianService();
     const layerQuery = useLayerQueryService();
+    const layerTool = useLayerToolService();
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
-    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount === 1);
+    const usable = computed(() =>
+        tool.shape === 'wand' && (nodeTree.selectedLayerCount > 0 || nodeTree.selectedGroupCount > 0)
+    );
 
     watch(() => tool.current, async (p) => {
         if (p !== 'path') return;
 
         tool.setCursor({ wand: CURSOR_STYLE.WAIT });
 
-        const target = nodeTree.selectedLayerIds[0];
+        let target = nodeTree.selectedLayerIds[0];
+        if (nodeTree.selectedGroupCount > 0 || nodeTree.selectedLayerCount > 1) {
+            target = layerTool.mergeSelected();
+        }
         const paths = await hamiltonian.traverseFree(pixelStore.get(target));
 
         const color = nodes.color(target);
