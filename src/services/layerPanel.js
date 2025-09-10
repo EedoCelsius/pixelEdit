@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
-import { reactive, toRefs, watch, computed } from 'vue';
+import { reactive, ref, toRefs, watch, computed } from 'vue';
 import { useStore } from '../stores';
+import { clamp } from '../utils';
 
 export const useLayerPanelService = defineStore('layerPanelService', () => {
     const { nodeTree } = useStore();
@@ -12,6 +13,7 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
     });
 
     const folded = reactive({});
+    const container = ref(null);
 
     const exists = computed(() => state.anchorId != null && state.tailId != null);
 
@@ -96,33 +98,79 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
     }
 
     function setScrollRule(rule) {
-        if (rule?.target != null) {
-            const info = nodeTree._findNode(rule.target);
-            if (info) {
-                const path = [];
-                let cur = info;
-                while (cur) {
-                    path.unshift(cur.node);
-                    if (!cur.parent) break;
-                    cur = nodeTree._findNode(cur.parent.id);
-                }
-                for (let i = 0; i < path.length - 1; i++) {
-                    const anc = path[i];
-                    const next = path[i + 1];
-                    if (folded[anc.id]) {
-                        folded[anc.id] = false;
-                        if (anc.children) {
-                            for (const child of anc.children) {
-                                if (child.id !== next.id && child.children) {
-                                    folded[child.id] = true;
-                                }
-                            }
-                        }
-                    }
-                }
+        state.scrollRule = rule;
+    }
+
+    function setContainer(el) {
+        container.value = el;
+    }
+
+    function unfoldTo(id) {
+        let info = nodeTree._findNode(id);
+        while (info) {
+            folded[info.node.id] = false;
+            if (!info.parent) break;
+            info = nodeTree._findNode(info.parent.id);
+        }
+    }
+
+    function ensureBlockVisibility({ type, target }) {
+        const el = container.value;
+        if (!el || target == null) return;
+        let row = el.querySelector(`.layer[data-id="${target}"]`);
+        if (!row) {
+            let info = nodeTree._findNode(target);
+            while (info && !row) {
+                if (!info.parent) break;
+                info = nodeTree._findNode(info.parent.id);
+                if (info) row = el.querySelector(`.layer[data-id="${info.node.id}"]`);
+            }
+            if (!row) return;
+        }
+
+        const containerRect = el.getBoundingClientRect(),
+            rowRect = row.getBoundingClientRect();
+        const viewTop = el.scrollTop,
+            viewBottom = viewTop + el.clientHeight;
+        const elTop = rowRect.top - containerRect.top + el.scrollTop,
+            elBottom = elTop + rowRect.height;
+
+        let scrollToPosition;
+        if (viewTop < elBottom && elTop < viewBottom) {
+            const half = el.scrollTop + el.clientHeight * 0.5;
+            if (type === 'follow-up') {
+                if (half < elTop)
+                    scrollToPosition = el.scrollTop;
+                else
+                    scrollToPosition = elTop - el.clientHeight * 0.5;
+            } else if (type === 'follow-down') {
+                if (elBottom < half)
+                    scrollToPosition = el.scrollTop;
+                else
+                    scrollToPosition = elBottom - el.clientHeight * 0.5;
+            } else {
+                if (elTop < viewTop)
+                    scrollToPosition = elTop;
+                else if (elBottom > viewBottom)
+                    scrollToPosition = elBottom - el.clientHeight;
+                else
+                    scrollToPosition = el.scrollTop;
+            }
+        } else {
+            if (type === 'follow-up')
+                scrollToPosition = elTop - el.clientHeight * 0.5;
+            else if (type === 'follow-down')
+                scrollToPosition = elBottom - el.clientHeight * 0.5;
+            else {
+                if (elBottom <= viewTop)
+                    scrollToPosition = elBottom - el.clientHeight * 0.5;
+                else if (elTop >= viewBottom)
+                    scrollToPosition = elTop - el.clientHeight * 0.5;
             }
         }
-        state.scrollRule = rule;
+
+        const max = Math.max(0, el.scrollHeight - el.clientHeight);
+        el.scrollTo({ top: clamp(scrollToPosition, 0, max), behavior: 'smooth' });
     }
 
     function onLayerClick(id, event) {
@@ -217,6 +265,9 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         exists,
         folded,
         toggleFold,
+        setContainer,
+        unfoldTo,
+        ensureBlockVisibility,
         setRange,
         clearRange,
         setScrollRule,

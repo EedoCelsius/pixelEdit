@@ -79,9 +79,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useStore } from '../stores';
-import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32, clamp } from '../utils';
+import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32 } from '../utils';
 import { checkerboardPatternUrl, getPixelUnion } from '../utils/pixels.js';
 import blockIcons from '../image/layer_block';
 
@@ -336,78 +336,8 @@ function deleteNode(id) {
     }
 }
 
-function ensureBlockVisibility({
-    type,
-    target
-}) {
-    const container = listElement.value;
-    const row = container?.querySelector(`.layer[data-id="${target}"]`);
-    if (!row) return;
-
-    const containerRect = container.getBoundingClientRect(),
-        rowRect = row.getBoundingClientRect();
-    const viewTop = container.scrollTop,
-        viewBottom = viewTop + container.clientHeight;
-    const elTop = rowRect.top - containerRect.top + container.scrollTop,
-        elBottom = elTop + rowRect.height;
-
-    let scrollToPosition
-    if (viewTop < elBottom && elTop < viewBottom) {
-        // 이동 전 약간이라도 보임
-        const half = container.scrollTop + container.clientHeight * 0.5;
-        if (type === "follow-up") {
-            // 위로 이동
-            if (half < elTop)
-                scrollToPosition = container.scrollTop;
-            else {
-                // 상단에 위치함
-                scrollToPosition = elTop - container.clientHeight * 0.5;
-            }
-        } else if (type === "follow-down") {
-            // 아래로 이동
-            if (elBottom < half)
-                scrollToPosition = container.scrollTop;
-            else {
-                // 하단에 위치함
-                scrollToPosition = elBottom - container.clientHeight * 0.5;
-            }
-        } else {
-            if (elTop < viewTop) {
-                // 위로 약간 가림
-                scrollToPosition = elTop
-            } else if (elBottom > viewBottom) {
-                // 아래로 약간 가림
-                scrollToPosition = elBottom - container.clientHeight;
-            } else {
-                scrollToPosition = container.scrollTop;
-            }
-        }
-    } else {
-        // 이동 전 전혀 안보임
-        if (type === "follow-up")
-            // 위로 이동
-            scrollToPosition = elTop - container.clientHeight * 0.5;
-        else if (type === "follow-down")
-            // 아래로 이동
-            scrollToPosition = elBottom - container.clientHeight * 0.5;
-        else {
-            if (elBottom <= viewTop)
-                // 위에 있음
-                scrollToPosition = elBottom - container.clientHeight * 0.5;
-            else if (elTop >= viewBottom)
-                // 아래에 있음
-                scrollToPosition = elTop - container.clientHeight * 0.5;
-        }
-    }
-
-    const max = Math.max(0, container.scrollHeight - container.clientHeight);
-    container.scrollTo({
-        top: clamp(scrollToPosition, 0, max),
-        behavior: 'smooth'
-    });
-}
-
-  watch(() => layerPanel.scrollRule, rule => nextTick(() => ensureBlockVisibility(rule)));
+onMounted(() => layerPanel.setContainer(listElement.value));
+onUnmounted(() => layerPanel.setContainer(null));
 
 function startRename(id) {
     const element = document.querySelector(`.layer[data-id="${id}"] .nameText`);

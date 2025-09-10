@@ -25,6 +25,11 @@ export const useOutputStore = defineStore('output', {
             pixels.applySerialized(parsed.pixelState);
             layerPanel.applySerialized(parsed.layerPanelState);
             viewport.applySerialized(parsed.viewportState);
+            const rule = layerPanel.scrollRule;
+            if (rule) {
+                layerPanel.unfoldTo(rule.target);
+                nextTick(() => layerPanel.ensureBlockVisibility(rule));
+            }
             this._lastSnapshot = snapshot;
             this._lastHash = this._calcHash();
         },
@@ -61,7 +66,21 @@ export const useOutputStore = defineStore('output', {
                 this._lastHash = this._calcHash();
             }
             const { nodeTree, nodes, pixels } = useStore();
-            watch(() => [nodeTree._hash.tree.hash, nodes._hash.all, pixels._hash.all], this._schedule);
+            const layerPanel = useLayerPanelService();
+            watch(() => layerPanel.scrollRule, rule => {
+                if (rule) nextTick(() => layerPanel.ensureBlockVisibility(rule));
+            });
+            watch(
+                () => [nodeTree._hash.tree.hash, nodes._hash.all, pixels._hash.all],
+                () => {
+                    this._schedule();
+                    const rule = layerPanel.scrollRule;
+                    if (rule) {
+                        layerPanel.unfoldTo(rule.target);
+                        nextTick(() => layerPanel.ensureBlockVisibility(rule));
+                    }
+                }
+            );
         },
         undo() {
             if (this._pointer < 0) return;
