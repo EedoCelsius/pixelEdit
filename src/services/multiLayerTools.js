@@ -121,23 +121,10 @@ export const useOrientationToolService = defineStore('orientationToolService', (
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'orientation', name: 'Orientation', icon: stageIcons.orientation, usable });
 
-    const orientationPreviews = new Map();
-
-    const getPreviewMap = (id) => {
-        if (!orientationPreviews.has(id)) {
-            orientationPreviews.set(id, new Map(PIXEL_ORIENTATIONS.map(o => [o, new Set()])));
-        }
-        return orientationPreviews.get(id);
-    };
-
-    const previewToObject = (map) => Object.fromEntries(
-        [...map.entries()].flatMap(([o, set]) => [...set].map(p => [p, o]))
-    );
-
     watch(() => tool.current === 'orientation', isOrientation => {
         if (!isOrientation) {
             preview.clearOrientationLayers();
-            orientationPreviews.clear();
+            preview.clear();
             return;
         }
         preview.initOrientationRenderer();
@@ -160,8 +147,6 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                 return;
             }
             if (prevPixel != null) {
-                const previewMap = getPreviewMap(target);
-                for (const set of previewMap.values()) set.delete(pixel);
                 const [px, py] = indexToCoord(pixel);
                 const [prevX, prevY] = indexToCoord(prevPixel);
                 let next;
@@ -174,9 +159,7 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                     tool.setCursor({ stroke: prevX < px ? CURSOR_STYLE.RIGHT : CURSOR_STYLE.LEFT,
                                      rect: prevX < px ? CURSOR_STYLE.RIGHT : CURSOR_STYLE.LEFT });
                 }
-                previewMap.get(next).add(pixel);
-                preview.clear();
-                preview.updatePixels(target, previewToObject(previewMap));
+                preview.updatePixels(target, { [pixel]: next });
             }
         }
     });
@@ -195,7 +178,6 @@ export const useOrientationToolService = defineStore('orientationToolService', (
             }
         }
         preview.commitPreview();
-        orientationPreviews.clear();
     });
 
     watch(() => nodeTree.selectedLayerIds.slice(), ids => {
