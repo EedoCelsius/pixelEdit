@@ -226,15 +226,10 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
                 return;
             }
-            ensurePreview(target);
-            for (const o of PIXEL_ORIENTATIONS) orientationPreviews[target][o].delete(pixel);
-            let next;
-            if (prevPixel == null) {
-                const current = orientationOfWithPreview(target, pixel);
-                const idx = PIXEL_ORIENTATIONS.indexOf(current);
-                next = PIXEL_ORIENTATIONS[(idx + 1) % PIXEL_ORIENTATIONS.length];
-            }
-            else {
+            if (prevPixel != null) {
+                ensurePreview(target);
+                for (const o of PIXEL_ORIENTATIONS) orientationPreviews[target][o].delete(pixel);
+                let next;
                 const [px, py] = indexToCoord(pixel);
                 const [prevX, prevY] = indexToCoord(prevPixel);
                 if (prevX === px) {
@@ -251,15 +246,26 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                     else
                         tool.setCursor({ stroke: CURSOR_STYLE.LEFT, rect: CURSOR_STYLE.LEFT });
                 }
+                orientationPreviews[target][next].add(pixel);
+                preview.clear();
+                preview.updatePixels(target, toUpdateMap(orientationPreviews[target]));
             }
-            orientationPreviews[target][next].add(pixel);
-            preview.clear();
-            preview.updatePixels(target, toUpdateMap(orientationPreviews[target]));
         }
         rebuild();
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.current !== 'orientation') return;
+        if (pixels.length === 1) {
+            const pixel = pixels[0];
+            const target = layerQuery.topVisibleAt(pixel);
+            const editable = nodeTree.selectedLayerIds.length === 0 || nodeTree.selectedLayerIds.includes(target);
+            if (target != null && editable && !nodes.locked(target)) {
+                const current = pixelStore.orientationOf(target, pixel);
+                const idx = PIXEL_ORIENTATIONS.indexOf(current);
+                const next = PIXEL_ORIENTATIONS[(idx + 1) % PIXEL_ORIENTATIONS.length];
+                pixelStore.update(target, { [pixel]: next });
+            }
+        }
         preview.commitPreview();
         orientationPreviews = {};
         rebuild();

@@ -110,7 +110,7 @@ export const usePixelStore = defineStore('pixels', {
                     updatePixelHash(this, id, pixel, oldVal, 0);
                     continue;
                 }
-                if (orientation === OT.DEFAULT) orientation = this._defaultOrientation;
+                if (orientation === OT.DEFAULT) orientation = map.get(pixel) ?? this._defaultOrientation;
                 if (orientation === 'checkerboard') {
                     const [o1, o2] = this._checkerboardOrientations;
                     const [x, y] = indexToCoord(pixel);
@@ -125,7 +125,6 @@ export const usePixelStore = defineStore('pixels', {
         add(id, pixels, orientation) {
             const map = this._pixels[id];
             orientation ??= this._defaultOrientation;
-            if (orientation === OT.DEFAULT) orientation = this._defaultOrientation;
             if (orientation === 'checkerboard') {
                 const [o1, o2] = this._checkerboardOrientations;
                 for (const pixel of pixels) {
@@ -136,8 +135,10 @@ export const usePixelStore = defineStore('pixels', {
                     updatePixelHash(this, id, pixel, oldVal, o);
                 }
             } else {
-                const idOri = orientation || OT.NONE;
                 for (const pixel of pixels) {
+                    let o = orientation;
+                    if (o === OT.DEFAULT) o = map.get(pixel) ?? this._defaultOrientation;
+                    const idOri = o || OT.NONE;
                     const oldVal = map.get(pixel) || 0;
                     map.set(pixel, idOri);
                     updatePixelHash(this, id, pixel, oldVal, idOri);
