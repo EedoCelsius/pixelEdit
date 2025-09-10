@@ -6,7 +6,7 @@ import { useLayerQueryService } from './layerQuery';
 import { useNodeQueryService } from './nodeQuery';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
-import { coordToIndex, indexToCoord, groupConnectedPixels, getPixelUnion } from '../utils/pixels.js';
+import { coordToIndex, indexToCoord, groupConnectedPixels } from '../utils/pixels.js';
 import { OT } from '../stores/pixels';
 
 export const usePathToolService = defineStore('pathToolService', () => {
@@ -14,7 +14,6 @@ export const usePathToolService = defineStore('pathToolService', () => {
     const hamiltonian = useHamiltonianService();
     const layerQuery = useLayerQueryService();
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
-    const pixelsOf = (id) => getPixelUnion(pixelStore.get(id));
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount === 1);
 
     watch(() => tool.current, async (p) => {
@@ -22,19 +21,18 @@ export const usePathToolService = defineStore('pathToolService', () => {
 
         tool.setCursor({ wand: CURSOR_STYLE.WAIT });
 
-        const layerId = nodeTree.selectedLayerIds[0];
-        const allPixels = pixelsOf(layerId);
-        const paths = await hamiltonian.traverseFree(allPixels);
+        const target = nodeTree.selectedLayerIds[0];
+        const paths = await hamiltonian.traverseFree(pixelStore.get(target));
 
-        const color = nodes.color(layerId);
-        const name = nodes.name(layerId);
+        const color = nodes.color(target);
+        const name = nodes.name(target);
         const groupId = nodes.addGroup({ name: `${name} Paths` });
 
-        nodeTree.insert([groupId], layerQuery.lowermost([layerId]), true);
+        nodeTree.insert([groupId], layerQuery.lowermost([target]), true);
 
-        nodeTree.remove([layerId]);
-        nodes.remove([layerId]);
-        pixelStore.removeLayer([layerId]);
+        nodeTree.remove([target]);
+        nodes.remove([target]);
+        pixelStore.removeLayer([target]);
 
         paths.forEach((path, idx) => {
             const subGroupId = nodes.addGroup({ name: `Path ${idx + 1}` });
@@ -65,15 +63,15 @@ export const useRelayToolService = defineStore('relayToolService', () => {
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 1);
 
     const averageOf = (id) => {
-        const pixels = pixelsOf(id);
-        if (!pixels.length) return null;
+        const pixels = pixelStore.get(id);
+        if (!pixels.size) return null;
         let sx = 0, sy = 0;
-        for (const p of pixels) {
+        for (const p of pixels.keys()) {
             const [x, y] = indexToCoord(p);
             sx += x;
             sy += y;
         }
-        return [sx / pixels.length, sy / pixels.length];
+        return [sx / pixels.size, sy / pixels.size];
     };
 
     watch(() => tool.current, (p) => {
@@ -104,8 +102,8 @@ export const useRelayToolService = defineStore('relayToolService', () => {
                 break;
             }
             if (!orientation) continue;
-            const pixels = pixelsOf(id);
-            pixelStore.add(id, pixels, orientation);
+            const pixels = pixelStore.get(id);
+            pixelStore.add(id, pixels.keys(), orientation);
             orientationMap.set(id, orientation);
         }
 
@@ -121,9 +119,11 @@ export const useRelayToolService = defineStore('relayToolService', () => {
                 if (baseId === nextId) continue;
                 const orient = orientationMap.get(baseId);
                 if (!orient || orientationMap.get(nextId) !== orient) continue;
-                const union = [...new Set([...pixelsOf(baseId), ...pixelsOf(nextId)])];
+                const basePxs = pixelStore.get(baseId);
+                const nextPxs = pixelStore.get(nextId);
+                const union = getPixelUnion([basePxs, nextPxs]);
                 if (groupConnectedPixels(union).length > 1) continue;
-                pixelStore.add(baseId, pixelsOf(nextId), orient);
+                pixelStore.add(baseId, nextPxs.keys(), orient);
                 const removed = nodeTree.remove([nextId]);
                 nodes.remove(removed);
                 pixelStore.removeLayer(removed);
@@ -156,7 +156,7 @@ export const useExpandToolService = defineStore('expandToolService', () => {
 
         const selected = new Map();
         for (const id of nodeTree.selectedLayerIds) {
-            pixelsOf(id).forEach(px => selected.set(px, id));
+            for (const px of pixelStore.get(id).keys()) selected.set(px, id);
         }
 
         const expansion = new Set();

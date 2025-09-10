@@ -8,8 +8,7 @@ import { useStore } from '../stores';
 import { useToolbarStore } from '../stores/toolbar';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
-import { getPixelUnion } from '../utils/pixels.js';
-import { OT } from '../stores/pixels';
+// Tools now access pixelStore maps directly instead of using getPixelUnion
 
 export const useDrawToolService = defineStore('drawToolService', () => {
     const tool = useToolSelectionService();
@@ -17,7 +16,6 @@ export const useDrawToolService = defineStore('drawToolService', () => {
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.ADD);
     const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
-    const pixelsOf = (id) => getPixelUnion(pixelStore.get(id));
     const usable = computed(() => (tool.shape === 'stroke' || tool.shape === 'rect') && nodeTree.selectedLayerCount === 1);
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'draw', name: 'Draw', icon: stageIcons.draw, usable });
@@ -66,7 +64,6 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.REMOVE);
     const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
-    const pixelsOf = (id) => getPixelUnion(pixelStore.get(id));
     const usable = computed(() => (tool.shape === 'stroke' || tool.shape === 'rect') && nodeTree.selectedLayerCount === 1);
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'erase', name: 'Erase', icon: stageIcons.erase, usable });
@@ -85,8 +82,8 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
         if (tool.current !== 'erase') return;
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.locked(sourceId)) {
-            const sourcePixels = new Set(pixelsOf(sourceId));
-            if (pixel != null && sourcePixels.has(pixel))
+            const sourcePx = pixelStore.get(sourceId);
+            if (pixel != null && sourcePx.has(pixel))
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
             else
                 tool.setCursor({ stroke: CURSOR_STYLE.ERASE_STROKE, rect: CURSOR_STYLE.ERASE_RECT });
@@ -94,9 +91,9 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     });
     watch(() => tool.previewPixels, (pixels) => {
         if (tool.current !== 'erase') return;
-        const id = nodeTree.selectedLayerIds[0];
-        const sourcePixels = new Set(pixelsOf(id));
-        const previewPixels = pixels.filter(pixel => sourcePixels.has(pixel));
+        const sourceId = nodeTree.selectedLayerIds[0];
+        const sourcePx = pixelStore.get(sourceId);
+        const previewPixels = pixels.filter(pixel => sourcePx.has(pixel));
         overlayService.setPixels(overlayId, previewPixels);
         if (nodes.locked(id)) return;
         preview.clear();
@@ -117,7 +114,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
     const overlayId = overlayService.createOverlay();
     overlayService.setStyles(overlayId, OVERLAY_STYLES.REMOVE);
     const layerPanel = useLayerPanelService();
-    const { nodeTree, nodes, pixels: pixelStore, preview } = useStore();
+    const { nodeTree, nodes, pixels: pixelStore } = useStore();
     const usable = computed(() => (tool.shape === 'stroke' || tool.shape === 'rect') && nodeTree.selectedLayerCount === 1);
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'cut', name: 'Cut', icon: stageIcons.cut, usable });
@@ -136,8 +133,8 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (tool.current !== 'cut') return;
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.locked(sourceId)) {
-            const sourcePixels = new Set(pixelsOf(sourceId));
-            if (pixel != null && sourcePixels.has(pixel))
+            const sourcePx = pixelStore.get(sourceId);
+            if (pixel != null && sourcePx.has(pixel))
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
             else
                 tool.setCursor({ stroke: CURSOR_STYLE.CUT_STROKE, rect: CURSOR_STYLE.CUT_RECT });
@@ -148,19 +145,15 @@ export const useCutToolService = defineStore('cutToolService', () => {
         overlayService.setPixels(overlayId, pixels);
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.locked(sourceId)) return;
-        const sourcePixels = new Set(pixelsOf(sourceId));
-        const cutPreview = pixels.filter(pixel => sourcePixels.has(pixel));
-        preview.clearPixel(sourceId);
-        preview.removePixels(sourceId, cutPreview);
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.current !== 'cut') return;
         const sourceId = nodeTree.selectedLayerIds[0];
         if (nodes.locked(sourceId)) return;
-        const sourcePixels = new Set(pixelsOf(sourceId));
-        const cutPixels = pixels.filter(pixel => sourcePixels.has(pixel));
-        if (!cutPixels.length || cutPixels.length === sourcePixels.size) { preview.clear(); return; }
-        preview.commitPreview();
+        const sourcePx = pixelStore.get(sourceId);
+        const cutPixels = pixels.filter(pixel => sourcePx.has(pixel));
+        if (!cutPixels.length || cutPixels.length === sourcePx.size) return;
+        pixelStore.remove(sourceId, cutPixels);
         const id = nodes.addLayer({
             name: `Cut of ${nodes.name(sourceId)}`,
             color: nodes.color(sourceId),
@@ -170,7 +163,6 @@ export const useCutToolService = defineStore('cutToolService', () => {
         pixelStore.addLayer(id);
         pixelStore.add(id, cutPixels);
         nodeTree.insert([id], sourceId, false);
-
         nodeTree.replaceSelection([sourceId]);
         layerPanel.setScrollRule({ type: 'follow', target: sourceId });
     });

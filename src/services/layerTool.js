@@ -11,12 +11,12 @@ export const useLayerToolService = defineStore('layerToolService', () => {
     function mergeSelected() {
         if (nodeTree.selectedLayerCount < 2 && nodeTree.selectedGroupCount === 0) return;
 
-        const pixelUnion = getPixelUnion(pixels.get(nodeTree.selectedLayerIds));
+        const pixelUnion = getPixelUnion(pixels.get(nodeTree.selectedLayerIds) || []);
         const colors = [];
         if (pixelUnion.length) {
             for (const pixel of pixelUnion) {
                 const id = layerQuery.topVisibleAt(pixel, nodeTree.selectedLayerIds);
-                colors.push(id ? nodes.color(id) : 0);
+                if (id) colors.push(nodes.color(id));
             }
         } else {
             for (const id of nodeTree.selectedLayerIds) {

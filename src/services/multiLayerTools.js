@@ -7,7 +7,7 @@ import { useLayerQueryService } from './layerQuery';
 import { useStore } from '../stores';
 import { useToolbarStore } from '../stores/toolbar';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
-import { indexToCoord, ensureOrientationPattern, getPixelUnion } from '../utils/pixels.js';
+import { indexToCoord, ensureOrientationPattern } from '../utils/pixels.js';
 import { PIXEL_ORIENTATIONS, OT } from '../stores/pixels';
 import stageIcons from '../image/stage_toolbar';
 
@@ -293,7 +293,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         if (pixel){
             const lockedIds = nodeTree.layerOrder.filter(id => nodes.locked(id));
             for (const id of lockedIds) {
-                const lockedPixels = new Set(getPixelUnion(pixelStore.get(id)));
+                const lockedPixels = pixelStore.get(id);
                 if (lockedPixels.has(pixel)) {
                     tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
                     return;
@@ -319,15 +319,10 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
         overlayService.setPixels(overlayId, erasablePixels);
         preview.clear();
         if (!erasablePixels.length) return;
-        const targetIds = (nodeTree.layerSelectionExists ? nodeTree.selectedLayerIds : nodeTree.layerOrder)
-            .filter(id => !nodes.locked(id));
-        for (const id of targetIds) {
-            const targetPixels = new Set(getPixelUnion(pixelStore.get(id)));
-            const pixelsToRemove = [];
-            for (const pixel of erasablePixels) {
-                if (targetPixels.has(pixel)) pixelsToRemove.push(pixel);
-            }
-            preview.removePixels(id, pixelsToRemove);
+        const targetLayers = nodeTree.layerSelectionExists ? nodeTree.selectedLayerIds : nodeTree.layerOrder
+        for (const layer of targetLayers) {
+            if (nodes.locked(id)) return;
+            preview.removePixels(layer, erasablePixels);
         }
     });
     watch(() => tool.affectedPixels, (pixels) => {
