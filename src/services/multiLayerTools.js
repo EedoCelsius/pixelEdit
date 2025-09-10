@@ -207,7 +207,6 @@ export const useOrientationToolService = defineStore('orientationToolService', (
     watch(() => tool.current === 'orientation', (isOrientation) => {
         if (!isOrientation) {
             overlays.forEach(id => overlayService.clear(id));
-            preview.clear();
             orientationPreviews = {};
             return;
         }
@@ -261,8 +260,7 @@ export const useOrientationToolService = defineStore('orientationToolService', (
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.current !== 'orientation') return;
-        if (pixels.length) preview.commitPreview();
-        else preview.clear();
+        preview.commitPreview();
         orientationPreviews = {};
         rebuild();
     });
@@ -282,7 +280,6 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
     watch(() => tool.current === 'globalErase', (isGlobalErase) => {
         if (!isGlobalErase) {
             overlayService.clear(overlayId);
-            preview.clear();
             return;
         }
         tool.setCursor({ stroke: CURSOR_STYLE.GLOBAL_ERASE_STROKE, rect: CURSOR_STYLE.GLOBAL_ERASE_RECT });
@@ -330,14 +327,11 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
             for (const pixel of erasablePixels) {
                 if (targetPixels.has(pixel)) pixelsToRemove.push(pixel);
             }
-            if (pixelsToRemove.length) {
-                preview.removePixels(id, pixelsToRemove);
-            }
+            preview.removePixels(id, pixelsToRemove);
         }
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.current !== 'globalErase') return;
-        if (!pixels.length) { preview.clear(); return; }
         preview.commitPreview();
     });
     return { usable };
