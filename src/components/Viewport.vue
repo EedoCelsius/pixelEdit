@@ -123,8 +123,8 @@ const patternUrl = checkerboardPatternUrl();
 
 function resetPosition() {
   viewportStore.recalcContentSize();
-  viewportStore.setScale(stage.containScale * 3/4);
-  viewport.centerPosition();
+  viewportStore.setScale(stage.containScale * 0.75);
+  viewportStore.setOffset(0, 0);
 }
 
 const resizeObserver = new ResizeObserver(viewportStore.recalcContentSize);
