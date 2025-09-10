@@ -21,19 +21,18 @@ export const usePathToolService = defineStore('pathToolService', () => {
 
         tool.setCursor({ wand: CURSOR_STYLE.WAIT });
 
-        const layerId = nodeTree.selectedLayerIds[0];
-        const map = pixelStore.get(layerId);
-        const paths = await hamiltonian.traverseFree(map);
+        const target = nodeTree.selectedLayerIds[0];
+        const paths = await hamiltonian.traverseFree(pixelStore.get(target));
 
-        const color = nodes.color(layerId);
-        const name = nodes.name(layerId);
+        const color = nodes.color(target);
+        const name = nodes.name(target);
         const groupId = nodes.addGroup({ name: `${name} Paths` });
 
-        nodeTree.insert([groupId], layerQuery.lowermost([layerId]), true);
+        nodeTree.insert([groupId], layerQuery.lowermost([target]), true);
 
-        nodeTree.remove([layerId]);
-        nodes.remove([layerId]);
-        pixelStore.removeLayer([layerId]);
+        nodeTree.remove([target]);
+        nodes.remove([target]);
+        pixelStore.removeLayer([target]);
 
         paths.forEach((path, idx) => {
             const subGroupId = nodes.addGroup({ name: `Path ${idx + 1}` });
@@ -64,15 +63,15 @@ export const useRelayToolService = defineStore('relayToolService', () => {
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 1);
 
     const averageOf = (id) => {
-        const map = pixelStore.get(id);
-        if (!map.size) return null;
+        const pixels = pixelStore.get(id);
+        if (!pixels.size) return null;
         let sx = 0, sy = 0;
-        for (const p of map.keys()) {
+        for (const p of pixels.keys()) {
             const [x, y] = indexToCoord(p);
             sx += x;
             sy += y;
         }
-        return [sx / map.size, sy / map.size];
+        return [sx / pixels.size, sy / pixels.size];
     };
 
     watch(() => tool.current, (p) => {
@@ -103,8 +102,8 @@ export const useRelayToolService = defineStore('relayToolService', () => {
                 break;
             }
             if (!orientation) continue;
-            const map = pixelStore.get(id);
-            pixelStore.add(id, map.keys(), orientation);
+            const pixels = pixelStore.get(id);
+            pixelStore.add(id, pixels.keys(), orientation);
             orientationMap.set(id, orientation);
         }
 
@@ -120,11 +119,11 @@ export const useRelayToolService = defineStore('relayToolService', () => {
                 if (baseId === nextId) continue;
                 const orient = orientationMap.get(baseId);
                 if (!orient || orientationMap.get(nextId) !== orient) continue;
-                const baseMap = pixelStore.get(baseId);
-                const nextMap = pixelStore.get(nextId);
-                const union = [...new Set([...baseMap.keys(), ...nextMap.keys()])];
+                const basePxs = pixelStore.get(baseId);
+                const nextPxs = pixelStore.get(nextId);
+                const union = getPixelUnion([basePxs, nextPxs]);
                 if (groupConnectedPixels(union).length > 1) continue;
-                pixelStore.add(baseId, nextMap.keys(), orient);
+                pixelStore.add(baseId, nextPxs.keys(), orient);
                 const removed = nodeTree.remove([nextId]);
                 nodes.remove(removed);
                 pixelStore.removeLayer(removed);
