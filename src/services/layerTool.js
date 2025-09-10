@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { useStore } from '../stores';
 import { useLayerQueryService } from './layerQuery';
 import { averageColorU32 } from '../utils';
-import { groupConnectedPixels } from '../utils/pixels.js';
+import { groupConnectedPixels, getPixelUnion } from '../utils/pixels.js';
 
 export const useLayerToolService = defineStore('layerToolService', () => {
     const { nodeTree, nodes, pixels } = useStore();
@@ -11,19 +11,12 @@ export const useLayerToolService = defineStore('layerToolService', () => {
     function mergeSelected() {
         if (nodeTree.selectedLayerCount < 2 && nodeTree.selectedGroupCount === 0) return;
 
-        const maps = pixels.get(nodeTree.selectedLayerIds);
-        const unionSet = new Set();
-        for (const map of maps) {
-            if (map instanceof Map) {
-                for (const i of map.keys()) unionSet.add(i);
-            }
-        }
-        const pixelUnion = Array.from(unionSet);
+        const pixelUnion = getPixelUnion(pixels.get(nodeTree.selectedLayerIds) || []);
         const colors = [];
         if (pixelUnion.length) {
             for (const pixel of pixelUnion) {
                 const id = layerQuery.topVisibleAt(pixel, nodeTree.selectedLayerIds);
-                colors.push(id ? nodes.color(id) : 0);
+                if (id) colors.push(nodes.color(id));
             }
         } else {
             for (const id of nodeTree.selectedLayerIds) {
