@@ -1,21 +1,21 @@
 import { defineStore } from 'pinia';
 import { useNodeStore } from './nodes';
-import { usePixelStore } from './pixels';
+import { usePixelStore, OT } from './pixels';
 import { pixelsToUnionPath } from '../utils/pixels.js';
 
 export const usePreviewStore = defineStore('preview', {
     state: () => ({
-        nodes: {}, // id -> partial node props
-        pixels: {} // id -> { add?, remove?, update? }
+        properties: {}, // id -> partial node props
+        pixels: {} // id -> { pixel: orientation }
     }),
     getters: {
         nodeColor(state) {
             const nodes = useNodeStore();
-            return (id) => state.nodes[id]?.color ?? nodes.color(id);
+            return (id) => state.properties[id]?.color ?? nodes.color(id);
         },
         nodeVisibility(state) {
             const nodes = useNodeStore();
-            return (id) => state.nodes[id]?.visibility ?? nodes.visibility(id);
+            return (id) => state.properties[id]?.visibility ?? nodes.visibility(id);
         },
         pathOf(state) {
             const pixelStore = usePixelStore();
@@ -24,13 +24,9 @@ export const usePreviewStore = defineStore('preview', {
                 if (delta) {
                     const base = pixelStore.get(id) || new Map();
                     const set = new Set(base.keys());
-                    if (delta.add) delta.add.pixels.forEach(p => set.add(p));
-                    if (delta.remove) delta.remove.forEach(p => set.delete(p));
-                    if (delta.update) {
-                        for (const [p, o] of Object.entries(delta.update)) {
-                            const idx = Number(p);
-                            if (o) set.add(idx); else set.delete(idx);
-                        }
+                    for (const [p, o] of Object.entries(delta)) {
+                        const idx = Number(p);
+                        if (o) set.add(idx); else set.delete(idx);
                     }
                     return pixelsToUnionPath(set);
                 }
@@ -39,45 +35,80 @@ export const usePreviewStore = defineStore('preview', {
         }
     },
     actions: {
-        applyProperty(id, props = {}) {
-            if (Object.keys(props).length) this.nodes[id] = { ...props };
-            else delete this.nodes[id];
+        setProperties(id, props = {}) {
+            const prev = this.properties[id] || {};
+            const merged = { ...prev, ...props };
+            if (Object.keys(merged).length) this.properties[id] = merged;
+            else delete this.properties[id];
         },
-        applyPixelAdd(id, pixels = [], orientation) {
+        addPixels(id, pixels = [], orientation = OT.DEFAULT) {
+            if (!pixels.length) return;
             const entry = this.pixels[id] || {};
-            entry.add = { pixels: [...pixels], orientation };
-            if (entry.remove || entry.update || entry.add.pixels.length) this.pixels[id] = entry;
-            else delete this.pixels[id];
+            for (const p of pixels) entry[p] = orientation;
+            this.pixels[id] = entry;
         },
-        applyPixelRemove(id, pixels = []) {
+        removePixels(id, pixels = []) {
+            if (!pixels.length) return;
             const entry = this.pixels[id] || {};
-            entry.remove = [...pixels];
-            if (entry.add || entry.update || entry.remove.length) this.pixels[id] = entry;
-            else delete this.pixels[id];
+            for (const p of pixels) entry[p] = 0;
+            this.pixels[id] = entry;
         },
-        applyPixelUpdate(id, update = {}) {
+        updatePixels(id, update = {}) {
+            if (!Object.keys(update).length) return;
             const entry = this.pixels[id] || {};
-            entry.update = { ...update };
-            if (entry.add || entry.remove || Object.keys(entry.update).length) this.pixels[id] = entry;
-            else delete this.pixels[id];
+            Object.assign(entry, update);
+            this.pixels[id] = entry;
         },
         commitPreview() {
             const nodeStore = useNodeStore();
-            for (const [id, props] of Object.entries(this.nodes)) {
+            for (const [id, props] of Object.entries(this.properties)) {
                 nodeStore.update(Number(id), props);
             }
             const pixelStore = usePixelStore();
             for (const [id, delta] of Object.entries(this.pixels)) {
                 const numId = Number(id);
-                if (delta.add) pixelStore.add(numId, delta.add.pixels, delta.add.orientation);
-                if (delta.remove) pixelStore.remove(numId, delta.remove);
-                if (delta.update) pixelStore.update(numId, delta.update);
+                pixelStore.update(numId, delta);
             }
-            this.clearPreview();
+            this.clear();
         },
-        clearPreview() {
-            this.nodes = {};
-            this.pixels = {};
+        clear(id) {
+            if (!id) {
+                this.properties = {};
+                this.pixels = {};
+            } else {
+                delete this.properties[id];
+                delete this.pixels[id];
+            }
+        },
+        clearProperty(id, property) {
+            if (!id) {
+                this.properties = {};
+                return;
+            }
+            if (!property) {
+                delete this.properties[id];
+                return;
+            }
+            const entry = this.properties[id];
+            if (entry) {
+                delete entry[property];
+                if (!Object.keys(entry).length) delete this.properties[id];
+            }
+        },
+        clearPixel(id, pixel) {
+            if (!id) {
+                this.pixels = {};
+                return;
+            }
+            if (!pixel) {
+                delete this.pixels[id];
+                return;
+            }
+            const entry = this.pixels[id];
+            if (entry) {
+                delete entry[pixel];
+                if (!Object.keys(entry).length) delete this.pixels[id];
+            }
         }
     }
 });

@@ -145,7 +145,7 @@ export const useOrientationToolService = defineStore('orientationToolService', (
         return res;
     }
     function orientationOfWithPreview(id, pixel) {
-        const previewMap = preview.pixels[id]?.update;
+        const previewMap = preview.pixels[id];
         if (previewMap && previewMap[pixel] != null) return previewMap[pixel];
         return pixelStore.orientationOf(id, pixel);
     }
@@ -168,7 +168,7 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                     const id = nodeTree.layerOrder[i];
                     if (!nodes.visibility(id)) continue;
                     let pixels = orientationPixels(id, orientation);
-                    const delta = preview.pixels[id]?.update;
+                    const delta = preview.pixels[id];
                     if (delta) {
                         const set = new Set(pixels);
                         for (const [pStr, o] of Object.entries(delta)) {
@@ -189,7 +189,7 @@ export const useOrientationToolService = defineStore('orientationToolService', (
             else {
                 for (const id of layerIds) {
                     let pixels = orientationPixels(id, orientation);
-                    const delta = preview.pixels[id]?.update;
+                    const delta = preview.pixels[id];
                     if (delta) {
                         const set = new Set(pixels);
                         for (const [pStr, o] of Object.entries(delta)) {
@@ -207,7 +207,6 @@ export const useOrientationToolService = defineStore('orientationToolService', (
     watch(() => tool.current === 'orientation', (isOrientation) => {
         if (!isOrientation) {
             overlays.forEach(id => overlayService.clear(id));
-            preview.clearPreview();
             orientationPreviews = {};
             return;
         }
@@ -254,14 +253,14 @@ export const useOrientationToolService = defineStore('orientationToolService', (
                 }
             }
             orientationPreviews[target][next].add(pixel);
-            preview.applyPixelUpdate(target, toUpdateMap(orientationPreviews[target]));
+            preview.clear();
+            preview.updatePixels(target, toUpdateMap(orientationPreviews[target]));
         }
         rebuild();
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.current !== 'orientation') return;
-        if (pixels.length) preview.commitPreview();
-        else preview.clearPreview();
+        preview.commitPreview();
         orientationPreviews = {};
         rebuild();
     });
@@ -281,7 +280,6 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
     watch(() => tool.current === 'globalErase', (isGlobalErase) => {
         if (!isGlobalErase) {
             overlayService.clear(overlayId);
-            preview.clearPreview();
             return;
         }
         tool.setCursor({ stroke: CURSOR_STYLE.GLOBAL_ERASE_STROKE, rect: CURSOR_STYLE.GLOBAL_ERASE_RECT });
@@ -319,7 +317,7 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
             }
         }
         overlayService.setPixels(overlayId, erasablePixels);
-        preview.clearPreview();
+        preview.clear();
         if (!erasablePixels.length) return;
         const targetIds = (nodeTree.layerSelectionExists ? nodeTree.selectedLayerIds : nodeTree.layerOrder)
             .filter(id => !nodes.locked(id));
@@ -329,14 +327,11 @@ export const useGlobalEraseToolService = defineStore('globalEraseToolService', (
             for (const pixel of erasablePixels) {
                 if (targetPixels.has(pixel)) pixelsToRemove.push(pixel);
             }
-            if (pixelsToRemove.length) {
-                preview.applyPixelRemove(id, pixelsToRemove);
-            }
+            preview.removePixels(id, pixelsToRemove);
         }
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.current !== 'globalErase') return;
-        if (!pixels.length) { preview.clearPreview(); return; }
         preview.commitPreview();
     });
     return { usable };

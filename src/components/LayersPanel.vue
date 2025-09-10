@@ -245,7 +245,7 @@ function applyToSelection(id, fn, ids = nodeTree.selectedNodeIds) {
 
 function onColorInput(id, event) {
     const colorU32 = hexToRgbaU32(event.target.value);
-    applyToSelection(id, sid => preview.applyProperty(sid, { color: colorU32 }), nodeTree.selectedLayerIds);
+    applyToSelection(id, sid => preview.setProperties(sid, { color: colorU32 }), nodeTree.selectedLayerIds);
 }
 
 function onColorChange() {

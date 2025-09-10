@@ -24,7 +24,6 @@ export const useDrawToolService = defineStore('drawToolService', () => {
     watch(() => tool.current === 'draw', (isDraw) => {
         if (!isDraw) {
             overlayService.clear(overlayId);
-            preview.clearPreview();
             return;
         }
         tool.setCursor({ stroke: CURSOR_STYLE.DRAW_STROKE, rect: CURSOR_STYLE.DRAW_RECT });
@@ -48,18 +47,15 @@ export const useDrawToolService = defineStore('drawToolService', () => {
         if (tool.current !== 'draw') return;
         overlayService.setPixels(overlayId, pixels);
         const id = nodeTree.selectedLayerIds[0];
-        if (nodes.locked(id)) { preview.clearPreview(); return; }
-        if (pixels.length) {
-            preview.applyPixelAdd(id, pixels, OT.DEFAULT);
-        }
-        else preview.clearPreview();
+        if (nodes.locked(id)) return;
+        preview.clear();
+        preview.addPixels(id, pixels);
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.current !== 'draw') return;
         const id = nodeTree.selectedLayerIds[0];
-        if (nodes.locked(id)) { preview.clearPreview(); return; }
-        if (pixels.length) preview.commitPreview();
-        else preview.clearPreview();
+        if (nodes.locked(id)) return;
+        preview.commitPreview();
     });
     return { usable };
 });
@@ -77,7 +73,6 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
     watch(() => tool.current === 'erase', (isErase) => {
         if (!isErase) {
             overlayService.clear(overlayId);
-            preview.clearPreview();
             return;
         }
         tool.setCursor({ stroke: CURSOR_STYLE.ERASE_STROKE, rect: CURSOR_STYLE.ERASE_RECT });
@@ -103,16 +98,15 @@ export const useEraseToolService = defineStore('eraseToolService', () => {
         const sourcePixels = new Set(pixelsOf(id));
         const previewPixels = pixels.filter(pixel => sourcePixels.has(pixel));
         overlayService.setPixels(overlayId, previewPixels);
-        if (nodes.locked(id)) { preview.clearPreview(); return; }
-        if (previewPixels.length) preview.applyPixelRemove(id, previewPixels);
-        else preview.clearPreview();
+        if (nodes.locked(id)) return;
+        preview.clear();
+        preview.removePixels(id, previewPixels);
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.current !== 'erase') return;
         const id = nodeTree.selectedLayerIds[0];
-        if (nodes.locked(id)) { preview.clearPreview(); return; }
-        if (pixels.length) preview.commitPreview();
-        else preview.clearPreview();
+        if (nodes.locked(id)) return;
+        preview.commitPreview();
     });
     return { usable };
 });
@@ -130,7 +124,6 @@ export const useCutToolService = defineStore('cutToolService', () => {
     watch(() => tool.current === 'cut', (isCut) => {
         if (!isCut) {
             overlayService.clear(overlayId);
-            preview.clearPreview();
             return;
         }
         tool.setCursor({ stroke: CURSOR_STYLE.CUT_STROKE, rect: CURSOR_STYLE.CUT_RECT });
@@ -154,19 +147,19 @@ export const useCutToolService = defineStore('cutToolService', () => {
         if (tool.current !== 'cut') return;
         overlayService.setPixels(overlayId, pixels);
         const sourceId = nodeTree.selectedLayerIds[0];
-        if (nodes.locked(sourceId)) { preview.clearPreview(); return; }
+        if (nodes.locked(sourceId)) return;
         const sourcePixels = new Set(pixelsOf(sourceId));
         const cutPreview = pixels.filter(pixel => sourcePixels.has(pixel));
-        if (cutPreview.length) preview.applyPixelRemove(sourceId, cutPreview);
-        else preview.clearPreview();
+        preview.clearPixel(sourceId);
+        preview.removePixels(sourceId, cutPreview);
     });
     watch(() => tool.affectedPixels, (pixels) => {
         if (tool.current !== 'cut') return;
         const sourceId = nodeTree.selectedLayerIds[0];
-        if (nodes.locked(sourceId)) { preview.clearPreview(); return; }
+        if (nodes.locked(sourceId)) return;
         const sourcePixels = new Set(pixelsOf(sourceId));
         const cutPixels = pixels.filter(pixel => sourcePixels.has(pixel));
-        if (!cutPixels.length || cutPixels.length === sourcePixels.size) { preview.clearPreview(); return; }
+        if (!cutPixels.length || cutPixels.length === sourcePixels.size) { preview.clear(); return; }
         preview.commitPreview();
         const id = nodes.addLayer({
             name: `Cut of ${nodes.name(sourceId)}`,
