@@ -1,12 +1,16 @@
 import { defineStore } from 'pinia';
+import { watch } from 'vue';
+import { useOverlayService } from '../services/overlay.js';
 import { useNodeStore } from './nodes';
-import { usePixelStore, OT } from './pixels';
-import { pixelsToUnionPath } from '../utils/pixels.js';
+import { usePixelStore, OT, PIXEL_ORIENTATIONS } from './pixels';
+import { useNodeTreeStore } from './nodeTree.js';
+import { pixelsToUnionPath, orientationPatternUrl } from '../utils/pixels.js';
 
 export const usePreviewStore = defineStore('preview', {
     state: () => ({
         properties: {}, // id -> partial node props
-        pixels: {} // id -> { pixel: orientation }
+        pixels: {}, // id -> { pixel: orientation }
+        orientationLayers: []
     }),
     getters: {
         nodeColor(state) {
@@ -108,6 +112,73 @@ export const usePreviewStore = defineStore('preview', {
             if (entry) {
                 delete entry[pixel];
                 if (!Object.keys(entry).length) delete this.pixels[id];
+            }
+        },
+        initOrientationRenderer() {
+            if (this._orientationOverlays) return;
+            const overlayService = useOverlayService();
+            const pixelStore = usePixelStore();
+            const nodeTree = useNodeTreeStore();
+            const nodes = useNodeStore();
+            this._orientationOverlays = PIXEL_ORIENTATIONS.map(o => {
+                const id = overlayService.createOverlay();
+                overlayService.setStyles(id, {
+                    FILL_COLOR: orientationPatternUrl(o),
+                    STROKE_COLOR: 'none',
+                    STROKE_WIDTH_SCALE: 0,
+                    FILL_RULE: 'evenodd'
+                });
+                return id;
+            });
+            const getOrientationPixels = (id, orientation) => {
+                const pixels = [];
+                const map = pixelStore.get(id);
+                for (const [idx, o] of map) if (o === orientation) pixels.push(idx);
+                const delta = this.pixels[id];
+                if (delta) {
+                    const set = new Set(pixels);
+                    for (const [pStr, o] of Object.entries(delta)) {
+                        const p = Number(pStr);
+                        if (o === orientation) set.add(p); else set.delete(p);
+                    }
+                    return [...set];
+                }
+                return pixels;
+            };
+            const render = () => {
+                PIXEL_ORIENTATIONS.forEach((orientation, idx) => {
+                    const overlayId = this._orientationOverlays[idx];
+                    overlayService.clear(overlayId);
+                    if (this.orientationLayers.length === 0) {
+                        const add = new Set();
+                        for (let i = nodeTree.layerOrder.length - 1; i >= 0; i--) {
+                            const id = nodeTree.layerOrder[i];
+                            if (!nodes.visibility(id)) continue;
+                            for (const pixel of getOrientationPixels(id, orientation)) {
+                                if (!add.has(pixel)) add.add(pixel);
+                            }
+                        }
+                        overlayService.addPixels(overlayId, [...add]);
+                    } else {
+                        for (const id of this.orientationLayers) {
+                            const pixels = getOrientationPixels(id, orientation);
+                            if (pixels.length) overlayService.addPixels(overlayId, pixels);
+                        }
+                    }
+                });
+            };
+            watch(() => this.pixels, render, { deep: true });
+            watch(() => this.orientationLayers.slice(), render);
+            render();
+        },
+        setOrientationLayers(ids = []) {
+            this.orientationLayers = Array.isArray(ids) ? ids : [ids];
+        },
+        clearOrientationLayers() {
+            this.orientationLayers = [];
+            if (this._orientationOverlays) {
+                const overlayService = useOverlayService();
+                this._orientationOverlays.forEach(id => overlayService.clear(id));
             }
         }
     }
