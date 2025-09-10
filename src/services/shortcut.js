@@ -101,13 +101,8 @@ export const useShortcutService = defineStore('shortcutService', () => {
                     deleteSelection();
                     break;
                 case 'Enter':
-                    if (!ctrl && !shift && nodeTree.selectedLayerCount === 1) {
-                        const selectedId = nodeTree.selectedLayerIds[0];
-                        const row = document.querySelector(`.layer[data-id="${selectedId}"] .nameText`);
-                        if (row) {
-                            e.preventDefault();
-                            row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-                        }
+                    if (layerPanel.onEnter(e)) {
+                        e.preventDefault();
                     }
                     break;
                 case 'Escape':

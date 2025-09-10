@@ -4,7 +4,7 @@ import { useStore } from '../stores';
 import { clamp } from '../utils';
 
 export const useLayerPanelService = defineStore('layerPanelService', () => {
-    const { nodeTree } = useStore();
+    const { nodeTree, nodes } = useStore();
 
     const state = reactive({
         anchorId: null,
@@ -349,6 +349,32 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
 
     function onArrowDown(shift, ctrl) { onArrow('down', shift, ctrl); }
 
+    function onEnter(e) {
+        const active = document.activeElement;
+        if (active && active.classList.contains('nameText')) {
+            active.blur();
+            return true;
+        }
+
+        const id = state.tailId;
+        if (id == null) return false;
+
+        if (nodes.isGroup(id)) {
+            toggleFold(id);
+            return true;
+        }
+
+        if (!e?.ctrlKey && !e?.metaKey && !e?.shiftKey && nodeTree.selectedLayerCount === 1) {
+            const row = document.querySelector(`.layer[data-id="${id}"] .nameText`);
+            if (row) {
+                row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     function toggleFold(id) {
         folded[id] = !folded[id];
     }
@@ -391,6 +417,7 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         onLayerClick,
         onArrowUp,
         onArrowDown,
+        onEnter,
         selectAll,
         serialize,
         applySerialized,
