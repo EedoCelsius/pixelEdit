@@ -119,22 +119,16 @@ const marqueeRect = computed(() => {
 
 const patternUrl = checkerboardPatternUrl();
 
-function initPosition() {
+function resetPosition() {
   viewportStore.recalcContentSize();
   viewportStore.setScale(stage.containScale * 3/4);
   viewport.centerPosition();
 }
 
-const onImageLoad = (e) => {
-    const img = e.target;
-    viewportStore.setImageSize(img.naturalWidth, img.naturalHeight);
-    initPosition();
-};
-
 const resizeObserver = new ResizeObserver(viewportStore.recalcContentSize);
 onMounted(() => {
     viewport.setElement(viewportEl.value);
-    requestAnimationFrame(initPosition);
+    requestAnimationFrame(resetPosition);
     resizeObserver.observe(viewport.element);
 });
 onUnmounted(resizeObserver.disconnect);
