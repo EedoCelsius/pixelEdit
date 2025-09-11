@@ -146,12 +146,6 @@ export const useNodeStore = defineStore('nodes', {
             setSimpleProp(this, id, 'color', color);
         },
         setIsGroup(id, value) { setSimpleProp(this, id, 'isGroup', value); },
-        setAttributes(id, attrs = {}) {
-            if (!this.has(id)) return;
-            const obj = (attrs && typeof attrs === 'object') ? { ...attrs } : {};
-            this._attributes[id] = reactive(obj);
-            rehashAttributes(this, id);
-        },
         update(id, props = {}) {
             if (!this.has(id)) return;
             const handlers = {
@@ -172,21 +166,25 @@ export const useNodeStore = defineStore('nodes', {
         toggleLock(id) {
             this.setLocked(id, !this._locked[id]);
         },
-        setAttribute(id, name, value) {
+        addAttributes(id, attrs = {}) {
             if (!this.has(id)) return;
-            if (!this._attributes[id]) this._attributes[id] = reactive({});
-            const attrs = this._attributes[id];
-            attrs[name] = value;
+            Object.assign(this._attributes[id], attrs);
             rehashAttributes(this, id);
         },
-        removeAttribute(id, name) {
+        addAttribute(id, key, value) {
             if (!this.has(id)) return;
-            const attrs = this._attributes[id];
-            if (!attrs) return;
-            if (Object.prototype.hasOwnProperty.call(attrs, name)) {
-                delete attrs[name];
-                rehashAttributes(this, id);
-            }
+            Object.assign(this._attributes[id], { [key]: value });
+            rehashAttributes(this, id);
+        },
+        removeAttribute(id, key) {
+            if (!this.has(id)) return;
+            delete this._attributes[id][key];
+            rehashAttributes(this, id);
+        },
+        clearAttribute(id) {
+            if (!this.has(id)) return;
+            this._attributes[id] = reactive({});
+            rehashAttributes(this, id);
         },
         remove(ids = []) {
             const removed = [];
