@@ -13,7 +13,7 @@ import { OT } from '../stores/pixels';
 async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore, nodeQuery) {
     tool.setCursor({ wand: CURSOR_STYLE.WAIT });
     let baseName;
-    if (nodeTree.selectedGroupCount > 0 || nodeTree.selectedLayerCount >= 2) {
+    if (1 < nodeTree.selectedLayerCount) {
         const baseId = nodeQuery.lowermost(
             nodeQuery.shallowest(nodeTree.selectedNodeIds)
         );
@@ -225,7 +225,7 @@ export const usePathToolService = defineStore('pathToolService', () => {
     const layerQuery = useLayerQueryService();
     const nodeQuery = useNodeQueryService();
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
-    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount === 1);
+    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount);
 
     watch(() => tool.current, async (p) => {
         if (p !== 'path') return;
@@ -240,7 +240,7 @@ export const usePathToolService = defineStore('pathToolService', () => {
 export const useRelayToolService = defineStore('relayToolService', () => {
     const tool = useToolSelectionService();
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
-    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 1);
+    const usable = computed(() => tool.shape === 'wand' && 2 < nodeTree.selectedLayerCount);
     watch(() => tool.current, (p) => {
         if (p !== 'relay') return;
         relayOrientationOp(nodeTree, nodes, pixelStore);
@@ -256,7 +256,7 @@ export const useExpandToolService = defineStore('expandToolService', () => {
     const tool = useToolSelectionService();
     const nodeQuery = useNodeQueryService();
     const { nodeTree, nodes, pixels: pixelStore, viewport: viewportStore } = useStore();
-    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 0);
+    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount);
     watch(() => tool.current, (p) => {
         if (p !== 'expand') return;
         expandOp(nodeTree, nodes, pixelStore, nodeQuery, viewportStore);
@@ -273,7 +273,7 @@ export const useBorderToolService = defineStore('borderToolService', () => {
     const layerQuery = useLayerQueryService();
     const nodeQuery = useNodeQueryService();
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
-    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount === 1);
+    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount);
 
     watch(() => tool.current, async (p) => {
         if (p !== 'border') return;
@@ -293,7 +293,7 @@ export const useMarginToolService = defineStore('marginToolService', () => {
     const layerQuery = useLayerQueryService();
     const nodeQuery = useNodeQueryService();
     const { nodeTree, nodes, pixels: pixelStore, viewport: viewportStore } = useStore();
-    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 0);
+    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount);
 
     watch(() => tool.current, async (p) => {
         if (p !== 'margin') return;
