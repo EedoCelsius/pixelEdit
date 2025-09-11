@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { nextTick, watch } from 'vue';
 import { useStore } from '.';
 import { useLayerPanelService } from '../services/layerPanel';
+import { rgbaCssU32 } from '../utils';
 
 export const useOutputStore = defineStore('output', {
     state: () => ({
@@ -98,6 +99,28 @@ export const useOutputStore = defineStore('output', {
                 "input": { "src": "${input.src || ''}", "size": { "w": ${input.width || 0}, "h": ${input.height || 0} } },
                 "state": ${this.currentSnap()}
             }`;
+        },
+        exportToSVG() {
+            const { nodeTree, nodes, pixels, viewport } = useStore();
+            const serialize = (tree) => {
+                let result = '';
+                for (const node of tree) {
+                    const props = nodes.getProperties(node.id);
+                    const attrStr = props.attributes.map(a => `${a.name}="${a.value}"`).join(' ');
+                    const visibility = props.visibility ? '' : ' visibility="hidden"';
+                    if (node.children && node.children.length) {
+                        const children = serialize(node.children);
+                        result += `<g${attrStr ? ' ' + attrStr : ''}${visibility}>${children}</g>`;
+                    } else {
+                        const path = pixels.pathOf(node.id);
+                        const fill = rgbaCssU32(props.color);
+                        result += `<path d="${path}" fill="${fill}" fill-rule="evenodd" shape-rendering="crispEdges"${attrStr ? ' ' + attrStr : ''}${visibility}/>`;
+                    }
+                }
+                return result;
+            };
+            const { stage, viewBox } = viewport;
+            return `<svg xmlns="http://www.w3.org/2000/svg" width="${stage.width}" height="${stage.height}" viewBox="${viewBox}">${serialize(nodeTree.tree)}</svg>`;
         }
     }
 });
