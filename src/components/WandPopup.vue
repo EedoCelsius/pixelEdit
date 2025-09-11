@@ -5,8 +5,8 @@
       :key="tool.type"
       @click="$emit('select', tool)"
       class="flex items-center gap-2 px-1 py-1 text-xs rounded w-full"
-      :class="tool.usable?.value ? 'hover:bg-white/10' : 'opacity-50'"
-      :disabled="!tool.usable?.value"
+      :class="tool.usable ? 'hover:bg-white/10' : 'opacity-50'"
+      :disabled="!tool.usable"
     >
       <img v-if="tool.icon" :src="tool.icon" :alt="tool.name" class="w-4 h-4" />
       <span class="whitespace-nowrap">{{ tool.name }}</span>
