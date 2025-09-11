@@ -95,7 +95,18 @@ function relayOrientationOp(nodeTree, nodes, pixelStore) {
     }
 }
 
-function relayMergeOp(nodeTree, nodes, pixelStore) {
+function areAdjacent(basePixels, nextPixels, orientation) {
+    const fn = orientation === OT.HORIZONTAL
+        ? (x, y) => nextPixels.has(coordToIndex(x + 1, y)) || nextPixels.has(coordToIndex(x - 1, y))
+        : (x, y) => nextPixels.has(coordToIndex(x, y + 1)) || nextPixels.has(coordToIndex(x, y - 1));
+    for (const p of basePixels) {
+        const [x, y] = indexToCoord(p);
+        if (fn(x, y)) return true;
+    }
+    return false;
+}
+
+export function relayMergeOp(nodeTree, nodes, pixelStore) {
     const selected = nodeTree.layerOrder.filter(id => nodeTree.selectedLayerIds.includes(id));
     const layers = new Map();
     for (const id of selected) {
@@ -114,14 +125,16 @@ function relayMergeOp(nodeTree, nodes, pixelStore) {
         const base = layers.get(baseId);
         const next = layers.get(nextId);
         if (base.orientation && base.orientation === next?.orientation) {
-            const union = getPixelUnion([base.pixels, next.pixels]);
-            if (groupConnectedPixels(union).length === 1) {
-                for (const px of next.pixels) base.pixels.add(px);
-                removed.push(nextId);
-                layers.delete(nextId);
-                order.splice(nextIndex, 1);
-                if (nextIndex < i) i--;
-                continue;
+            if (areAdjacent(base.pixels, next.pixels, base.orientation)) {
+                const union = getPixelUnion([base.pixels, next.pixels]);
+                if (groupConnectedPixels(union).length === 1) {
+                    for (const px of next.pixels) base.pixels.add(px);
+                    removed.push(nextId);
+                    layers.delete(nextId);
+                    order.splice(nextIndex, 1);
+                    if (nextIndex < i) i--;
+                    continue;
+                }
             }
         }
         i++;
