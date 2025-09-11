@@ -4,6 +4,7 @@ import { useToolSelectionService } from './toolSelection';
 import { useHamiltonianService } from './hamiltonian';
 import { useLayerQueryService } from './layerQuery';
 import { useNodeQueryService } from './nodeQuery';
+import { useLayerToolService } from './layerTool';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
 import { coordToIndex, indexToCoord, getPixelUnion, groupConnectedPixels } from '../utils/pixels.js';
@@ -11,6 +12,11 @@ import { OT } from '../stores/pixels';
 
 async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore) {
     tool.setCursor({ wand: CURSOR_STYLE.WAIT });
+    if (nodeTree.selectedGroupCount > 0 || nodeTree.selectedLayerCount >= 2) {
+        const { mergeSelected } = useLayerToolService();
+        const mergedId = mergeSelected();
+        nodeTree.replaceSelection([mergedId]);
+    }
     const target = nodeTree.selectedLayerIds[0];
     const paths = await hamiltonian.traverseFree(pixelStore.get(target));
     const color = nodes.color(target);
