@@ -124,7 +124,4 @@ export function rgbaToHexU32(packedColor) {
     return '#' + [r, g, b].map(value => value.toString(16).padStart(2, '0')).join('');
 }
 
-export function hexCssU32(packedColor) {
-    const { r, g, b, a } = unpackRGBA(packedColor);
-    return '#' + [r, g, b, a].map(value => value.toString(16).padStart(2, '0')).join('');
-}
+export const alphaU32 = (packedColor) => ((packedColor >>> 24) & 255) / 255;
