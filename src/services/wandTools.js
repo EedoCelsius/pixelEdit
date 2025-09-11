@@ -27,7 +27,7 @@ async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore
     const target = nodeTree.selectedLayerIds[0];
     const paths = await hamiltonian.traverseFree(pixelStore.get(target));
     const color = nodes.color(target);
-    const groupId = nodes.addGroup({ name: `${baseName} Path${paths.length > 1 ? 's' : ''}` });
+    const groupId = nodes.addGroup({ name: `${1 < paths.length ? 'Paths' : 'Path'} of ${baseName}` });
     nodeTree.insert([groupId], layerQuery.lowermost([target]), true);
     nodeTree.remove([target]);
     nodes.remove([target]);
