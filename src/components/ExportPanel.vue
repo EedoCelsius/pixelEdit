@@ -5,7 +5,7 @@
       <svg v-show="viewportStore.display!=='result'" :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-44 h-44 rounded-md border border-white/15">
         <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
         <g>
-            <path v-for="props in nodes.getProperties(nodeTree.layerIdsBottomToTop)" :key="'pix-'+props.id" :d="pixelStore.pathOf(props.id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="rgbaCssU32(props.color)" :visibility="props.visibility?'visible':'hidden'"></path>
+            <path v-for="props in nodes.getProperties(nodeTree.layerIdsBottomToTop)" :key="'pix-'+props.id" :d="pixelStore.pathOf(props.id)" fill-rule="evenodd" shape-rendering="crispEdges" :fill="hexCssU32(props.color)" :visibility="props.visibility?'visible':'hidden'"></path>
         </g>
       </svg>
       <!-- 원본 -->
@@ -24,7 +24,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useStore } from '../stores';
-import { rgbaCssU32 } from '../utils';
+import { hexCssU32 } from '../utils';
 import { checkerboardPatternUrl } from '../utils/pixels.js';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output } = useStore();
