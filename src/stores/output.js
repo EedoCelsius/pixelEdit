@@ -104,15 +104,16 @@ export const useOutputStore = defineStore('output', {
         },
         exportToSVG() {
             const { nodeTree, nodes, pixels, viewport } = useStore();
+            const sanitizeId = (name) => String(name).replace(/[^A-Za-z0-9_-]/g, '_');
             const serialize = (tree) => {
                 let result = '';
                 for (const node of tree) {
                     const props = nodes.getProperties(node.id);
-                    const attrStr = props.attributes.map(a => `${a.name}="${a.value}"`).join(' ');
-                    const visibility = props.visibility ? '' : ' visibility="hidden"';
+                    const attributes = {...props.attributes, visibility: props.visibility ? 'visible' : 'hidden' }]
+                    const attrStr = Object.entries(attributes).map([key, value] => `${key}="${value}"`).join(' ')
                     if (node.children && node.children.length) {
                         const children = serialize(node.children);
-                        result += `<g${attrStr ? ' ' + attrStr : ''}${visibility}>${children}</g>`;
+                        result += `<g id="${sanitizeId(props.name)}" ${attrStr}>${children}</g>`;
                     } else {
                         const path = pixels.pathOf(node.id);
                         const fill = rgbaToHexU32(props.color);
@@ -137,7 +138,7 @@ export const useOutputStore = defineStore('output', {
                         for (const segment of segments) {
                             orientationPaths += `<path d="${segment}" stroke="#000" stroke-width="0.02" fill="none"/>`;
                         }
-                        result += `<g${attrStr ? ' ' + attrStr : ''}${visibility}><path d="${path}" fill="${fill}" opacity="${opacity}" fill-rule="evenodd" shape-rendering="crispEdges"/>${orientationPaths}</g>`;
+                        result += `<g id="${sanitizeId(props.name)}"><path d="${path}" fill="${fill}" opacity="${opacity}" ${attrStr} fill-rule="evenodd" shape-rendering="crispEdges"/>${orientationPaths}</g>`;
                     }
                 }
                 return result;
