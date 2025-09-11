@@ -31,7 +31,7 @@ const pixelInfo = computed(() => {
       const colorObject = input.readPixel(pixel);
       return `[${px},${py}] ${rgbaCssObj(colorObject)}`;
     } else {
-      const id = layerQuery.topVisibleAt(pixel);
+      const id = layerQuery.uppermostAt(pixel, true);
       const colorU32 = id ? nodes.color(id) : 0;
       return `[${px},${py}] ${rgbaCssU32(colorU32)}`;
     }

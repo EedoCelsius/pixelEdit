@@ -192,7 +192,7 @@ export const useTopToolService = defineStore('topToolService', () => {
             overlayService.clear(overlayId);
             return;
         }
-        const id = layerQuery.topVisibleAt(pixel);
+        const id = layerQuery.uppermostAt(pixel, true);
         if (id && nodes.locked(id)) {
             overlayService.setLayers(overlayId, [id]);
             tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
@@ -204,7 +204,7 @@ export const useTopToolService = defineStore('topToolService', () => {
     });
     watch(() => tool.dragPixel, (pixel) => {
         if (tool.current !== 'top' || !pixel) return;
-        const id = layerQuery.topVisibleAt(pixel);
+        const id = layerQuery.uppermostAt(pixel, true);
         if (!id) return;
         if (nodes.locked(id)) {
             tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
