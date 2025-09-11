@@ -11,17 +11,17 @@ export const useLayerToolService = defineStore('layerToolService', () => {
     const nodeQuery = useNodeQueryService();
 
     function mergeSelected() {
-        if (nodeTree.selectedLayerCount < 2 && nodeTree.selectedGroupCount === 0) return;
+        if (!nodeTree.selectedGroupCount && nodeTree.selectedLayerCount < 2) return;
 
         const pixelUnion = getPixelUnion(pixels.get(nodeTree.selectedLayerIds) || []);
         const colors = [];
-        const orientationMap = {};
-        if (pixelUnion.length) {
+        const pixelMap = new Map;
+        if (pixelUnion.size) {
             for (const pixel of pixelUnion) {
                 const visibleId = layerQuery.uppermostAt(pixel, true, nodeTree.selectedLayerIds);
                 if (visibleId) colors.push(nodes.color(visibleId));
                 const topId = layerQuery.uppermostAt(pixel, false, nodeTree.selectedLayerIds);
-                if (topId) orientationMap[pixel] = pixels.orientationOf(topId, pixel);
+                pixelMap.set(pixel, pixels.orientationOf(topId, pixel));
             }
         } else {
             for (const id of nodeTree.selectedLayerIds) {
@@ -41,7 +41,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
             attributes: maintainedAttrs,
         });
         pixels.addLayer(newLayerId);
-        pixels.update(newLayerId, orientationMap);
+        pixels.set(newLayerId, pixelMap);
         nodeTree.insert([newLayerId], baseId, true);
         const removed = nodeTree.remove(nodeTree.selectedNodeIds);
         nodes.remove(removed);
