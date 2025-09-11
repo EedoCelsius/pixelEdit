@@ -14,7 +14,6 @@ import orientation from './orientation.svg';
 import relay from './relay.svg';
 import border from './border.svg';
 import expand from './expand.svg';
-import margin from './margin.svg';
 import settings from './settings.svg';
 import wand from './wand.svg';
 
@@ -31,7 +30,6 @@ export default {
   orientation,
   relay,
   border,
-  margin,
   expand,
   wand,
   resize,

@@ -4,8 +4,6 @@ export const WAND_TOOLS = [
     { type: 'path', name: 'Path', icon: stageIcons.path },
     { type: 'relay', name: 'Relay', icon: stageIcons.relay },
     { type: 'expand', name: 'Expand', icon: stageIcons.expand },
-    { type: 'border', name: 'Border', icon: stageIcons.border },
-    { type: 'margin', name: 'Margin', icon: stageIcons.margin },
 ];
 
 export const TOOL_MODIFIERS = {
