@@ -383,6 +383,30 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
 
     }
 
+    function foldAll() {
+        const walk = (list) => {
+            for (const node of list) {
+                if (node.children) {
+                    folded[node.id] = true;
+                    walk(node.children);
+                }
+            }
+        };
+        walk(nodeTree.tree);
+    }
+
+    function unfoldAll() {
+        const walk = (list) => {
+            for (const node of list) {
+                if (node.children) {
+                    folded[node.id] = false;
+                    walk(node.children);
+                }
+            }
+        };
+        walk(nodeTree.tree);
+    }
+
     function toggleFold(id) {
         folded[id] = !folded[id];
     }
@@ -415,6 +439,8 @@ export const useLayerPanelService = defineStore('layerPanelService', () => {
         ...toRefs(state),
         exists,
         folded,
+        foldAll,
+        unfoldAll,
         toggleFold,
         setContainer,
         unfoldTo,

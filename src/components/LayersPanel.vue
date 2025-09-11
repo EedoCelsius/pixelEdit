@@ -279,6 +279,18 @@ function onContextMenu(item, event) {
             }
         },
         {
+            label: 'Fold All',
+            action: () => {
+                layerPanel.foldAll();
+            }
+        },
+        {
+            label: 'Unfold All',
+            action: () => {
+                layerPanel.unfoldAll();
+            }
+        },
+        {
             label: 'Copy',
             action: () => {
                 clipboard.copySelection();
