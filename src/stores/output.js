@@ -3,6 +3,8 @@ import { nextTick, watch } from 'vue';
 import { useStore } from '.';
 import { useLayerPanelService } from '../services/layerPanel';
 import { rgbaToHexU32, alphaU32 } from '../utils';
+import { indexToCoord } from '../utils/pixels.js';
+import { OT } from '../constants/orientation.js';
 
 export const useOutputStore = defineStore('output', {
     state: () => ({
@@ -115,7 +117,34 @@ export const useOutputStore = defineStore('output', {
                         const path = pixels.pathOf(node.id);
                         const fill = rgbaToHexU32(props.color);
                         const opacity = alphaU32(props.color);
-                        result += `<path d="${path}" fill="${fill}" opacity="${opacity}" fill-rule="evenodd" shape-rendering="crispEdges"${attrStr ? ' ' + attrStr : ''}${visibility}/>`;
+                        const map = pixels.get(node.id) || new Map();
+                        const overflow = 0.01;
+                        const segments = {
+                            [OT.VERTICAL]: [],
+                            [OT.HORIZONTAL]: [],
+                            [OT.DOWNSLOPE]: [],
+                            [OT.UPSLOPE]: []
+                        };
+                        for (const [idx, ori] of map) {
+                            if (ori === OT.NONE) continue;
+                            const [x, y] = indexToCoord(idx);
+                            if (ori === OT.VERTICAL) {
+                                segments[OT.VERTICAL].push(`M ${x - overflow} ${y + 0.5} L ${x + 1 + overflow} ${y + 0.5}`);
+                            } else if (ori === OT.HORIZONTAL) {
+                                segments[OT.HORIZONTAL].push(`M ${x + 0.5} ${y - overflow} L ${x + 0.5} ${y + 1 + overflow}`);
+                            } else if (ori === OT.DOWNSLOPE) {
+                                segments[OT.DOWNSLOPE].push(`M ${x - overflow} ${y + 1 + overflow} L ${x + 1 + overflow} ${y - overflow}`);
+                            } else if (ori === OT.UPSLOPE) {
+                                segments[OT.UPSLOPE].push(`M ${x - overflow} ${y - overflow} L ${x + 1 + overflow} ${y + 1 + overflow}`);
+                            }
+                        }
+                        let orientationPaths = '';
+                        for (const segs of Object.values(segments)) {
+                            if (segs.length) {
+                                orientationPaths += `<path d="${segs.join(' ')}" stroke="#000" stroke-width="0.02" fill="none"/>`;
+                            }
+                        }
+                        result += `<g${attrStr ? ' ' + attrStr : ''}${visibility}><path d="${path}" fill="${fill}" opacity="${opacity}" fill-rule="evenodd" shape-rendering="crispEdges"/>${orientationPaths}</g>`;
                     }
                 }
                 return result;
