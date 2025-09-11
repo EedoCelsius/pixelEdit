@@ -13,6 +13,10 @@
     </div>
     <div class="flex-1 min-w-0 flex flex-col gap-2">
       <div class="flex gap-2 items-center">
+        <select v-model="type" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-slate-950">
+          <option value="json">JSON</option>
+          <option value="svg">SVG</option>
+        </select>
         <button @click="generate" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">새로고침</button>
         <button @click="copy" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">복사</button>
       </div>
@@ -29,11 +33,12 @@ import { checkerboardPatternUrl } from '../utils/pixels.js';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output } = useStore();
 const text = ref('');
+const type = ref('json');
 
 const patternUrl = checkerboardPatternUrl();
 
 function generate() {
-    text.value = output.exportToJSON();
+    text.value = type.value === 'json' ? output.exportToJSON() : output.exportToSVG();
 }
 async function copy() {
     if (!text.value) generate();
