@@ -15,7 +15,7 @@ async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore
     if (nodeTree.selectedGroupCount > 0 || nodeTree.selectedLayerCount >= 2) {
         const { mergeSelected } = useLayerToolService();
         const mergedId = mergeSelected();
-        nodeTree.replaceSelection([mergedId]);
+        if (mergedId != null) nodeTree.replaceSelection([mergedId]);
     }
     const target = nodeTree.selectedLayerIds[0];
     const paths = await hamiltonian.traverseFree(pixelStore.get(target));
