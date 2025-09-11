@@ -55,62 +55,75 @@ function relayOp(nodeTree, nodes, pixelStore) {
     };
 
     const selected = nodeTree.layerOrder.filter(id => nodeTree.selectedLayerIds.includes(id));
-    const len = selected.length;
     const cache = new Map();
     const getAvg = (id) => {
         if (!cache.has(id)) cache.set(id, averageOf(id));
         return cache.get(id);
     };
 
-    const layers = new Map();
-    for (let i = 0; i < len; i++) {
-        const id = selected[i];
-        const pixels = new Set(pixelStore.get(id).keys());
-        let orientation = null;
-        for (let dist = 1; dist < len; dist++) {
-            const topAvg = getAvg(selected[(i - dist + len) % len]);
-            const bottomAvg = getAvg(selected[(i + dist) % len]);
-            if (!topAvg || !bottomAvg) continue;
-            const dx = bottomAvg[0] - topAvg[0];
-            const dy = bottomAvg[1] - topAvg[1];
-            if (Math.abs(dx) === Math.abs(dy)) continue;
-            orientation = Math.abs(dx) > Math.abs(dy) ? OT.HORIZONTAL : OT.VERTICAL;
-            if (dist >= 2) orientation = orientation === OT.HORIZONTAL ? OT.VERTICAL : OT.HORIZONTAL;
-            break;
-        }
-        layers.set(id, { orientation, pixels });
+    const groups = new Map();
+    for (const id of selected) {
+        const info = nodeTree._findNode(id);
+        const parentId = info?.parent?.id ?? null;
+        if (!groups.has(parentId)) groups.set(parentId, []);
+        groups.get(parentId).push(id);
     }
-    const order = selected.slice();
+
     const removed = [];
-    for (let i = 0; order.length > 1 && i < order.length; ) {
-        const baseId = order[i];
-        const nextIndex = (i + 1) % order.length;
-        const nextId = order[nextIndex];
-        if (baseId === nextId) break;
-        const base = layers.get(baseId);
-        const next = layers.get(nextId);
-        if (base.orientation && base.orientation === next?.orientation) {
-            const union = getPixelUnion([base.pixels, next.pixels]);
-            if (groupConnectedPixels(union).length === 1) {
-                for (const px of next.pixels) base.pixels.add(px);
-                removed.push(nextId);
-                layers.delete(nextId);
-                order.splice(nextIndex, 1);
-                if (nextIndex < i) i--;
-                continue;
+    const kept = new Set();
+    for (const ids of groups.values()) {
+        const len = ids.length;
+        const layers = new Map();
+        for (let i = 0; i < len; i++) {
+            const id = ids[i];
+            const pixels = new Set(pixelStore.get(id).keys());
+            let orientation = null;
+            for (let dist = 1; dist < len; dist++) {
+                const topAvg = getAvg(ids[(i - dist + len) % len]);
+                const bottomAvg = getAvg(ids[(i + dist) % len]);
+                if (!topAvg || !bottomAvg) continue;
+                const dx = bottomAvg[0] - topAvg[0];
+                const dy = bottomAvg[1] - topAvg[1];
+                if (Math.abs(dx) === Math.abs(dy)) continue;
+                orientation = Math.abs(dx) > Math.abs(dy) ? OT.HORIZONTAL : OT.VERTICAL;
+                if (dist >= 2) orientation = orientation === OT.HORIZONTAL ? OT.VERTICAL : OT.HORIZONTAL;
+                break;
             }
+            layers.set(id, { orientation, pixels });
         }
-        i++;
+        const order = ids.slice();
+        for (let i = 0; order.length > 1 && i < order.length;) {
+            const baseId = order[i];
+            const nextIndex = (i + 1) % order.length;
+            const nextId = order[nextIndex];
+            if (baseId === nextId) break;
+            const base = layers.get(baseId);
+            const next = layers.get(nextId);
+            if (base.orientation && base.orientation === next?.orientation) {
+                const union = getPixelUnion([base.pixels, next.pixels]);
+                if (groupConnectedPixels(union).length === 1) {
+                    for (const px of next.pixels) base.pixels.add(px);
+                    removed.push(nextId);
+                    layers.delete(nextId);
+                    order.splice(nextIndex, 1);
+                    if (nextIndex < i) i--;
+                    continue;
+                }
+            }
+            i++;
+        }
+        for (const [id, { orientation, pixels }] of layers) {
+            if (orientation) pixelStore.override(id, pixels, orientation);
+            kept.add(id);
+        }
     }
     if (removed.length) {
         const ids = nodeTree.remove(removed);
         nodes.remove(ids);
         pixelStore.removeLayer(ids);
     }
-    for (const [id, { orientation, pixels }] of layers) {
-        if (orientation) pixelStore.override(id, pixels, orientation);
-    }
-    nodeTree.replaceSelection([...layers.keys()]);
+    const finalSelection = selected.filter(id => kept.has(id));
+    nodeTree.replaceSelection(finalSelection);
 }
 
 function expandOp(nodeTree, nodes, pixelStore, nodeQuery, viewportStore) {
