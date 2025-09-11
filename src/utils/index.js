@@ -119,7 +119,9 @@ export function rgbaToHexU32(packedColor) {
     const {
         r,
         g,
-        b
+        b,
+        a
     } = unpackRGBA(packedColor);
-    return '#' + [r, g, b].map(value => value.toString(16).padStart(2, '0')).join('');
+    const hex = [r, g, b].map(value => value.toString(16).padStart(2, '0')).join('');
+    return '#' + hex + (a < 255 ? a.toString(16).padStart(2, '0') : '');
 }

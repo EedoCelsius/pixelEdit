@@ -1,4 +1,4 @@
-export const GRID_STROKE_COLOR = 'rgba(0,0,0,.18)';
+export const GRID_STROKE_COLOR = '#0000002e';
 
 export const MIN_SCALE_RATIO = 0.5;
 

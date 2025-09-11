@@ -6,7 +6,7 @@
         <div class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden" title="그룹 미리보기">
           <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
             <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
-            <path v-for="child in descendantProps(item.id)" :key="child.id" :d="pixelStore.pathOf(child.id)" :fill="rgbaCssU32(child.color)" :opacity="child.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+            <path v-for="child in descendantProps(item.id)" :key="child.id" :d="pixelStore.pathOf(child.id)" :fill="rgbaToHexU32(child.color)" :opacity="child.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
           </svg>
         </div>
         <div class="min-w-0 flex-1 relative overflow-hidden fade-mask">
@@ -36,7 +36,7 @@
         <div v-if="item.depth===0" @click.stop="onThumbnailClick(item.id)" class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden cursor-pointer" title="같은 색상의 모든 레이어 선택">
           <svg :viewBox="viewportStore.viewBox" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
             <rect x="0" y="0" :width="viewportStore.stage.width" :height="viewportStore.stage.height" :fill="patternUrl"/>
-            <path :d="pixelStore.pathOf(item.id)" :fill="rgbaCssU32(item.props.color)" :opacity="item.props.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
+            <path :d="pixelStore.pathOf(item.id)" :fill="rgbaToHexU32(item.props.color)" :opacity="item.props.visibility?1:0.3" fill-rule="evenodd" shape-rendering="crispEdges"/>
           </svg>
         </div>
         <!-- 색상 -->
@@ -81,7 +81,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useStore } from '../stores';
-import { rgbaCssU32, rgbaToHexU32, hexToRgbaU32 } from '../utils';
+import { rgbaToHexU32, hexToRgbaU32 } from '../utils';
 import { checkerboardPatternUrl, getPixelUnion } from '../utils/pixels.js';
 import blockIcons from '../image/layer_block';
 
