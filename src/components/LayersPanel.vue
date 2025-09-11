@@ -300,7 +300,7 @@ function onContextMenu(item, event) {
         }
     ];
     if (item.isGroup) {
-        items.push({
+        items.unshift({
             label: 'Ungroup',
             action: () => {
                 layerSvc.ungroupSelected();
