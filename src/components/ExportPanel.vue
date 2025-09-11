@@ -17,37 +17,32 @@
           <option value="json">JSON</option>
           <option value="svg">SVG</option>
         </select>
-        <button @click="generate" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">새로고침</button>
-        <button @click="copy" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">복사</button>
+        <button @click="download" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">다운로드</button>
       </div>
-      <textarea readonly v-model="text" class="w-full h-28 resize-y rounded-md border border-white/15 bg-slate-950 text-sky-100 p-2 text-sm"></textarea>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { useStore } from '../stores';
 import { rgbaCssU32 } from '../utils';
 import { checkerboardPatternUrl } from '../utils/pixels.js';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output } = useStore();
-const text = ref('');
 const type = ref('json');
 
 const patternUrl = checkerboardPatternUrl();
-
-function generate() {
-    text.value = type.value === 'json' ? output.exportToJSON() : output.exportToSVG();
+function download() {
+    const data = type.value === 'json' ? output.exportToJSON() : output.exportToSVG();
+    const blob = new Blob([data], { type: type.value === 'json' ? 'application/json' : 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = type.value === 'json' ? 'output.json' : 'output.svg';
+    a.click();
+    URL.revokeObjectURL(url);
 }
-async function copy() {
-    if (!text.value) generate();
-    try {
-        await navigator.clipboard.writeText(text.value);
-    } catch {}
-}
-
-onMounted(generate);
 </script>
 
 <style scoped>
