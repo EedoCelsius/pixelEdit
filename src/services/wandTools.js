@@ -154,32 +154,56 @@ export function relayMergeOp(nodeTree, nodes, pixelStore) {
     nodeTree.replaceSelection([...layers.keys()]);
 }
 
-function marginOrientationOp(nodeTree, pixelStore, targetPixels) {
-    const selected = nodeTree.layerOrder.filter(id => nodeTree.selectedLayerIds.includes(id));
-    for (const id of selected) {
-        const map = pixelStore.get(id);
-        if (!map.size) continue;
-        const pixels = [...map.keys()];
-        const pixel = pixels[0];
+function marginOrientationOp(nodeTree, pixelStore, targetLayers) {
+    const targetPixels = new Set();
+    for (const id of targetLayers) {
+        for (const px of pixelStore.get(id).keys()) targetPixels.add(px);
+    }
+    const expandedPixels = new Set();
+    for (const id of nodeTree.selectedLayerIds) {
+        for (const px of pixelStore.get(id).keys()) expandedPixels.add(px);
+    }
+    
+    const pixelMap = new Map();
+    const attributes = { tl: [], tr: [], bl: [], br: [] }
+    for (const pixel of expandedPixels) {
         const [x, y] = indexToCoord(pixel);
         const up = targetPixels.has(coordToIndex(x, y - 1));
         const down = targetPixels.has(coordToIndex(x, y + 1));
         const left = targetPixels.has(coordToIndex(x - 1, y));
         const right = targetPixels.has(coordToIndex(x + 1, y));
         const cardinal = [up, down, left, right].filter(Boolean).length;
-        let orientation = OT.NONE;
-        if (cardinal === 0) {
+        if (cardinal)
+            pixelMap.set(pixel, OT.NONE)
+        else {
             const tl = targetPixels.has(coordToIndex(x - 1, y - 1));
             const tr = targetPixels.has(coordToIndex(x + 1, y - 1));
             const bl = targetPixels.has(coordToIndex(x - 1, y + 1));
             const br = targetPixels.has(coordToIndex(x + 1, y + 1));
             const diag = [tl, tr, bl, br].filter(Boolean).length;
-            if (diag === 1) {
-                if (tl || br) orientation = OT.UPSLOPE; else orientation = OT.DOWNSLOPE;
+            if (diag !== 1)
+                pixelMap.set(pixel, OT.NONE)
+            else {
+                switch (true) {
+                    case tl: attributes.tl.push(pixel); pixelMap.set(pixel, OT.UPSLOPE); continue;
+                    case tr: attributes.tr.push(pixel); pixelMap.set(pixel, OT.DOWNSLOPE); continue;
+                    case bl: attributes.bl.push(pixel); pixelMap.set(pixel, OT.DOWNSLOPE); continue;
+                    case br: attributes.br.push(pixel); pixelMap.set(pixel, OT.UPSLOPE); continue;
+                }
             }
         }
-        pixelStore.override(id, pixels, orientation);
     }
+    
+    newLayer = nodes.addLayer({ name: `Margin`, color: 0xFFFFFFFF, attributes });
+    nodeTree.insert(newLayer, nodeTree.selectedLayerIds[0], false);
+    pixelStore.addLayer(newLayer);
+    pixelStore.set(newLayer, pixelMap);
+
+    const ids = nodeTree.remove(nodeTree.selectedLayerIds);
+    nodes.remove(ids);
+    pixelStore.removeLayer(ids);
+
+    nodeTree.replaceSelection([newLayer]);
 }
 
 function expandOp(nodeTree, nodes, pixelStore, nodeQuery, viewportStore) {
@@ -334,27 +358,15 @@ export const useBorderToolService = defineStore('borderToolService', () => {
 
 export const useMarginToolService = defineStore('marginToolService', () => {
     const tool = useToolSelectionService();
-    const hamiltonian = useHamiltonianService();
-    const layerQuery = useLayerQueryService();
     const nodeQuery = useNodeQueryService();
     const { nodeTree, nodes, pixels: pixelStore, viewport: viewportStore } = useStore();
     const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount);
 
     watch(() => tool.current, async (p) => {
         if (p !== 'margin') return;
-        const targetPixels = new Set();
-        for (const id of nodeTree.selectedLayerIds) {
-            for (const px of pixelStore.get(id).keys()) targetPixels.add(px);
-        }
+        const targetLayers = nodeTree.selectedLayerIds
         expandOp(nodeTree, nodes, pixelStore, nodeQuery, viewportStore);
-        for (const id of nodeTree.selectedLayerIds) {
-            nodes.setColor(id, 0xFFFFFFFF);
-        }
-        await pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore, nodeQuery);
-        marginOrientationOp(nodeTree, pixelStore, targetPixels);
-        const { mergeSelected } = useLayerToolService();
-        const mergedId = mergeSelected();
-        if (mergedId) nodeTree.replaceSelection([mergedId]);
+        marginOrientationOp(nodeTree, nodes, pixelStore, targetLayers);
         tool.setShape('stroke');
         tool.useRecent();
     });
