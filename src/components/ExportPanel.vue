@@ -1,8 +1,8 @@
 <template>
   <div class="flex gap-2 items-center justify-end p-2">
     <select v-model="type" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-slate-950">
-      <option value="json">JSON</option>
       <option value="svg">SVG</option>
+      <option value="json">JSON</option>
     </select>
     <button @click="download" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">다운로드</button>
   </div>
