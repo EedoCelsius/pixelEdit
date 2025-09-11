@@ -152,6 +152,8 @@ export const useCutToolService = defineStore('cutToolService', () => {
         const sourcePx = pixelStore.get(sourceId);
         const cutPixels = pixels.filter(pixel => sourcePx.has(pixel));
         if (!cutPixels.length || cutPixels.length === sourcePx.size) return;
+        const orientationMap = {};
+        for (const p of cutPixels) orientationMap[p] = sourcePx.get(p);
         pixelStore.remove(sourceId, cutPixels);
         const id = nodes.addLayer({
             name: `Cut of ${nodes.name(sourceId)}`,
@@ -160,7 +162,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
             attributes: nodes.attributes(sourceId),
         });
         pixelStore.addLayer(id);
-        pixelStore.add(id, cutPixels);
+        pixelStore.update(id, orientationMap);
         nodeTree.insert([id], sourceId, false);
         nodeTree.replaceSelection([sourceId]);
         layerPanel.setScrollRule({ type: 'follow', target: sourceId });
