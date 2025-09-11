@@ -154,7 +154,7 @@ export function relayMergeOp(nodeTree, nodes, pixelStore) {
     nodeTree.replaceSelection([...layers.keys()]);
 }
 
-function marginOrientationOp(nodeTree, pixelStore, targetLayers) {
+function marginOrientationOp(nodeTree, nodes, pixelStore, targetLayers) {
     const targetPixels = new Set();
     for (const id of targetLayers) {
         for (const px of pixelStore.get(id).keys()) targetPixels.add(px);
@@ -194,8 +194,8 @@ function marginOrientationOp(nodeTree, pixelStore, targetLayers) {
         }
     }
     
-    newLayer = nodes.addLayer({ name: `Margin`, color: 0xFFFFFFFF, attributes });
-    nodeTree.insert(newLayer, nodeTree.selectedLayerIds[0], false);
+    const newLayer = nodes.addLayer({ name: `Margin`, color: 0xFFFFFFFF, attributes });
+    nodeTree.insert([newLayer], nodeTree.selectedLayerIds[0], false);
     pixelStore.addLayer(newLayer);
     pixelStore.set(newLayer, pixelMap);
 
@@ -364,7 +364,7 @@ export const useMarginToolService = defineStore('marginToolService', () => {
 
     watch(() => tool.current, async (p) => {
         if (p !== 'margin') return;
-        const targetLayers = nodeTree.selectedLayerIds
+        const targetLayers = nodeTree.selectedLayerIds;
         expandOp(nodeTree, nodes, pixelStore, nodeQuery, viewportStore);
         marginOrientationOp(nodeTree, nodes, pixelStore, targetLayers);
         tool.setShape('stroke');
