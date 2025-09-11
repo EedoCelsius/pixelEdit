@@ -42,7 +42,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
             attributes: maintainedAttrs,
         });
         pixels.addLayer(newLayerId);
-        if (pixelUnion.size) pixels.update(newLayerId, orientationMap);
+        pixels.update(newLayerId, orientationMap);
         nodeTree.insert([newLayerId], baseId, true);
         const removed = nodeTree.remove(nodeTree.selectedNodeIds);
         nodes.remove(removed);
