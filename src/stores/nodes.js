@@ -13,8 +13,9 @@ function randColorU32() {
     return (r & 255) | ((g & 255) << 8) | ((b & 255) << 16) | (255 << 24);
 }
 
-function hashAttributes(attrs = []) {
-    const str = attrs.map(a => `${a.name}:${a.value}`).sort().join('|');
+function hashAttributes(attrs = {}) {
+    const entries = Object.entries(attrs).map(([name, value]) => `${name}:${value}`);
+    const str = entries.sort().join('|');
     return murmurHash32(str);
 }
 
@@ -45,7 +46,7 @@ function updateHashPart(store, id, part, newValue) {
 }
 
 function rehashAttributes(store, id) {
-    const attrHash = hashAttributes(store._attributes[id] || []);
+    const attrHash = hashAttributes(store._attributes[id] || {});
     store._hash.attributes[id] = attrHash;
     updateHashPart(store, id, 'attributes', mixHash(id, attrHash));
 }
@@ -76,7 +77,7 @@ function prepareNode(store, id, { name, visibility, locked, color, isGroup, attr
     store._color[id] = color;
     store._isGroup[id] = isGroup;
 
-    const attrs = attributes.map(a => ({ ...a }));
+    const attrs = { ...attributes };
     store._attributes[id] = reactive(attrs);
 
     store._hash.name[id] = murmurHash32(name);
@@ -101,7 +102,7 @@ export const useNodeStore = defineStore('nodes', {
         visibility: (state) => (id) => state._visibility[id],
         locked: (state) => (id) => state._locked[id],
         isGroup: (state) => (id) => state._isGroup[id],
-        attributes: (state) => (id) => state._attributes[id]?.map(a => ({ ...a })) || [],
+        attributes: (state) => (id) => ({ ...(state._attributes[id] || {}) }),
         getProperties: (state) => {
             const propsOf = (id) => ({
                 id,
@@ -110,7 +111,7 @@ export const useNodeStore = defineStore('nodes', {
                 visibility: state._visibility[id],
                 locked: state._locked[id],
                 isGroup: state._isGroup[id],
-                attributes: state._attributes[id]?.map(a => ({ ...a })) || []
+                attributes: { ...(state._attributes[id] || {}) }
             });
             return (ids = []) => {
                 if (Array.isArray(ids)) return ids.map(propsOf);
@@ -126,7 +127,7 @@ export const useNodeStore = defineStore('nodes', {
                 visibility: true,
                 locked: false,
                 color: randColorU32(),
-                attributes: []
+                attributes: {}
             };
             prepareNode(this, id, { ...defaults, ...props, isGroup });
             return id;
@@ -145,11 +146,6 @@ export const useNodeStore = defineStore('nodes', {
             setSimpleProp(this, id, 'color', color);
         },
         setIsGroup(id, value) { setSimpleProp(this, id, 'isGroup', value); },
-        setAttributes(id, attrs = []) {
-            if (!this.has(id)) return;
-            this._attributes[id] = reactive(Array.isArray(attrs) ? attrs.map(a => ({ ...a })) : []);
-            rehashAttributes(this, id);
-        },
         update(id, props = {}) {
             if (!this.has(id)) return;
             const handlers = {
@@ -170,21 +166,24 @@ export const useNodeStore = defineStore('nodes', {
         toggleLock(id) {
             this.setLocked(id, !this._locked[id]);
         },
-        setAttribute(id, name, value) {
+        addAttributes(id, attrs = {}) {
             if (!this.has(id)) return;
-            if (!this._attributes[id]) this._attributes[id] = reactive([]);
-            const attrs = this._attributes[id];
-            const found = attrs.find(a => a.name === name);
-            if (found) found.value = value;
-            else attrs.push({ name, value });
+            Object.assign(this._attributes[id], attrs);
             rehashAttributes(this, id);
         },
-        removeAttribute(id, name) {
+        addAttribute(id, key, value) {
             if (!this.has(id)) return;
-            const attrs = this._attributes[id];
-            if (!attrs) return;
-            const index = attrs.findIndex(a => a.name === name);
-            if (index >= 0) attrs.splice(index, 1);
+            Object.assign(this._attributes[id], { [key]: value });
+            rehashAttributes(this, id);
+        },
+        removeAttribute(id, key) {
+            if (!this.has(id)) return;
+            delete this._attributes[id][key];
+            rehashAttributes(this, id);
+        },
+        clearAttribute(id) {
+            if (!this.has(id)) return;
+            this._attributes[id] = reactive({});
             rehashAttributes(this, id);
         },
         remove(ids = []) {
@@ -227,7 +226,7 @@ export const useNodeStore = defineStore('nodes', {
                     locked: false,
                     color: randColorU32(),
                     isGroup: false,
-                    attributes: []
+                    attributes: {}
                 };
                 prepareNode(this, id, { ...defaults, ...info });
             }
