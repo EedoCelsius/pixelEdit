@@ -15,16 +15,6 @@ export const unpackRGBA = (packedColor) => ({
     b: (packedColor >>> 16) & 255,
     a: (packedColor >>> 24) & 255
 });
-export const rgbaCssU32 = (packedColor) => {
-    const {
-        r,
-        g,
-        b,
-        a
-    } = unpackRGBA(packedColor);
-    return `rgba(${r},${g},${b},${(a / 255).toFixed(2)})`;
-};
-export const rgbaCssObj = (color) => `rgba(${color.r},${color.g},${color.b},${(color.a / 255).toFixed(2)})`;
 export const randColorU32 = () => packRGBA({
     r: Math.floor(150 + Math.random() * 105),
     g: Math.floor(50 + Math.random() * 180),
@@ -52,24 +42,14 @@ export function averageColorU32(colors = []) {
 
 // simplified hex helpers
 export function hexToRgbaU32(hexString) {
-    if (!hexString) return packRGBA({
-        r: 0,
-        g: 0,
-        b: 0,
-        a: 255
-    });
+    if (!hexString) return packRGBA({ r: 0, g: 0, b: 0, a: 255 });
     const hex = String(hexString).trim().replace(/^#/, '');
     if (/^[0-9a-f]{3}$/i.test(hex)) {
         const fullHex = hex.split('').map(c => c + c).join('');
         const r = parseInt(fullHex.slice(0, 2), 16),
             g = parseInt(fullHex.slice(2, 4), 16),
             b = parseInt(fullHex.slice(4, 6), 16);
-        return packRGBA({
-            r,
-            g,
-            b,
-            a: 255
-        });
+        return packRGBA({ r, g, b, a: 255 });
     }
     if (/^[0-9a-f]{4}$/i.test(hex)) {
         const fullHex = hex.split('').map(c => c + c).join('');
@@ -77,51 +57,27 @@ export function hexToRgbaU32(hexString) {
             g = parseInt(fullHex.slice(2, 4), 16),
             b = parseInt(fullHex.slice(4, 6), 16),
             a = parseInt(fullHex.slice(6, 8), 16);
-        return packRGBA({
-            r,
-            g,
-            b,
-            a
-        });
+        return packRGBA({ r, g, b, a });
     }
     if (/^[0-9a-f]{6}$/i.test(hex)) {
         const r = parseInt(hex.slice(0, 2), 16),
             g = parseInt(hex.slice(2, 4), 16),
             b = parseInt(hex.slice(4, 6), 16);
-        return packRGBA({
-            r,
-            g,
-            b,
-            a: 255
-        });
+        return packRGBA({ r, g, b, a: 255 });
     }
     if (/^[0-9a-f]{8}$/i.test(hex)) {
         const r = parseInt(hex.slice(0, 2), 16),
             g = parseInt(hex.slice(2, 4), 16),
             b = parseInt(hex.slice(4, 6), 16),
             a = parseInt(hex.slice(6, 8), 16);
-        return packRGBA({
-            r,
-            g,
-            b,
-            a
-        });
+        return packRGBA({ r, g, b, a });
     }
-    return packRGBA({
-        r: 0,
-        g: 0,
-        b: 0,
-        a: 255
-    });
+    return packRGBA({ r: 0, g: 0, b: 0, a: 255 });
 }
 
 export function rgbaToHexU32(packedColor) {
-    const {
-        r,
-        g,
-        b
-    } = unpackRGBA(packedColor);
-    return '#' + [r, g, b].map(value => value.toString(16).padStart(2, '0')).join('');
+    const { r, g, b } = unpackRGBA(packedColor);
+    return '#' + [r, g, b].map(value => value.toString(16).padStart(2, '0')).join('').toUpperCase();
 }
 
 export const alphaU32 = (packedColor) => ((packedColor >>> 24) & 255) / 255;
