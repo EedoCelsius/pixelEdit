@@ -12,7 +12,7 @@
 import { computed } from 'vue';
 import { useStore } from '../stores';
 import { useService } from '../services';
-import { rgbaCssU32, rgbaCssObj } from '../utils';
+import { rgbaToHexU32, packRGBA } from '../utils';
 import { getPixelUnion, indexToCoord } from '../utils/pixels.js';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, input } = useStore();
@@ -29,11 +29,12 @@ const pixelInfo = computed(() => {
   const [px, py] = indexToCoord(pixel);
   if (viewportStore.display === 'original' && input.isLoaded) {
     const colorObject = input.readPixel(pixel);
-    return `[${px},${py}] ${rgbaCssObj(colorObject)}`;
+    const colorU32 = packRGBA(colorObject);
+    return `[${px},${py}] ${rgbaToHexU32(colorU32)}`;
   } else {
     const id = layerQuery.uppermostAt(pixel, true);
     const colorU32 = id ? nodes.color(id) : 0;
-    return `[${px},${py}] ${rgbaCssU32(colorU32)}`;
+    return `[${px},${py}] ${rgbaToHexU32(colorU32)}`;
   }
 });
 </script>
