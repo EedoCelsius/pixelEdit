@@ -19,21 +19,21 @@ const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, input } = 
 const { toolSelection: toolSelectionService, layerQuery } = useService();
 
 const selectedAreaPixelCount = computed(() => {
-  const pixels = getPixelUnion(pixelStore.get(nodeTree.selectedLayerIds));
-  return pixels.size;
-});
+    const pixels = getPixelUnion(pixelStore.get(nodeTree.selectedLayerIds));
+    return pixels.length;
+  });
 
 const pixelInfo = computed(() => {
-  const pixel = toolSelectionService.dragPixel ?? toolSelectionService.hoverPixel;
-  if (pixel == null) return '-';
-  const [px, py] = indexToCoord(pixel);
-  if (viewportStore.display === 'original' && input.isLoaded) {
-    const colorObject = input.readPixel(pixel);
-    return `[${px},${py}] ${rgbaCssObj(colorObject)}`;
-  } else {
-    const id = layerQuery.uppermostAt(pixel, true);
-    const colorU32 = id ? nodes.color(id) : 0;
-    return `[${px},${py}] ${rgbaCssU32(colorU32)}`;
-  }
-});
+    const pixel = toolSelectionService.previewPixels[0];
+    if (pixel == null) return '-';
+    const [px, py] = indexToCoord(pixel);
+    if (viewportStore.display === 'original' && input.isLoaded) {
+      const colorObject = input.readPixel(pixel);
+      return `[${px},${py}] ${rgbaCssObj(colorObject)}`;
+    } else {
+      const id = layerQuery.uppermostAt(pixel, true);
+      const colorU32 = id ? nodes.color(id) : 0;
+      return `[${px},${py}] ${rgbaCssU32(colorU32)}`;
+    }
+  });
 </script>
