@@ -1,12 +1,14 @@
 import { defineStore } from 'pinia';
 import { useStore } from '../stores';
 import { useLayerQueryService } from './layerQuery';
+import { useNodeQueryService } from './nodeQuery';
 import { averageColorU32 } from '../utils';
 import { groupConnectedPixels, getPixelUnion } from '../utils/pixels.js';
 
 export const useLayerToolService = defineStore('layerToolService', () => {
     const { nodeTree, nodes, pixels } = useStore();
     const layerQuery = useLayerQueryService();
+    const nodeQuery = useNodeQueryService();
 
     function mergeSelected() {
         if (nodeTree.selectedLayerCount < 2 && nodeTree.selectedGroupCount === 0) return;
@@ -25,7 +27,9 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         }
         const colorU32 = averageColorU32(colors);
 
-        const baseId = nodeTree.selectedLayerIds[0] || nodeTree.selectedGroupIds[0];
+        const baseId = nodeQuery.lowermost(
+            nodeQuery.shallowest(nodeTree.selectedNodeIds)
+        );
         const maintainedName = nodes.name(baseId) || 'Merged';
         const maintainedAttrs = nodes.attributes(baseId);
         const newLayerId = nodes.addLayer({
@@ -35,7 +39,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         });
         pixels.addLayer(newLayerId);
         pixels.add(newLayerId, pixelUnion);
-        nodeTree.insert([newLayerId], nodeTree.orderedSelection[0], true);
+        nodeTree.insert([newLayerId], baseId, true);
         const removed = nodeTree.remove(nodeTree.selectedNodeIds);
         nodes.remove(removed);
         pixels.removeLayer(removed);

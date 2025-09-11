@@ -30,6 +30,28 @@ export const useNodeQueryService = defineStore('nodeQueryService', () => {
         return isFinite(index) ? order[index] : null;
     }
 
+    function shallowest(ids) {
+        const order = ids ?? nodeTree.allNodeIds;
+        let minDepth = Infinity;
+        const result = [];
+        for (const id of order) {
+            const info = nodeTree._findNode(id);
+            if (!info) continue;
+            let depth = 0;
+            for (let parent = info.parent; parent; parent = nodeTree._findNode(parent.id)?.parent) {
+                depth++;
+            }
+            if (depth < minDepth) {
+                minDepth = depth;
+                result.length = 0;
+                result.push(id);
+            } else if (depth === minDepth) {
+                result.push(id);
+            }
+        }
+        return result;
+    }
+
     function below(id) {
         if (id == null) return null;
         const info = nodeTree._findNode(id);
@@ -52,6 +74,6 @@ export const useNodeQueryService = defineStore('nodeQueryService', () => {
         return children ? children.map(n => n.id) : [];
     }
 
-    return { lowermost, uppermost, below, parentOf, childrenOf };
+    return { lowermost, uppermost, shallowest, below, parentOf, childrenOf };
 });
 

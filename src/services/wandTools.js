@@ -10,9 +10,16 @@ import { CURSOR_STYLE } from '@/constants';
 import { coordToIndex, indexToCoord, getPixelUnion, groupConnectedPixels } from '../utils/pixels.js';
 import { OT } from '../stores/pixels';
 
-async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore) {
+async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore, nodeQuery) {
     tool.setCursor({ wand: CURSOR_STYLE.WAIT });
-    if (nodeTree.selectedGroupCount > 0 || nodeTree.selectedLayerCount >= 2) {
+    let baseName;
+    if (nodeTree.selectedLayerCount === 1) {
+        baseName = nodes.name(nodeTree.selectedLayerIds[0]);
+    } else {
+        const baseId = nodeQuery.lowermost(
+            nodeQuery.shallowest(nodeTree.selectedNodeIds)
+        );
+        baseName = nodes.name(baseId);
         const { mergeSelected } = useLayerToolService();
         const mergedId = mergeSelected();
         nodeTree.replaceSelection([mergedId]);
@@ -20,8 +27,7 @@ async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore
     const target = nodeTree.selectedLayerIds[0];
     const paths = await hamiltonian.traverseFree(pixelStore.get(target));
     const color = nodes.color(target);
-    const name = nodes.name(target);
-    const groupId = nodes.addGroup({ name: `${name} Paths` });
+    const groupId = nodes.addGroup({ name: `${baseName} Paths` });
     nodeTree.insert([groupId], layerQuery.lowermost([target]), true);
     nodeTree.remove([target]);
     nodes.remove([target]);
@@ -41,7 +47,7 @@ async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore
     nodeTree.replaceSelection([groupId]);
 }
 
-function relayOp(nodeTree, nodes, pixelStore) {
+function relayOrientationOp(nodeTree, nodes, pixelStore) {
     const averageOf = (id) => {
         const pixels = pixelStore.get(id);
         if (!pixels.size) return null;
@@ -55,29 +61,47 @@ function relayOp(nodeTree, nodes, pixelStore) {
     };
 
     const selected = nodeTree.layerOrder.filter(id => nodeTree.selectedLayerIds.includes(id));
-    const len = selected.length;
     const cache = new Map();
     const getAvg = (id) => {
         if (!cache.has(id)) cache.set(id, averageOf(id));
         return cache.get(id);
     };
 
-    const layers = new Map();
-    for (let i = 0; i < len; i++) {
-        const id = selected[i];
-        const pixels = new Set(pixelStore.get(id).keys());
-        let orientation = null;
-        for (let dist = 1; dist < len; dist++) {
-            const topAvg = getAvg(selected[(i - dist + len) % len]);
-            const bottomAvg = getAvg(selected[(i + dist) % len]);
-            if (!topAvg || !bottomAvg) continue;
-            const dx = bottomAvg[0] - topAvg[0];
-            const dy = bottomAvg[1] - topAvg[1];
-            if (Math.abs(dx) === Math.abs(dy)) continue;
-            orientation = Math.abs(dx) > Math.abs(dy) ? OT.HORIZONTAL : OT.VERTICAL;
-            if (dist >= 2) orientation = orientation === OT.HORIZONTAL ? OT.VERTICAL : OT.HORIZONTAL;
-            break;
+    const groups = new Map();
+    for (const id of selected) {
+        const parent = nodeTree._findNode(id)?.parent?.id ?? null;
+        if (!groups.has(parent)) groups.set(parent, []);
+        groups.get(parent).push(id);
+    }
+
+    for (const group of groups.values()) {
+        const len = group.length;
+        for (let i = 0; i < len; i++) {
+            const id = group[i];
+            let orientation = null;
+            for (let dist = 1; dist < len; dist++) {
+                const topAvg = getAvg(group[(i - dist + len) % len]);
+                const bottomAvg = getAvg(group[(i + dist) % len]);
+                if (!topAvg || !bottomAvg) continue;
+                const dx = bottomAvg[0] - topAvg[0];
+                const dy = bottomAvg[1] - topAvg[1];
+                if (Math.abs(dx) === Math.abs(dy)) continue;
+                orientation = Math.abs(dx) > Math.abs(dy) ? OT.HORIZONTAL : OT.VERTICAL;
+                if (dist >= 2) orientation = orientation === OT.HORIZONTAL ? OT.VERTICAL : OT.HORIZONTAL;
+                break;
+            }
+            if (orientation) pixelStore.override(id, pixelStore.get(id).keys(), orientation);
         }
+    }
+}
+
+function relayMergeOp(nodeTree, nodes, pixelStore) {
+    const selected = nodeTree.layerOrder.filter(id => nodeTree.selectedLayerIds.includes(id));
+    const layers = new Map();
+    for (const id of selected) {
+        const pixels = new Set(pixelStore.get(id).keys());
+        const first = pixelStore.get(id).values().next();
+        const orientation = first.done ? null : first.value;
         layers.set(id, { orientation, pixels });
     }
     const order = selected.slice();
@@ -199,12 +223,13 @@ export const usePathToolService = defineStore('pathToolService', () => {
     const tool = useToolSelectionService();
     const hamiltonian = useHamiltonianService();
     const layerQuery = useLayerQueryService();
+    const nodeQuery = useNodeQueryService();
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
-    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount === 1);
+    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount);
 
     watch(() => tool.current, async (p) => {
         if (p !== 'path') return;
-        await pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore);
+        await pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore, nodeQuery);
         tool.setShape('stroke');
         tool.useRecent();
     });
@@ -215,10 +240,11 @@ export const usePathToolService = defineStore('pathToolService', () => {
 export const useRelayToolService = defineStore('relayToolService', () => {
     const tool = useToolSelectionService();
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
-    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 1);
+    const usable = computed(() => tool.shape === 'wand' && 2 < nodeTree.selectedLayerCount);
     watch(() => tool.current, (p) => {
         if (p !== 'relay') return;
-        relayOp(nodeTree, nodes, pixelStore);
+        relayOrientationOp(nodeTree, nodes, pixelStore);
+        relayMergeOp(nodeTree, nodes, pixelStore);
         tool.setShape('stroke');
         tool.useRecent();
     });
@@ -230,7 +256,7 @@ export const useExpandToolService = defineStore('expandToolService', () => {
     const tool = useToolSelectionService();
     const nodeQuery = useNodeQueryService();
     const { nodeTree, nodes, pixels: pixelStore, viewport: viewportStore } = useStore();
-    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 0);
+    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount);
     watch(() => tool.current, (p) => {
         if (p !== 'expand') return;
         expandOp(nodeTree, nodes, pixelStore, nodeQuery, viewportStore);
@@ -245,13 +271,15 @@ export const useBorderToolService = defineStore('borderToolService', () => {
     const tool = useToolSelectionService();
     const hamiltonian = useHamiltonianService();
     const layerQuery = useLayerQueryService();
+    const nodeQuery = useNodeQueryService();
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
-    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount === 1);
+    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount);
 
     watch(() => tool.current, async (p) => {
         if (p !== 'border') return;
-        await pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore);
-        relayOp(nodeTree, nodes, pixelStore);
+        await pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore, nodeQuery);
+        relayOrientationOp(nodeTree, nodes, pixelStore);
+        relayMergeOp(nodeTree, nodes, pixelStore);
         tool.setShape('stroke');
         tool.useRecent();
     });
@@ -265,7 +293,7 @@ export const useMarginToolService = defineStore('marginToolService', () => {
     const layerQuery = useLayerQueryService();
     const nodeQuery = useNodeQueryService();
     const { nodeTree, nodes, pixels: pixelStore, viewport: viewportStore } = useStore();
-    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount > 0);
+    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount);
 
     watch(() => tool.current, async (p) => {
         if (p !== 'margin') return;
@@ -273,8 +301,9 @@ export const useMarginToolService = defineStore('marginToolService', () => {
         for (const id of nodeTree.selectedLayerIds) {
             nodes.setColor(id, 0xFFFFFFFF);
         }
-        await pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore);
-        relayOp(nodeTree, nodes, pixelStore);
+        await pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore, nodeQuery);
+        relayOrientationOp(nodeTree, nodes, pixelStore);
+        relayMergeOp(nodeTree, nodes, pixelStore);
         tool.setShape('stroke');
         tool.useRecent();
     });
