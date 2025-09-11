@@ -62,10 +62,10 @@ function relayOp(nodeTree, nodes, pixelStore) {
         return cache.get(id);
     };
 
-    const orientationMap = new Map();
-
+    const layers = new Map();
     for (let i = 0; i < len; i++) {
         const id = selected[i];
+        const pixels = new Set(pixelStore.get(id).keys());
         let orientation = null;
         for (let dist = 1; dist < len; dist++) {
             const topAvg = getAvg(selected[(i - dist + len) % len]);
@@ -78,39 +78,39 @@ function relayOp(nodeTree, nodes, pixelStore) {
             if (dist >= 2) orientation = orientation === OT.HORIZONTAL ? OT.VERTICAL : OT.HORIZONTAL;
             break;
         }
-        if (!orientation) continue;
-        const pixels = pixelStore.get(id);
-        pixelStore.add(id, pixels.keys(), orientation);
-        orientationMap.set(id, orientation);
+        layers.set(id, { orientation, pixels });
     }
-
-    const mergedSelection = new Set(nodeTree.selectedLayerIds);
-    let changed = true;
-    while (changed) {
-        changed = false;
-        const current = nodeTree.layerOrder.filter(id => mergedSelection.has(id));
-        const clen = current.length;
-        for (let i = 0; i < clen; i++) {
-            const baseId = current[i];
-            const nextId = current[(i + 1) % clen];
-            if (baseId === nextId) continue;
-            const orient = orientationMap.get(baseId);
-            if (!orient || orientationMap.get(nextId) !== orient) continue;
-            const basePxs = pixelStore.get(baseId);
-            const nextPxs = pixelStore.get(nextId);
-            const union = getPixelUnion([basePxs, nextPxs]);
-            if (groupConnectedPixels(union).length > 1) continue;
-            pixelStore.add(baseId, nextPxs.keys(), orient);
-            const removed = nodeTree.remove([nextId]);
-            nodes.remove(removed);
-            pixelStore.removeLayer(removed);
-            orientationMap.delete(nextId);
-            mergedSelection.delete(nextId);
-            changed = true;
-            break;
+    const order = selected.slice();
+    const removed = [];
+    for (let i = 0; order.length > 1 && i < order.length; ) {
+        const baseId = order[i];
+        const nextIndex = (i + 1) % order.length;
+        const nextId = order[nextIndex];
+        if (baseId === nextId) break;
+        const base = layers.get(baseId);
+        const next = layers.get(nextId);
+        if (base.orientation && base.orientation === next?.orientation) {
+            const union = getPixelUnion([base.pixels, next.pixels]);
+            if (groupConnectedPixels(union).length === 1) {
+                for (const px of next.pixels) base.pixels.add(px);
+                removed.push(nextId);
+                layers.delete(nextId);
+                order.splice(nextIndex, 1);
+                if (nextIndex < i) i--;
+                continue;
+            }
         }
+        i++;
     }
-    nodeTree.replaceSelection([...mergedSelection]);
+    if (removed.length) {
+        const ids = nodeTree.remove(removed);
+        nodes.remove(ids);
+        pixelStore.removeLayer(ids);
+    }
+    for (const [id, { orientation, pixels }] of layers) {
+        if (orientation) pixelStore.override(id, pixels, orientation);
+    }
+    nodeTree.replaceSelection([...layers.keys()]);
 }
 
 function expandOp(nodeTree, nodes, pixelStore, nodeQuery, viewportStore) {

@@ -33,6 +33,31 @@ function updatePixelHash(store, id, index, oldVal, newVal) {
     store._hash.all ^= mixHash(id, oldHash) ^ mixHash(id, newHash);
 }
 
+function resolveOrientation(store, orientation, pixel) {
+    if (orientation === 0) return 0;
+    if (orientation === OT.DEFAULT) orientation = store._defaultOrientation;
+    if (orientation === 'checkerboard') {
+        const [o1, o2] = store._checkerboardOrientations;
+        const [x, y] = indexToCoord(pixel);
+        orientation = (x + y) % 2 === 0 ? o1 : o2;
+    }
+    return orientation || OT.NONE;
+}
+
+function commitPixel(store, id, pixel, orientation, skipExisting = false) {
+    const map = store._pixels[id];
+    if (skipExisting && map.has(pixel)) return;
+    const oldVal = map.get(pixel) || 0;
+    if (orientation === 0) {
+        if (!oldVal) return;
+        map.delete(pixel);
+        updatePixelHash(store, id, pixel, oldVal, 0);
+    } else {
+        map.set(pixel, orientation);
+        updatePixelHash(store, id, pixel, oldVal, orientation);
+    }
+}
+
 export const usePixelStore = defineStore('pixels', {
     state: () => ({
         _pixels: {},
@@ -99,75 +124,34 @@ export const usePixelStore = defineStore('pixels', {
             rehashLayer(this, id);
         },
         update(id, orientationMap = {}) {
-            const map = this._pixels[id];
             for (const [idxStr, oriVal] of Object.entries(orientationMap)) {
                 const pixel = Number(idxStr);
-                let orientation = oriVal;
-                if (orientation === 0) {
-                    const oldVal = map.get(pixel);
-                    if (!oldVal) continue;
-                    map.delete(pixel);
-                    updatePixelHash(this, id, pixel, oldVal, 0);
-                    continue;
-                }
-                if (orientation === OT.DEFAULT) orientation = this._defaultOrientation;
-                if (orientation === 'checkerboard') {
-                    const [o1, o2] = this._checkerboardOrientations;
-                    const [x, y] = indexToCoord(pixel);
-                    orientation = (x + y) % 2 === 0 ? o1 : o2;
-                }
-                if (!orientation) orientation = OT.NONE;
-                const oldVal = map.get(pixel) || 0;
-                map.set(pixel, orientation);
-                updatePixelHash(this, id, pixel, oldVal, orientation);
+                const orientation = resolveOrientation(this, oriVal, pixel);
+                commitPixel(this, id, pixel, orientation);
             }
         },
         add(id, pixels, orientation = OT.DEFAULT) {
-            const map = this._pixels[id];
-            if (orientation === OT.DEFAULT) orientation = this._defaultOrientation;
-            if (orientation === 'checkerboard') {
-                const [o1, o2] = this._checkerboardOrientations;
-                for (const pixel of pixels) {
-                    if (map.has(pixel)) continue;
-                    const [x, y] = indexToCoord(pixel);
-                    const value = (x + y) % 2 === 0 ? o1 : o2;
-                    map.set(pixel, value);
-                    updatePixelHash(this, id, pixel, 0, value);
-                }
-            } else {
-                for (const pixel of pixels) {
-                    if (map.has(pixel)) continue;
-                    map.set(pixel, orientation);
-                    updatePixelHash(this, id, pixel, 0, orientation);
-                }
+            for (const pixel of pixels) {
+                const value = resolveOrientation(this, orientation, pixel);
+                commitPixel(this, id, pixel, value, true);
+            }
+        },
+        override(id, pixels, orientation = OT.DEFAULT) {
+            for (const pixel of pixels) {
+                const value = resolveOrientation(this, orientation, pixel);
+                commitPixel(this, id, pixel, value);
             }
         },
         remove(id, pixels) {
-            const map = this._pixels[id];
             for (const pixel of pixels) {
-                const oldVal = map.get(pixel);
-                if (!oldVal) continue;
-                map.delete(pixel);
-                updatePixelHash(this, id, pixel, oldVal, 0);
+                commitPixel(this, id, pixel, 0);
             }
         },
         togglePixel(id, pixel) {
-            const map = this._pixels[id];
-            const oldVal = map.get(pixel);
-            if (oldVal) {
-                map.delete(pixel);
-                updatePixelHash(this, id, pixel, oldVal, 0);
-                return;
-            }
-            let orientation = this._defaultOrientation;
-            if (orientation === 'checkerboard') {
-                const [x, y] = indexToCoord(pixel);
-                const [o1, o2] = this._checkerboardOrientations;
-                orientation = (x + y) % 2 === 0 ? o1 : o2;
-            }
-            const newVal = orientation || OT.NONE;
-            map.set(pixel, newVal);
-            updatePixelHash(this, id, pixel, oldVal, newVal);
+            const orientation = this._pixels[id].has(pixel)
+                ? 0
+                : resolveOrientation(this, OT.DEFAULT, pixel);
+            commitPixel(this, id, pixel, orientation);
         },
         translateAll(dx = 0, dy = 0) {
             dx |= 0; dy |= 0;
