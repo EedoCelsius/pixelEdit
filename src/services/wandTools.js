@@ -13,7 +13,9 @@ import { OT } from '../stores/pixels';
 async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore, nodeQuery) {
     tool.setCursor({ wand: CURSOR_STYLE.WAIT });
     let baseName;
-    if (1 < nodeTree.selectedLayerCount) {
+    if (nodeTree.selectedLayerCount === 1) {
+        baseName = nodes.name(nodeTree.selectedLayerIds[0]);
+    } else {
         const baseId = nodeQuery.lowermost(
             nodeQuery.shallowest(nodeTree.selectedNodeIds)
         );
@@ -21,8 +23,6 @@ async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore
         const { mergeSelected } = useLayerToolService();
         const mergedId = mergeSelected();
         nodeTree.replaceSelection([mergedId]);
-    } else {
-        baseName = nodes.name(nodeTree.selectedLayerIds[0]);
     }
     const target = nodeTree.selectedLayerIds[0];
     const paths = await hamiltonian.traverseFree(pixelStore.get(target));
