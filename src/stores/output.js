@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { nextTick, watch } from 'vue';
 import { useStore } from '.';
 import { useLayerPanelService } from '../services/layerPanel';
-import { rgbaCssU32 } from '../utils';
+import { hexCssU32 } from '../utils';
 
 export const useOutputStore = defineStore('output', {
     state: () => ({
@@ -113,7 +113,7 @@ export const useOutputStore = defineStore('output', {
                         result += `<g${attrStr ? ' ' + attrStr : ''}${visibility}>${children}</g>`;
                     } else {
                         const path = pixels.pathOf(node.id);
-                        const fill = rgbaCssU32(props.color);
+                        const fill = hexCssU32(props.color);
                         result += `<path d="${path}" fill="${fill}" fill-rule="evenodd" shape-rendering="crispEdges"${attrStr ? ' ' + attrStr : ''}${visibility}/>`;
                     }
                 }
