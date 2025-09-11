@@ -162,7 +162,7 @@ export const useCutToolService = defineStore('cutToolService', () => {
             attributes: nodes.attributes(sourceId),
         });
         pixelStore.addLayer(id);
-        pixelStore.update(id, pixelMap);
+        pixelStore.set(id, pixelMap);
         nodeTree.insert([id], sourceId, false);
         nodeTree.replaceSelection([sourceId]);
         layerPanel.setScrollRule({ type: 'follow', target: sourceId });
