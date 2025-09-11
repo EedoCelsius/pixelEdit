@@ -5,7 +5,7 @@
       :key="tool.type"
       @click="$emit('select', tool)"
       class="flex items-center gap-2 px-1 py-1 text-xs rounded w-full"
-      :class="tool.usable?.value ? 'hover:bg-white/10' : 'opacity-50 cursor-not-allowed'"
+      :class="tool.usable?.value ? 'hover:bg-white/10' : 'opacity-50'"
       :disabled="!tool.usable?.value"
     >
       <img v-if="tool.icon" :src="tool.icon" :alt="tool.name" class="w-4 h-4" />
@@ -16,15 +16,9 @@
 
 <script setup>
 import { WAND_TOOLS } from '@/constants';
-import { usePathToolService, useRelayToolService, useExpandToolService, useBorderToolService, useMarginToolService } from '@/services/wandTools';
+import { useService } from '../services';
 
-const services = {
-  path: usePathToolService(),
-  relay: useRelayToolService(),
-  expand: useExpandToolService(),
-  border: useBorderToolService(),
-  margin: useMarginToolService()
-};
+const { tools: toolServices } = useService();
 
-const tools = WAND_TOOLS.map(t => ({ ...t, usable: services[t.type].usable }));
+const tools = WAND_TOOLS.map(t => ({ ...t, usable: toolServices[t.type].usable }));
 </script>
