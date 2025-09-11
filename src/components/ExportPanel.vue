@@ -20,13 +20,14 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useStore } from '../stores';
 import { rgbaToHexU32, alphaU32 } from '../utils';
 import { checkerboardPatternUrl } from '../utils/pixels.js';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, output } = useStore();
-const type = ref('json');
+const type = ref(localStorage.getItem('downloadType') || 'json');
+watch(type, (value) => localStorage.setItem('downloadType', value));
 
 const patternUrl = checkerboardPatternUrl();
 
