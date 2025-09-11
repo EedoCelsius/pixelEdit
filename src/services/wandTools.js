@@ -13,7 +13,7 @@ import { OT } from '../stores/pixels';
 async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore, nodeQuery) {
     tool.setCursor({ wand: CURSOR_STYLE.WAIT });
     let baseName;
-    if (nodeTree.selectedLayerCount === 1) {
+    if (!nodeTree.selectedGroupCount && nodeTree.selectedLayerCount === 1) {
         baseName = nodes.name(nodeTree.selectedLayerIds[0]);
     } else {
         const baseId = nodeQuery.lowermost(
