@@ -15,7 +15,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
 
         const pixelUnion = getPixelUnion(pixels.get(nodeTree.selectedLayerIds) || []);
         const colors = [];
-        const pixelMap = {};
+        const pixelMap = new Map();
         if (pixelUnion.size) {
             for (const pixel of pixelUnion) {
                 const id = layerQuery.topVisibleAt(pixel, nodeTree.selectedLayerIds);
@@ -31,9 +31,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
         }
         const colorU32 = averageColorU32(colors);
 
-        const baseId = nodeQuery.lowermost(
-            nodeQuery.shallowest(nodeTree.selectedNodeIds)
-        );
+        const baseId = nodeQuery.lowermost(nodeQuery.shallowest(nodeTree.selectedNodeIds));
         const maintainedName = nodes.name(baseId) || 'Merged';
         const maintainedAttrs = nodes.attributes(baseId);
         const newLayerId = nodes.addLayer({
