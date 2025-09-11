@@ -95,29 +95,6 @@ function relayOrientationOp(nodeTree, nodes, pixelStore) {
     }
 }
 
-function marginCornerOrientationOp(nodeTree, pixelStore) {
-    const pixelToLayer = new Map();
-    for (const id of nodeTree.selectedLayerIds) {
-        for (const px of pixelStore.get(id).keys()) pixelToLayer.set(px, id);
-    }
-
-    for (const [px, id] of pixelToLayer.entries()) {
-        const [x, y] = indexToCoord(px);
-        const up = pixelToLayer.has(coordToIndex(x, y - 1));
-        const down = pixelToLayer.has(coordToIndex(x, y + 1));
-        const left = pixelToLayer.has(coordToIndex(x - 1, y));
-        const right = pixelToLayer.has(coordToIndex(x + 1, y));
-        const count = (up ? 1 : 0) + (down ? 1 : 0) + (left ? 1 : 0) + (right ? 1 : 0);
-        if (count >= 3) {
-            pixelStore.override(id, [px], OT.NONE);
-        } else if ((!up && !left) || (!down && !right)) {
-            pixelStore.override(id, [px], OT.UPSLOPE);
-        } else if ((!up && !right) || (!down && !left)) {
-            pixelStore.override(id, [px], OT.DOWNSLOPE);
-        }
-    }
-}
-
 function areAdjacent(basePixels, nextPixels, orientation) {
     const fn = orientation === OT.HORIZONTAL
         ? (x, y) => nextPixels.has(coordToIndex(x + 1, y)) || nextPixels.has(coordToIndex(x - 1, y))
@@ -339,10 +316,7 @@ export const useMarginToolService = defineStore('marginToolService', () => {
         }
         await pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore, nodeQuery);
         relayOrientationOp(nodeTree, nodes, pixelStore);
-        marginCornerOrientationOp(nodeTree, pixelStore);
-        const { mergeSelected } = useLayerToolService();
-        const mergedId = mergeSelected();
-        nodeTree.replaceSelection([mergedId]);
+        relayMergeOp(nodeTree, nodes, pixelStore);
         tool.setShape('stroke');
         tool.useRecent();
     });
