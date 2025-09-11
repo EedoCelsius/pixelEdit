@@ -27,14 +27,12 @@ async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore
     const target = nodeTree.selectedLayerIds[0];
     const paths = await hamiltonian.traverseFree(pixelStore.get(target));
     const color = nodes.color(target);
-    const groupId = nodes.addGroup({ name: `${baseName} Paths` });
+    const groupId = nodes.addGroup({ name: `${baseName} Path${paths.length > 1 ? 's' : ''}` });
     nodeTree.insert([groupId], layerQuery.lowermost([target]), true);
     nodeTree.remove([target]);
     nodes.remove([target]);
     pixelStore.removeLayer([target]);
     paths.forEach((path, idx) => {
-        const subGroupId = nodes.addGroup({ name: `Path ${idx + 1}` });
-        nodeTree.append([subGroupId], groupId, false);
         const ids = [];
         path.forEach((pixel, j) => {
             const lid = nodes.addLayer({ name: `Pixel ${j + 1}`, color });
@@ -42,7 +40,13 @@ async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore
             pixelStore.add(lid, [pixel]);
             ids.push(lid);
         });
-        nodeTree.append(ids, subGroupId, false);
+        if (paths.length === 1) {
+            nodeTree.append(ids, groupId, false);
+        } else {
+            const subGroupId = nodes.addGroup({ name: `Path ${idx + 1}` });
+            nodeTree.append([subGroupId], groupId, false);
+            nodeTree.append(ids, subGroupId, false);
+        }
     });
     nodeTree.replaceSelection([groupId]);
 }
