@@ -36,7 +36,7 @@ export const useSelectToolService = defineStore('selectToolService', () => {
             overlayService.clear(overlayId);
             return;
         }
-        const id = layerQuery.topVisibleAt(pixel);
+        const id = layerQuery.uppermostAt(pixel, true);
         if (!keyboardEvents.isPressed('Shift')) {
             mode = 'select';
             overlayService.setStyles(overlayId, OVERLAY_STYLES.SELECT_ADD);
@@ -64,7 +64,7 @@ export const useSelectToolService = defineStore('selectToolService', () => {
     watch(() => tool.dragPixel, (pixel) => {
         if (tool.current !== 'select') return;
         if (pixel) {
-            const id = layerQuery.topVisibleAt(pixel);
+            const id = layerQuery.uppermostAt(pixel, true);
             if (id && nodes.locked(id)) {
                 tool.setCursor({ stroke: CURSOR_STYLE.LOCKED, rect: CURSOR_STYLE.LOCKED });
                 return;
@@ -76,7 +76,7 @@ export const useSelectToolService = defineStore('selectToolService', () => {
         if (tool.current !== 'select') return;
         const intersectedIds = [];
         for (const pixel of pixels) {
-            const id = layerQuery.topVisibleAt(pixel);
+            const id = layerQuery.uppermostAt(pixel, true);
             if (id === null) continue;
             if (!nodes.locked(id)) intersectedIds.push(id);
         }
@@ -93,7 +93,7 @@ export const useSelectToolService = defineStore('selectToolService', () => {
         if (pixels.length > 0) {
             const intersectedIds = new Set();
             for (const pixel of pixels) {
-                const id = layerQuery.topVisibleAt(pixel);
+                const id = layerQuery.uppermostAt(pixel, true);
                 if (id !== null && !nodes.locked(id)) intersectedIds.add(id);
             }
             const currentSelection = new Set(mode === 'select' ? [] : nodeTree.selectedLayerIds);
@@ -153,7 +153,7 @@ export const useOrientationToolService = defineStore('orientationToolService', (
         overlayService.setPixels(currentOverlayId, pixel != null ? [pixel] : []);
         overlayService.setPixels(prevOverlayId, pixel != null && prevPixel != null ? [prevPixel] : []);
         if (pixel == null) return;
-        const target = layerQuery.topVisibleAt(pixel);
+        const target = layerQuery.uppermostAt(pixel, true);
         const editable = nodeTree.selectedLayerIds.length === 0 || nodeTree.selectedLayerIds.includes(target);
         if (target != null && editable) {
             if (nodes.locked(target)) {
@@ -182,7 +182,7 @@ export const useOrientationToolService = defineStore('orientationToolService', (
         if (tool.current !== 'orientation') return;
         if (pixels.length === 1) {
             const pixel = pixels[0];
-            const target = layerQuery.topVisibleAt(pixel);
+            const target = layerQuery.uppermostAt(pixel, true);
             const editable = nodeTree.selectedLayerIds.length === 0 || nodeTree.selectedLayerIds.includes(target);
             if (target != null && editable && !nodes.locked(target)) {
                 const current = pixelStore.orientationOf(target, pixel);

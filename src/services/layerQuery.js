@@ -44,13 +44,13 @@ export const useLayerQueryService = defineStore('layerQueryService', () => {
         return order[idx - 1] ?? null;
     }
 
-    function topVisibleAt(pixel, ids = null) {
+    function uppermostAt(pixel, filterHidden = false, ids = null) {
         const order = nodeTree.layerIdsBottomToTop;
         const idSet = ids ? new Set(ids) : null;
         for (let i = order.length - 1; i >= 0; i--) {
             const id = order[i];
             if (idSet && !idSet.has(id)) continue;
-            if (!nodes._visibility[id]) continue;
+            if (filterHidden && !nodes._visibility[id]) continue;
             if (pixels.has(id, pixel)) return id;
         }
         return null;
@@ -87,7 +87,7 @@ export const useLayerQueryService = defineStore('layerQueryService', () => {
         lowermost,
         above,
         below,
-        topVisibleAt,
+        uppermostAt,
         empty,
         disconnected,
         byColor,
