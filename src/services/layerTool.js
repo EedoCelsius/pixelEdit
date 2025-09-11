@@ -15,10 +15,14 @@ export const useLayerToolService = defineStore('layerToolService', () => {
 
         const pixelUnion = getPixelUnion(pixels.get(nodeTree.selectedLayerIds) || []);
         const colors = [];
-        if (pixelUnion.length) {
+        const orientationMap = {};
+        if (pixelUnion.size) {
             for (const pixel of pixelUnion) {
                 const id = layerQuery.topVisibleAt(pixel, nodeTree.selectedLayerIds);
-                if (id) colors.push(nodes.color(id));
+                if (id) {
+                    colors.push(nodes.color(id));
+                    orientationMap[pixel] = pixels.orientationOf(id, pixel);
+                }
             }
         } else {
             for (const id of nodeTree.selectedLayerIds) {
@@ -38,7 +42,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
             attributes: maintainedAttrs,
         });
         pixels.addLayer(newLayerId);
-        pixels.add(newLayerId, pixelUnion);
+        if (pixelUnion.size) pixels.update(newLayerId, orientationMap);
         nodeTree.insert([newLayerId], baseId, true);
         const removed = nodeTree.remove(nodeTree.selectedNodeIds);
         nodes.remove(removed);
