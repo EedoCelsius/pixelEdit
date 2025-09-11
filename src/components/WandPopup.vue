@@ -4,7 +4,8 @@
       v-for="tool in tools"
       :key="tool.type"
       @click="$emit('select', tool)"
-      class="flex items-center gap-2 px-1 py-1 text-xs rounded hover:bg-white/10 w-full"
+      :disabled="!tool.usable"
+      :class="`flex items-center gap-2 px-1 py-1 text-xs rounded w-full ${tool.usable ? 'hover:bg-white/10' : 'opacity-50 cursor-not-allowed'}`"
     >
       <img v-if="tool.icon" :src="tool.icon" :alt="tool.name" class="w-4 h-4" />
       <span class="whitespace-nowrap">{{ tool.name }}</span>
@@ -13,6 +14,10 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import { WAND_TOOLS } from '@/constants';
-const tools = WAND_TOOLS;
+import { useService } from '../services';
+
+const { tools: serviceTools } = useService();
+const tools = computed(() => WAND_TOOLS.map(t => ({ ...t, usable: serviceTools[t.type]?.usable })));
 </script>

@@ -7,7 +7,7 @@ import { useNodeQueryService } from './nodeQuery';
 import { useLayerToolService } from './layerTool';
 import { useStore } from '../stores';
 import { CURSOR_STYLE } from '@/constants';
-import { coordToIndex, indexToCoord, getPixelUnion, groupConnectedPixels } from '../utils/pixels.js';
+import { coordToIndex, indexToCoord, getPixelUnion, groupConnectedPixels, MAX_DIMENSION } from '../utils/pixels.js';
 import { OT } from '../stores/pixels';
 
 async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore, nodeQuery) {
@@ -116,12 +116,30 @@ function relayMergeOp(nodeTree, nodes, pixelStore) {
         if (base.orientation && base.orientation === next?.orientation) {
             const union = getPixelUnion([base.pixels, next.pixels]);
             if (groupConnectedPixels(union).length === 1) {
-                for (const px of next.pixels) base.pixels.add(px);
-                removed.push(nextId);
-                layers.delete(nextId);
-                order.splice(nextIndex, 1);
-                if (nextIndex < i) i--;
-                continue;
+                const offsets = base.orientation === OT.HORIZONTAL
+                    ? [[1, 0], [-1, 0]]
+                    : [[0, 1], [0, -1]];
+                let adjacent = false;
+                outer: for (const px of base.pixels) {
+                    const [x, y] = indexToCoord(px);
+                    for (const [dx, dy] of offsets) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        if (nx < 0 || ny < 0 || nx >= MAX_DIMENSION || ny >= MAX_DIMENSION) continue;
+                        if (next.pixels.has(coordToIndex(nx, ny))) {
+                            adjacent = true;
+                            break outer;
+                        }
+                    }
+                }
+                if (adjacent) {
+                    for (const px of next.pixels) base.pixels.add(px);
+                    removed.push(nextId);
+                    layers.delete(nextId);
+                    order.splice(nextIndex, 1);
+                    if (nextIndex < i) i--;
+                    continue;
+                }
             }
         }
         i++;
