@@ -97,12 +97,10 @@ export const useOutputStore = defineStore('output', {
         },
         exportToJSON() {
             const { input } = useStore();
-            const state = JSON.parse(this.currentSnap());
-            delete state.history;
-            return JSON.stringify({
-                input: { src: input.src || '', size: { w: input.width || 0, h: input.height || 0 } },
-                state
-            });
+            return `{
+                "input": { "src": "${input.src || ''}", "size": { "w": ${input.width || 0}, "h": ${input.height || 0} } },
+                "state": ${this.currentSnap()}
+            }`;
         },
         exportToSVG() {
             const { nodeTree, nodes, pixels, viewport } = useStore();
