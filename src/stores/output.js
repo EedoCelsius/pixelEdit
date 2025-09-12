@@ -136,7 +136,32 @@ export const useOutputStore = defineStore('output', {
                         const children = serialize(node.children);
                         result += `<g id="${sanitizeId(props.name)}" ${attrStr}>${children}</g>`;
                     } else {
-                        const path = pixels.pathOf(node.id);
+                        let path = pixels.pathOf(node.id);
+                        const attrs = props.attributes || {};
+                        if (attrs.tl || attrs.tr || attrs.bl || attrs.br) {
+                            const removals = [];
+                            for (const idx of attrs.tl || []) {
+                                const [x, y] = indexToCoord(idx);
+                                removals.push([x + 1, y + 1]);
+                            }
+                            for (const idx of attrs.tr || []) {
+                                const [x, y] = indexToCoord(idx);
+                                removals.push([x, y + 1]);
+                            }
+                            for (const idx of attrs.bl || []) {
+                                const [x, y] = indexToCoord(idx);
+                                removals.push([x + 1, y]);
+                            }
+                            for (const idx of attrs.br || []) {
+                                const [x, y] = indexToCoord(idx);
+                                removals.push([x, y]);
+                            }
+                            for (const [x, y] of removals) {
+                                const re = new RegExp(`([ML]) ${x} ${y}(?:\\s|$)`, 'g');
+                                path = path.replace(re, ' ');
+                            }
+                            path = path.replace(/(^|Z)\s*L/g, '$1 M').trim().replace(/\s+/g, ' ');
+                        }
                         const fill = rgbaToHexU32(props.color);
                         const opacity = alphaU32(props.color);
                         const map = pixels.get(node.id) || new Map();
