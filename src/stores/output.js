@@ -97,10 +97,31 @@ export const useOutputStore = defineStore('output', {
         },
         exportToJSON() {
             const { input } = useStore();
-            return `{
-                "input": { "src": "${input.src || ''}", "size": { "w": ${input.width || 0}, "h": ${input.height || 0} } },
-                "state": ${this.currentSnap()}
-            }`;
+            const state = JSON.parse(this.currentSnap());
+            if (state.history) delete state.history;
+            return JSON.stringify({
+                input: { src: input.src || '', size: { w: input.width || 0, h: input.height || 0 } },
+                state
+            });
+        },
+        async importFromJSON(json) {
+            let parsed;
+            try {
+                parsed = JSON.parse(json);
+            } catch (e) {
+                console.error('Invalid JSON', e);
+                return;
+            }
+            const { input } = useStore();
+            if (parsed.input && parsed.input.src) {
+                await input.load(parsed.input.src);
+            }
+            if (parsed.state) {
+                const snapshot = typeof parsed.state === 'string' ? parsed.state : JSON.stringify(parsed.state);
+                this._apply(snapshot);
+                this._stack = [];
+                this._pointer = -1;
+            }
         },
         exportToSVG() {
             const { nodeTree, nodes, pixels, viewport } = useStore();
