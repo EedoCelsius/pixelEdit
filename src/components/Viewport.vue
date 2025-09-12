@@ -5,7 +5,9 @@
        @pointerdown="viewportEvents.setPointerDown"
        @pointermove="viewportEvents.setPointerMove"
        @pointerup="viewportEvents.setPointerUp"
-       @pointercancel="viewportEvents.setPointerUp">
+       @pointercancel="viewportEvents.setPointerUp"
+       @dragover.prevent
+       @drop.prevent="onDrop">
     <div id="stage" class="absolute select-none touch-none"
          :style="stageStyle"
          @contextmenu.prevent>
@@ -71,8 +73,8 @@ import { OVERLAY_STYLES, GRID_STROKE_COLOR } from '@/constants';
 import { rgbaToHexU32, alphaU32 } from '../utils';
 import { checkerboardPatternUrl } from '../utils/pixels.js';
 
-const { viewport: viewportStore, nodeTree, preview, viewportEvent: viewportEvents } = useStore();
-const { overlay, toolSelection: toolSelectionService, viewport } = useService();
+const { viewport: viewportStore, nodeTree, preview, viewportEvent: viewportEvents, input, output } = useStore();
+const { overlay, toolSelection: toolSelectionService, viewport, imageLoad: imageLoadService } = useService();
 const viewportEl = useTemplateRef('viewportEl');
 const stage = viewportStore.stage;
 const image = viewportStore.imageRect;
@@ -125,6 +127,19 @@ function resetPosition() {
   viewportStore.recalcContentSize();
   viewportStore.setScale(stage.containScale * 0.75);
   viewportStore.setOffset(0, 0);
+}
+
+async function onDrop(e) {
+  if (input.isLoaded) return;
+  const file = e.dataTransfer.files?.[0];
+  if (!file) return;
+  if (file.type === 'application/json' || file.name.endsWith('.json')) {
+    const text = await file.text();
+    await output.importFromJSON(text);
+  } else {
+    await input.loadFile(file);
+    imageLoadService.open();
+  }
 }
 
 const resizeObserver = new ResizeObserver(viewportStore.recalcContentSize);

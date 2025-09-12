@@ -1,14 +1,5 @@
 <template>
     <div class="flex items-center gap-2 p-2 flex-wrap">
-      <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileChange" />
-      <button v-if="input.isLoaded" @click="viewportStore.toggleView" class="inline-flex items-center px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">{{ viewportStore.toggleLabel }}</button>
-      <button v-else @click="openFileDialog" class="inline-flex items-center px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10">Load</button>
-      <!-- Stage resize -->
-      <button @click="stageResizeService.open" title="Resize Canvas" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
-        <img :src="stageIcons.resize" alt="resize" class="w-4 h-4">
-      </button>
-        <div class="h-4 w-px bg-white/10 mx-1"></div>
-
       <!-- Shape toggle -->
       <div class="relative flex">
         <div class="inline-flex rounded-md overflow-hidden border border-white/15">
@@ -54,6 +45,10 @@
         <button @click="output.redo" title="Redo" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
           <img :src="stageIcons.redo" alt="Redo" class="w-4 h-4">
         </button>
+        <!-- Stage resize -->
+        <button @click="stageResizeService.open" title="Resize Canvas" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
+          <img :src="stageIcons.resize" alt="resize" class="w-4 h-4">
+        </button>
         <button @click="settingsService.open" title="Settings" class="p-1 rounded-md border border-white/15 bg-white/5 hover:bg-white/10">
           <img :src="stageIcons.settings" alt="settings" class="w-4 h-4">
         </button>
@@ -68,20 +63,8 @@ import { WAND_TOOLS } from '@/constants';
 import stageIcons from '../image/stage_toolbar';
 import WandPopup from './WandPopup.vue';
 
-const { viewport: viewportStore, input, output, toolbar: toolbarStore } = useStore();
-const { toolSelection: toolSelectionService, stageResize: stageResizeService, imageLoad: imageLoadService, settings: settingsService, tools } = useService();
-
-const fileInput = ref(null);
-function openFileDialog() {
-  fileInput.value?.click();
-}
-async function onFileChange(e) {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  await input.loadFile(file);
-  imageLoadService.open();
-  e.target.value = '';
-}
+const { output, toolbar: toolbarStore } = useStore();
+const { toolSelection: toolSelectionService, stageResize: stageResizeService, settings: settingsService, tools } = useService();
 
 toolSelectionService.setShape('stroke');
 
