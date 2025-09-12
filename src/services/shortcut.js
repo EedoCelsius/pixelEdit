@@ -7,6 +7,7 @@ import { useNodeQueryService } from './nodeQuery';
 import { useToolSelectionService } from './toolSelection';
 import { useToolbarStore } from '../stores/toolbar';
 import { useClipboardService } from './clipboard';
+import { usePathToolService } from './wandTools';
 import { TOOL_MODIFIERS } from '@/constants';
 
 export const useShortcutService = defineStore('shortcutService', () => {
@@ -17,6 +18,7 @@ export const useShortcutService = defineStore('shortcutService', () => {
     const toolSelectionService = useToolSelectionService();
     const toolbar = useToolbarStore();
     const clipboard = useClipboardService();
+    const pathToolService = usePathToolService();
 
     function deleteSelection() {
         if (!nodeTree.selectedNodeCount) return;
@@ -84,6 +86,23 @@ export const useShortcutService = defineStore('shortcutService', () => {
             }
 
             switch (key) {
+                case 'm':
+                case 'M': {
+                    e.preventDefault();
+                    const id = layerSvc.mergeSelected();
+                    if (id != null) {
+                        nodeTree.replaceSelection([id]);
+                        layerPanel.setScrollRule({ type: 'follow', target: id });
+                    }
+                    break;
+                }
+                case 'r':
+                case 'R': {
+                    e.preventDefault();
+                    toolSelectionService.setShape('wand');
+                    toolSelectionService.addPrepared({ type: 'path', name: 'Path', usable: pathToolService.usable });
+                    break;
+                }
                 case 'ArrowUp':
                     e.preventDefault();
                     layerPanel.onArrowUp(shift, ctrl);
