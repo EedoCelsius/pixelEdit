@@ -136,9 +136,34 @@ export const useOutputStore = defineStore('output', {
                         const children = serialize(node.children);
                         result += `<g id="${sanitizeId(props.name)}" ${attrStr}>${children}</g>`;
                     } else {
-                        const path = pixels.pathOf(node.id);
-                        const fill = rgbaToHexU32(props.color);
-                        const opacity = alphaU32(props.color);
+                        let path = pixels.pathOf(node.id);
+                        // temp corner removal
+                        if (attributes.tl || attributes.tr || attributes.bl || attributes.br) {
+                            const removals = [];
+                            for (const idx of attributes.tl || []) {
+                                const [x, y] = indexToCoord(idx);
+                                removals.push([x + 1, y + 1]);
+                            }
+                            for (const idx of attributes.tr || []) {
+                                const [x, y] = indexToCoord(idx);
+                                removals.push([x, y + 1]);
+                            }
+                            for (const idx of attributes.bl || []) {
+                                const [x, y] = indexToCoord(idx);
+                                removals.push([x + 1, y]);
+                            }
+                            for (const idx of attributes.br || []) {
+                                const [x, y] = indexToCoord(idx);
+                                removals.push([x, y]);
+                            }
+                            for (const [x, y] of removals) {
+                                const re = new RegExp(`([ML]) ${x} ${y}(?:\\s|$)`, 'g');
+                                path = path.replace(re, ' ');
+                            }
+                            path = path.replace(/(^|Z)\s*L/g, '$1 M').trim().replace(/\s+/g, ' ');
+                        }
+
+                        // temp orientation satin rung
                         const map = pixels.get(node.id) || new Map();
                         const overflow = 0.01;
                         const segments = [];
@@ -159,6 +184,9 @@ export const useOutputStore = defineStore('output', {
                         for (const segment of segments) {
                             orientationPaths += `<path d="${segment}" stroke="#000" stroke-width="0.02" fill="none"/>`;
                         }
+                        
+                        const fill = rgbaToHexU32(props.color);
+                        const opacity = alphaU32(props.color);
                         result += `<g id="${sanitizeId(props.name)}"><path d="${path}" fill="${fill}" opacity="${opacity}" ${attrStr} fill-rule="evenodd" shape-rendering="crispEdges"/>${orientationPaths}</g>`;
                     }
                 }
