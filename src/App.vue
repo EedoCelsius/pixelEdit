@@ -25,7 +25,7 @@
         <h2 class="m-0 px-3 py-2 text-xs uppercase tracking-wide text-slate-300/90 border-b border-white/10">Layers</h2>
         <layers-toolbar class="border-b border-white/10"></layers-toolbar>
         <layers-panel class="flex-1 min-h-0"></layers-panel>
-        <export-panel class="border-t border-white/10"></export-panel>
+        <io-panel class="border-t border-white/10"></io-panel>
       </aside>
     </div>
     <StageResizePopup />
@@ -43,7 +43,7 @@ import Viewport from './components/Viewport.vue';
 import ViewportInfo from './components/ViewportInfo.vue';
 import LayersToolbar from './components/LayersToolbar.vue';
 import LayersPanel from './components/LayersPanel.vue';
-import ExportPanel from './components/ExportPanel.vue';
+import IOPanel from './components/IOPanel.vue';
 import ViewportToolbar from './components/ViewportToolbar.vue';
 import StageResizePopup from './components/StageResizePopup.vue';
 import ImageLoadPopup from './components/ImageLoadPopup.vue';
