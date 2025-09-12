@@ -165,7 +165,7 @@ export const useOutputStore = defineStore('output', {
 
                         // temp orientation satin rung
                         const map = pixels.get(node.id) || new Map();
-                        const overflow = 0.01;
+                        const overflow = 0.025;
                         const segments = [];
                         for (const [idx, ori] of map) {
                             if (ori === OT.NONE) continue;
