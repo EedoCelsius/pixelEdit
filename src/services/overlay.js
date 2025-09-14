@@ -63,13 +63,25 @@ export const useOverlayService = defineStore('overlayService', () => {
         return { id: Number(id), pixels, path: pixelsToUnionPath(pixels), styles: styles[id] };
     }
 
-    const selectionId = createOverlay(OVERLAY_STYLES.SELECTED);
+    const targetId = createOverlay(OVERLAY_STYLES.SELECTED);
 
-    function rebuildSelection() {
-        setLayers(selectionId, nodeTree.selectedLayerIds);
+    function rebuildTarget() {
+        setLayers(targetId, nodeTree.selectedLayerIds);
     }
 
-    watch(() => nodeTree.selectedLayerIds.slice(), rebuildSelection, { immediate: true });
+    function setTargetPixels(pixels) {
+        setPixels(targetId, pixels);
+    }
+
+    function setTargetLayers(ids) {
+        setLayers(targetId, ids);
+    }
+
+    function clearTarget() {
+        clear(targetId);
+    }
+
+    watch(() => nodeTree.selectedLayerIds.slice(), rebuildTarget, { immediate: true });
 
     return {
         overlayPixels,
@@ -84,6 +96,9 @@ export const useOverlayService = defineStore('overlayService', () => {
         setPixels,
         setStyles,
         getOverlay,
+        setTargetPixels,
+        setTargetLayers,
+        clearTarget,
     };
 });
 
