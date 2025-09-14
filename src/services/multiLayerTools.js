@@ -116,10 +116,13 @@ export const useSelectToolService = defineStore('selectToolService', () => {
 export const useMoveToolService = defineStore('moveToolService', () => {
     const tool = useToolSelectionService();
     const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const overlayService = useOverlayService();
     const usable = computed(() => tool.shape === 'stroke' || tool.shape === 'rect');
     const toolbar = useToolbarStore();
     toolbar.register({ type: 'move', name: 'Move', icon: stageIcons.move, usable });
     const targetPixels = ref([]);
+    const moveOverlayId = overlayService.createOverlay();
+    overlayService.setStyles(moveOverlayId, OVERLAY_STYLES.ADD);
 
     function refreshSelection() {
         const set = new Set();
@@ -132,14 +135,21 @@ export const useMoveToolService = defineStore('moveToolService', () => {
     }
 
     watch(() => tool.current === 'move', isMove => {
-        if (!isMove) return;
+        if (!isMove) {
+            overlayService.setTargetLayers(nodeTree.selectedLayerIds);
+            overlayService.clear(moveOverlayId);
+            return;
+        }
         refreshSelection();
+        overlayService.setTargetPixels(targetPixels.value);
+        overlayService.clear(moveOverlayId);
         tool.setCursor({ stroke: 'pointer', rect: 'crosshair' });
     });
 
     watch(() => nodeTree.selectedLayerIds, () => {
         if (tool.current !== 'move') return;
         refreshSelection();
+        overlayService.setTargetPixels(targetPixels.value);
     });
 
     watch(() => tool.affectedPixels, pixels => {
@@ -153,6 +163,22 @@ export const useMoveToolService = defineStore('moveToolService', () => {
             }
         }
         targetPixels.value = [...set];
+        overlayService.setTargetPixels(targetPixels.value);
+    });
+
+    watch(() => tool.hoverPixel, pixel => {
+        if (tool.current !== 'move') return;
+        if (tool.previewPixels.length) return;
+        overlayService.setPixels(moveOverlayId, pixel != null ? [pixel] : []);
+    });
+
+    watch(() => tool.previewPixels, pixels => {
+        if (tool.current !== 'move') return;
+        if (pixels.length) {
+            overlayService.setPixels(moveOverlayId, pixels);
+        } else {
+            overlayService.setPixels(moveOverlayId, tool.hoverPixel != null ? [tool.hoverPixel] : []);
+        }
     });
 
     function shift(dx, dy) {
@@ -180,6 +206,7 @@ export const useMoveToolService = defineStore('moveToolService', () => {
             }
         }
         targetPixels.value = moved;
+        overlayService.setTargetPixels(targetPixels.value);
     }
 
     return { usable, shift };
