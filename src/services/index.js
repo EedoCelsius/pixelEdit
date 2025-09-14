@@ -6,7 +6,7 @@ import { useNodeQueryService } from './nodeQuery';
 import { useToolSelectionService } from './toolSelection';
 import { useToolbarStore } from '../stores/toolbar';
 import { useDrawToolService, useEraseToolService, useTopToolService, useCutToolService } from './singleLayerTools';
-import { useSelectToolService, useOrientationToolService, useGlobalEraseToolService } from './multiLayerTools';
+import { useSelectToolService, useMoveToolService, useOrientationToolService, useGlobalEraseToolService } from './multiLayerTools';
 import { usePathToolService, useRelayToolService, useExpandToolService, useBorderToolService, useMarginToolService } from './wandTools';
 import { useViewportService } from './viewport';
 import { useStageResizeService } from './stageResize';
@@ -23,6 +23,7 @@ export {
     useLayerQueryService,
     useNodeQueryService,
     useSelectToolService,
+    useMoveToolService,
     useDrawToolService,
     useEraseToolService,
     useTopToolService,
@@ -57,6 +58,7 @@ export const useService = () => {
     const margin = useMarginToolService();
 
     const select = useSelectToolService();
+    const move = useMoveToolService();
     const globalErase = useGlobalEraseToolService();
     const orientation = useOrientationToolService();
 
@@ -83,6 +85,7 @@ export const useService = () => {
             border,
             margin,
             select,
+            move,
             globalErase,
             orientation,
         },
