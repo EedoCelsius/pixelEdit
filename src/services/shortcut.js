@@ -8,6 +8,7 @@ import { useToolSelectionService } from './toolSelection';
 import { useToolbarStore } from '../stores/toolbar';
 import { useClipboardService } from './clipboard';
 import { usePathToolService } from './wandTools';
+import { useMoveToolService } from './multiLayerTools';
 import { TOOL_MODIFIERS } from '@/constants';
 
 export const useShortcutService = defineStore('shortcutService', () => {
@@ -19,6 +20,7 @@ export const useShortcutService = defineStore('shortcutService', () => {
     const toolbar = useToolbarStore();
     const clipboard = useClipboardService();
     const pathToolService = usePathToolService();
+    const moveTool = useMoveToolService();
 
     function deleteSelection() {
         if (!nodeTree.selectedNodeCount) return;
@@ -105,11 +107,31 @@ export const useShortcutService = defineStore('shortcutService', () => {
                 }
                 case 'ArrowUp':
                     e.preventDefault();
-                    layerPanel.onArrowUp(shift, ctrl);
+                    if (toolSelectionService.current === 'move') {
+                        moveTool.shift(0, -1);
+                    } else {
+                        layerPanel.onArrowUp(shift, ctrl);
+                    }
                     break;
                 case 'ArrowDown':
                     e.preventDefault();
-                    layerPanel.onArrowDown(shift, ctrl);
+                    if (toolSelectionService.current === 'move') {
+                        moveTool.shift(0, 1);
+                    } else {
+                        layerPanel.onArrowDown(shift, ctrl);
+                    }
+                    break;
+                case 'ArrowLeft':
+                    if (toolSelectionService.current === 'move') {
+                        e.preventDefault();
+                        moveTool.shift(-1, 0);
+                    }
+                    break;
+                case 'ArrowRight':
+                    if (toolSelectionService.current === 'move') {
+                        e.preventDefault();
+                        moveTool.shift(1, 0);
+                    }
                     break;
                 case 'Delete':
                 case 'Backspace':

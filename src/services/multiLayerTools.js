@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { watch, computed } from 'vue';
+import { watch, computed, ref } from 'vue';
 import { useToolSelectionService } from './toolSelection';
 import { useLayerPanelService } from './layerPanel';
 import { useLayerQueryService } from './layerQuery';
@@ -7,7 +7,7 @@ import { useOverlayService } from './overlay';
 import { useStore } from '../stores';
 import { useToolbarStore } from '../stores/toolbar';
 import { OVERLAY_STYLES, CURSOR_STYLE } from '@/constants';
-import { indexToCoord } from '../utils/pixels.js';
+import { indexToCoord, coordToIndex } from '../utils/pixels.js';
 import { PIXEL_ORIENTATIONS, OT } from '../stores/pixels';
 import stageIcons from '../image/stage_toolbar';
 
@@ -111,6 +111,78 @@ export const useSelectToolService = defineStore('selectToolService', () => {
         }
     });
     return { usable };
+});
+
+export const useMoveToolService = defineStore('moveToolService', () => {
+    const tool = useToolSelectionService();
+    const { nodeTree, nodes, pixels: pixelStore } = useStore();
+    const usable = computed(() => tool.shape === 'stroke' || tool.shape === 'rect');
+    const toolbar = useToolbarStore();
+    toolbar.register({ type: 'move', name: 'Move', icon: stageIcons.move, usable });
+    const targetPixels = ref([]);
+
+    function refreshSelection() {
+        const set = new Set();
+        for (const id of nodeTree.selectedLayerIds) {
+            if (nodes.locked(id)) continue;
+            const map = pixelStore.get(id);
+            for (const p of map.keys()) set.add(p);
+        }
+        targetPixels.value = [...set];
+    }
+
+    watch(() => tool.current === 'move', isMove => {
+        if (!isMove) return;
+        refreshSelection();
+        tool.setCursor({ stroke: 'pointer', rect: 'crosshair' });
+    });
+
+    watch(() => nodeTree.selectedLayerIds, () => {
+        if (tool.current !== 'move') return;
+        refreshSelection();
+    });
+
+    watch(() => tool.affectedPixels, pixels => {
+        if (tool.current !== 'move') return;
+        const set = new Set();
+        if (pixels.length) {
+            for (const id of nodeTree.selectedLayerIds) {
+                if (nodes.locked(id)) continue;
+                const map = pixelStore.get(id);
+                for (const p of pixels) if (map.has(p)) set.add(p);
+            }
+        }
+        targetPixels.value = [...set];
+    });
+
+    function shift(dx, dy) {
+        dx |= 0; dy |= 0;
+        if (dx === 0 && dy === 0) return;
+        if (!targetPixels.value.length) return;
+        const moved = targetPixels.value.map(p => {
+            const [x, y] = indexToCoord(p);
+            return coordToIndex(x + dx, y + dy);
+        });
+        for (const id of nodeTree.selectedLayerIds) {
+            if (nodes.locked(id)) continue;
+            const map = pixelStore.get(id);
+            const remove = [];
+            const addMap = {};
+            targetPixels.value.forEach((p, idx) => {
+                if (!map.has(p)) return;
+                const ori = map.get(p);
+                remove.push(p);
+                addMap[moved[idx]] = ori;
+            });
+            if (remove.length) {
+                pixelStore.remove(id, remove);
+                pixelStore.update(id, addMap);
+            }
+        }
+        targetPixels.value = moved;
+    }
+
+    return { usable, shift };
 });
 
 export const useOrientationToolService = defineStore('orientationToolService', () => {

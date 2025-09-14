@@ -4,6 +4,7 @@ import draw from './draw.svg';
 import erase from './erase.svg';
 import cut from './cut.svg';
 import select from './select.svg';
+import move from './move.svg';
 import globalErase from './global_erase.svg';
 import top from './top.svg';
 import resize from './resize.svg';
@@ -25,6 +26,7 @@ export default {
   erase,
   cut,
   select,
+  move,
   globalErase,
   top,
   path,
