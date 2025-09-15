@@ -31,7 +31,6 @@
     <StageResizePopup />
     <ImageLoadPopup />
     <SettingsPopup />
-    <LayerOrientationPopup />
     <ContextMenu />
 </template>
 
@@ -50,7 +49,6 @@ import StageResizePopup from './components/StageResizePopup.vue';
 import ImageLoadPopup from './components/ImageLoadPopup.vue';
 import SettingsPopup from './components/SettingsPopup.vue';
 import ContextMenu from './components/ContextMenu.vue';
-import LayerOrientationPopup from './components/LayerOrientationPopup.vue';
 const { input } = useStore();
 const { imageLoad: imageLoadService } = useService();
 
