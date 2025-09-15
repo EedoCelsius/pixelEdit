@@ -89,7 +89,7 @@ import { useService } from '../services';
 import { useContextMenuStore } from '../stores/contextMenu';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, preview } = useStore();
-const { layerPanel, layerQuery, nodeQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc, clipboard } = useService();
+const { layerPanel, layerQuery, nodeQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc, clipboard, layerOrientation } = useService();
 const contextMenu = useContextMenuStore();
 
 const dragging = ref(false);
@@ -303,6 +303,14 @@ function onContextMenu(item, event) {
             }
         },
         {
+            label: 'Set Orientation',
+            disabled: nodeTree.selectedLayerCount === 0,
+            action: () => {
+                if (nodeTree.selectedLayerCount === 0) return;
+                layerOrientation.open();
+            }
+        },
+        {
             label: 'Flip Order',
             disabled: !flipEnabled,
             action: () => {
@@ -403,8 +411,9 @@ function handleGlobalPointerDown(event) {
     const isStage = stageEl && stageEl.contains(target);
     const isLayers = listElement.value && listElement.value.contains(target);
     const isButton = !!target.closest('button');
+    const isOrientationPopup = layerOrientation.show && !!target.closest('.layer-orientation-popup');
     const isContextMenu = contextMenu.visible;
-    if (isLayers || isButton) return;
+    if (isLayers || isButton || isOrientationPopup) return;
     if (isViewport && !isStage) {
         let moved = false;
         const pid = event.pointerId;
@@ -418,7 +427,7 @@ function handleGlobalPointerDown(event) {
         window.addEventListener('pointerup', onUp, { capture: true, once: true });
         return;
     }
-    if (!isViewport && !isStage && !isLayers && !isButton && !isContextMenu)
+    if (!isViewport && !isStage && !isLayers && !isButton && !isContextMenu && !isOrientationPopup)
         nodeTree.clearSelection();
 }
 
