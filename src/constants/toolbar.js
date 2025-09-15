@@ -6,6 +6,7 @@ export const WAND_TOOLS = [
     { type: 'expand', name: 'Expand', icon: stageIcons.expand },
     { type: 'border', name: 'Border', icon: stageIcons.border },
     { type: 'margin', name: 'Margin', icon: stageIcons.margin },
+    { type: 'unify', name: 'Unify', icon: stageIcons.unify },
 ];
 
 export const TOOL_MODIFIERS = {

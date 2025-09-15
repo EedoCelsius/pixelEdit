@@ -206,6 +206,20 @@ function marginOrientationOp(nodeTree, nodes, pixelStore, targetLayers) {
     nodeTree.replaceSelection([newLayer]);
 }
 
+function unifyOp(nodeTree, pixelStore) {
+    const order = nodeTree.layerIdsTopToBottom.filter(id => nodeTree.selectedLayerIds.includes(id));
+    const seen = new Set();
+    for (const id of order) {
+        const map = pixelStore.get(id);
+        const remove = [];
+        for (const p of map.keys()) {
+            if (seen.has(p)) remove.push(p);
+            else seen.add(p);
+        }
+        if (remove.length) pixelStore.remove(id, remove);
+    }
+}
+
 function expandOp(nodeTree, nodes, pixelStore, nodeQuery, viewportStore) {
     const width = viewportStore.stage.width;
     const height = viewportStore.stage.height;
@@ -367,6 +381,20 @@ export const useMarginToolService = defineStore('marginToolService', () => {
         const targetLayers = nodeTree.selectedLayerIds;
         expandOp(nodeTree, nodes, pixelStore, nodeQuery, viewportStore);
         marginOrientationOp(nodeTree, nodes, pixelStore, targetLayers);
+        tool.setShape('stroke');
+        tool.useRecent();
+    });
+
+    return { usable };
+});
+
+export const useUnifyToolService = defineStore('unifyToolService', () => {
+    const tool = useToolSelectionService();
+    const { nodeTree, pixels: pixelStore } = useStore();
+    const usable = computed(() => tool.shape === 'wand' && nodeTree.selectedLayerCount);
+    watch(() => tool.current, (p) => {
+        if (p !== 'unify') return;
+        unifyOp(nodeTree, pixelStore);
         tool.setShape('stroke');
         tool.useRecent();
     });

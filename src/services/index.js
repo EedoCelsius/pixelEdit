@@ -7,7 +7,7 @@ import { useToolSelectionService } from './toolSelection';
 import { useToolbarStore } from '../stores/toolbar';
 import { useDrawToolService, useEraseToolService, useTopToolService, useCutToolService } from './singleLayerTools';
 import { useSelectToolService, useMoveToolService, useOrientationToolService, useGlobalEraseToolService } from './multiLayerTools';
-import { usePathToolService, useRelayToolService, useExpandToolService, useBorderToolService, useMarginToolService } from './wandTools';
+import { usePathToolService, useRelayToolService, useExpandToolService, useBorderToolService, useMarginToolService, useUnifyToolService } from './wandTools';
 import { useViewportService } from './viewport';
 import { useStageResizeService } from './stageResize';
 import { useHamiltonianService } from './hamiltonian';
@@ -33,6 +33,7 @@ export {
     useExpandToolService,
     useBorderToolService,
     useMarginToolService,
+    useUnifyToolService,
     useGlobalEraseToolService,
     useCutToolService,
     useToolSelectionService,
@@ -56,6 +57,7 @@ export const useService = () => {
     const expand = useExpandToolService();
     const border = useBorderToolService();
     const margin = useMarginToolService();
+    const unify = useUnifyToolService();
 
     const select = useSelectToolService();
     const move = useMoveToolService();
@@ -84,6 +86,7 @@ export const useService = () => {
             expand,
             border,
             margin,
+            unify,
             select,
             move,
             globalErase,
