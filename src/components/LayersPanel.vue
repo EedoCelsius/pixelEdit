@@ -89,7 +89,7 @@ import { useService } from '../services';
 import { useContextMenuStore } from '../stores/contextMenu';
 
 const { viewport: viewportStore, nodeTree, nodes, pixels: pixelStore, preview } = useStore();
-const { layerPanel, layerQuery, nodeQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc, clipboard, layerOrientation } = useService();
+const { layerPanel, layerQuery, nodeQuery, viewport, stageResize: stageResizeService, layerTool: layerSvc, clipboard } = useService();
 const contextMenu = useContextMenuStore();
 
 const dragging = ref(false);
@@ -300,14 +300,6 @@ function onContextMenu(item, event) {
             label: 'Paste',
             action: () => {
                 clipboard.paste();
-            }
-        },
-        {
-            label: 'Set Orientation',
-            disabled: nodeTree.selectedLayerCount === 0,
-            action: () => {
-                if (nodeTree.selectedLayerCount === 0) return;
-                layerOrientation.open();
             }
         },
         {
