@@ -16,6 +16,7 @@ import relay from './relay.svg';
 import border from './border.svg';
 import expand from './expand.svg';
 import margin from './margin.svg';
+import unify from './unify.svg';
 import settings from './settings.svg';
 import wand from './wand.svg';
 
@@ -34,6 +35,7 @@ export default {
   relay,
   border,
   margin,
+  unify,
   expand,
   wand,
   resize,
