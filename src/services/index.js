@@ -15,6 +15,7 @@ import { useImageLoadService } from './imageLoad';
 import { useSettingsService } from './settings';
 import { useShortcutService } from './shortcut';
 import { useClipboardService } from './clipboard';
+import { useLayerOrientationService } from './layerOrientation';
 
 export {
     useLayerPanelService,
@@ -43,7 +44,8 @@ export {
     useImageLoadService,
     useSettingsService,
     useShortcutService,
-    useClipboardService
+    useClipboardService,
+    useLayerOrientationService
 };
 
 export const useService = () => {
@@ -99,5 +101,6 @@ export const useService = () => {
         settings: useSettingsService(),
         shortcut: useShortcutService(),
         clipboard: useClipboardService(),
+        layerOrientation: useLayerOrientationService(),
     };
 };
