@@ -129,6 +129,19 @@ export function orientationPatternUrl(orientation, target = document.body) {
         line.setAttribute('stroke', '#FFFFFF');
         line.setAttribute('stroke-width', '.08');
         pattern.appendChild(line);
+    } else if (orientation === OT.STAR) {
+        const outer = document.createElementNS(SVG_NAMESPACE, 'path');
+        outer.setAttribute('d', 'M 0 0 L 0.5 1 L 1 0 M 0 1 L 0.5 0 L 1 1');
+        outer.setAttribute('stroke', '#000000');
+        outer.setAttribute('stroke-width', '.12');
+        outer.setAttribute('fill', 'none');
+        pattern.appendChild(outer);
+        const inner = document.createElementNS(SVG_NAMESPACE, 'path');
+        inner.setAttribute('d', 'M 0 0 L 0.5 1 L 1 0 M 0 1 L 0.5 0 L 1 1');
+        inner.setAttribute('stroke', '#FFFFFF');
+        inner.setAttribute('stroke-width', '.08');
+        inner.setAttribute('fill', 'none');
+        pattern.appendChild(inner);
     }
     defs.appendChild(pattern);
     svg.appendChild(defs);

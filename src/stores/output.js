@@ -126,6 +126,45 @@ export const useOutputStore = defineStore('output', {
         exportToSVG() {
             const { nodeTree, nodes, pixels, viewport } = useStore();
             const sanitizeId = (name) => String(name).replace(/[^A-Za-z0-9_-]/g, '_');
+            let lastOrientationEnd = null;
+            const buildStarSegment = (x, y, prevEnd) => {
+                const corners = [
+                    [x, y],
+                    [x + 1, y],
+                    [x + 1, y + 1],
+                    [x, y + 1]
+                ];
+                const edgeCenters = [
+                    [x + 0.5, y],
+                    [x + 1, y + 0.5],
+                    [x + 0.5, y + 1],
+                    [x, y + 0.5]
+                ];
+                let startIndex = 0;
+                if (prevEnd) {
+                    let minDist = Infinity;
+                    corners.forEach((corner, idx) => {
+                        const dx = corner[0] - prevEnd[0];
+                        const dy = corner[1] - prevEnd[1];
+                        const dist = dx * dx + dy * dy;
+                        if (dist < minDist) {
+                            minDist = dist;
+                            startIndex = idx;
+                        }
+                    });
+                }
+                const start = corners[startIndex];
+                const center = edgeCenters[(startIndex + 2) % 4];
+                const edgeCorner = corners[(startIndex + 3) % 4];
+                const diagonalCorner = corners[(startIndex + 2) % 4];
+                const commands = [
+                    `M ${start[0]} ${start[1]} L ${center[0]} ${center[1]} L ${diagonalCorner[0]} ${diagonalCorner[1]}`,
+                    `M ${center[0]} ${center[1]} L ${edgeCorner[0]} ${edgeCorner[1]}`,
+                    `M ${start[0]} ${start[1]} L ${edgeCorner[0]} ${edgeCorner[1]}`,
+                    `M ${start[0]} ${start[1]} L ${diagonalCorner[0]} ${diagonalCorner[1]}`
+                ];
+                return { d: commands.join(' '), end: [...diagonalCorner] };
+            };
             const serialize = (tree) => {
                 let result = '';
                 for (const node of tree) {
@@ -167,22 +206,47 @@ export const useOutputStore = defineStore('output', {
                         const map = pixels.get(node.id) || new Map();
                         const overflow = 0.025;
                         const segments = [];
-                        for (const [idx, ori] of map) {
+                        const entries = Array.from(map.entries()).sort((a, b) => a[0] - b[0]);
+                        for (const [idx, ori] of entries) {
                             if (ori === OT.NONE) continue;
                             const [x, y] = indexToCoord(idx);
                             if (ori === OT.VERTICAL) {
-                                segments.push(`M ${x - overflow} ${y + 0.5} L ${x + 1 + overflow} ${y + 0.5}`);
+                                const startX = x - overflow;
+                                const startY = y + 0.5;
+                                const end = [x + 1 + overflow, y + 0.5];
+                                const d = `M ${startX} ${startY} L ${end[0]} ${end[1]}`;
+                                segments.push({ d, end });
+                                lastOrientationEnd = end;
                             } else if (ori === OT.HORIZONTAL) {
-                                segments.push(`M ${x + 0.5} ${y - overflow} L ${x + 0.5} ${y + 1 + overflow}`);
+                                const startX = x + 0.5;
+                                const startY = y - overflow;
+                                const end = [x + 0.5, y + 1 + overflow];
+                                const d = `M ${startX} ${startY} L ${end[0]} ${end[1]}`;
+                                segments.push({ d, end });
+                                lastOrientationEnd = end;
                             } else if (ori === OT.DOWNSLOPE) {
-                                segments.push(`M ${x - overflow} ${y + 1 + overflow} L ${x + 1 + overflow} ${y - overflow}`);
+                                const startX = x - overflow;
+                                const startY = y + 1 + overflow;
+                                const end = [x + 1 + overflow, y - overflow];
+                                const d = `M ${startX} ${startY} L ${end[0]} ${end[1]}`;
+                                segments.push({ d, end });
+                                lastOrientationEnd = end;
                             } else if (ori === OT.UPSLOPE) {
-                                segments.push(`M ${x - overflow} ${y - overflow} L ${x + 1 + overflow} ${y + 1 + overflow}`);
+                                const startX = x - overflow;
+                                const startY = y - overflow;
+                                const end = [x + 1 + overflow, y + 1 + overflow];
+                                const d = `M ${startX} ${startY} L ${end[0]} ${end[1]}`;
+                                segments.push({ d, end });
+                                lastOrientationEnd = end;
+                            } else if (ori === OT.STAR) {
+                                const { d, end } = buildStarSegment(x, y, lastOrientationEnd);
+                                segments.push({ d, end });
+                                lastOrientationEnd = end;
                             }
                         }
                         let orientationPaths = '';
-                        for (const segment of segments) {
-                            orientationPaths += `<path d="${segment}" stroke="#000" stroke-width="0.02" fill="none"/>`;
+                        for (const { d } of segments) {
+                            orientationPaths += `<path d="${d}" stroke="#000" stroke-width="0.02" fill="none"/>`;
                         }
                         
                         const fill = rgbaToHexU32(props.color);
