@@ -126,6 +126,84 @@ export const useOutputStore = defineStore('output', {
         exportToSVG() {
             const { nodeTree, nodes, pixels, viewport } = useStore();
             const sanitizeId = (name) => String(name).replace(/[^A-Za-z0-9_-]/g, '_');
+            const orientationCursor = { point: null };
+            const squareDistance = (a, b) => {
+                if (!a || !b) return Infinity;
+                const dx = a[0] - b[0];
+                const dy = a[1] - b[1];
+                return dx * dx + dy * dy;
+            };
+            const buildStarOrientationPath = (x, y, overflow, previousPoint) => {
+                const corners = {
+                    topLeft: [x - overflow, y - overflow],
+                    topRight: [x + 1 + overflow, y - overflow],
+                    bottomRight: [x + 1 + overflow, y + 1 + overflow],
+                    bottomLeft: [x - overflow, y + 1 + overflow]
+                };
+                const mids = {
+                    top: [x + 0.5, y - overflow],
+                    right: [x + 1 + overflow, y + 0.5],
+                    bottom: [x + 0.5, y + 1 + overflow],
+                    left: [x - overflow, y + 0.5]
+                };
+                const triangles = [
+                    { corners: ['bottomLeft', 'bottomRight'], mid: mids.top },
+                    { corners: ['topLeft', 'bottomLeft'], mid: mids.right },
+                    { corners: ['topLeft', 'topRight'], mid: mids.bottom },
+                    { corners: ['topRight', 'bottomRight'], mid: mids.left }
+                ];
+                let startCornerName = 'topLeft';
+                if (previousPoint) {
+                    let minDist = Infinity;
+                    for (const [name, point] of Object.entries(corners)) {
+                        const dist = squareDistance(point, previousPoint);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            startCornerName = name;
+                        }
+                    }
+                }
+                let startIndex = triangles.findIndex(tri => tri.corners.includes(startCornerName));
+                if (startIndex === -1) startIndex = 0;
+                const ordered = triangles.slice(startIndex).concat(triangles.slice(0, startIndex));
+                const parts = [];
+                let currentCornerName = startCornerName;
+                for (const tri of ordered) {
+                    const [c1, c2] = tri.corners;
+                    let startName;
+                    let endName;
+                    if (currentCornerName === c1) {
+                        startName = c1;
+                        endName = c2;
+                    } else if (currentCornerName === c2) {
+                        startName = c2;
+                        endName = c1;
+                    } else {
+                        const currentPoint = corners[currentCornerName] || previousPoint;
+                        if (currentPoint) {
+                            const d1 = squareDistance(corners[c1], currentPoint);
+                            const d2 = squareDistance(corners[c2], currentPoint);
+                            if (d1 <= d2) {
+                                startName = c1;
+                                endName = c2;
+                            } else {
+                                startName = c2;
+                                endName = c1;
+                            }
+                        } else {
+                            startName = c1;
+                            endName = c2;
+                        }
+                    }
+                    const startPoint = corners[startName];
+                    const midPoint = tri.mid;
+                    const endPoint = corners[endName];
+                    parts.push(`M ${startPoint[0]} ${startPoint[1]} L ${midPoint[0]} ${midPoint[1]} L ${endPoint[0]} ${endPoint[1]} Z`);
+                    currentCornerName = endName;
+                }
+                const endPoint = corners[currentCornerName] || previousPoint || corners[startCornerName];
+                return { path: parts.join(' '), endPoint };
+            };
             const serialize = (tree) => {
                 let result = '';
                 for (const node of tree) {
@@ -166,25 +244,37 @@ export const useOutputStore = defineStore('output', {
                         // temp orientation satin rung
                         const map = pixels.get(node.id) || new Map();
                         const overflow = 0.025;
-                        const segments = [];
+                        let orientationPaths = '';
                         for (const [idx, ori] of map) {
                             if (ori === OT.NONE) continue;
                             const [x, y] = indexToCoord(idx);
                             if (ori === OT.VERTICAL) {
-                                segments.push(`M ${x - overflow} ${y + 0.5} L ${x + 1 + overflow} ${y + 0.5}`);
+                                const start = [x - overflow, y + 0.5];
+                                const end = [x + 1 + overflow, y + 0.5];
+                                orientationPaths += `<path d="M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}" stroke="#000" stroke-width="0.02" fill="none"/>`;
+                                orientationCursor.point = end;
                             } else if (ori === OT.HORIZONTAL) {
-                                segments.push(`M ${x + 0.5} ${y - overflow} L ${x + 0.5} ${y + 1 + overflow}`);
+                                const start = [x + 0.5, y - overflow];
+                                const end = [x + 0.5, y + 1 + overflow];
+                                orientationPaths += `<path d="M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}" stroke="#000" stroke-width="0.02" fill="none"/>`;
+                                orientationCursor.point = end;
                             } else if (ori === OT.DOWNSLOPE) {
-                                segments.push(`M ${x - overflow} ${y + 1 + overflow} L ${x + 1 + overflow} ${y - overflow}`);
+                                const start = [x - overflow, y + 1 + overflow];
+                                const end = [x + 1 + overflow, y - overflow];
+                                orientationPaths += `<path d="M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}" stroke="#000" stroke-width="0.02" fill="none"/>`;
+                                orientationCursor.point = end;
                             } else if (ori === OT.UPSLOPE) {
-                                segments.push(`M ${x - overflow} ${y - overflow} L ${x + 1 + overflow} ${y + 1 + overflow}`);
+                                const start = [x - overflow, y - overflow];
+                                const end = [x + 1 + overflow, y + 1 + overflow];
+                                orientationPaths += `<path d="M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}" stroke="#000" stroke-width="0.02" fill="none"/>`;
+                                orientationCursor.point = end;
+                            } else if (ori === OT.STAR) {
+                                const { path: starPath, endPoint } = buildStarOrientationPath(x, y, overflow, orientationCursor.point);
+                                orientationPaths += `<path d="${starPath}" stroke="#000" stroke-width="0.02" fill="none"/>`;
+                                orientationCursor.point = endPoint;
                             }
                         }
-                        let orientationPaths = '';
-                        for (const segment of segments) {
-                            orientationPaths += `<path d="${segment}" stroke="#000" stroke-width="0.02" fill="none"/>`;
-                        }
-                        
+
                         const fill = rgbaToHexU32(props.color);
                         const opacity = alphaU32(props.color);
                         result += `<g id="${sanitizeId(props.name)}"><path d="${path}" fill="${fill}" opacity="${opacity}" ${attrStr} fill-rule="evenodd" shape-rendering="crispEdges"/>${orientationPaths}</g>`;

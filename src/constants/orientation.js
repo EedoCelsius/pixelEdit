@@ -5,6 +5,7 @@ export const OT = Object.freeze({
   DOWNSLOPE: 3,
   VERTICAL: 4,
   UPSLOPE: 5,
+  STAR: 6,
 });
 
 export const PIXEL_ORIENTATIONS = Object.values(OT).filter(o => o !== OT.DEFAULT);
@@ -16,5 +17,6 @@ export const ORIENTATION_LABELS = {
   [OT.DOWNSLOPE]: 'downslope',
   [OT.VERTICAL]: 'vertical',
   [OT.UPSLOPE]: 'upslope',
+  [OT.STAR]: 'star',
   checkerboard: 'checkerboard'
 };
