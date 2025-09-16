@@ -3,7 +3,7 @@ import { nextTick, watch } from 'vue';
 import { useStore } from '.';
 import { useLayerPanelService } from '../services/layerPanel';
 import { rgbaToHexU32, alphaU32 } from '../utils';
-import { indexToCoord } from '../utils/pixels.js';
+import { indexToCoord, buildStarPath, pixelsToUnionPath } from '../utils/pixels.js';
 import { OT } from '../constants/orientation.js';
 
 export const useOutputStore = defineStore('output', {
@@ -126,6 +126,76 @@ export const useOutputStore = defineStore('output', {
         exportToSVG() {
             const { nodeTree, nodes, pixels, viewport } = useStore();
             const sanitizeId = (name) => String(name).replace(/[^A-Za-z0-9_-]/g, '_');
+            const orientationEndpoints = new Map();
+            const layerDrawData = new Map();
+            const overflow = 0.025;
+            for (const layerId of nodeTree.layerIdsBottomToTop || []) {
+                const map = pixels.get(layerId) || new Map();
+                const basePixels = new Set();
+                const segments = [];
+                for (const [idx, ori] of map) {
+                    if (ori === OT.STAR) {
+                        const [x, y] = indexToCoord(idx);
+                        const corners = [
+                            [x, y],
+                            [x + 1, y],
+                            [x + 1, y + 1],
+                            [x, y + 1]
+                        ];
+                        const prevEnd = orientationEndpoints.get(idx);
+                        let startCornerIndex = 0;
+                        if (prevEnd) {
+                            let minDist = Infinity;
+                            for (let i = 0; i < corners.length; i++) {
+                                const [cx, cy] = corners[i];
+                                const dx = prevEnd[0] - cx;
+                                const dy = prevEnd[1] - cy;
+                                const dist = dx * dx + dy * dy;
+                                if (dist < minDist) {
+                                    minDist = dist;
+                                    startCornerIndex = i;
+                                }
+                            }
+                        }
+                        const starPath = buildStarPath(x, y, 1, startCornerIndex);
+                        if (starPath.d) {
+                            segments.push({ d: starPath.d, stroke: 'fill' });
+                            let endpoint = starPath.end;
+                            if (!endpoint && starPath.points && starPath.points.length > 1) {
+                                endpoint = starPath.points[starPath.points.length - 2];
+                            }
+                            if (endpoint) orientationEndpoints.set(idx, endpoint);
+                        }
+                        continue;
+                    }
+
+                    basePixels.add(idx);
+                    if (ori === OT.NONE) continue;
+
+                    const [x, y] = indexToCoord(idx);
+                    let start;
+                    let end;
+                    if (ori === OT.VERTICAL) {
+                        start = [x - overflow, y + 0.5];
+                        end = [x + 1 + overflow, y + 0.5];
+                    } else if (ori === OT.HORIZONTAL) {
+                        start = [x + 0.5, y - overflow];
+                        end = [x + 0.5, y + 1 + overflow];
+                    } else if (ori === OT.DOWNSLOPE) {
+                        start = [x - overflow, y + 1 + overflow];
+                        end = [x + 1 + overflow, y - overflow];
+                    } else if (ori === OT.UPSLOPE) {
+                        start = [x - overflow, y - overflow];
+                        end = [x + 1 + overflow, y + 1 + overflow];
+                    } else {
+                        continue;
+                    }
+                    segments.push({ d: `M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}` });
+                    orientationEndpoints.set(idx, end);
+                }
+                const basePath = basePixels.size ? pixelsToUnionPath(basePixels) : '';
+                layerDrawData.set(layerId, { basePath, segments });
+            }
             const serialize = (tree) => {
                 let result = '';
                 for (const node of tree) {
@@ -136,9 +206,10 @@ export const useOutputStore = defineStore('output', {
                         const children = serialize(node.children);
                         result += `<g id="${sanitizeId(props.name)}" ${attrStr}>${children}</g>`;
                     } else {
-                        let path = pixels.pathOf(node.id);
+                        const layerData = layerDrawData.get(node.id) || { basePath: '', segments: [] };
+                        let path = layerData.basePath || '';
                         // temp corner removal
-                        if (attributes.tl || attributes.tr || attributes.bl || attributes.br) {
+                        if (path && (attributes.tl || attributes.tr || attributes.bl || attributes.br)) {
                             const removals = [];
                             for (const idx of attributes.tl || []) {
                                 const [x, y] = indexToCoord(idx);
@@ -163,31 +234,18 @@ export const useOutputStore = defineStore('output', {
                             path = path.replace(/(^|Z)\s*L/g, '$1 M').trim().replace(/\s+/g, ' ');
                         }
 
-                        // temp orientation satin rung
-                        const map = pixels.get(node.id) || new Map();
-                        const overflow = 0.025;
-                        const segments = [];
-                        for (const [idx, ori] of map) {
-                            if (ori === OT.NONE) continue;
-                            const [x, y] = indexToCoord(idx);
-                            if (ori === OT.VERTICAL) {
-                                segments.push(`M ${x - overflow} ${y + 0.5} L ${x + 1 + overflow} ${y + 0.5}`);
-                            } else if (ori === OT.HORIZONTAL) {
-                                segments.push(`M ${x + 0.5} ${y - overflow} L ${x + 0.5} ${y + 1 + overflow}`);
-                            } else if (ori === OT.DOWNSLOPE) {
-                                segments.push(`M ${x - overflow} ${y + 1 + overflow} L ${x + 1 + overflow} ${y - overflow}`);
-                            } else if (ori === OT.UPSLOPE) {
-                                segments.push(`M ${x - overflow} ${y - overflow} L ${x + 1 + overflow} ${y + 1 + overflow}`);
-                            }
-                        }
-                        let orientationPaths = '';
-                        for (const segment of segments) {
-                            orientationPaths += `<path d="${segment}" stroke="#000" stroke-width="0.02" fill="none"/>`;
-                        }
-                        
                         const fill = rgbaToHexU32(props.color);
                         const opacity = alphaU32(props.color);
-                        result += `<g id="${sanitizeId(props.name)}"><path d="${path}" fill="${fill}" opacity="${opacity}" ${attrStr} fill-rule="evenodd" shape-rendering="crispEdges"/>${orientationPaths}</g>`;
+
+                        let orientationPaths = '';
+                        for (const { d, stroke } of layerData.segments) {
+                            if (!d) continue;
+                            const strokeColor = stroke === 'fill' ? fill : (stroke || '#000');
+                            orientationPaths += `<path d="${d}" stroke="${strokeColor}" stroke-width="0.02" fill="none"/>`;
+                        }
+
+                        const pathElement = `<path d="${path}" fill="${fill}" opacity="${opacity}" ${attrStr} fill-rule="evenodd" shape-rendering="crispEdges"/>`;
+                        result += `<g id="${sanitizeId(props.name)}">${pathElement}${orientationPaths}</g>`;
                     }
                 }
                 return result;
