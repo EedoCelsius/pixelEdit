@@ -126,7 +126,6 @@ export const useOutputStore = defineStore('output', {
         exportToSVG() {
             const { nodeTree, nodes, pixels, viewport } = useStore();
             const sanitizeId = (name) => String(name).replace(/[^A-Za-z0-9_-]/g, '_');
-            const orientationEndpoints = new Map();
             let lastOrientationEnd = null;
             const serialize = (tree) => {
                 let result = '';
@@ -169,7 +168,7 @@ export const useOutputStore = defineStore('output', {
                         const map = pixels.get(node.id) || new Map();
                         const overflow = 0.025;
                         const segments = [];
-                        const starReference = lastOrientationEnd ? [...lastOrientationEnd] : null;
+                        const starReference = lastOrientationEnd;
                         for (const [idx, ori] of map) {
                             if (ori === OT.NONE) continue;
                             const [x, y] = indexToCoord(idx);
@@ -196,9 +195,8 @@ export const useOutputStore = defineStore('output', {
                                 }
                                 const d = buildStarPath(x, y, 1, startCornerIndex);
                                 if (d) {
-                                    segments.push({ d });
-                                    orientationEndpoints.set(idx, corners[startCornerIndex]);
-                                    lastOrientationEnd = [...corners[startCornerIndex]];
+                                    segments.push({ d, isStar: true });
+                                    lastOrientationEnd = corners[startCornerIndex];
                                 }
                             } else {
                                 let start;
@@ -218,19 +216,21 @@ export const useOutputStore = defineStore('output', {
                                 } else {
                                     continue;
                                 }
-                                segments.push({ d: `M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}` });
-                                orientationEndpoints.set(idx, end);
-                                lastOrientationEnd = [...end];
+                                segments.push({ d: `M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}`, isStar: true });
+                                lastOrientationEnd = end;
                             }
                         }
-                        let orientationPaths = '';
-                        for (const { d } of segments) {
-                            orientationPaths += `<path d="${d}" stroke="#000" stroke-width="0.02" fill="none"/>`;
-                        }
                         
-                        const fill = rgbaToHexU32(props.color);
+                        const color = rgbaToHexU32(props.color);
                         const opacity = alphaU32(props.color);
-                        result += `<g id="${sanitizeId(props.name)}"><path d="${path}" fill="${fill}" opacity="${opacity}" ${attrStr} fill-rule="evenodd" shape-rendering="crispEdges"/>${orientationPaths}</g>`;
+                        let orientationPaths = '';
+                        for (const { d, isStar } of segments) {
+                            if (isStar) orientationPaths += `<path d="${d}" stroke="#000" stroke-width="0.02" fill="none"/>`;
+                            else orientationPaths += `<path d="${d}" stroke="${color}" opacity="${opacity}" stroke-width="0.02" fill="none"/>`;
+                        }
+
+                        if (segments.length === 1 && segments[0].isStar) result += `<g id="${sanitizeId(props.name)}">${orientationPaths}</g>`;
+                        else result += `<g id="${sanitizeId(props.name)}"><path d="${path}" fill="${fill}" opacity="${opacity}" ${attrStr} fill-rule="evenodd" shape-rendering="crispEdges"/>${orientationPaths}</g>`;
                     }
                 }
                 return result;
