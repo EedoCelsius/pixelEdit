@@ -225,7 +225,7 @@ export const useOutputStore = defineStore('output', {
                         const opacity = alphaU32(props.color);
                         let orientationPaths = '';
                         for (const { d, isStar } of segments) {
-                            if (isStar) orientationPaths += `<path d="${d}" stroke="#000" stroke-width="0.02" fill="none"/>`;
+                            if (!isStar) orientationPaths += `<path d="${d}" stroke="#000" stroke-width="0.02" fill="none"/>`;
                             else orientationPaths += `<path d="${d}" stroke="${color}" opacity="${opacity}" stroke-width="0.02" fill="none"/>`;
                         }
 
