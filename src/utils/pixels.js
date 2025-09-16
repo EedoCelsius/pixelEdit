@@ -129,6 +129,36 @@ export function orientationPatternUrl(orientation, target = document.body) {
         line.setAttribute('stroke', '#FFFFFF');
         line.setAttribute('stroke-width', '.08');
         pattern.appendChild(line);
+    } else if (orientation === OT.STAR) {
+        const segments = [
+            { corner: [0, 0], mid: [0.5, 1], ends: [[0, 1], [1, 1]] },
+            { corner: [1, 0], mid: [0, 0.5], ends: [[0, 0], [0, 1]] },
+            { corner: [0, 1], mid: [1, 0.5], ends: [[1, 1], [1, 0]] },
+            { corner: [1, 1], mid: [0.5, 0], ends: [[1, 0], [0, 0]] }
+        ];
+        const commands = [];
+        for (const { corner, mid, ends } of segments) {
+            commands.push(`M ${corner[0]} ${corner[1]} L ${mid[0]} ${mid[1]}`);
+            commands.push(`M ${mid[0]} ${mid[1]} L ${ends[0][0]} ${ends[0][1]}`);
+            commands.push(`M ${mid[0]} ${mid[1]} L ${ends[1][0]} ${ends[1][1]}`);
+        }
+        const d = commands.join(' ');
+        const border = document.createElementNS(SVG_NAMESPACE, 'path');
+        border.setAttribute('d', d);
+        border.setAttribute('stroke', '#000000');
+        border.setAttribute('stroke-width', '.1');
+        border.setAttribute('fill', 'none');
+        border.setAttribute('stroke-linecap', 'round');
+        border.setAttribute('stroke-linejoin', 'round');
+        pattern.appendChild(border);
+        const line = document.createElementNS(SVG_NAMESPACE, 'path');
+        line.setAttribute('d', d);
+        line.setAttribute('stroke', '#FFFFFF');
+        line.setAttribute('stroke-width', '.08');
+        line.setAttribute('fill', 'none');
+        line.setAttribute('stroke-linecap', 'round');
+        line.setAttribute('stroke-linejoin', 'round');
+        pattern.appendChild(line);
     }
     defs.appendChild(pattern);
     svg.appendChild(defs);

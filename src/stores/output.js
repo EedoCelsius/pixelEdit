@@ -125,6 +125,12 @@ export const useOutputStore = defineStore('output', {
         },
         exportToSVG() {
             const { nodeTree, nodes, pixels, viewport } = useStore();
+            const orientationTrail = new Map();
+            const distanceSquared = (a, b) => {
+                const dx = a[0] - b[0];
+                const dy = a[1] - b[1];
+                return dx * dx + dy * dy;
+            };
             const sanitizeId = (name) => String(name).replace(/[^A-Za-z0-9_-]/g, '_');
             const serialize = (tree) => {
                 let result = '';
@@ -170,14 +176,60 @@ export const useOutputStore = defineStore('output', {
                         for (const [idx, ori] of map) {
                             if (ori === OT.NONE) continue;
                             const [x, y] = indexToCoord(idx);
+                            let segment = '';
+                            let endPoint = null;
                             if (ori === OT.VERTICAL) {
-                                segments.push(`M ${x - overflow} ${y + 0.5} L ${x + 1 + overflow} ${y + 0.5}`);
+                                const start = [x - overflow, y + 0.5];
+                                const end = [x + 1 + overflow, y + 0.5];
+                                segment = `M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}`;
+                                endPoint = end;
                             } else if (ori === OT.HORIZONTAL) {
-                                segments.push(`M ${x + 0.5} ${y - overflow} L ${x + 0.5} ${y + 1 + overflow}`);
+                                const start = [x + 0.5, y - overflow];
+                                const end = [x + 0.5, y + 1 + overflow];
+                                segment = `M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}`;
+                                endPoint = end;
                             } else if (ori === OT.DOWNSLOPE) {
-                                segments.push(`M ${x - overflow} ${y + 1 + overflow} L ${x + 1 + overflow} ${y - overflow}`);
+                                const start = [x - overflow, y + 1 + overflow];
+                                const end = [x + 1 + overflow, y - overflow];
+                                segment = `M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}`;
+                                endPoint = end;
                             } else if (ori === OT.UPSLOPE) {
-                                segments.push(`M ${x - overflow} ${y - overflow} L ${x + 1 + overflow} ${y + 1 + overflow}`);
+                                const start = [x - overflow, y - overflow];
+                                const end = [x + 1 + overflow, y + 1 + overflow];
+                                segment = `M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}`;
+                                endPoint = end;
+                            } else if (ori === OT.STAR) {
+                                const prevEnd = orientationTrail.get(idx);
+                                const options = [
+                                    { corner: [x, y], mid: [x + 0.5, y + 1], ends: [[x, y + 1], [x + 1, y + 1]] },
+                                    { corner: [x + 1, y], mid: [x, y + 0.5], ends: [[x, y], [x, y + 1]] },
+                                    { corner: [x, y + 1], mid: [x + 1, y + 0.5], ends: [[x + 1, y + 1], [x + 1, y]] },
+                                    { corner: [x + 1, y + 1], mid: [x + 0.5, y], ends: [[x + 1, y], [x, y]] }
+                                ];
+                                let choice = options[0];
+                                if (prevEnd) {
+                                    let best = distanceSquared(choice.corner, prevEnd);
+                                    for (let i = 1; i < options.length; i++) {
+                                        const candidate = options[i];
+                                        const dist = distanceSquared(candidate.corner, prevEnd);
+                                        if (dist < best) {
+                                            best = dist;
+                                            choice = candidate;
+                                        }
+                                    }
+                                }
+                                const { corner, mid, ends } = choice;
+                                const [firstEnd, secondEnd] = ends;
+                                segment = [
+                                    `M ${corner[0]} ${corner[1]} L ${mid[0]} ${mid[1]}`,
+                                    `M ${mid[0]} ${mid[1]} L ${firstEnd[0]} ${firstEnd[1]}`,
+                                    `M ${mid[0]} ${mid[1]} L ${secondEnd[0]} ${secondEnd[1]}`
+                                ].join(' ');
+                                endPoint = secondEnd;
+                            }
+                            if (segment) {
+                                segments.push(segment);
+                                if (endPoint) orientationTrail.set(idx, endPoint);
                             }
                         }
                         let orientationPaths = '';
