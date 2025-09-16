@@ -90,8 +90,8 @@ export const usePixelStore = defineStore('pixels', {
         orientationOf: (s) => (id, pixel) => {
             return s._pixels[id].get(pixel);
         },
-        pathOf: (s) => (id) => {
-            return pixelsToUnionPath(s._pixels[id]);
+        pathOf: (s) => (id, options) => {
+            return pixelsToUnionPath(s._pixels[id], options);
         },
         disconnectedCountOf: (s) => (id) => {
             const map = s._pixels[id];

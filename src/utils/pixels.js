@@ -246,12 +246,62 @@ export function edgesToLoops(edges) {
     return loops;
 }
 
-export function pixelsToUnionPath(pixels) {
+function nearestLoopCorner(loop, target) {
+    const limit = loop.length - 1;
+    if (limit <= 0 || !target) return { index: -1, distance: Infinity };
+    const [tx, ty] = target;
+    let bestIndex = -1;
+    let bestDistance = Infinity;
+    for (let i = 0; i < limit; i++) {
+        const [x, y] = loop[i];
+        const dx = x - tx;
+        const dy = y - ty;
+        const dist = dx * dx + dy * dy;
+        if (dist < bestDistance) {
+            bestDistance = dist;
+            bestIndex = i;
+        }
+    }
+    return { index: bestIndex, distance: bestDistance };
+}
+
+function rotateLoop(loop, startIndex) {
+    const limit = loop.length - 1;
+    if (limit <= 0) return loop;
+    const idx = ((startIndex % limit) + limit) % limit;
+    if (idx === 0) return loop;
+    const unique = loop.slice(0, limit);
+    const rotated = unique.slice(idx).concat(unique.slice(0, idx));
+    rotated.push(rotated[0]);
+    return rotated;
+}
+
+export function pixelsToUnionPath(pixels, options = {}) {
+    const { anchor } = options;
     const groups = buildOutline(pixels);
+    const loopsByGroup = groups.map(segments => edgesToLoops(segments));
+    let anchorSelection = null;
+    if (anchor) {
+        for (let groupIdx = 0; groupIdx < loopsByGroup.length; groupIdx++) {
+            const loops = loopsByGroup[groupIdx];
+            for (let loopIdx = 0; loopIdx < loops.length; loopIdx++) {
+                const loop = loops[loopIdx];
+                const { index, distance } = nearestLoopCorner(loop, anchor);
+                if (index >= 0 && (anchorSelection == null || distance < anchorSelection.distance)) {
+                    anchorSelection = { groupIdx, loopIdx, index, distance };
+                }
+            }
+        }
+    }
+
     const parts = [];
-    for (const segments of groups) {
-        const loops = edgesToLoops(segments);
-        for (const loop of loops) {
+    for (let groupIdx = 0; groupIdx < loopsByGroup.length; groupIdx++) {
+        const loops = loopsByGroup[groupIdx];
+        for (let loopIdx = 0; loopIdx < loops.length; loopIdx++) {
+            let loop = loops[loopIdx];
+            if (anchorSelection && groupIdx === anchorSelection.groupIdx && loopIdx === anchorSelection.loopIdx) {
+                loop = rotateLoop(loop, anchorSelection.index);
+            }
             const [x0, y0] = loop[0];
             const pathData = ['M', x0, y0];
             for (let i = 1; i < loop.length; i++) {

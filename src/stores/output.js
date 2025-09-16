@@ -136,7 +136,36 @@ export const useOutputStore = defineStore('output', {
                         const children = serialize(node.children);
                         result += `<g id="${sanitizeId(props.name)}" ${attrStr}>${children}</g>`;
                     } else {
-                        let path = pixels.pathOf(node.id);
+                        const map = pixels.get(node.id) || new Map();
+                        const overflow = 0.025;
+                        const segments = [];
+                        let orientationAnchor = null;
+                        for (const [idx, ori] of map) {
+                            if (ori === OT.NONE) continue;
+                            const [x, y] = indexToCoord(idx);
+                            let startPoint = null;
+                            let endPoint = null;
+                            if (ori === OT.VERTICAL) {
+                                startPoint = [x - overflow, y + 0.5];
+                                endPoint = [x + 1 + overflow, y + 0.5];
+                            } else if (ori === OT.HORIZONTAL) {
+                                startPoint = [x + 0.5, y - overflow];
+                                endPoint = [x + 0.5, y + 1 + overflow];
+                            } else if (ori === OT.DOWNSLOPE) {
+                                startPoint = [x - overflow, y + 1 + overflow];
+                                endPoint = [x + 1 + overflow, y - overflow];
+                            } else if (ori === OT.UPSLOPE) {
+                                startPoint = [x - overflow, y - overflow];
+                                endPoint = [x + 1 + overflow, y + 1 + overflow];
+                            }
+                            if (startPoint && endPoint) {
+                                segments.push({ start: startPoint, end: endPoint });
+                                orientationAnchor = endPoint;
+                            }
+                        }
+
+                        const pathOptions = orientationAnchor ? { anchor: orientationAnchor } : undefined;
+                        let path = pixels.pathOf(node.id, pathOptions);
                         // temp corner removal
                         if (attributes.tl || attributes.tr || attributes.bl || attributes.br) {
                             const removals = [];
@@ -163,28 +192,12 @@ export const useOutputStore = defineStore('output', {
                             path = path.replace(/(^|Z)\s*L/g, '$1 M').trim().replace(/\s+/g, ' ');
                         }
 
-                        // temp orientation satin rung
-                        const map = pixels.get(node.id) || new Map();
-                        const overflow = 0.025;
-                        const segments = [];
-                        for (const [idx, ori] of map) {
-                            if (ori === OT.NONE) continue;
-                            const [x, y] = indexToCoord(idx);
-                            if (ori === OT.VERTICAL) {
-                                segments.push(`M ${x - overflow} ${y + 0.5} L ${x + 1 + overflow} ${y + 0.5}`);
-                            } else if (ori === OT.HORIZONTAL) {
-                                segments.push(`M ${x + 0.5} ${y - overflow} L ${x + 0.5} ${y + 1 + overflow}`);
-                            } else if (ori === OT.DOWNSLOPE) {
-                                segments.push(`M ${x - overflow} ${y + 1 + overflow} L ${x + 1 + overflow} ${y - overflow}`);
-                            } else if (ori === OT.UPSLOPE) {
-                                segments.push(`M ${x - overflow} ${y - overflow} L ${x + 1 + overflow} ${y + 1 + overflow}`);
-                            }
-                        }
                         let orientationPaths = '';
                         for (const segment of segments) {
-                            orientationPaths += `<path d="${segment}" stroke="#000" stroke-width="0.02" fill="none"/>`;
+                            const { start, end } = segment;
+                            orientationPaths += `<path d="M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}" stroke="#000" stroke-width="0.02" fill="none"/>`;
                         }
-                        
+
                         const fill = rgbaToHexU32(props.color);
                         const opacity = alphaU32(props.color);
                         result += `<g id="${sanitizeId(props.name)}"><path d="${path}" fill="${fill}" opacity="${opacity}" ${attrStr} fill-rule="evenodd" shape-rendering="crispEdges"/>${orientationPaths}</g>`;
