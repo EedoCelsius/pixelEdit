@@ -26,26 +26,48 @@ export function buildStarPath(x, y, size = 1, startCornerIndex = 0) {
         { midpoint: midpoints[2], cornerIndices: [0, 1] },
         { midpoint: midpoints[3], cornerIndices: [1, 2] }
     ];
-    const baseOrder = [0, 1, 2, 3];
-    let startTriangleIdx = baseOrder.findIndex(idx => triangles[idx].cornerIndices.includes(startCornerIndex));
-    if (startTriangleIdx === -1) startTriangleIdx = 0;
-    let path = '';
-    for (let i = 0; i < baseOrder.length; i++) {
-        const triangleIdx = baseOrder[(startTriangleIdx + i) % baseOrder.length];
-        const { midpoint, cornerIndices } = triangles[triangleIdx];
-        let startCornerIdx = cornerIndices[0];
-        if (i === 0) {
-            if (cornerIndices[0] === startCornerIndex || cornerIndices[1] === startCornerIndex) {
-                startCornerIdx = cornerIndices[0] === startCornerIndex ? cornerIndices[0] : cornerIndices[1];
-            }
+    const normalizedStart = Number.isFinite(startCornerIndex) ? Math.round(startCornerIndex) : 0;
+    let currentCornerIdx = ((normalizedStart % 4) + 4) % 4;
+    const pathPoints = [corners[currentCornerIdx]];
+    let currentTriangleIdx = triangles.findIndex(tri => tri.cornerIndices.includes(currentCornerIdx));
+    if (currentTriangleIdx === -1) currentTriangleIdx = 0;
+    const visited = new Set();
+
+    for (let i = 0; i < triangles.length; i++) {
+        const triangle = triangles[currentTriangleIdx];
+        visited.add(currentTriangleIdx);
+
+        if (!triangle.cornerIndices.includes(currentCornerIdx)) {
+            currentCornerIdx = triangle.cornerIndices[0];
+            pathPoints.push(corners[currentCornerIdx]);
         }
-        const otherCornerIdx = startCornerIdx === cornerIndices[0] ? cornerIndices[1] : cornerIndices[0];
-        const [sx, sy] = corners[startCornerIdx];
-        const [mx, my] = midpoint;
-        const [ex, ey] = corners[otherCornerIdx];
-        path += `M ${sx} ${sy} L ${mx} ${my} L ${ex} ${ey} Z `;
+
+        const otherCornerIdx = triangle.cornerIndices[0] === currentCornerIdx
+            ? triangle.cornerIndices[1]
+            : triangle.cornerIndices[0];
+
+        pathPoints.push(triangle.midpoint, corners[otherCornerIdx]);
+        currentCornerIdx = otherCornerIdx;
+
+        if (visited.size === triangles.length) break;
+
+        const nextTriangleIdx = triangles.findIndex((tri, idx) => !visited.has(idx) && tri.cornerIndices.includes(currentCornerIdx));
+        if (nextTriangleIdx !== -1) {
+            currentTriangleIdx = nextTriangleIdx;
+        } else {
+            currentTriangleIdx = triangles.findIndex((_, idx) => !visited.has(idx));
+            if (currentTriangleIdx === -1) break;
+        }
     }
-    return path.trim();
+
+    if (pathPoints.length < 2) return '';
+
+    let path = `M ${pathPoints[0][0]} ${pathPoints[0][1]}`;
+    for (let i = 1; i < pathPoints.length; i++) {
+        const [px, py] = pathPoints[i];
+        path += ` L ${px} ${py}`;
+    }
+    return path;
 }
 
 export function getPixelUnion(pixelsList = []) {
