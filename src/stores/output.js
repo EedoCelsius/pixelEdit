@@ -126,14 +126,15 @@ export const useOutputStore = defineStore('output', {
         exportToSVG() {
             const { nodeTree, nodes, pixels, viewport } = useStore();
             const sanitizeId = (name) => String(name).replace(/[^A-Za-z0-9_-]/g, '_');
-            const serialize = (tree) => {
+            const orientationTails = new Map();
+            const serialize = (tree, tails) => {
                 let result = '';
                 for (const node of tree) {
                     const props = nodes.getProperties(node.id);
                     const attributes = { ...props.attributes, visibility: props.visibility ? 'visible' : 'hidden' };
                     const attrStr = Object.entries(attributes).map(([key, value]) => `${key}="${value}"`).join(' ');
                     if (node.children && node.children.length) {
-                        const children = serialize(node.children);
+                        const children = serialize(node.children, tails);
                         result += `<g id="${sanitizeId(props.name)}" ${attrStr}>${children}</g>`;
                     } else {
                         let path = pixels.pathOf(node.id);
@@ -168,16 +169,97 @@ export const useOutputStore = defineStore('output', {
                         const overflow = 0.025;
                         const segments = [];
                         for (const [idx, ori] of map) {
-                            if (ori === OT.NONE) continue;
+                            if (ori === OT.NONE) {
+                                tails.delete(idx);
+                                continue;
+                            }
                             const [x, y] = indexToCoord(idx);
                             if (ori === OT.VERTICAL) {
-                                segments.push(`M ${x - overflow} ${y + 0.5} L ${x + 1 + overflow} ${y + 0.5}`);
+                                const start = [x - overflow, y + 0.5];
+                                const end = [x + 1 + overflow, y + 0.5];
+                                segments.push(`M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}`);
+                                tails.set(idx, end);
                             } else if (ori === OT.HORIZONTAL) {
-                                segments.push(`M ${x + 0.5} ${y - overflow} L ${x + 0.5} ${y + 1 + overflow}`);
+                                const start = [x + 0.5, y - overflow];
+                                const end = [x + 0.5, y + 1 + overflow];
+                                segments.push(`M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}`);
+                                tails.set(idx, end);
                             } else if (ori === OT.DOWNSLOPE) {
-                                segments.push(`M ${x - overflow} ${y + 1 + overflow} L ${x + 1 + overflow} ${y - overflow}`);
+                                const start = [x - overflow, y + 1 + overflow];
+                                const end = [x + 1 + overflow, y - overflow];
+                                segments.push(`M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}`);
+                                tails.set(idx, end);
                             } else if (ori === OT.UPSLOPE) {
-                                segments.push(`M ${x - overflow} ${y - overflow} L ${x + 1 + overflow} ${y + 1 + overflow}`);
+                                const start = [x - overflow, y - overflow];
+                                const end = [x + 1 + overflow, y + 1 + overflow];
+                                segments.push(`M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}`);
+                                tails.set(idx, end);
+                            } else if (ori === OT.STAR) {
+                                const last = tails.get(idx);
+                                const corners = {
+                                    tl: [x - overflow, y - overflow],
+                                    tr: [x + 1 + overflow, y - overflow],
+                                    bl: [x - overflow, y + 1 + overflow],
+                                    br: [x + 1 + overflow, y + 1 + overflow]
+                                };
+                                const edges = {
+                                    top: { midpoint: [x + 0.5, y - overflow], vertices: [corners.tl, corners.tr] },
+                                    bottom: { midpoint: [x + 0.5, y + 1 + overflow], vertices: [corners.bl, corners.br] },
+                                    left: { midpoint: [x - overflow, y + 0.5], vertices: [corners.tl, corners.bl] },
+                                    right: { midpoint: [x + 1 + overflow, y + 0.5], vertices: [corners.tr, corners.br] }
+                                };
+                                let startKey = 'tl';
+                                if (last) {
+                                    let minDist = Infinity;
+                                    for (const [key, point] of Object.entries(corners)) {
+                                        const dx = point[0] - last[0];
+                                        const dy = point[1] - last[1];
+                                        const dist = dx * dx + dy * dy;
+                                        if (dist < minDist) {
+                                            minDist = dist;
+                                            startKey = key;
+                                        }
+                                    }
+                                }
+                                const edgeCandidates = {
+                                    tl: ['bottom', 'right'],
+                                    tr: ['bottom', 'left'],
+                                    bl: ['top', 'right'],
+                                    br: ['top', 'left']
+                                };
+                                const fallbackEdge = { tl: 'bottom', tr: 'bottom', bl: 'top', br: 'top' };
+                                const candidates = edgeCandidates[startKey] || [];
+                                let chosenEdgeKey = candidates[0] || fallbackEdge[startKey] || 'bottom';
+                                if (last) {
+                                    let bestDist = -Infinity;
+                                    for (const key of candidates) {
+                                        const midpoint = edges[key].midpoint;
+                                        const dx = midpoint[0] - last[0];
+                                        const dy = midpoint[1] - last[1];
+                                        const dist = dx * dx + dy * dy;
+                                        if (dist > bestDist) {
+                                            bestDist = dist;
+                                            chosenEdgeKey = key;
+                                        }
+                                    }
+                                }
+                                const startCorner = corners[startKey];
+                                const chosenEdge = edges[chosenEdgeKey];
+                                segments.push(`M ${startCorner[0]} ${startCorner[1]} L ${chosenEdge.midpoint[0]} ${chosenEdge.midpoint[1]}`);
+                                segments.push(`M ${startCorner[0]} ${startCorner[1]} L ${chosenEdge.vertices[0][0]} ${chosenEdge.vertices[0][1]}`);
+                                segments.push(`M ${startCorner[0]} ${startCorner[1]} L ${chosenEdge.vertices[1][0]} ${chosenEdge.vertices[1][1]}`);
+                                let tailTarget = chosenEdge.vertices[0];
+                                let maxDist = -Infinity;
+                                for (const target of chosenEdge.vertices) {
+                                    const dx = target[0] - startCorner[0];
+                                    const dy = target[1] - startCorner[1];
+                                    const dist = dx * dx + dy * dy;
+                                    if (dist > maxDist) {
+                                        maxDist = dist;
+                                        tailTarget = target;
+                                    }
+                                }
+                                tails.set(idx, tailTarget);
                             }
                         }
                         let orientationPaths = '';
@@ -193,7 +275,7 @@ export const useOutputStore = defineStore('output', {
                 return result;
             };
             const { stage, viewBox } = viewport;
-            return `<svg xmlns="http://www.w3.org/2000/svg" width="${stage.width}" height="${stage.height}" viewBox="${viewBox}">${serialize(nodeTree.tree)}</svg>`;
+            return `<svg xmlns="http://www.w3.org/2000/svg" width="${stage.width}" height="${stage.height}" viewBox="${viewBox}">${serialize(nodeTree.tree, orientationTails)}</svg>`;
         }
     }
 });
