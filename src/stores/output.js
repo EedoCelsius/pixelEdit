@@ -3,7 +3,7 @@ import { nextTick, watch } from 'vue';
 import { useStore } from '.';
 import { useLayerPanelService } from '../services/layerPanel';
 import { rgbaToHexU32, alphaU32 } from '../utils';
-import { indexToCoord } from '../utils/pixels.js';
+import { indexToCoord, buildStarPath } from '../utils/pixels.js';
 import { OT } from '../constants/orientation.js';
 
 export const useOutputStore = defineStore('output', {
@@ -126,6 +126,7 @@ export const useOutputStore = defineStore('output', {
         exportToSVG() {
             const { nodeTree, nodes, pixels, viewport } = useStore();
             const sanitizeId = (name) => String(name).replace(/[^A-Za-z0-9_-]/g, '_');
+            let lastOrientationEnd = null;
             const serialize = (tree) => {
                 let result = '';
                 for (const node of tree) {
@@ -167,27 +168,69 @@ export const useOutputStore = defineStore('output', {
                         const map = pixels.get(node.id) || new Map();
                         const overflow = 0.025;
                         const segments = [];
+                        const starReference = lastOrientationEnd;
                         for (const [idx, ori] of map) {
                             if (ori === OT.NONE) continue;
                             const [x, y] = indexToCoord(idx);
-                            if (ori === OT.VERTICAL) {
-                                segments.push(`M ${x - overflow} ${y + 0.5} L ${x + 1 + overflow} ${y + 0.5}`);
-                            } else if (ori === OT.HORIZONTAL) {
-                                segments.push(`M ${x + 0.5} ${y - overflow} L ${x + 0.5} ${y + 1 + overflow}`);
-                            } else if (ori === OT.DOWNSLOPE) {
-                                segments.push(`M ${x - overflow} ${y + 1 + overflow} L ${x + 1 + overflow} ${y - overflow}`);
-                            } else if (ori === OT.UPSLOPE) {
-                                segments.push(`M ${x - overflow} ${y - overflow} L ${x + 1 + overflow} ${y + 1 + overflow}`);
+                            if (ori === OT.STAR) {
+                                const corners = [
+                                    [x, y],
+                                    [x + 1, y],
+                                    [x + 1, y + 1],
+                                    [x, y + 1]
+                                ];
+                                let startCornerIndex = 0;
+                                if (starReference) {
+                                    let minDist = Infinity;
+                                    for (let i = 0; i < corners.length; i++) {
+                                        const [cx, cy] = corners[i];
+                                        const dx = starReference[0] - cx;
+                                        const dy = starReference[1] - cy;
+                                        const dist = dx * dx + dy * dy;
+                                        if (dist < minDist) {
+                                            minDist = dist;
+                                            startCornerIndex = i;
+                                        }
+                                    }
+                                }
+                                const d = buildStarPath(x, y, 1, startCornerIndex);
+                                if (d) {
+                                    segments.push({ d, isStar: true });
+                                    lastOrientationEnd = corners[startCornerIndex];
+                                }
+                            } else {
+                                let start;
+                                let end;
+                                if (ori === OT.VERTICAL) {
+                                    start = [x - overflow, y + 0.5];
+                                    end = [x + 1 + overflow, y + 0.5];
+                                } else if (ori === OT.HORIZONTAL) {
+                                    start = [x + 0.5, y - overflow];
+                                    end = [x + 0.5, y + 1 + overflow];
+                                } else if (ori === OT.DOWNSLOPE) {
+                                    start = [x - overflow, y + 1 + overflow];
+                                    end = [x + 1 + overflow, y - overflow];
+                                } else if (ori === OT.UPSLOPE) {
+                                    start = [x - overflow, y - overflow];
+                                    end = [x + 1 + overflow, y + 1 + overflow];
+                                } else {
+                                    continue;
+                                }
+                                segments.push({ d: `M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}`, isStar: true });
+                                lastOrientationEnd = end;
                             }
                         }
-                        let orientationPaths = '';
-                        for (const segment of segments) {
-                            orientationPaths += `<path d="${segment}" stroke="#000" stroke-width="0.02" fill="none"/>`;
-                        }
                         
-                        const fill = rgbaToHexU32(props.color);
+                        const color = rgbaToHexU32(props.color);
                         const opacity = alphaU32(props.color);
-                        result += `<g id="${sanitizeId(props.name)}"><path d="${path}" fill="${fill}" opacity="${opacity}" ${attrStr} fill-rule="evenodd" shape-rendering="crispEdges"/>${orientationPaths}</g>`;
+                        let orientationPaths = '';
+                        for (const { d, isStar } of segments) {
+                            if (isStar) orientationPaths += `<path d="${d}" stroke="#000" stroke-width="0.02" fill="none"/>`;
+                            else orientationPaths += `<path d="${d}" stroke="${color}" opacity="${opacity}" stroke-width="0.02" fill="none"/>`;
+                        }
+
+                        if (segments.length === 1 && segments[0].isStar) result += `<g id="${sanitizeId(props.name)}">${orientationPaths}</g>`;
+                        else result += `<g id="${sanitizeId(props.name)}"><path d="${path}" fill="${color}" opacity="${opacity}" ${attrStr} fill-rule="evenodd" shape-rendering="crispEdges"/>${orientationPaths}</g>`;
                     }
                 }
                 return result;
