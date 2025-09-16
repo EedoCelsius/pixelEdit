@@ -6,6 +6,48 @@ export const MAX_DIMENSION = 128;
 export const coordToIndex = (x, y) => x + MAX_DIMENSION * y;
 export const indexToCoord = (index) => [index % MAX_DIMENSION, Math.floor(index / MAX_DIMENSION)];
 
+export function buildStarPath(x, y, size = 1, startCornerIndex = 0) {
+    const half = size / 2;
+    const corners = [
+        [x, y],
+        [x + size, y],
+        [x + size, y + size],
+        [x, y + size]
+    ];
+    const midpoints = [
+        [x + half, y],
+        [x + size, y + half],
+        [x + half, y + size],
+        [x, y + half]
+    ];
+    const triangles = [
+        { midpoint: midpoints[0], cornerIndices: [2, 3] },
+        { midpoint: midpoints[1], cornerIndices: [3, 0] },
+        { midpoint: midpoints[2], cornerIndices: [0, 1] },
+        { midpoint: midpoints[3], cornerIndices: [1, 2] }
+    ];
+    const baseOrder = [0, 1, 2, 3];
+    let startTriangleIdx = baseOrder.findIndex(idx => triangles[idx].cornerIndices.includes(startCornerIndex));
+    if (startTriangleIdx === -1) startTriangleIdx = 0;
+    let path = '';
+    for (let i = 0; i < baseOrder.length; i++) {
+        const triangleIdx = baseOrder[(startTriangleIdx + i) % baseOrder.length];
+        const { midpoint, cornerIndices } = triangles[triangleIdx];
+        let startCornerIdx = cornerIndices[0];
+        if (i === 0) {
+            if (cornerIndices[0] === startCornerIndex || cornerIndices[1] === startCornerIndex) {
+                startCornerIdx = cornerIndices[0] === startCornerIndex ? cornerIndices[0] : cornerIndices[1];
+            }
+        }
+        const otherCornerIdx = startCornerIdx === cornerIndices[0] ? cornerIndices[1] : cornerIndices[0];
+        const [sx, sy] = corners[startCornerIdx];
+        const [mx, my] = midpoint;
+        const [ex, ey] = corners[otherCornerIdx];
+        path += `M ${sx} ${sy} L ${mx} ${my} L ${ex} ${ey} Z `;
+    }
+    return path.trim();
+}
+
 export function getPixelUnion(pixelsList = []) {
     if (!Array.isArray(pixelsList)) pixelsList = [pixelsList];
     const union = new Set();
@@ -129,6 +171,21 @@ export function orientationPatternUrl(orientation, target = document.body) {
         line.setAttribute('stroke', '#FFFFFF');
         line.setAttribute('stroke-width', '.08');
         pattern.appendChild(line);
+    }
+    else if (orientation === OT.STAR) {
+        const d = buildStarPath(0, 0, 1, 0);
+        const border = document.createElementNS(SVG_NAMESPACE, 'path');
+        border.setAttribute('d', d);
+        border.setAttribute('stroke', '#000000');
+        border.setAttribute('stroke-width', '.1');
+        border.setAttribute('fill', 'none');
+        pattern.appendChild(border);
+        const inner = document.createElementNS(SVG_NAMESPACE, 'path');
+        inner.setAttribute('d', d);
+        inner.setAttribute('stroke', '#FFFFFF');
+        inner.setAttribute('stroke-width', '.08');
+        inner.setAttribute('fill', 'none');
+        pattern.appendChild(inner);
     }
     defs.appendChild(pattern);
     svg.appendChild(defs);
