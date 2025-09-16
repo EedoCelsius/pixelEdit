@@ -230,7 +230,7 @@ export const useOutputStore = defineStore('output', {
                         }
 
                         if (segments.length === 1 && segments[0].isStar) result += `<g id="${sanitizeId(props.name)}">${orientationPaths}</g>`;
-                        else result += `<g id="${sanitizeId(props.name)}"><path d="${path}" fill="${fill}" opacity="${opacity}" ${attrStr} fill-rule="evenodd" shape-rendering="crispEdges"/>${orientationPaths}</g>`;
+                        else result += `<g id="${sanitizeId(props.name)}"><path d="${path}" fill="${color}" opacity="${opacity}" ${attrStr} fill-rule="evenodd" shape-rendering="crispEdges"/>${orientationPaths}</g>`;
                     }
                 }
                 return result;
