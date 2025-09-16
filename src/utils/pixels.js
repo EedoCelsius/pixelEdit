@@ -6,6 +6,77 @@ export const MAX_DIMENSION = 128;
 export const coordToIndex = (x, y) => x + MAX_DIMENSION * y;
 export const indexToCoord = (index) => [index % MAX_DIMENSION, Math.floor(index / MAX_DIMENSION)];
 
+export function buildStarPath(x, y, size = 1, startCornerIndex = 0) {
+    const half = size / 2;
+    const corners = [
+        [x, y],
+        [x + size, y],
+        [x + size, y + size],
+        [x, y + size]
+    ];
+    const midpoints = [
+        [x + half, y],
+        [x + size, y + half],
+        [x + half, y + size],
+        [x, y + half]
+    ];
+    const triangles = [
+        { midpoint: midpoints[0], cornerIndices: [2, 3] },
+        { midpoint: midpoints[1], cornerIndices: [3, 0] },
+        { midpoint: midpoints[2], cornerIndices: [0, 1] },
+        { midpoint: midpoints[3], cornerIndices: [1, 2] }
+    ];
+    const normalizedStart = Number.isFinite(startCornerIndex) ? Math.round(startCornerIndex) : 0;
+    let currentCornerIdx = ((normalizedStart % 4) + 4) % 4;
+    const pathPoints = [corners[currentCornerIdx]];
+    let currentTriangleIdx = triangles.findIndex(tri => tri.cornerIndices.includes(currentCornerIdx));
+    if (currentTriangleIdx === -1) currentTriangleIdx = 0;
+    const visited = new Set();
+
+    for (let i = 0; i < triangles.length; i++) {
+        const triangle = triangles[currentTriangleIdx];
+        visited.add(currentTriangleIdx);
+
+        if (!triangle.cornerIndices.includes(currentCornerIdx)) {
+            currentCornerIdx = triangle.cornerIndices[0];
+            pathPoints.push(corners[currentCornerIdx]);
+        }
+
+        const otherCornerIdx = triangle.cornerIndices[0] === currentCornerIdx
+            ? triangle.cornerIndices[1]
+            : triangle.cornerIndices[0];
+
+        pathPoints.push(triangle.midpoint, corners[otherCornerIdx]);
+        currentCornerIdx = otherCornerIdx;
+
+        if (visited.size === triangles.length) break;
+
+        const nextTriangleIdx = triangles.findIndex((tri, idx) => !visited.has(idx) && tri.cornerIndices.includes(currentCornerIdx));
+        if (nextTriangleIdx !== -1) {
+            currentTriangleIdx = nextTriangleIdx;
+        } else {
+            currentTriangleIdx = triangles.findIndex((_, idx) => !visited.has(idx));
+            if (currentTriangleIdx === -1) break;
+        }
+    }
+
+    if (pathPoints.length < 2) {
+        return { d: '', points: [], start: null, end: null };
+    }
+
+    let path = `M ${pathPoints[0][0]} ${pathPoints[0][1]}`;
+    for (let i = 1; i < pathPoints.length; i++) {
+        const [px, py] = pathPoints[i];
+        path += ` L ${px} ${py}`;
+    }
+    return {
+        d: path,
+        points: pathPoints,
+        start: pathPoints[0],
+        end: pathPoints[pathPoints.length - 1]
+    };
+}
+
 export function getPixelUnion(pixelsList = []) {
     if (!Array.isArray(pixelsList)) pixelsList = [pixelsList];
     const union = new Set();
@@ -129,6 +200,23 @@ export function orientationPatternUrl(orientation, target = document.body) {
         line.setAttribute('stroke', '#FFFFFF');
         line.setAttribute('stroke-width', '.08');
         pattern.appendChild(line);
+    }
+    else if (orientation === OT.STAR) {
+        const { d } = buildStarPath(0, 0, 1, 0);
+        if (d) {
+            const border = document.createElementNS(SVG_NAMESPACE, 'path');
+            border.setAttribute('d', d);
+            border.setAttribute('stroke', '#000000');
+            border.setAttribute('stroke-width', '.1');
+            border.setAttribute('fill', 'none');
+            pattern.appendChild(border);
+            const inner = document.createElementNS(SVG_NAMESPACE, 'path');
+            inner.setAttribute('d', d);
+            inner.setAttribute('stroke', '#FFFFFF');
+            inner.setAttribute('stroke-width', '.08');
+            inner.setAttribute('fill', 'none');
+            pattern.appendChild(inner);
+        }
     }
     defs.appendChild(pattern);
     svg.appendChild(defs);
