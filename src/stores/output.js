@@ -195,7 +195,7 @@ export const useOutputStore = defineStore('output', {
                                 }
                                 const d = buildStarPath(x, y, 1, startCornerIndex);
                                 if (d) {
-                                    segments.push({ d, isStar: false });
+                                    segments.push({ d, isStar: true });
                                     lastOrientationEnd = corners[startCornerIndex];
                                 }
                             } else {
@@ -216,7 +216,7 @@ export const useOutputStore = defineStore('output', {
                                 } else {
                                     continue;
                                 }
-                                segments.push({ d: `M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}`, isStar: true });
+                                segments.push({ d: `M ${start[0]} ${start[1]} L ${end[0]} ${end[1]}`, isStar: false });
                                 lastOrientationEnd = end;
                             }
                         }
