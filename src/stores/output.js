@@ -223,13 +223,19 @@ export const useOutputStore = defineStore('output', {
                         
                         const color = rgbaToHexU32(props.color);
                         const opacity = alphaU32(props.color);
+                        
+                        let isStarLayer = true;
                         let orientationPaths = '';
                         for (const { d, isStar } of segments) {
-                            if (!isStar) orientationPaths += `<path d="${d}" stroke="#000" stroke-width="0.02" fill="none"/>`;
-                            else orientationPaths += `<path d="${d}" stroke="${color}" opacity="${opacity}" stroke-width="0.02" fill="none"/>`;
+                            if (isStar)
+                                orientationPaths += `<path d="${d}" stroke="${color}" opacity="${opacity}" stroke-width="0.02" fill="none"/>`;
+                            else {
+                                orientationPaths += `<path d="${d}" stroke="#000" stroke-width="0.02" fill="none"/>`;
+                                isStarLayer = false;
+                            }
                         }
 
-                        if (segments.length === 1 && segments[0].isStar) result += `<g id="${sanitizeId(props.name)}">${orientationPaths}</g>`;
+                        if (isStarLayer) result += `<g id="${sanitizeId(props.name)}">${orientationPaths}</g>`;
                         else result += `<g id="${sanitizeId(props.name)}"><path d="${path}" fill="${color}" opacity="${opacity}" ${attrStr} fill-rule="evenodd" shape-rendering="crispEdges"/>${orientationPaths}</g>`;
                     }
                 }
