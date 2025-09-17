@@ -55,6 +55,12 @@ export const useShortcutService = defineStore('shortcutService', () => {
 
             if (ctrl) {
                 const lower = key.toLowerCase();
+                if (lower === 's') {
+                    e.preventDefault();
+                    if (shift) output.saveAs();
+                    else output.quickSave();
+                    continue;
+                }
                 if (lower === 'z' && !e.shiftKey) {
                     e.preventDefault();
                     output.undo();

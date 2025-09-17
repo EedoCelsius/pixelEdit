@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { nextTick, watch } from 'vue';
 import { useStore } from '.';
 import { useLayerPanelService } from '../services/layerPanel';
+import { useFileSystemStore } from './fileSystem';
 import { rgbaToHexU32, alphaU32 } from '../utils';
 import { indexToCoord, buildStarPath } from '../utils/pixels.js';
 import { OT, ORIENTATION_OVERFLOW_CONFIG } from '../constants/orientation.js';
@@ -245,6 +246,69 @@ export const useOutputStore = defineStore('output', {
             };
             const { stage, viewBox } = viewport;
             return `<svg xmlns="http://www.w3.org/2000/svg" width="${stage.width}" height="${stage.height}" viewBox="${viewBox}">${serialize(nodeTree.tree)}</svg>`;
+        },
+        download(format = 'json') {
+            const content = format === 'json' ? this.exportToJSON() : this.exportToSVG();
+            const blob = new Blob([content], { type: format === 'json' ? 'application/json' : 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `pixel-edit.${format}`;
+            a.click();
+            URL.revokeObjectURL(url);
+        },
+        async saveToHandle(handle, format = 'json') {
+            if (!handle?.createWritable) return false;
+            const writable = await handle.createWritable();
+            const content = format === 'json' ? this.exportToJSON() : this.exportToSVG();
+            await writable.write(content);
+            await writable.close();
+            useFileSystemStore().setSaveContext(handle, format);
+            return true;
+        },
+        async quickSave() {
+            const fileSystem = useFileSystemStore();
+            if (fileSystem.canQuickSave && window.isSecureContext) {
+                try {
+                    const success = await this.saveToHandle(fileSystem.saveHandle, fileSystem.lastSaveFormat);
+                    if (success) return true;
+                } catch (error) {
+                    console.error('Failed to write to existing handle', error);
+                    fileSystem.clearSaveContext();
+                }
+            }
+            return this.saveAs({ suggestedFormat: fileSystem.lastSaveFormat });
+        },
+        async saveAs({ suggestedFormat = 'json' } = {}) {
+            const fileSystem = useFileSystemStore();
+            const defaultFormat = suggestedFormat || fileSystem.lastSaveFormat || 'json';
+            if (!window.showSaveFilePicker) {
+                this.download(defaultFormat);
+                return false;
+            }
+            try {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: `pixel-edit.${defaultFormat}`,
+                    types: [
+                        {
+                            description: 'Pixel Edit JSON',
+                            accept: { 'application/json': ['.json'] }
+                        },
+                        {
+                            description: 'Scalable Vector Graphics',
+                            accept: { 'image/svg+xml': ['.svg'] }
+                        }
+                    ]
+                });
+                const name = handle.name?.toLowerCase?.() || '';
+                let format = defaultFormat;
+                if (name.endsWith('.svg')) format = 'svg';
+                else if (name.endsWith('.json')) format = 'json';
+                return await this.saveToHandle(handle, format);
+            } catch (error) {
+                if (error?.name !== 'AbortError') console.error('Save As failed', error);
+                return false;
+            }
         }
     }
 });
