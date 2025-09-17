@@ -3,6 +3,7 @@ import { useStore } from '.';
 import { useLayerPanelService } from '../services/layerPanel';
 import { packRGBA, averageColorU32 } from '../utils';
 import { coordToIndex, indexToCoord, MAX_DIMENSION } from '../utils/pixels.js';
+import { useFileSystemStore } from './fileSystem';
 
 export const useInputStore = defineStore('input', {
     state: () => ({
@@ -56,6 +57,23 @@ export const useInputStore = defineStore('input', {
                 reader.readAsDataURL(file);
             });
             await this.load(dataUrl);
+        },
+        async loadFromHandle(handle) {
+            if (!handle?.getFile) return;
+            const file = await handle.getFile();
+            const fileSystem = useFileSystemStore();
+            if (file.type === 'application/json' || file.name.endsWith('.json')) {
+                const text = await file.text();
+                await useStore().output.importFromJSON(text);
+                fileSystem.setSaveContext(handle, 'json');
+                fileSystem.setLoadHandle(handle);
+                return 'json';
+            } else {
+                await this.loadFile(file);
+                fileSystem.clearSaveContext();
+                fileSystem.setLoadHandle(handle);
+                return 'image';
+            }
         },
         async loadFromQuery() {
             await this.load(new URL(location.href).searchParams.get('pixel'));

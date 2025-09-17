@@ -131,6 +131,25 @@ function resetPosition() {
 
 async function onDrop(e) {
   if (input.isLoaded) return;
+
+  const items = e.dataTransfer?.items;
+  if (items?.length) {
+    for (const item of items) {
+      if (item.kind !== 'file' || typeof item.getAsFileSystemHandle !== 'function') continue;
+      try {
+        const handle = await item.getAsFileSystemHandle();
+        if (!handle || handle.kind !== 'file') continue;
+        const result = await input.loadFromHandle(handle);
+        if (result === 'image') {
+          imageLoadService.open();
+        }
+        return;
+      } catch (err) {
+        // Ignore and fall back to legacy file handling
+      }
+    }
+  }
+
   const file = e.dataTransfer.files?.[0];
   if (!file) return;
   if (file.type === 'application/json' || file.name.endsWith('.json')) {
