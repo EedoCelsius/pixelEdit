@@ -94,6 +94,9 @@ const contextMenu = useContextMenuStore();
 
 const dragging = ref(false);
 const dragId = ref(null);
+let cachedDragRestrictedIds = null;
+let pendingDragUpdate = null;
+let dragAnimationFrame = null;
 const editingId = ref(null);
 const listElement = ref(null);
 const icons = reactive(blockIcons);
@@ -203,43 +206,39 @@ function dragSelectionIds() {
 }
 
 function dragRestrictedIdSet() {
-  if (dragId.value == null) return new Set();
+  if (cachedDragRestrictedIds) return cachedDragRestrictedIds;
+  if (dragId.value == null) {
+    cachedDragRestrictedIds = new Set();
+    return cachedDragRestrictedIds;
+  }
   if (nodeTree.selectedNodeIds.includes(dragId.value)) {
-    return new Set(nodeTree.selectedNodeIds);
+    cachedDragRestrictedIds = new Set(nodeTree.selectedNodeIds);
+    return cachedDragRestrictedIds;
   }
   const ids = new Set([dragId.value]);
   for (const id of collectDescendantNodeIds(dragId.value)) ids.add(id);
-  return ids;
+  cachedDragRestrictedIds = ids;
+  return cachedDragRestrictedIds;
 }
 
 function onDragStart(id, event) {
   dragging.value = true;
   dragId.value = id;
+  cachedDragRestrictedIds = null;
+  startDragAnimationLoop();
   event.dataTransfer.setData('text/plain', String(id));
 }
 
 function onDragEnd() {
   dragging.value = false;
   dragId.value = null;
+  cachedDragRestrictedIds = null;
+  pendingDragUpdate = null;
+  stopDragAnimationLoop();
 }
 
 function onDragOver(item, event) {
-  const row = event.currentTarget;
-  const restricted = dragRestrictedIdSet();
-  if (restricted.has(item.id)) {
-    row.classList.remove('insert-before', 'insert-after', 'insert-into');
-    event.dataTransfer.dropEffect = 'none';
-    return;
-  }
-  const rect = row.getBoundingClientRect();
-  const y = event.clientY - rect.top;
-  row.classList.remove('insert-before', 'insert-after', 'insert-into');
-  if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
-    row.classList.add('insert-into');
-  } else {
-    const before = y < rect.height * 0.5;
-    row.classList.add(before ? 'insert-before' : 'insert-after');
-  }
+  pendingDragUpdate = { item, event };
 }
 
 function onDragLeave(event) {
@@ -260,6 +259,51 @@ function onDrop(item, event) {
   } else {
     const placeBelow = y > rect.height * 0.5;
     nodeTree.insert(ids, item.id, placeBelow);
+  }
+}
+
+function startDragAnimationLoop() {
+  if (dragAnimationFrame != null) return;
+  const step = () => {
+    if (!dragging.value) {
+      dragAnimationFrame = null;
+      return;
+    }
+    if (pendingDragUpdate) {
+      applyPendingDragUpdate(pendingDragUpdate);
+      pendingDragUpdate = null;
+    }
+    dragAnimationFrame = requestAnimationFrame(step);
+  };
+  dragAnimationFrame = requestAnimationFrame(step);
+}
+
+function stopDragAnimationLoop() {
+  if (dragAnimationFrame != null) {
+    cancelAnimationFrame(dragAnimationFrame);
+    dragAnimationFrame = null;
+  }
+}
+
+function applyPendingDragUpdate(update) {
+  const { item, event } = update;
+  const row = listElement.value?.querySelector(`.layer[data-id="${item.id}"]`);
+  if (!row) return;
+  const restricted = dragRestrictedIdSet();
+  if (restricted.has(item.id)) {
+    row.classList.remove('insert-before', 'insert-after', 'insert-into');
+    if (event?.dataTransfer) event.dataTransfer.dropEffect = 'none';
+    return;
+  }
+  const rect = row.getBoundingClientRect();
+  const clientY = event?.clientY ?? rect.top;
+  const y = clientY - rect.top;
+  row.classList.remove('insert-before', 'insert-after', 'insert-into');
+  if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
+    row.classList.add('insert-into');
+  } else {
+    const before = y < rect.height * 0.5;
+    row.classList.add(before ? 'insert-before' : 'insert-after');
   }
 }
 
