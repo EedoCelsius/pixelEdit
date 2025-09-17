@@ -25,7 +25,8 @@ async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore
         nodeTree.replaceSelection([mergedId]);
     }
     const target = nodeTree.selectedLayerIds[0];
-    const paths = await hamiltonian.traverseFree(pixelStore.get(target));
+    const targetPixels = new Map(pixelStore.get(target));
+    const paths = await hamiltonian.traverseFree(targetPixels);
     const color = nodes.color(target);
     const groupId = nodes.addGroup({ name: `${1 < paths.length ? 'Paths' : 'Path'} of ${baseName}` });
     nodeTree.insert([groupId], layerQuery.lowermost([target]), true);
@@ -37,7 +38,8 @@ async function pathOp(tool, hamiltonian, layerQuery, nodeTree, nodes, pixelStore
         path.forEach((pixel, j) => {
             const lid = nodes.addLayer({ name: `Pixel ${j + 1}`, color });
             pixelStore.addLayer(lid);
-            pixelStore.add(lid, [pixel]);
+            const orientation = targetPixels.get(pixel) ?? OT.DEFAULT;
+            pixelStore.add(lid, [pixel], orientation);
             ids.push(lid);
         });
         if (paths.length === 1) {
