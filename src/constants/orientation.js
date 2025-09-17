@@ -20,3 +20,16 @@ export const ORIENTATION_LABELS = {
   [OT.STAR]: 'star',
   checkerboard: 'checkerboard'
 };
+
+const parseOverflowSetting = (key, fallback) => {
+  if (typeof localStorage === 'undefined') return fallback;
+  const raw = localStorage.getItem(key);
+  if (raw === null) return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+export const ORIENTATION_OVERFLOW_CONFIG = {
+  LINE_PERCENT: parseOverflowSetting('settings.orientationOverflowPercent', 2.5),
+  STAR_PERCENT: parseOverflowSetting('settings.starOrientationOverflowPercent', 2.5)
+};

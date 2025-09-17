@@ -21,6 +21,16 @@
               <option v-for="ori in pixelOrientations" :key="ori" :value="ori">{{ ORIENTATION_LABELS[ori] }}</option>
             </select>
           </div>
+          <label class="block">
+            <span>Orientation Overflow (%)</span>
+            <input type="number" min="0" max="100" step="0.1" v-model.number="orientationOverflowPercent"
+                   class="mt-1 w-full rounded bg-slate-700 px-2 py-1" />
+          </label>
+          <label class="block">
+            <span>Star Orientation Overflow (%)</span>
+            <input type="number" min="0" max="100" step="0.1" v-model.number="starOrientationOverflowPercent"
+                   class="mt-1 w-full rounded bg-slate-700 px-2 py-1" />
+          </label>
         </div>
         <div v-else-if="currentTab === 'Stage'" class="space-y-2 text-white/70">
           <label class="block">
@@ -41,7 +51,7 @@ import { ref, watch } from 'vue';
 import { useService } from '../services';
 import { usePixelStore, PIXEL_DEFAULT_ORIENTATIONS, PIXEL_ORIENTATIONS } from '@/stores/pixels';
 import { CHECKERBOARD_CONFIG } from '@/constants';
-import { ORIENTATION_LABELS } from '@/constants/orientation.js';
+import { ORIENTATION_LABELS, ORIENTATION_OVERFLOW_CONFIG } from '@/constants/orientation.js';
 import { checkerboardPatternUrl } from '@/utils/pixels.js';
 
 const { settings: settingsService } = useService();
@@ -58,6 +68,30 @@ const [initialA, initialB] = pixelStore.checkerboardOrientations;
 const cbOriA = ref(initialA);
 const cbOriB = ref(initialB);
 watch([cbOriA, cbOriB], ([a, b]) => pixelStore.setCheckerboardOrientations(a, b));
+
+const orientationOverflowPercent = ref(ORIENTATION_OVERFLOW_CONFIG.LINE_PERCENT);
+watch(orientationOverflowPercent, value => {
+  let clamped = Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0;
+  clamped = Math.round(clamped * 10) / 10;
+  if (clamped !== value) {
+    orientationOverflowPercent.value = clamped;
+    return;
+  }
+  ORIENTATION_OVERFLOW_CONFIG.LINE_PERCENT = clamped;
+  localStorage.setItem('settings.orientationOverflowPercent', String(clamped));
+});
+
+const starOrientationOverflowPercent = ref(ORIENTATION_OVERFLOW_CONFIG.STAR_PERCENT);
+watch(starOrientationOverflowPercent, value => {
+  let clamped = Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0;
+  clamped = Math.round(clamped * 10) / 10;
+  if (clamped !== value) {
+    starOrientationOverflowPercent.value = clamped;
+    return;
+  }
+  ORIENTATION_OVERFLOW_CONFIG.STAR_PERCENT = clamped;
+  localStorage.setItem('settings.starOrientationOverflowPercent', String(clamped));
+});
 
 const checkerboardRepeat = ref(CHECKERBOARD_CONFIG.REPEAT);
 watch(checkerboardRepeat, repeat => {
