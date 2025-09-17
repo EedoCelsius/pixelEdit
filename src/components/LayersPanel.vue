@@ -181,51 +181,86 @@ function onDisconnectedCountClick(id) {
   selectAndScroll(ids, id);
 }
 
+function collectDescendantNodeIds(id) {
+  const info = nodeTree._findNode(id);
+  if (!info?.node?.children) return [];
+  const stack = [...info.node.children];
+  const result = [];
+  while (stack.length) {
+    const node = stack.pop();
+    result.push(node.id);
+    if (node.children) stack.push(...node.children);
+  }
+  return result;
+}
+
+function dragSelectionIds() {
+  if (dragId.value == null) return [];
+  if (nodeTree.selectedNodeIds.includes(dragId.value)) {
+    return nodeTree.orderedSelection;
+  }
+  return [dragId.value];
+}
+
+function dragRestrictedIdSet() {
+  if (dragId.value == null) return new Set();
+  if (nodeTree.selectedNodeIds.includes(dragId.value)) {
+    return new Set(nodeTree.selectedNodeIds);
+  }
+  const ids = new Set([dragId.value]);
+  for (const id of collectDescendantNodeIds(dragId.value)) ids.add(id);
+  return ids;
+}
+
 function onDragStart(id, event) {
-    dragging.value = true;
-    dragId.value = id;
-    event.dataTransfer.setData('text/plain', String(id));
+  dragging.value = true;
+  dragId.value = id;
+  event.dataTransfer.setData('text/plain', String(id));
 }
 
 function onDragEnd() {
-    dragging.value = false;
-    dragId.value = null;
+  dragging.value = false;
+  dragId.value = null;
 }
 
 function onDragOver(item, event) {
-    const row = event.currentTarget;
-    if (nodeTree.selectedNodeIds.includes(item.id)) {
-        row.classList.remove('insert-before', 'insert-after', 'insert-into');
-        event.dataTransfer.dropEffect = 'none';
-        return;
-    }
-    const rect = row.getBoundingClientRect();
-    const y = event.clientY - rect.top;
+  const row = event.currentTarget;
+  const restricted = dragRestrictedIdSet();
+  if (restricted.has(item.id)) {
     row.classList.remove('insert-before', 'insert-after', 'insert-into');
-    if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
-        row.classList.add('insert-into');
-    } else {
-        const before = y < rect.height * 0.5;
-        row.classList.add(before ? 'insert-before' : 'insert-after');
-    }
+    event.dataTransfer.dropEffect = 'none';
+    return;
+  }
+  const rect = row.getBoundingClientRect();
+  const y = event.clientY - rect.top;
+  row.classList.remove('insert-before', 'insert-after', 'insert-into');
+  if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
+    row.classList.add('insert-into');
+  } else {
+    const before = y < rect.height * 0.5;
+    row.classList.add(before ? 'insert-before' : 'insert-after');
+  }
 }
 
 function onDragLeave(event) {
-    event.currentTarget.classList.remove('insert-before', 'insert-after', 'insert-into');
+  event.currentTarget.classList.remove('insert-before', 'insert-after', 'insert-into');
 }
 
 function onDrop(item, event) {
-    const row = event.currentTarget;
-    row.classList.remove('insert-before', 'insert-after', 'insert-into');
-    const rect = row.getBoundingClientRect();
-    const y = event.clientY - rect.top;
-    const ids = nodeTree.orderedSelection;
-    if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
-        nodeTree.append(ids, item.id, true);
-    } else {
-        const placeBelow = y > rect.height * 0.5;
-        nodeTree.insert(ids, item.id, placeBelow);
-    }
+  const row = event.currentTarget;
+  row.classList.remove('insert-before', 'insert-after', 'insert-into');
+  const restricted = dragRestrictedIdSet();
+  if (restricted.has(item.id)) return;
+  const rect = row.getBoundingClientRect();
+  const y = event.clientY - rect.top;
+  const ids = dragSelectionIds();
+  if (!ids.length) return;
+  if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
+    nodeTree.append(ids, item.id, true);
+  } else {
+    const placeBelow = y > rect.height * 0.5;
+    nodeTree.insert(ids, item.id, placeBelow);
+  }
 }
 
 function applyToSelection(id, fn, ids = nodeTree.selectedNodeIds) {
