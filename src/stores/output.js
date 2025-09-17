@@ -6,6 +6,7 @@ import { useFileSystemStore } from './fileSystem';
 import { rgbaToHexU32, alphaU32 } from '../utils';
 import { indexToCoord, buildStarPath } from '../utils/pixels.js';
 import { OT, ORIENTATION_OVERFLOW_CONFIG } from '../constants/orientation.js';
+import { SVG_EXPORT_CONFIG } from '../constants/svg.js';
 
 export const useOutputStore = defineStore('output', {
     state: () => ({
@@ -245,7 +246,13 @@ export const useOutputStore = defineStore('output', {
                 return result;
             };
             const { stage, viewBox } = viewport;
-            return `<svg xmlns="http://www.w3.org/2000/svg" width="${stage.width}" height="${stage.height}" viewBox="${viewBox}">${serialize(nodeTree.tree)}</svg>`;
+            const unit = SVG_EXPORT_CONFIG.UNIT;
+            const pixelSize = SVG_EXPORT_CONFIG.PIXEL_SIZE;
+            const formatSize = value => {
+                const scaled = Math.round(value * pixelSize * 1000) / 1000;
+                return `${scaled}${unit}`;
+            };
+            return `<svg xmlns="http://www.w3.org/2000/svg" width="${formatSize(stage.width)}" height="${formatSize(stage.height)}" viewBox="${viewBox}">${serialize(nodeTree.tree)}</svg>`;
         },
         download(format = 'json') {
             const content = format === 'json' ? this.exportToJSON() : this.exportToSVG();
