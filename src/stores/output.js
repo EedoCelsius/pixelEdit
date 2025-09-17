@@ -287,8 +287,11 @@ export const useOutputStore = defineStore('output', {
                 return false;
             }
             try {
+                const loadedName = fileSystem.loadHandle?.name || '';
+                const baseName = loadedName.replace(/\.[^./\\]+$/, '') || 'pixel-edit';
+                const suggestedName = `${baseName}.${defaultFormat}`;
                 const handle = await window.showSaveFilePicker({
-                    suggestedName: `pixel-edit.${defaultFormat}`,
+                    suggestedName,
                     types: [
                         {
                             description: 'Pixel Edit JSON',
