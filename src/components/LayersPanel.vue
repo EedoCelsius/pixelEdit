@@ -1,6 +1,6 @@
 <template>
   <div ref="listElement" class="layers flex-1 overflow-auto p-2 flex flex-col gap-2 relative" :class="{ dragging: dragging }" @dragover.prevent @drop.prevent>
-    <div v-for="item in flatNodes" class="layer group relative flex flex-none items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none overflow-hidden" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.selectedNodeIds.includes(item.id), tail: layerPanel.tailId===item.id, dragging: dragId===item.id, 'descendant-selected': ancestorsOfSelected.has(item.id) }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent="onDragOver(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)" @contextmenu.prevent="onContextMenu(item,$event)">
+    <div v-for="item in flatNodes" class="layer group relative flex flex-none items-center gap-3 p-2 border border-white/15 rounded-lg bg-sky-950/30 cursor-grab select-none overflow-hidden" :key="item.id" :data-id="item.id" :style="{ marginLeft: (item.depth * 32) + 'px' }" :class="{ selected: nodeTree.selectedNodeIds.includes(item.id), tail: layerPanel.tailId===item.id, dragging: dragId===item.id, 'descendant-selected': ancestorsOfSelected.has(item.id) }" draggable="true" @click="layerPanel.onLayerClick(item.id,$event)" @dragstart="onDragStart(item.id,$event)" @dragend="onDragEnd" @dragover.prevent @dragenter="onDragEnter(item,$event)" @dragleave="onDragLeave($event)" @drop.prevent="onDrop(item,$event)" @contextmenu.prevent="onContextMenu(item,$event)">
       <template v-if="item.isGroup">
         <div class="w-4 text-center cursor-pointer" @click.stop="toggleFold(item.id)">{{ folded[item.id] ? '▶' : '▼' }}</div>
         <div class="w-16 h-16 rounded-md border border-white/15 bg-slate-950 overflow-hidden" title="그룹 미리보기">
@@ -94,6 +94,35 @@ const contextMenu = useContextMenuStore();
 
 const dragging = ref(false);
 const dragId = ref(null);
+const dragRestrictedIds = ref(new Set());
+
+let dragUpdateFrame = null;
+let pendingDragUpdate = null;
+
+function cancelDragUpdate() {
+  if (dragUpdateFrame != null) {
+    cancelAnimationFrame(dragUpdateFrame);
+    dragUpdateFrame = null;
+  }
+  pendingDragUpdate = null;
+}
+
+function applyPendingDragUpdate() {
+  dragUpdateFrame = null;
+  if (!pendingDragUpdate) return;
+  const { row, item, clientY } = pendingDragUpdate;
+  pendingDragUpdate = null;
+  if (!row?.isConnected) return;
+  const rect = row.getBoundingClientRect();
+  const y = clientY - rect.top;
+  row.classList.remove('insert-before', 'insert-after', 'insert-into');
+  if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
+    row.classList.add('insert-into');
+  } else {
+    const before = y < rect.height * 0.5;
+    row.classList.add(before ? 'insert-before' : 'insert-after');
+  }
+}
 const editingId = ref(null);
 const listElement = ref(null);
 const icons = reactive(blockIcons);
@@ -202,54 +231,65 @@ function dragSelectionIds() {
   return [dragId.value];
 }
 
-function dragRestrictedIdSet() {
-  if (dragId.value == null) return new Set();
+function updateDragRestrictedIds() {
+  if (dragId.value == null) {
+    dragRestrictedIds.value = new Set();
+    return;
+  }
   if (nodeTree.selectedNodeIds.includes(dragId.value)) {
-    return new Set(nodeTree.selectedNodeIds);
+    dragRestrictedIds.value = new Set(nodeTree.selectedNodeIds);
+    return;
   }
   const ids = new Set([dragId.value]);
   for (const id of collectDescendantNodeIds(dragId.value)) ids.add(id);
-  return ids;
+  dragRestrictedIds.value = ids;
 }
 
 function onDragStart(id, event) {
   dragging.value = true;
   dragId.value = id;
+  updateDragRestrictedIds();
   event.dataTransfer.setData('text/plain', String(id));
 }
 
 function onDragEnd() {
   dragging.value = false;
+  cancelDragUpdate();
   dragId.value = null;
+  updateDragRestrictedIds();
 }
 
-function onDragOver(item, event) {
+function onDragEnter(item, event) {
   const row = event.currentTarget;
-  const restricted = dragRestrictedIdSet();
+  if (!(row instanceof HTMLElement)) return;
+  const restricted = dragRestrictedIds.value;
   if (restricted.has(item.id)) {
+    cancelDragUpdate();
     row.classList.remove('insert-before', 'insert-after', 'insert-into');
-    event.dataTransfer.dropEffect = 'none';
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
     return;
   }
-  const rect = row.getBoundingClientRect();
-  const y = event.clientY - rect.top;
-  row.classList.remove('insert-before', 'insert-after', 'insert-into');
-  if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
-    row.classList.add('insert-into');
-  } else {
-    const before = y < rect.height * 0.5;
-    row.classList.add(before ? 'insert-before' : 'insert-after');
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+  pendingDragUpdate = {
+    row,
+    item,
+    clientY: event.clientY,
+  };
+  if (dragUpdateFrame == null) {
+    dragUpdateFrame = requestAnimationFrame(applyPendingDragUpdate);
   }
 }
 
 function onDragLeave(event) {
+  cancelDragUpdate();
   event.currentTarget.classList.remove('insert-before', 'insert-after', 'insert-into');
 }
 
 function onDrop(item, event) {
   const row = event.currentTarget;
+  cancelDragUpdate();
   row.classList.remove('insert-before', 'insert-after', 'insert-into');
-  const restricted = dragRestrictedIdSet();
+  const restricted = dragRestrictedIds.value;
   if (restricted.has(item.id)) return;
   const rect = row.getBoundingClientRect();
   const y = event.clientY - rect.top;
