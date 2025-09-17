@@ -94,7 +94,7 @@ const contextMenu = useContextMenuStore();
 
 const dragging = ref(false);
 const dragId = ref(null);
-let cachedDragRestrictedIds = null;
+let restrictedIds = null;
 let pendingDragUpdate = null;
 let dragAnimationFrame = null;
 const editingId = ref(null);
@@ -205,26 +205,13 @@ function dragSelectionIds() {
   return [dragId.value];
 }
 
-function dragRestrictedIdSet() {
-  if (cachedDragRestrictedIds) return cachedDragRestrictedIds;
-  if (dragId.value == null) {
-    cachedDragRestrictedIds = new Set();
-    return cachedDragRestrictedIds;
-  }
-  if (nodeTree.selectedNodeIds.includes(dragId.value)) {
-    cachedDragRestrictedIds = new Set(nodeTree.selectedNodeIds);
-    return cachedDragRestrictedIds;
-  }
-  const ids = new Set([dragId.value]);
-  for (const id of collectDescendantNodeIds(dragId.value)) ids.add(id);
-  cachedDragRestrictedIds = ids;
-  return cachedDragRestrictedIds;
-}
-
 function onDragStart(id, event) {
   dragging.value = true;
   dragId.value = id;
-  cachedDragRestrictedIds = null;
+  if (nodeTree.selectedNodeIds.includes(dragId.value))
+    restrictedIds = new Set(nodeTree.selectedNodeIds);
+  else
+    restrictedIds = new Set([dragId.value, ...collectDescendantNodeIds(dragId.value)]);
   startDragAnimationLoop();
   event.dataTransfer.setData('text/plain', String(id));
 }
@@ -232,8 +219,6 @@ function onDragStart(id, event) {
 function onDragEnd() {
   dragging.value = false;
   dragId.value = null;
-  cachedDragRestrictedIds = null;
-  pendingDragUpdate = null;
   stopDragAnimationLoop();
 }
 
@@ -242,14 +227,14 @@ function onDragOver(item, event) {
 }
 
 function onDragLeave(event) {
+  pendingDragUpdate = null;
   event.currentTarget.classList.remove('insert-before', 'insert-after', 'insert-into');
 }
 
 function onDrop(item, event) {
   const row = event.currentTarget;
   row.classList.remove('insert-before', 'insert-after', 'insert-into');
-  const restricted = dragRestrictedIdSet();
-  if (restricted.has(item.id)) return;
+  if (restrictedIds.has(item.id)) return;
   const rect = row.getBoundingClientRect();
   const y = event.clientY - rect.top;
   const ids = dragSelectionIds();
@@ -279,6 +264,7 @@ function startDragAnimationLoop() {
 }
 
 function stopDragAnimationLoop() {
+  pendingDragUpdate = null;
   if (dragAnimationFrame != null) {
     cancelAnimationFrame(dragAnimationFrame);
     dragAnimationFrame = null;
@@ -289,16 +275,14 @@ function applyPendingDragUpdate(update) {
   const { item, event } = update;
   const row = listElement.value?.querySelector(`.layer[data-id="${item.id}"]`);
   if (!row) return;
-  const restricted = dragRestrictedIdSet();
-  if (restricted.has(item.id)) {
-    row.classList.remove('insert-before', 'insert-after', 'insert-into');
+  row.classList.remove('insert-before', 'insert-after', 'insert-into');
+  if (restrictedIds.has(item.id)) {
     if (event?.dataTransfer) event.dataTransfer.dropEffect = 'none';
     return;
   }
   const rect = row.getBoundingClientRect();
   const clientY = event?.clientY ?? rect.top;
   const y = clientY - rect.top;
-  row.classList.remove('insert-before', 'insert-after', 'insert-into');
   if (item.isGroup && y > rect.height / 3 && y < rect.height * 2 / 3) {
     row.classList.add('insert-into');
   } else {
