@@ -134,7 +134,7 @@ export const useOutputStore = defineStore('output', {
                     const props = nodes.getProperties(node.id);
                     const attributes = { ...props.attributes, visibility: props.visibility ? 'visible' : 'hidden' };
                     const attrStr = Object.entries(attributes).map(([key, value]) => `${key}="${value}"`).join(' ');
-                    if (node.children && node.children.length) {
+                    if (node.children) {
                         const children = serialize(node.children);
                         result += `<g id="${sanitizeId(props.name)}" ${attrStr}>${children}</g>`;
                     } else {
