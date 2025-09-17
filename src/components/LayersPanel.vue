@@ -94,6 +94,8 @@ const contextMenu = useContextMenuStore();
 
 const dragging = ref(false);
 const dragId = ref(null);
+let dragSelectionCache = [];
+let dragRestrictedCache = new Set();
 const editingId = ref(null);
 const listElement = ref(null);
 const icons = reactive(blockIcons);
@@ -195,32 +197,32 @@ function collectDescendantNodeIds(id) {
 }
 
 function dragSelectionIds() {
-  if (dragId.value == null) return [];
-  if (nodeTree.selectedNodeIds.includes(dragId.value)) {
-    return nodeTree.orderedSelection;
-  }
-  return [dragId.value];
+  return dragSelectionCache;
 }
 
 function dragRestrictedIdSet() {
-  if (dragId.value == null) return new Set();
-  if (nodeTree.selectedNodeIds.includes(dragId.value)) {
-    return new Set(nodeTree.selectedNodeIds);
-  }
-  const ids = new Set([dragId.value]);
-  for (const id of collectDescendantNodeIds(dragId.value)) ids.add(id);
-  return ids;
+  return dragRestrictedCache;
 }
 
 function onDragStart(id, event) {
   dragging.value = true;
   dragId.value = id;
+  if (nodeTree.selectedNodeIds.includes(id)) {
+    dragSelectionCache = [...nodeTree.orderedSelection];
+    dragRestrictedCache = new Set(nodeTree.selectedNodeIds);
+  } else {
+    dragSelectionCache = [id];
+    dragRestrictedCache = new Set([id]);
+    for (const childId of collectDescendantNodeIds(id)) dragRestrictedCache.add(childId);
+  }
   event.dataTransfer.setData('text/plain', String(id));
 }
 
 function onDragEnd() {
   dragging.value = false;
   dragId.value = null;
+  dragSelectionCache = [];
+  dragRestrictedCache = new Set();
 }
 
 function onDragOver(item, event) {
