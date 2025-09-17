@@ -222,7 +222,6 @@ export function orientationPatternUrl(orientation, target = document.body) {
 }
 
 export function groupConnectedPixels(pixels) {
-    if (!pixels) return [];
     const visited = new Set();
     const components = [];
     const neighbors = [
