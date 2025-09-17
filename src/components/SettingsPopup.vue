@@ -37,6 +37,8 @@
             <span>Checkerboard Repeat</span>
             <input type="number" min="1" v-model.number="checkerboardRepeat" class="mt-1 w-full rounded bg-slate-700 px-2 py-1"/>
           </label>
+        </div>
+        <div v-else-if="currentTab === 'Export'" class="space-y-2 text-white/70">
           <label class="block">
             <span>SVG Pixel Size</span>
             <div class="mt-1 flex gap-2">
@@ -68,7 +70,7 @@ import { SVG_EXPORT_CONFIG, SVG_EXPORT_UNITS } from '@/constants/svg.js';
 const { settings: settingsService } = useService();
 const pixelStore = usePixelStore();
 
-const tabs = ['Pixels', 'Stage'];
+const tabs = ['Pixels', 'Stage', 'Export'];
 const currentTab = ref(tabs[0]);
 
 const orientations = PIXEL_DEFAULT_ORIENTATIONS;
