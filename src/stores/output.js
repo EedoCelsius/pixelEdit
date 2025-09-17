@@ -4,7 +4,7 @@ import { useStore } from '.';
 import { useLayerPanelService } from '../services/layerPanel';
 import { rgbaToHexU32, alphaU32 } from '../utils';
 import { indexToCoord, buildStarPath } from '../utils/pixels.js';
-import { OT } from '../constants/orientation.js';
+import { OT, ORIENTATION_OVERFLOW_CONFIG } from '../constants/orientation.js';
 
 export const useOutputStore = defineStore('output', {
     state: () => ({
@@ -166,18 +166,20 @@ export const useOutputStore = defineStore('output', {
 
                         // temp orientation satin rung
                         const map = pixels.get(node.id) || new Map();
-                        const overflow = 0.025;
+                        const overflow = ORIENTATION_OVERFLOW_CONFIG.LINE_PERCENT / 100;
+                        const starOverflow = ORIENTATION_OVERFLOW_CONFIG.STAR_PERCENT / 100;
                         const segments = [];
                         const starReference = lastOrientationEnd;
                         for (const [idx, ori] of map) {
                             if (ori === OT.NONE) continue;
                             const [x, y] = indexToCoord(idx);
                             if (ori === OT.STAR) {
+                                const starOffset = starOverflow;
                                 const corners = [
-                                    [x, y],
-                                    [x + 1, y],
-                                    [x + 1, y + 1],
-                                    [x, y + 1]
+                                    [x - starOffset, y - starOffset],
+                                    [x + 1 + starOffset, y - starOffset],
+                                    [x + 1 + starOffset, y + 1 + starOffset],
+                                    [x - starOffset, y + 1 + starOffset]
                                 ];
                                 let startCornerIndex = 0;
                                 if (starReference) {
@@ -193,7 +195,7 @@ export const useOutputStore = defineStore('output', {
                                         }
                                     }
                                 }
-                                const d = buildStarPath(x, y, 1, startCornerIndex);
+                                const d = buildStarPath(x, y, 1, startCornerIndex, starOverflow);
                                 if (d) {
                                     segments.push({ d, isStar: true });
                                     lastOrientationEnd = corners[startCornerIndex];

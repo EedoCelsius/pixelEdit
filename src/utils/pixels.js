@@ -6,19 +6,25 @@ export const MAX_DIMENSION = 128;
 export const coordToIndex = (x, y) => x + MAX_DIMENSION * y;
 export const indexToCoord = (index) => [index % MAX_DIMENSION, Math.floor(index / MAX_DIMENSION)];
 
-export function buildStarPath(x, y, size = 1, startCornerIndex = 0) {
+export function buildStarPath(x, y, size = 1, startCornerIndex = 0, overflow = 0) {
+    const normalizedOverflow = Number.isFinite(overflow) ? overflow : 0;
+    const offset = size * normalizedOverflow;
+    const minX = x - offset;
+    const minY = y - offset;
+    const maxX = x + size + offset;
+    const maxY = y + size + offset;
     const half = size / 2;
     const corners = [
-        [x, y],
-        [x + size, y],
-        [x + size, y + size],
-        [x, y + size]
+        [minX, minY],
+        [maxX, minY],
+        [maxX, maxY],
+        [minX, maxY]
     ];
     const midpoints = [
-        [x + half, y],
-        [x + size, y + half],
-        [x + half, y + size],
-        [x, y + half]
+        [x + half, minY],
+        [maxX, y + half],
+        [x + half, maxY],
+        [minX, y + half]
     ];
     const triangles = [
         { midpoint: midpoints[0], cornerIndices: [2, 3] },
