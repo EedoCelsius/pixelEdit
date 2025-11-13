@@ -8,6 +8,12 @@ import { indexToCoord, buildStarPath } from '../utils/pixels.js';
 import { OT, ORIENTATION_OVERFLOW_CONFIG } from '../constants/orientation.js';
 import { SVG_EXPORT_CONFIG } from '../constants/svg.js';
 
+const EXPORT_FORMAT_META = {
+    json: { mime: 'application/json', extension: 'json' },
+    svg: { mime: 'image/svg+xml', extension: 'svg' },
+    coordinates: { mime: 'application/json', extension: 'coord.json' }
+};
+
 export const useOutputStore = defineStore('output', {
     state: () => ({
         _stack: [],
@@ -254,20 +260,49 @@ export const useOutputStore = defineStore('output', {
             };
             return `<svg xmlns="http://www.w3.org/2000/svg" width="${formatSize(stage.width)}" height="${formatSize(stage.height)}" viewBox="${viewBox}">${serialize(nodeTree.tree)}</svg>`;
         },
+        exportToCoordinates() {
+            const { nodes, pixels } = useStore();
+            const coordinatesByColor = {};
+            for (const [idStr, map] of Object.entries(pixels._pixels)) {
+                if (!(map instanceof Map) || map.size === 0) continue;
+                const id = Number(idStr);
+                const props = nodes.getProperties(id);
+                if (!props || props.isGroup) continue;
+                const colorKey = rgbaToHexU32(props.color || 0);
+                if (!coordinatesByColor[colorKey]) {
+                    coordinatesByColor[colorKey] = [];
+                }
+                for (const [pixelIndex] of map) {
+                    coordinatesByColor[colorKey].push(indexToCoord(pixelIndex));
+                }
+            }
+            return coordinatesByColor;
+        },
+        _buildExportPayload(format = 'json') {
+            switch (format) {
+                case 'svg':
+                    return { ...EXPORT_FORMAT_META.svg, content: this.exportToSVG() };
+                case 'coordinates':
+                    return { ...EXPORT_FORMAT_META.coordinates, content: JSON.stringify(this.exportToCoordinates()) };
+                case 'json':
+                default:
+                    return { ...EXPORT_FORMAT_META.json, content: this.exportToJSON() };
+            }
+        },
         download(format = 'json') {
-            const content = format === 'json' ? this.exportToJSON() : this.exportToSVG();
-            const blob = new Blob([content], { type: format === 'json' ? 'application/json' : 'image/svg+xml' });
+            const { content, mime, extension } = this._buildExportPayload(format);
+            const blob = new Blob([content], { type: mime });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `pixel-edit.${format}`;
+            a.download = `pixel-edit.${extension}`;
             a.click();
             URL.revokeObjectURL(url);
         },
         async saveToHandle(handle, format = 'json') {
             if (!handle?.createWritable) return false;
             const writable = await handle.createWritable();
-            const content = format === 'json' ? this.exportToJSON() : this.exportToSVG();
+            const { content } = this._buildExportPayload(format);
             await writable.write(content);
             await writable.close();
             useFileSystemStore().setSaveContext(handle, format);
@@ -296,13 +331,18 @@ export const useOutputStore = defineStore('output', {
             try {
                 const loadedName = fileSystem.loadHandle?.name || '';
                 const baseName = loadedName.replace(/\.[^./\\]+$/, '') || 'pixel-edit';
-                const suggestedName = `${baseName}.${defaultFormat}`;
+                const meta = EXPORT_FORMAT_META[defaultFormat] || EXPORT_FORMAT_META.json;
+                const suggestedName = `${baseName}.${meta.extension}`;
                 const handle = await window.showSaveFilePicker({
                     suggestedName,
                     types: [
                         {
                             description: 'Pixel Edit JSON',
                             accept: { 'application/json': ['.json'] }
+                        },
+                        {
+                            description: 'Layer Coordinates JSON',
+                            accept: { 'application/json': ['.coord.json'] }
                         },
                         {
                             description: 'Scalable Vector Graphics',
@@ -313,6 +353,7 @@ export const useOutputStore = defineStore('output', {
                 const name = handle.name?.toLowerCase?.() || '';
                 let format = defaultFormat;
                 if (name.endsWith('.svg')) format = 'svg';
+                else if (name.endsWith('.coord.json')) format = 'coordinates';
                 else if (name.endsWith('.json')) format = 'json';
                 return await this.saveToHandle(handle, format);
             } catch (error) {
