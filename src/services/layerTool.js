@@ -77,7 +77,7 @@ export const useLayerToolService = defineStore('layerToolService', () => {
                     attributes: props.attributes,
                 });
                 pixels.addLayer(newId);
-                pixels.set(newId, pixels.get(srcId));
+                pixels.set(newId, new Map(pixels.get(srcId)));
                 if (parentId == null) nodeTree.insert([newId], srcId, false);
                 else nodeTree.append([newId], parentId, false);
             }
