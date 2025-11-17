@@ -10,6 +10,7 @@
         <option value="svg">SVG</option>
         <option value="json">JSON</option>
         <option value="coordinates">Coordinates</option>
+        <option value="preview">Preview</option>
       </select>
       <button @click="saveAs" class="px-2 py-1 text-xs rounded-md border border-white/15 bg-white/5 hover:bg-white/10" title="Ctrl+Shift+S">다운로드</button>
     </div>
@@ -22,8 +23,14 @@ import { useStore } from '../stores';
 import { useService } from '../services';
 const { output, input, viewport: viewportStore } = useStore();
 const { imageLoad: imageLoadService } = useService();
-const type = ref(localStorage.getItem('downloadType') || 'json');
-watch(type, (value) => localStorage.setItem('downloadType', value));
+const supportedDownloadTypes = ['svg', 'preview', 'json', 'coordinates'];
+const storedType = localStorage.getItem('downloadType');
+const type = ref(supportedDownloadTypes.includes(storedType) ? storedType : 'json');
+watch(type, (value) => {
+  if (supportedDownloadTypes.includes(value)) {
+    localStorage.setItem('downloadType', value);
+  }
+});
 
 const fileInput = ref(null);
 function openFileDialog() {

@@ -3,15 +3,57 @@ import { nextTick, watch } from 'vue';
 import { useStore } from '.';
 import { useLayerPanelService } from '../services/layerPanel';
 import { useFileSystemStore } from './fileSystem';
-import { rgbaToHexU32, alphaU32 } from '../utils';
+import { rgbaToHexU32, alphaU32, unpackRGBA } from '../utils';
 import { indexToCoord, buildStarPath } from '../utils/pixels.js';
 import { OT, ORIENTATION_OVERFLOW_CONFIG } from '../constants/orientation.js';
 import { SVG_EXPORT_CONFIG } from '../constants/svg.js';
+import previewOverlaySource from '../image/preview_overlay.svg?raw';
+
+function extractSvgTemplate(svgSource) {
+    if (typeof svgSource !== 'string') return null;
+    const svgMatch = svgSource.match(/<svg[^>]*>([\s\S]*?)<\/svg>/i);
+    if (!svgMatch) return null;
+    const svgTagMatch = svgSource.match(/<svg[^>]*>/i);
+    const svgTag = svgTagMatch ? svgTagMatch[0] : '';
+    const viewBoxMatch = svgTag.match(/viewBox\s*=\s*"([^"]+)"/i);
+    const namespaceMatches = [...svgTag.matchAll(/\s(xmlns(?::[^\s=>]+)?)="([^"]+)"/gi)];
+    const namespaces = namespaceMatches
+        .map(([, name, value]) => ({ name: name.trim(), value: value.trim() }))
+        .filter(ns => ns.name && ns.value);
+    let width = 1;
+    let height = 1;
+    if (viewBoxMatch) {
+        const parts = viewBoxMatch[1].trim().split(/\s+/).map(Number);
+        if (parts.length === 4) {
+            width = Math.abs(parts[2]) || 1;
+            height = Math.abs(parts[3]) || 1;
+        }
+    } else {
+        const widthMatch = svgTag.match(/width\s*=\s*"([^"]+)"/i);
+        const heightMatch = svgTag.match(/height\s*=\s*"([^"]+)"/i);
+        width = parseFloat(widthMatch?.[1]) || 1;
+        height = parseFloat(heightMatch?.[1]) || 1;
+    }
+    let inner = svgMatch[1]
+        .replace(/<sodipodi:[^>]*?>[\s\S]*?<\/sodipodi:[^>]*?>/gi, '')
+        .replace(/<sodipodi:[^>]*?\/>/gi, '')
+        .replace(/<metadata[\s\S]*?<\/metadata>/gi, '');
+    inner = inner.trim();
+    return {
+        inner,
+        namespaces,
+        scaleX: width ? 1 / width : 1,
+        scaleY: height ? 1 / height : 1
+    };
+}
+
+const PREVIEW_OVERLAY_TEMPLATE = extractSvgTemplate(previewOverlaySource);
 
 const EXPORT_FORMAT_META = {
     json: { mime: 'application/json', extension: 'json' },
     svg: { mime: 'image/svg+xml', extension: 'svg' },
-    coordinates: { mime: 'application/json', extension: 'coord.json' }
+    coordinates: { mime: 'application/json', extension: 'coord.json' },
+    preview: { mime: 'image/svg+xml', extension: 'preview.svg' }
 };
 
 export const useOutputStore = defineStore('output', {
@@ -260,6 +302,42 @@ export const useOutputStore = defineStore('output', {
             };
             return `<svg xmlns="http://www.w3.org/2000/svg" width="${formatSize(stage.width)}" height="${formatSize(stage.height)}" viewBox="${viewBox}">${serialize(nodeTree.tree)}</svg>`;
         },
+        exportToPreview() {
+            const { nodes, pixels, viewport } = useStore();
+            const stage = viewport.stage;
+            const stageWidth = Math.max(1, stage.width | 0);
+            const stageHeight = Math.max(1, stage.height | 0);
+            const overlayTemplate = PREVIEW_OVERLAY_TEMPLATE;
+            const rects = [];
+            const overlays = [];
+            for (const [idStr, map] of Object.entries(pixels._pixels)) {
+                if (!(map instanceof Map) || map.size === 0) continue;
+                const id = Number(idStr);
+                const props = nodes.getProperties(id);
+                if (!props || props.isGroup) continue;
+                const fill = rgbaToHexU32(props.color);
+                const fillOpacity = Math.round(alphaU32(props.color) * 1000) / 1000;
+                for (const [pixelIndex] of map) {
+                    const [x, y] = indexToCoord(pixelIndex);
+                    rects.push(`<rect x="${x}" y="${y}" width="1" height="1" rx="0.1" ry="0.1" fill="${fill}" fill-opacity="${fillOpacity}"/>`);
+                    if (overlayTemplate?.inner) {
+                        const transforms = [`translate(${x} ${y})`];
+                        if (overlayTemplate.scaleX !== 1 || overlayTemplate.scaleY !== 1) {
+                            transforms.push(`scale(${overlayTemplate.scaleX} ${overlayTemplate.scaleY})`);
+                        }
+                        overlays.push(`<g transform="${transforms.join(' ')}">${overlayTemplate.inner}</g>`);
+                    }
+                }
+            }
+            const namespaceAttrs = (overlayTemplate?.namespaces || [])
+                .filter(ns => ns.name !== 'xmlns')
+                .map(ns => ` ${ns.name}="${ns.value}"`)
+                .join('');
+            const header = `<svg xmlns="http://www.w3.org/2000/svg"${namespaceAttrs} width="${stageWidth}" height="${stageHeight}" viewBox="0 0 ${stageWidth} ${stageHeight}" shape-rendering="crispEdges">`;
+            const pixelsGroup = rects.length ? `<g id="preview-pixels">${rects.join('')}</g>` : '';
+            const overlayGroup = overlays.length ? `<g id="preview-overlay">${overlays.join('')}</g>` : '';
+            return `${header}${pixelsGroup}${overlayGroup}</svg>`;
+        },
         exportToCoordinates() {
             const { nodes, pixels } = useStore();
             const coordinatesByColor = {};
@@ -282,6 +360,8 @@ export const useOutputStore = defineStore('output', {
             switch (format) {
                 case 'svg':
                     return { ...EXPORT_FORMAT_META.svg, content: this.exportToSVG() };
+                case 'preview':
+                    return { ...EXPORT_FORMAT_META.preview, content: this.exportToPreview() };
                 case 'coordinates':
                     return { ...EXPORT_FORMAT_META.coordinates, content: JSON.stringify(this.exportToCoordinates()) };
                 case 'json':
@@ -345,6 +425,10 @@ export const useOutputStore = defineStore('output', {
                             accept: { 'application/json': ['.coord.json'] }
                         },
                         {
+                            description: 'Preview SVG',
+                            accept: { 'image/svg+xml': ['.preview.svg'] }
+                        },
+                        {
                             description: 'Scalable Vector Graphics',
                             accept: { 'image/svg+xml': ['.svg'] }
                         }
@@ -352,7 +436,8 @@ export const useOutputStore = defineStore('output', {
                 });
                 const name = handle.name?.toLowerCase?.() || '';
                 let format = defaultFormat;
-                if (name.endsWith('.svg')) format = 'svg';
+                if (name.endsWith('.preview.svg')) format = 'preview';
+                else if (name.endsWith('.svg')) format = 'svg';
                 else if (name.endsWith('.coord.json')) format = 'coordinates';
                 else if (name.endsWith('.json')) format = 'json';
                 return await this.saveToHandle(handle, format);
